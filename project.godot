@@ -1,24 +1,36 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Cogito"
+config/tags=PackedStringArray("cogito", "official")
 run/main_scene="res://addons/cogito/DemoScenes/COGITO_0_MainMenu.tscn"
-config/features=PackedStringArray("4.4", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 run/max_fps=120
-boot_splash/fullsize=false
+boot_splash/stretch_mode=0
 boot_splash/image="res://addons/cogito/COGITO_Card_2025.png"
 config/icon="res://addons/cogito/COGITO_icon.png"
-config/tags=PackedStringArray("cogito", "official")
 
 [autoload]
 
-Audio="*res://addons/quick_audio/./Audio.gd"
-InputHelper="*res://addons/input_helper/input_helper.gd"
-CogitoGlobals="*res://addons/cogito/cogito_globals.gd"
-CogitoSceneManager="*res://addons/cogito/SceneManagement/cogito_scene_manager.gd"
-CogitoQuestManager="*res://addons/cogito/QuestSystem/cogito_quest_manager.gd"
-MenuTemplateManager="*res://addons/cogito/EasyMenus/Nodes/menu_template_manager.tscn"
+Audio="*uid://cujwm7u5pvogl"
+InputHelper="*uid://cholww48njaeh"
+CogitoGlobals="*uid://d0q71mnw6am11"
+CogitoSceneManager="*uid://dwd61hyssfy55"
+CogitoQuestManager="*uid://c33l80dv3c6c5"
+MenuTemplateManager="*uid://dru131jwwih1y"
 
 [display]
 
@@ -48,10 +60,10 @@ folder_colors={
 
 [gui]
 
-theme/default_theme_scale=2.0
-theme/custom="uid://by44nnjeu6u4n"
 theme/default_font_multichannel_signed_distance_field=true
 theme/default_font_generate_mipmaps=true
+theme/default_theme_scale=2.0
+theme/custom="uid://by44nnjeu6u4n"
 
 [importer_defaults]
 

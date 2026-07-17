@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" load_steps=10 format=3 uid="uid://bspjwxt1hotc"]
+[gd_resource type="VisualShader" format=3 uid="uid://bspjwxt1hotc"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_hhiyf"]
 noise_type = 0
@@ -29,49 +29,6 @@ parameter_name = "base_color"
 parameter_name = "emission_strength"
 
 [resource]
-code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_lambert, specular_schlick_ggx, depth_prepass_alpha;
-
-uniform vec4 base_color : source_color;
-uniform sampler2D tex_frg_2;
-uniform float alpha = 0.0;
-uniform vec4 emission_color : source_color;
-
-
-
-void fragment() {
-// ColorParameter:7
-	vec4 n_out7p0 = base_color;
-
-
-// Texture2D:2
-	vec4 n_out2p0 = texture(tex_frg_2, UV);
-
-
-// FloatParameter:4
-	float n_out4p0 = alpha;
-
-
-// FloatOp:5
-	float n_out5p0 = n_out2p0.x * n_out4p0;
-
-
-// FloatFunc:3
-	float n_out3p0 = round(n_out5p0);
-
-
-// ColorParameter:6
-	vec4 n_out6p0 = emission_color;
-
-
-// Output:0
-	ALBEDO = vec3(n_out7p0.xyz);
-	ALPHA = n_out3p0;
-	EMISSION = vec3(n_out6p0.xyz);
-
-
-}
-"
 modes/cull = 2
 flags/depth_prepass_alpha = true
 nodes/fragment/2/node = SubResource("VisualShaderNodeTexture_ba5aa")

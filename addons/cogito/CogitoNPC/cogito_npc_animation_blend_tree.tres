@@ -1,4 +1,4 @@
-[gd_resource type="AnimationNodeBlendTree" load_steps=26 format=3 uid="uid://dnrojkastjfi6"]
+[gd_resource type="AnimationNodeBlendTree" format=3 uid="uid://dnrojkastjfi6"]
 
 [sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_duam4"]
 animation = &"Hit_Chest"
@@ -33,25 +33,34 @@ play_mode = 1
 animation = &"A_TPose"
 
 [sub_resource type="AnimationNodeBlendSpace2D" id="AnimationNodeBlendSpace2D_a5a6b"]
+sync_mode = 1
 blend_point_0/node = SubResource("AnimationNodeAnimation_bjpjg")
 blend_point_0/pos = Vector2(0, 0)
+blend_point_0/name = &"0"
 blend_point_1/node = SubResource("AnimationNodeAnimation_aorsj")
 blend_point_1/pos = Vector2(0, 1)
+blend_point_1/name = &"1"
 blend_point_2/node = SubResource("AnimationNodeAnimation_w1m7v")
 blend_point_2/pos = Vector2(0, 0.5)
+blend_point_2/name = &"2"
 blend_point_3/node = SubResource("AnimationNodeAnimation_i2fr3")
 blend_point_3/pos = Vector2(-1, 0)
+blend_point_3/name = &"3"
 blend_point_4/node = SubResource("AnimationNodeAnimation_d3xnp")
 blend_point_4/pos = Vector2(1, 0)
+blend_point_4/name = &"4"
 blend_point_5/node = SubResource("AnimationNodeAnimation_v6cfp")
 blend_point_5/pos = Vector2(0.5, 0)
+blend_point_5/name = &"5"
 blend_point_6/node = SubResource("AnimationNodeAnimation_ykgx5")
 blend_point_6/pos = Vector2(0, -0.5)
+blend_point_6/name = &"6"
 blend_point_7/node = SubResource("AnimationNodeAnimation_6x1gu")
 blend_point_7/pos = Vector2(0, -1)
+blend_point_7/name = &"7"
 blend_point_8/node = SubResource("AnimationNodeAnimation_quvij")
 blend_point_8/pos = Vector2(-0.5, 0)
-sync = true
+blend_point_8/name = &"8"
 
 [sub_resource type="AnimationNodeTransition" id="AnimationNodeTransition_qy7hr"]
 sync = true
@@ -93,7 +102,7 @@ nodes/Punch/node = SubResource("AnimationNodeAnimation_mf8n2")
 nodes/Punch/position = Vector2(-280, 340)
 nodes/attack/node = SubResource("AnimationNodeOneShot_rdr7m")
 nodes/attack/position = Vector2(40, 140)
-node_connections = [&"attack", 0, &"Animation", &"attack", 1, &"Punch", &"output", 0, &"attack"]
+node_connections = [&"output", 0, &"attack", &"attack", 0, &"Animation", &"attack", 1, &"Punch"]
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_duam4"]
 advance_mode = 2
@@ -121,6 +130,7 @@ transitions = ["Start", "Neutral", SubResource("AnimationNodeStateMachineTransit
 graph_offset = Vector2(-437, 56)
 
 [resource]
+nodes/output/position = Vector2(260, 160)
 nodes/Animation/node = SubResource("AnimationNodeAnimation_duam4")
 nodes/Animation/position = Vector2(-461.97, 626.522)
 nodes/Movement/node = SubResource("AnimationNodeBlendSpace2D_a5a6b")
@@ -131,5 +141,4 @@ nodes/UpperBodyBlend/node = SubResource("AnimationNodeBlend2_8uif1")
 nodes/UpperBodyBlend/position = Vector2(-40, 140)
 nodes/UpperBodyState/node = SubResource("AnimationNodeStateMachine_yvs0n")
 nodes/UpperBodyState/position = Vector2(-600, 340)
-nodes/output/position = Vector2(260, 160)
-node_connections = [&"Transition", 0, &"UpperBodyState", &"Transition", 1, &"Animation", &"UpperBodyBlend", 0, &"Movement", &"UpperBodyBlend", 1, &"Transition", &"output", 0, &"UpperBodyBlend"]
+node_connections = [&"output", 0, &"UpperBodyBlend", &"Transition", 0, &"UpperBodyState", &"Transition", 1, &"Animation", &"UpperBodyBlend", 0, &"Movement", &"UpperBodyBlend", 1, &"Transition"]

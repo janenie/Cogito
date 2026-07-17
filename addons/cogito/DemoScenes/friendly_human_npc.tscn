@@ -1,0 +1,128 @@
+[gd_scene load_steps=12 format=4 uid="uid://be30t42msjnp8"]
+
+[ext_resource type="Script" path="res://addons/cogito/DemoScenes/friendly_human_npc.gd" id="1_human_npc"]
+[ext_resource type="PackedScene" uid="uid://l61jtpfxu5x5" path="res://addons/cogito/Components/Interactions/BasicInteraction.tscn" id="2_basic_interaction"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_human_collision"]
+radius = 0.32
+height = 1.75
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_skin"]
+albedo_color = Color(0.86, 0.62, 0.42, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hair"]
+albedo_color = Color(0.12, 0.08, 0.045, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shirt"]
+albedo_color = Color(0.18, 0.44, 0.62, 1)
+roughness = 0.75
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pants"]
+albedo_color = Color(0.16, 0.18, 0.21, 1)
+roughness = 0.82
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.26
+height = 0.82
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+radius = 0.23
+height = 0.46
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_limb"]
+radius = 0.075
+height = 0.6
+
+[sub_resource type="SphereMesh" id="SphereMesh_hand"]
+radius = 0.08
+height = 0.16
+
+[node name="FriendlyHumanNPC" type="CharacterBody3D" node_paths=PackedStringArray("prompt_marker", "navigation_agent", "visual_root", "left_arm", "right_arm", "left_leg", "right_leg")]
+script = ExtResource("1_human_npc")
+prompt_marker = NodePath("PromptMarker")
+navigation_agent = NodePath("NavigationAgent3D")
+visual_root = NodePath("Visual")
+left_arm = NodePath("Visual/LeftArm")
+right_arm = NodePath("Visual/RightArm")
+left_leg = NodePath("Visual/LeftLeg")
+right_leg = NodePath("Visual/RightLeg")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)
+shape = SubResource("CapsuleShape3D_human_collision")
+
+[node name="PromptMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.25
+target_desired_distance = 0.45
+simplify_path = true
+avoidance_enabled = true
+radius = 0.35
+height = 1.75
+debug_path_custom_color = Color(0.953333, 0.3, 1, 1)
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 0.95, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_shirt")
+
+[node name="Head" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 1, 0, 1.48, 0)
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="Hair" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(0.9, 0, 0, 0, 0.42, 0, 0, 0, 0.9, 0, 1.66, -0.015)
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_hair")
+
+[node name="LeftArm" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, -0.173648, 0, 0.173648, 0.984808, -0.34, 1.13, 0)
+
+[node name="ArmMesh" type="MeshInstance3D" parent="Visual/LeftArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+mesh = SubResource("CapsuleMesh_limb")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="LeftHand" type="MeshInstance3D" parent="Visual/LeftArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.58, 0)
+mesh = SubResource("SphereMesh_hand")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="RightArm" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0.34, 1.13, 0)
+
+[node name="ArmMesh" type="MeshInstance3D" parent="Visual/RightArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+mesh = SubResource("CapsuleMesh_limb")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="RightHand" type="MeshInstance3D" parent="Visual/RightArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.58, 0)
+mesh = SubResource("SphereMesh_hand")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="LeftLeg" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 0.52, 0)
+
+[node name="LegMesh" type="MeshInstance3D" parent="Visual/LeftLeg"]
+transform = Transform3D(1.05, 0, 0, 0, 1.05, 0, 0, 0, 1.05, 0, -0.25, 0)
+mesh = SubResource("CapsuleMesh_limb")
+surface_material_override/0 = SubResource("StandardMaterial3D_pants")
+
+[node name="RightLeg" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0.52, 0)
+
+[node name="LegMesh" type="MeshInstance3D" parent="Visual/RightLeg"]
+transform = Transform3D(1.05, 0, 0, 0, 1.05, 0, 0, 0, 1.05, 0, -0.25, 0)
+mesh = SubResource("CapsuleMesh_limb")
+surface_material_override/0 = SubResource("StandardMaterial3D_pants")
+
+[node name="BasicInteraction" parent="." instance=ExtResource("2_basic_interaction")]
+interaction_text = "Talk"

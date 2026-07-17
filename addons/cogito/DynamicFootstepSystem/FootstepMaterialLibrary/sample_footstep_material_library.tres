@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="FootstepMaterialLibrary" load_steps=15 format=3 uid="uid://ca0q2t6w08ubh"]
+[gd_resource type="Resource" script_class="FootstepMaterialLibrary" format=3 uid="uid://ca0q2t6w08ubh"]
 
 [ext_resource type="Script" uid="uid://c37vmrysh4i7" path="res://addons/cogito/DynamicFootstepSystem/Scripts/footstep_material_library.gd" id="1_7wxnt"]
 [ext_resource type="AudioStream" uid="uid://dbmjsd7o6tdw6" path="res://addons/cogito/DynamicFootstepSystem/FootstepProfiles/dirt_footstep_profile.tres" id="1_hgopr"]

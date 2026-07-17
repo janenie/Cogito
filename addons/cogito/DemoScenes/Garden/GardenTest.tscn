@@ -1,0 +1,179 @@
+[gd_scene load_steps=20 format=4]
+
+[ext_resource type="Script" path="res://addons/cogito/SceneManagement/cogito_scene.gd" id="1_scene"]
+[ext_resource type="PackedScene" path="res://addons/cogito/PackedScenes/cogito_player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://addons/cogito/DemoScenes/Garden/garden_watering_can.gd" id="3_watering_can"]
+[ext_resource type="PackedScene" path="res://addons/cogito/Components/Interactions/BasicInteraction.tscn" id="4_basic_interaction"]
+[ext_resource type="Texture2D" path="res://addons/cogito/Assets/hdris/kloofendal_48d_partly_cloudy_puresky_2k.hdr" id="5_sky"]
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_garden"]
+panorama = ExtResource("5_sky")
+
+[sub_resource type="Sky" id="Sky_garden"]
+sky_material = SubResource("PanoramaSkyMaterial_garden")
+
+[sub_resource type="Environment" id="Environment_garden"]
+background_mode = 2
+sky = SubResource("Sky_garden")
+ambient_light_sky_contribution = 0.35
+ambient_light_energy = 0.7
+tonemap_mode = 3
+glow_enabled = true
+glow_intensity = 0.35
+
+[sub_resource type="StandardMaterial3D" id="Mat_grass"]
+resource_name = "Garden grass"
+albedo_color = Color(0.18, 0.52, 0.16, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_stem"]
+resource_name = "Flower stem"
+albedo_color = Color(0.09, 0.42, 0.14, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Mat_flower_pink"]
+resource_name = "Pink flower"
+albedo_color = Color(0.95, 0.2, 0.45, 1)
+roughness = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Mat_flower_yellow"]
+resource_name = "Yellow flower"
+albedo_color = Color(1, 0.78, 0.18, 1)
+roughness = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Mat_can"]
+resource_name = "Watering can"
+albedo_color = Color(0.18, 0.52, 0.74, 1)
+metallic = 0.35
+roughness = 0.42
+
+[sub_resource type="BoxMesh" id="Mesh_grass"]
+size = Vector3(24, 0.2, 24)
+
+[sub_resource type="BoxShape3D" id="Shape_grass"]
+size = Vector3(24, 0.2, 24)
+
+[sub_resource type="CylinderMesh" id="Mesh_stem"]
+top_radius = 0.025
+bottom_radius = 0.035
+height = 0.55
+radial_segments = 10
+rings = 1
+
+[sub_resource type="SphereMesh" id="Mesh_flower"]
+radius = 0.14
+height = 0.22
+radial_segments = 12
+rings = 6
+
+[sub_resource type="CylinderMesh" id="Mesh_can_body"]
+top_radius = 0.32
+bottom_radius = 0.32
+height = 0.42
+radial_segments = 20
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_can_spout"]
+top_radius = 0.045
+bottom_radius = 0.07
+height = 0.75
+radial_segments = 12
+rings = 1
+
+[sub_resource type="SphereShape3D" id="Shape_can"]
+radius = 0.55
+
+[node name="GardenTest" type="Node3D"]
+script = ExtResource("1_scene")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_garden")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 8, 0)
+light_energy = 2.5
+shadow_enabled = true
+
+[node name="Grass" type="StaticBody3D" parent="."]
+collision_layer = 1
+
+[node name="GrassMesh" type="MeshInstance3D" parent="Grass"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+mesh = SubResource("Mesh_grass")
+surface_material_override/0 = SubResource("Mat_grass")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Grass"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("Shape_grass")
+
+[node name="Flowers" type="Node3D" parent="."]
+
+[node name="FlowerA" type="Node3D" parent="Flowers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -2.0)
+
+[node name="Stem" type="MeshInstance3D" parent="Flowers/FlowerA"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, 0)
+mesh = SubResource("Mesh_stem")
+surface_material_override/0 = SubResource("Mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Flowers/FlowerA"]
+transform = Transform3D(1, 0, 0, 0, 0.75, 0, 0, 0, 1, 0, 0.62, 0)
+mesh = SubResource("Mesh_flower")
+surface_material_override/0 = SubResource("Mat_flower_pink")
+
+[node name="FlowerB" type="Node3D" parent="Flowers"]
+transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, -1.3, 0, -2.7)
+
+[node name="Stem" type="MeshInstance3D" parent="Flowers/FlowerB"]
+transform = Transform3D(1, 0, 0, 0, 0.85, 0, 0, 0, 1, 0, 0.23, 0)
+mesh = SubResource("Mesh_stem")
+surface_material_override/0 = SubResource("Mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Flowers/FlowerB"]
+transform = Transform3D(1, 0, 0, 0, 0.75, 0, 0, 0, 1, 0, 0.52, 0)
+mesh = SubResource("Mesh_flower")
+surface_material_override/0 = SubResource("Mat_flower_yellow")
+
+[node name="FlowerC" type="Node3D" parent="Flowers"]
+transform = Transform3D(0.819152, 0, -0.573576, 0, 1, 0, 0.573576, 0, 0.819152, 1.6, 0, -1.8)
+
+[node name="Stem" type="MeshInstance3D" parent="Flowers/FlowerC"]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1, 0, 0.3, 0)
+mesh = SubResource("Mesh_stem")
+surface_material_override/0 = SubResource("Mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Flowers/FlowerC"]
+transform = Transform3D(1, 0, 0, 0, 0.75, 0, 0, 0, 1, 0, 0.68, 0)
+mesh = SubResource("Mesh_flower")
+surface_material_override/0 = SubResource("Mat_flower_pink")
+
+[node name="WateringCan" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 0.9, 0.42, -2.35)
+collision_layer = 3
+script = ExtResource("3_watering_can")
+display_name = "Watering Can"
+prompt_pos_mode = 2
+hint_text = "You watered the flowers. Next step: swap this placeholder for a real watering can model."
+
+[node name="Body" type="MeshInstance3D" parent="WateringCan"]
+mesh = SubResource("Mesh_can_body")
+surface_material_override/0 = SubResource("Mat_can")
+
+[node name="Spout" type="MeshInstance3D" parent="WateringCan"]
+transform = Transform3D(0, -0.258819, 0.965926, 1, 0, 0, 0, 0.965926, 0.258819, 0.46, 0.08, 0)
+mesh = SubResource("Mesh_can_spout")
+surface_material_override/0 = SubResource("Mat_can")
+
+[node name="Handle" type="MeshInstance3D" parent="WateringCan"]
+transform = Transform3D(0.32, 0, 0, 0, 0.32, 0, 0, 0, 0.32, -0.33, 0.05, 0)
+mesh = SubResource("Mesh_flower")
+surface_material_override/0 = SubResource("Mat_can")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WateringCan"]
+shape = SubResource("Shape_can")
+
+[node name="BasicInteraction" parent="WateringCan" instance=ExtResource("4_basic_interaction")]
+interaction_text = "Water flowers"
+
+[node name="CogitoPlayer" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 3.5)

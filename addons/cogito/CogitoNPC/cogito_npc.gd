@@ -31,7 +31,7 @@ var attention_target : Node3D
 
 @export_group("Movement")
 var move_speed : float = 2
-@export var walk_speed : float = 2
+@export var walk_speed : float = 0.5
 @export var sprint_speed : float = 4
 @export var acceleration : float = 10.0
 @export var rotation_speed : float = 0.2
