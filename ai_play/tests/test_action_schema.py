@@ -118,6 +118,11 @@ def test_rejects_out_of_range_or_non_finite_numbers(action):
         valid(decision(action))
 
 
+def test_rejects_unrepresentably_large_integer_as_validation_error():
+    with pytest.raises(ActionValidationError):
+        valid(decision({"type": "look", "yaw": 10**10000, "pitch": 0}))
+
+
 def test_rejects_interaction_not_currently_visible():
     with pytest.raises(ActionValidationError, match="available"):
         valid(decision({"type": "interact", "action": "interact2"}))

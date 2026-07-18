@@ -26,8 +26,8 @@ def _require_number(value, lower, upper, field):
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
-        or not math.isfinite(value)
         or not lower <= value <= upper
+        or not math.isfinite(value)
     ):
         raise ActionValidationError(
             f"{field} must be a finite number between {lower} and {upper}"
