@@ -898,7 +898,8 @@ README must include:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r ai_play/requirements.txt
-export AI_PLAY_API_KEY='your-key-from-the-provider'
+read -rs AI_PLAY_API_KEY
+export AI_PLAY_API_KEY
 PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main
 ```
 
