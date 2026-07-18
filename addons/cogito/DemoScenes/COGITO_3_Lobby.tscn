@@ -6438,6 +6438,22 @@ horizontal_alignment = 0
 transform = Transform3D(0.0543052, 0, -0.998524, 0, 1, 0, 0.998524, 0, 0.0543052, 2.96413, 0.794343, -1.87712)
 cogito_name = ""
 
+[node name="FindContract_CeoContract" parent="UPPER_OFFICE_CEO" instance=ExtResource("62_y3og2")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.45, 0.95, -1.12)
+
+[node name="ReadableComponent" parent="UPPER_OFFICE_CEO/FindContract_CeoContract" index="6"]
+readable_title = "LUMEN Renewal Contract"
+readable_content = "合同文件：LUMEN Renewal Contract
+
+供应方：Lumen Office Systems
+负责人：H. Voss
+签署日期：08/30
+版本号：01
+
+归档备注：
+该文件应回收至 ARCHIVE。"
+interaction_text = "Read contract"
+
 [node name="laptop_real" parent="UPPER_OFFICE_CEO" unique_id=843226851 instance=ExtResource("35_s7tgx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12195, 0.80538, -5.77168)
 cogito_name = ""
@@ -6718,9 +6734,21 @@ transform = Transform3D(-0.173648, 0, -0.984808, 0, 1, 0, 0.984808, 0, -0.173648
 [node name="cardboardBoxOpen2" parent="ARCHIVE" unique_id=103219304 instance=ExtResource("32_ue52t")]
 transform = Transform3D(-0.936685, 0, 0.350175, 0, 1, 0, -0.350175, 0, -0.936685, 3.39506, 1.60713, -4.24721)
 
+[node name="FindContract_ArchiveDecoyBox" parent="ARCHIVE" instance=ExtResource("62_y3og2")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.25, 0.9, -1.95)
+
+[node name="ReadableComponent" parent="ARCHIVE/FindContract_ArchiveDecoyBox" index="6"]
+readable_title = "旧包装箱"
+readable_content = "里面都是空文件夹和废弃包装。
+
+没有 LUMEN Renewal Contract。
+
+有人刚翻过这里，但真正的合同不在档案室门边。"
+interaction_text = "Inspect box"
+
 [node name="Keypad" parent="ARCHIVE" unique_id=339358418 node_paths=PackedStringArray("doors_to_unlock") instance=ExtResource("33_3mvl6")]
 transform = Transform3D(-4.37114e-08, -1, -4.37114e-08, 0, -4.37114e-08, 1, -1, 4.37114e-08, 1.91069e-15, -3.10724, 1.21361, -1.39617)
-passcode = "0451"
+passcode = "083001"
 check_when_entered = true
 doors_to_unlock = [NodePath("../ArchiveDoor/FrontDoor")]
 
@@ -6810,6 +6838,24 @@ collision_layer = 3
 [node name="tableGlass(Clone)" type="MeshInstance3D" parent="MEETING_ROOM/tableGlass" unique_id=1784264787]
 mesh = SubResource("ArrayMesh_0iwnw")
 skeleton = NodePath("")
+
+[node name="FindContract_AuditRecord" parent="MEETING_ROOM" instance=ExtResource("62_y3og2")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -3.25, 0.95, -23.55)
+
+[node name="ReadableComponent" parent="MEETING_ROOM/FindContract_AuditRecord" index="6"]
+readable_title = "LUMEN Renewal 审核会"
+readable_content = "结论：
+合同原件需要重新核对签署日期。
+
+门禁备注：
+临时档案室密码格式为 6 位：
+签署日期四位 + 合同版本两位
+
+例：MMDD + VV
+
+下一步：
+签署日期不在系统里。请询问 H. Voss，他最后接触过合同原件。"
+interaction_text = "Read audit note"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MEETING_ROOM/tableGlass" unique_id=1997531080]
 shape = SubResource("ConcavePolygonShape3D_4nw7u")
@@ -7389,9 +7435,32 @@ transform = Transform3D(0.813121, -0.582094, 2.54442e-08, -3.07674e-15, -4.37114
 [node name="CUBICLE_AREA" type="Node3D" parent="." unique_id=2064428455]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 
+[node name="Label_CubicleArea" type="Label3D" parent="CUBICLE_AREA"]
+transform = Transform3D(1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, 1, 5.95, 2.1315, -1.25)
+text = "CUBICLE AREA"
+font = ExtResource("12_72tca")
+outline_size = 10
+
 [node name="computerKeyboard" parent="CUBICLE_AREA" unique_id=1732687064 instance=ExtResource("51_ysw6n")]
 
 [node name="computerScreen" parent="CUBICLE_AREA" unique_id=1806801470 instance=ExtResource("52_8322x")]
+
+[node name="FindContract_ComputerRecord" parent="CUBICLE_AREA" instance=ExtResource("62_y3og2")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 5.95, 1.28, -0.2)
+
+[node name="ReadableComponent" parent="CUBICLE_AREA/FindContract_ComputerRecord" index="6"]
+readable_title = "合同检索系统"
+readable_content = "最近访问记录：
+
+文件名：LUMEN Renewal Contract
+负责人：H. Voss
+版本号：01
+状态：临时借出
+签署日期：被会议复核锁定
+审核地点：MEETING_ROOM
+
+备注：档案室访问码不只使用日期。请查看审核会记录中的门禁规则。"
+interaction_text = "Read terminal"
 
 [node name="computerMouse" parent="CUBICLE_AREA" unique_id=567346878 instance=ExtResource("53_7i3co")]
 
@@ -7679,6 +7748,17 @@ surface_material_override/0 = SubResource("StandardMaterial3D_yhahm")
 
 [node name="Hint_01_Welcome" parent="DEMO_HINTS" unique_id=1567671524 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 1.90368, 1.44587, -15.4)
+
+[node name="ReadableComponent" parent="DEMO_HINTS/Hint_01_Welcome" index="6"]
+readable_title = "档案室门禁任务"
+readable_content = "任务目标：
+找到 6 位密码，打开 ARCHIVE 的密码盘。
+
+第一步：
+从入口沿右侧办公桌区域前进，找到标着 CUBICLE AREA 的电脑工位。
+
+那台电脑里有合同检索记录，会给出第一段密码线索和下一步地点。"
+interaction_text = "Read task"
 
 [node name="Hint_02_LampSwitch" parent="DEMO_HINTS" unique_id=1452028984 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 6.9916, 1.44587, -9.49445)
@@ -8045,6 +8125,7 @@ transform = Transform3D(0.845402, 0, -0.534131, 0, 1, 0, 0.534131, 0, 0.845402, 
 
 [node name="FriendlyHumanNPC" parent="." unique_id=741285414 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
 transform = Transform3D(-0.49726126, -0.010459804, -0.051203772, -0.010553014, 0.49988848, 0.00036851922, 0.05118464, 0.0014472092, -0.49737108, -1.1308239, 0.018328607, -2.917344)
+display_name = "H. Voss"
 wall_min_slide_angle = 0.27750736
 route_root = NodePath("../FriendlyHumanNPCPath")
 final_facing_target = NodePath("../FriendlyHumanNPCPath/HumanSofaLookTarget")

@@ -138,7 +138,7 @@ func _physics_process(delta: float) -> void:
 
 func interact(player_interaction_component: PlayerInteractionComponent) -> void:
 	if player_interaction_component:
-		player_interaction_component.send_hint(null, "Hi. I am heading to the sofa.")
+		player_interaction_component.send_hint(null, "H. Voss: The LUMEN contract is in the CEO office drawer. The Archive boxes only have old packaging.")
 
 
 func _advance_route() -> void:
@@ -439,7 +439,9 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 		return
 
 	var target_basis := Basis.looking_at(direction, Vector3.UP, false)
-	basis = basis.slerp(target_basis, min(rotation_speed * delta, 1.0))
+	var current_scale := scale
+	basis = basis.orthonormalized().slerp(target_basis, min(rotation_speed * delta, 1.0))
+	scale = current_scale
 
 
 func _update_walk_pose(delta: float, is_walking: bool) -> void:
