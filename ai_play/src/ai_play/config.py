@@ -40,8 +40,8 @@ class Config:
         return config
 
     def validate(self) -> None:
-        if self.ws_host not in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError("AI Play WebSocket host must be loopback")
+        if self.ws_host != "127.0.0.1":
+            raise ValueError("AI Play WebSocket host must be loopback 127.0.0.1")
         if not 1 <= self.ws_port <= 65535:
             raise ValueError("AI_PLAY_WS_PORT must be between 1 and 65535")
         if not 1.0 <= self.request_timeout_seconds <= 120.0:
