@@ -16,3 +16,10 @@ data_*/
 /assets
 /ref
 /testing
+
+# AI Play local secrets and runtime data
+ai_play/.env
+ai_play/runtime/
+ai_play/**/*.log
+ai_play/**/__pycache__/
+ai_play/.pytest_cache/
