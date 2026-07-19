@@ -1,8 +1,15 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from ai_play.memory import MemoryStore
+
+
+def _write_memory(path, **overrides):
+    data = MemoryStore.empty().to_prompt_dict()
+    data.update(overrides)
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def test_memory_starts_empty():
@@ -144,5 +151,127 @@ def test_load_missing_file_returns_empty_memory(tmp_path):
 def test_load_rejects_malformed_data(tmp_path, contents):
     path = tmp_path / "memory.json"
     path.write_text(contents, encoding="utf-8")
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+@pytest.mark.parametrize(
+    ("collection", "kind", "source"),
+    [
+        ("facts", "fact", None),
+        ("facts", "fact", "developer file"),
+        ("spatial_memory", "landmark", "observation:-1"),
+    ],
+)
+def test_load_rejects_non_runtime_sources(tmp_path, collection, kind, source):
+    path = tmp_path / "memory.json"
+    entry = {"kind": kind, "text": "Observed at runtime"}
+    if source is not None:
+        entry["source"] = source
+    _write_memory(path, **{collection: [entry]})
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+@pytest.mark.parametrize(
+    ("collection", "entries"),
+    [
+        (
+            "facts",
+            [
+                {"kind": "fact", "text": "Visible  Clue", "source": "observation:1"},
+                {"kind": "fact", "text": " visible clue ", "source": "observation:2"},
+            ],
+        ),
+        (
+            "questions",
+            [
+                {"kind": "question", "text": "Is it open?"},
+                {"kind": "question", "text": " is it OPEN? "},
+            ],
+        ),
+    ],
+)
+def test_load_rejects_normalized_duplicates(tmp_path, collection, entries):
+    path = tmp_path / "memory.json"
+    if collection == "facts":
+        _write_memory(path, facts=entries)
+    else:
+        data = MemoryStore.empty().to_prompt_dict()
+        data["task_state"][collection] = entries
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+@pytest.mark.parametrize("text", ["   ", "x" * 301])
+def test_load_rejects_invalid_entry_text(tmp_path, text):
+    path = tmp_path / "memory.json"
+    _write_memory(
+        path,
+        facts=[{"kind": "fact", "text": text, "source": "observation:1"}],
+    )
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+def test_load_rejects_oversized_optional_working_memory_text(tmp_path):
+    path = tmp_path / "memory.json"
+    _write_memory(path, working_memory=[{"observation_id": 1, "text": "x" * 301}])
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+def test_load_allows_working_memory_without_text(tmp_path):
+    path = tmp_path / "memory.json"
+    _write_memory(path, working_memory=[{"observation_id": 1, "result": "moved"}])
+
+    assert MemoryStore.load(path).working_memory == [
+        {"observation_id": 1, "result": "moved"}
+    ]
+
+
+@pytest.mark.parametrize(
+    ("collection", "kind", "limit"),
+    [
+        ("facts", "fact", 64),
+        ("spatial_memory", "landmark", 48),
+    ],
+)
+def test_load_rejects_over_capacity_memory_collections(
+    tmp_path,
+    collection,
+    kind,
+    limit,
+):
+    path = tmp_path / "memory.json"
+    entries = [
+        {
+            "kind": kind,
+            "text": f"entry {index}",
+            "source": f"observation:{index}",
+        }
+        for index in range(limit + 1)
+    ]
+    _write_memory(path, **{collection: entries})
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+@pytest.mark.parametrize("collection", ["questions", "hypotheses", "failures"])
+def test_load_rejects_over_capacity_task_collections(tmp_path, collection):
+    path = tmp_path / "memory.json"
+    data = MemoryStore.empty().to_prompt_dict()
+    kind = collection[:-1] if collection != "hypotheses" else "hypothesis"
+    data["task_state"][collection] = [
+        {"kind": kind, "text": f"entry {index}"} for index in range(25)
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
     with pytest.raises(ValueError):
         MemoryStore.load(path)

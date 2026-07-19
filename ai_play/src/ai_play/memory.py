@@ -153,9 +153,19 @@ class MemoryStore:
             raise ValueError("malformed memory data")
         if not cls._valid_entry_list(data["working_memory"], 8, require_text=False):
             raise ValueError("malformed working memory")
-        if not cls._valid_entry_list(data["facts"], 64, expected_kind="fact"):
+        if not cls._valid_entry_list(
+            data["facts"],
+            64,
+            expected_kind="fact",
+            require_runtime_source=True,
+        ):
             raise ValueError("malformed facts")
-        if not cls._valid_entry_list(data["spatial_memory"], 48, expected_kind="landmark"):
+        if not cls._valid_entry_list(
+            data["spatial_memory"],
+            48,
+            expected_kind="landmark",
+            require_runtime_source=True,
+        ):
             raise ValueError("malformed spatial memory")
 
         task_state = data["task_state"]
@@ -172,22 +182,45 @@ class MemoryStore:
             if not cls._valid_entry_list(task_state[key], 24, expected_kind=kind):
                 raise ValueError(f"malformed {key}")
 
-    @staticmethod
+    @classmethod
     def _valid_entry_list(
+        cls,
         entries: Any,
         limit: int,
         expected_kind: str | None = None,
         require_text: bool = True,
+        require_runtime_source: bool = False,
     ) -> bool:
         if not isinstance(entries, list) or len(entries) > limit:
             return False
+        identities = set()
         for entry in entries:
             if not isinstance(entry, dict):
                 return False
             if expected_kind is not None and entry.get("kind") != expected_kind:
                 return False
-            if require_text and (
-                not isinstance(entry.get("text"), str) or len(entry["text"]) > 300
+            if require_text:
+                text = entry.get("text")
+                if (
+                    not isinstance(text, str)
+                    or len(text) > 300
+                    or not cls._normalize_text(text)
+                ):
+                    return False
+                identity = (entry.get("kind"), cls._normalize_text(text))
+                if identity in identities:
+                    return False
+                identities.add(identity)
+            elif "text" in entry and (
+                not isinstance(entry["text"], str) or len(entry["text"]) > 300
             ):
                 return False
+            if require_runtime_source:
+                source = entry.get("source")
+                prefix = "observation:"
+                if not isinstance(source, str) or not source.startswith(prefix):
+                    return False
+                observation_id = source[len(prefix):]
+                if not observation_id.isascii() or not observation_id.isdigit():
+                    return False
         return True
