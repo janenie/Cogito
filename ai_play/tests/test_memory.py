@@ -1,0 +1,148 @@
+from pathlib import Path
+
+import pytest
+
+from ai_play.memory import MemoryStore
+
+
+def test_memory_starts_empty():
+    assert MemoryStore.empty().to_prompt_dict() == {
+        "working_memory": [], "facts": [], "spatial_memory": [],
+        "task_state": {"goal": "", "questions": [], "hypotheses": [], "failures": []},
+    }
+
+
+def test_fact_requires_runtime_source():
+    store = MemoryStore.empty()
+    store.apply_updates([{"kind": "fact", "text": "A visible clue", "source": "observation:4", "confidence": 0.8}], 4)
+    assert store.facts[0]["text"] == "A visible clue"
+    store.apply_updates([{"kind": "fact", "text": "Hidden answer", "source": "developer file", "confidence": 1}], 5)
+    assert len(store.facts) == 1
+
+
+def test_working_memory_is_bounded():
+    store = MemoryStore.empty()
+    for index in range(12):
+        store.record_step({"observation_id": index, "result": "moved"})
+    assert len(store.working_memory) == 8
+
+
+def test_updates_accept_only_supported_kinds():
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [
+            {"kind": "landmark", "text": "A marked doorway", "source": "observation:2"},
+            {"kind": "goal", "text": "Reach the doorway"},
+            {"kind": "question", "text": "Is it open?"},
+            {"kind": "hypothesis", "text": "The doorway may open"},
+            {"kind": "failure", "text": "First attempt failed"},
+            {"kind": "route", "text": "Use a hidden shortcut"},
+        ],
+        2,
+    )
+
+    assert [entry["text"] for entry in store.spatial_memory] == ["A marked doorway"]
+    assert store.task_state["goal"] == "Reach the doorway"
+    assert [entry["text"] for entry in store.task_state["questions"]] == ["Is it open?"]
+    assert [entry["text"] for entry in store.task_state["hypotheses"]] == ["The doorway may open"]
+    assert [entry["text"] for entry in store.task_state["failures"]] == ["First attempt failed"]
+
+
+def test_landmark_requires_current_runtime_source():
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [{"kind": "landmark", "text": "Old marker", "source": "observation:1"}],
+        2,
+    )
+    assert store.spatial_memory == []
+
+
+def test_update_text_is_capped_at_300_characters():
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [{"kind": "question", "text": "x" * 301}],
+        1,
+    )
+    assert store.task_state["questions"][0]["text"] == "x" * 300
+
+
+def test_memory_collections_are_bounded():
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [
+            *[
+                {"kind": "fact", "text": f"fact {index}", "source": "observation:7"}
+                for index in range(65)
+            ],
+            *[
+                {"kind": "landmark", "text": f"landmark {index}", "source": "observation:7"}
+                for index in range(49)
+            ],
+            *[
+                {"kind": kind, "text": f"{kind} {index}"}
+                for kind in ("question", "hypothesis", "failure")
+                for index in range(25)
+            ],
+        ],
+        7,
+    )
+
+    assert len(store.facts) == 64
+    assert len(store.spatial_memory) == 48
+    assert len(store.task_state["questions"]) == 24
+    assert len(store.task_state["hypotheses"]) == 24
+    assert len(store.task_state["failures"]) == 24
+
+
+def test_duplicate_keeps_the_higher_confidence_entry():
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [{"kind": "fact", "text": "  Visible   Clue ", "source": "observation:3", "confidence": 0.2}],
+        3,
+    )
+    store.apply_updates(
+        [{"kind": "fact", "text": "visible clue", "source": "observation:4", "confidence": 0.9}],
+        4,
+    )
+
+    assert len(store.facts) == 1
+    assert store.facts[0]["text"] == "visible clue"
+    assert store.facts[0]["confidence"] == 0.9
+
+
+def test_save_atomically_round_trips_memory(tmp_path, monkeypatch):
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [{"kind": "fact", "text": "Observed clue", "source": "observation:9", "confidence": 0.7}],
+        9,
+    )
+    store.record_step({"observation_id": 9, "result": "looked"})
+    path = tmp_path / "memory.json"
+    replace_calls = []
+    original_replace = Path.replace
+
+    def record_replace(source, target):
+        replace_calls.append((source, Path(target)))
+        return original_replace(source, target)
+
+    monkeypatch.setattr(Path, "replace", record_replace)
+    store.save(path)
+
+    assert MemoryStore.load(path).to_prompt_dict() == store.to_prompt_dict()
+    assert len(replace_calls) == 1
+    assert replace_calls[0][0].parent == path.parent
+    assert replace_calls[0][0] != path
+    assert replace_calls[0][1] == path
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_load_missing_file_returns_empty_memory(tmp_path):
+    assert MemoryStore.load(tmp_path / "missing.json").to_prompt_dict() == MemoryStore.empty().to_prompt_dict()
+
+
+@pytest.mark.parametrize("contents", ["not json", "[]", '{"working_memory": []}'])
+def test_load_rejects_malformed_data(tmp_path, contents):
+    path = tmp_path / "memory.json"
+    path.write_text(contents, encoding="utf-8")
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
