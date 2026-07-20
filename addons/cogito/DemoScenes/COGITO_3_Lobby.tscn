@@ -5,6 +5,7 @@
 [ext_resource type="AudioStream" uid="uid://lr1efmq0q16k" path="res://addons/cogito/Assets/Audio/Phazorknight/CogitoAmbience_v02.ogg" id="2_hd73s"]
 [ext_resource type="AudioStream" uid="uid://08bonhm3y2ju" path="res://addons/cogito/Assets/Audio/Phazorknight/CogitoAmbience_v01.ogg" id="2_jeioi"]
 [ext_resource type="PackedScene" uid="uid://kicjwmh02uwf" path="res://addons/cogito/PackedScenes/cogito_player.tscn" id="3_mgle8"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
 [ext_resource type="Script" uid="uid://btnha2whsheir" path="res://addons/cogito/InventoryPD/cogito_inventory.gd" id="4_0kggm"]
 [ext_resource type="Script" uid="uid://di15gqemrkk0x" path="res://addons/cogito/InventoryPD/CustomResources/InventorySlotPD.gd" id="4_g5h7u"]
 [ext_resource type="Script" uid="uid://d2jjqadlnhp6x" path="res://addons/cogito/QuestSystem/Components/cogito_quest_updater.gd" id="7_a40bd"]
@@ -3285,6 +3286,10 @@ material = SubResource("FogMaterial_4avjx")
 transform = Transform3D(-1, 0, 7.45058e-07, 0, 1, 0, -7.45058e-07, 0, -1, 3.03073, 0.905039, -17.9321)
 inventory_data = SubResource("Resource_8mfm7")
 step_height_camera_lerp = 1.5
+
+[node name="AIPlayController" parent="." node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
+player = NodePath("../Player")
+auto_start = false
 
 [node name="QUESTS" type="Node3D" parent="." unique_id=2115615126]
 

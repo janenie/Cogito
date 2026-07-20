@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from .agent_loop import AgentLoop
 from .api_client import ApiClient
@@ -35,5 +36,14 @@ def main(argv=None):
     serve(config, agent_loop)
 
 
+def _run_cli() -> int:
+    try:
+        main()
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(_run_cli())

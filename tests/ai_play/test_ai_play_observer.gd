@@ -103,6 +103,7 @@ func _run_tests() -> void:
 		_contains_only_json_values(filtered_observation),
 		"filtered observation remains JSON-compatible",
 	)
+	_assert(not _contains_only_json_values(INF), "JSON test helper rejects non-finite floats")
 
 	var image_payload: Dictionary = observation.get("image", {})
 	_assert(image_payload.get("mime_type") == "image/jpeg", "image MIME type is JPEG")
@@ -148,8 +149,10 @@ func _run_tests() -> void:
 
 func _contains_only_json_values(value: Variant) -> bool:
 	match typeof(value):
-		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_STRING:
 			return true
+		TYPE_FLOAT:
+			return is_finite(value)
 		TYPE_ARRAY:
 			for item: Variant in value:
 				if not _contains_only_json_values(item):
