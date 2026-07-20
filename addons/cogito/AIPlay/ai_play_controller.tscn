@@ -1,0 +1,24 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_controller.gd" id="1_controller"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_observer.gd" id="2_observer"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_executor.gd" id="3_executor"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_bridge.gd" id="4_bridge"]
+
+[node name="AIPlayController" type="Node"]
+script = ExtResource("1_controller")
+auto_start = false
+host = "127.0.0.1"
+port = 8765
+
+[node name="Observer" type="Node" parent="."]
+script = ExtResource("2_observer")
+
+[node name="Executor" type="Node" parent="."]
+script = ExtResource("3_executor")
+
+[node name="Bridge" type="Node" parent="."]
+script = ExtResource("4_bridge")
+
+[node name="ObservationTimer" type="Timer" parent="."]
+one_shot = true

@@ -16,6 +16,7 @@ const ACTION_FIELDS: Dictionary = {
 	"stop": ["type"],
 }
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
+const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 
 var held_actions: Dictionary = {}
 var _cancel_generation: int = 0
@@ -115,6 +116,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 	match action_type:
 		"look":
 			var motion := InputEventMouseMotion.new()
+			motion.device = SYNTHETIC_DEVICE_ID
 			motion.relative = Vector2(float(action["yaw"]), float(action["pitch"]))
 			Input.parse_input_event(motion)
 		"move", "sprint":
@@ -166,10 +168,12 @@ func _release_held_actions() -> void:
 
 func _emit_action_pair(action_name: String) -> void:
 	var event := InputEventAction.new()
+	event.device = SYNTHETIC_DEVICE_ID
 	event.action = action_name
 	event.pressed = true
 	Input.parse_input_event(event)
 	var release := InputEventAction.new()
+	release.device = SYNTHETIC_DEVICE_ID
 	release.action = action_name
 	release.pressed = false
 	Input.parse_input_event(release)
@@ -178,11 +182,13 @@ func _emit_action_pair(action_name: String) -> void:
 func _emit_digit_pair(digit: String) -> void:
 	var code: int = digit.unicode_at(0)
 	var event := InputEventKey.new()
+	event.device = SYNTHETIC_DEVICE_ID
 	event.keycode = code as Key
 	event.unicode = code
 	event.pressed = true
 	Input.parse_input_event(event)
 	var release := InputEventKey.new()
+	release.device = SYNTHETIC_DEVICE_ID
 	release.keycode = code as Key
 	release.unicode = code
 	release.pressed = false
