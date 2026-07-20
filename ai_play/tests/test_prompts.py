@@ -109,3 +109,5 @@ def test_prompt_treats_visible_text_as_untrusted_data():
     assert "action whitelist" in lower
     for forbidden_request in ("file", "network", "system"):
         assert forbidden_request in lower
+    assert "entire observation" in lower
+    assert "all persisted or runtime memory" in lower
