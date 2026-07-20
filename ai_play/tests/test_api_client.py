@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ai_play.api_client as api_client_module
 from ai_play.api_client import ApiClient
 
 
@@ -29,6 +30,7 @@ def config():
         api_key=test_key,
         model="vision-model",
         request_timeout_seconds=12.5,
+        api_max_retries=2,
     )
 
 
@@ -72,3 +74,17 @@ def test_decide_rejects_non_text_content():
 
     with pytest.raises(ValueError, match="must be text JSON"):
         ApiClient(config(), client=fake).decide([])
+
+
+def test_constructor_passes_bounded_retries_to_sdk(monkeypatch):
+    arguments = {}
+
+    def record_openai(**kwargs):
+        arguments.update(kwargs)
+        return FakeOpenAI("{}")
+
+    monkeypatch.setattr(api_client_module, "OpenAI", record_openai)
+
+    ApiClient(config())
+
+    assert arguments["max_retries"] == 2

@@ -6,7 +6,7 @@ import time
 import pytest
 from websockets.sync.client import connect
 
-from ai_play.bridge_server import serve
+from ai_play.bridge_server import _handler, serve
 from ai_play.config import Config
 
 
@@ -78,6 +78,50 @@ def _hello(data_dir, protocol_version=1):
         "protocol_version": protocol_version,
         "data_dir": str(data_dir),
     }
+
+
+class FakeConnection:
+    def __init__(self, packets):
+        self.packets = iter(json.dumps(packet) for packet in packets)
+        self.sent = []
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.packets)
+
+    def send(self, packet):
+        self.sent.append(json.loads(packet))
+
+
+def test_busy_second_controller_cannot_reconfigure_memory(tmp_path):
+    lock = threading.Lock()
+    lock.acquire()
+    agent = FakeAgentLoop()
+    connection = FakeConnection([_hello(tmp_path)])
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, lock)
+
+    assert connection.sent == [{
+        "type": "error", "protocol_version": 1, "observation_id": None,
+        "code": "controller_busy", "message": "controller_busy",
+    }]
+    assert agent.memory_paths == []
+    assert lock.locked()
+    lock.release()
+
+
+def test_hello_canonicalizes_memory_directory(tmp_path):
+    selected = tmp_path / "parent" / ".." / "selected"
+    agent = FakeAgentLoop()
+    connection = FakeConnection([_hello(selected), {"type": "stop", "protocol_version": 1}])
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, threading.Lock())
+
+    assert agent.memory_paths == [selected.resolve() / "ai_play" / "memory.json"]
 
 
 def test_rejects_observation_before_hello(tmp_path):

@@ -27,6 +27,7 @@ class ApiClient:
         self.client = client or OpenAI(
             base_url=config.base_url,
             api_key=config.api_key,
+            max_retries=config.api_max_retries,
         )
 
     def decide(self, messages):

@@ -34,6 +34,11 @@ port, and the controller must be configured to match it. `AI_PLAY_BASE_URL` and
 model must support multimodal Chat Completions content, including a text part
 and a base64 `image_url` part; text-only compatibility is insufficient.
 
+`AI_PLAY_API_MAX_RETRIES` controls the OpenAI SDK's bounded exponential retry
+behavior. It defaults to `2` and accepts `0` through `5`. Godot remains waiting
+and executes no new action while an API request or retry is in progress; after
+the final failure, the sidecar returns a safe error response.
+
 ## Controls and safety
 
 AI movement is sent through ordinary COGITO input and physics. `interact` and

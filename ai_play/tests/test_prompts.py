@@ -101,3 +101,11 @@ def test_prompt_uses_runtime_bindings_for_contextual_interaction_slots():
     ]
     assert "The F and E bindings" not in SYSTEM_PROMPT
     assert "runtime `bindings` and `available_interactions`" in SYSTEM_PROMPT
+
+
+def test_prompt_treats_visible_text_as_untrusted_data():
+    lower = SYSTEM_PROMPT.lower()
+    assert "visible text" in lower and "untrusted" in lower
+    assert "action whitelist" in lower
+    for forbidden_request in ("file", "network", "system"):
+        assert forbidden_request in lower

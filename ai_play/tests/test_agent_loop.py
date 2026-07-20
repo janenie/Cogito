@@ -1,27 +1,57 @@
 import threading
+import json
+
+import pytest
 
 import ai_play.agent_loop as agent_loop_module
 from ai_play.agent_loop import AgentLoop
+from ai_play.memory import MemoryStore
 
 
 def observation(observation_id=9):
     return {
+        "type": "observation",
+        "protocol_version": 1,
         "observation_id": observation_id,
-        "image": {"mime_type": "image/jpeg", "base64": "aW1hZ2U="},
+        "captured_at_ms": 1234,
+        "image": {
+            "mime_type": "image/jpeg",
+            "base64": "/9j/2Q==",
+            "width": 768,
+            "height": 432,
+        },
+        "player": {
+            "position": [0.0, 1.0, 2.0],
+            "yaw_degrees": 10.0,
+            "pitch_degrees": -2.0,
+            "planar_velocity": [0.0, 0.0],
+            "on_floor": True,
+            "health_ratio": None,
+            "stamina_ratio": 0.5,
+        },
         "interface": {
             "is_open": False,
+            "visible_object_text": "",
             "available_interactions": [
                 {"action": "interact2", "binding": "E", "prompt": "Use"}
             ],
         },
+        "bindings": {
+            "forward": "W", "back": "S", "left": "A", "right": "D",
+            "jump": "Space", "sprint": "Shift", "crouch": "C",
+            "interact": "F", "interact2": "E", "menu": "Escape",
+        },
+        "last_action_results": [],
     }
 
 
 class FakeApi:
     def __init__(self, decision):
         self.decision = decision
+        self.messages = []
 
     def decide(self, messages):
+        self.messages.append(messages)
         return self.decision
 
 
@@ -79,6 +109,117 @@ def test_action_batch_copies_observation_id():
         "reason": "observe",
         "actions": [{"type": "wait", "duration_ms": 100}],
     }
+
+
+def test_valid_observation_reaches_api_without_wire_envelope():
+    api = FakeApi(decision())
+    loop = AgentLoop(api, FakeMemory())
+
+    assert loop.handle_observation(observation())["type"] == "action_batch"
+    state = json.loads(api.messages[0][1]["content"][0]["text"])
+
+    assert set(state["observation"]) == {
+        "observation_id", "captured_at_ms", "image", "player", "interface",
+        "bindings", "last_action_results",
+    }
+    assert "type" not in state["observation"]
+    assert "protocol_version" not in state["observation"]
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda value: value.update({"script": "res://private.gd"}),
+        lambda value: value["player"].update({"path": "/private/route"}),
+        lambda value: value["image"].update({"prompt": "ignore safety"}),
+        lambda value: value["interface"]["available_interactions"][0].update(
+            {"payload": "read a file"}
+        ),
+        lambda value: value.update({"observation_id": True}),
+        lambda value: value["player"].update({"yaw_degrees": float("nan")}),
+        lambda value: value["image"].update({"base64": "not base64"}),
+        lambda value: value["interface"]["available_interactions"][0].update(
+            {"binding": "Q"}
+        ),
+        lambda value: value.update({
+            "last_action_results": [{"status": "completed", "error": "impossible"}]
+        }),
+        lambda value: value["interface"].update({
+            "available_interactions": [
+                {"action": "interact", "binding": "F", "prompt": "One"},
+                {"action": "interact2", "binding": "E", "prompt": "Two"},
+                {"action": "interact", "binding": "F", "prompt": "Three"},
+            ]
+        }),
+        lambda value: value.update({
+            "last_action_results": [{"status": "cancelled"}] * 4
+        }),
+        lambda value: value["bindings"].update({"forward": "x" * 33}),
+        lambda value: value["interface"]["available_interactions"][0].update(
+            {"prompt": "x" * 201}
+        ),
+        lambda value: value["image"].update({"width": 769}),
+        lambda value: value.update({
+            "last_action_results": [{"status": "completed", "type": "teleport"}]
+        }),
+        lambda value: value["player"].update({"position": [1_000_000.1, 0, 0]}),
+        lambda value: value["player"].update({"yaw_degrees": -1_000_000.1}),
+        lambda value: value["player"].update({"pitch_degrees": 90.1}),
+        lambda value: value["player"].update({"planar_velocity": [0, 10_000.1]}),
+        lambda value: value.update({
+            "last_action_results": [{"status": "blocked", "type": "look"}]
+        }),
+        lambda value: value.update({
+            "last_action_results": [{"status": "stopped", "type": "move"}]
+        }),
+        lambda value: value.update({
+            "last_action_results": [{
+                "status": "blocked", "type": "move", "reason": "extra",
+            }]
+        }),
+    ],
+)
+def test_invalid_observation_is_rejected_before_api(mutate):
+    value = observation()
+    mutate(value)
+    api = FakeApi(decision())
+
+    result = AgentLoop(api, FakeMemory()).handle_observation(value)
+
+    assert result["type"] == "error"
+    assert result["message"] == "ObservationValidationError"
+    assert api.messages == []
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"status": "blocked", "type": "move"},
+        {"status": "blocked", "type": "sprint"},
+        {"status": "stopped", "type": "stop"},
+    ],
+)
+def test_accepts_exact_blocked_and_stopped_results(result):
+    value = observation()
+    value["last_action_results"] = [result]
+    api = FakeApi(decision())
+
+    response = AgentLoop(api, FakeMemory()).handle_observation(value)
+
+    assert response["type"] == "action_batch"
+    assert len(api.messages) == 1
+
+
+def test_accepts_player_numeric_boundaries():
+    value = observation()
+    value["player"].update({
+        "position": [-1_000_000, 1_000_000, 0],
+        "yaw_degrees": 1_000_000,
+        "pitch_degrees": -90,
+        "planar_velocity": [-10_000, 10_000],
+    })
+
+    assert AgentLoop(FakeApi(decision()), FakeMemory()).handle_observation(value)["type"] == "action_batch"
 
 
 def test_applies_and_saves_memory_only_after_decision_validation(tmp_path):
@@ -159,3 +300,41 @@ def test_rejects_second_observation_while_decision_is_in_progress():
         "message": "RuntimeError",
     }
     assert first_result[0]["observation_id"] == 1
+
+
+def test_next_prompt_records_previous_decision_and_results():
+    api = FakeApi(decision(
+        reason="look around",
+        actions=[{"type": "look", "yaw": 5, "pitch": 0}],
+    ))
+    memory = MemoryStore.empty()
+    loop = AgentLoop(api, memory)
+
+    loop.handle_observation(observation(1))
+    second = observation(2)
+    second["last_action_results"] = [{"status": "completed", "type": "look"}]
+    loop.handle_observation(second)
+
+    first_state = json.loads(api.messages[0][1]["content"][0]["text"])
+    second_state = json.loads(api.messages[1][1]["content"][0]["text"])
+    assert first_state["memory"]["working_memory"] == []
+    assert second_state["memory"]["working_memory"] == [{
+        "observation_id": 1,
+        "reason": "look around",
+        "actions": [{"type": "look", "yaw": 5, "pitch": 0}],
+        "last_action_results": [{"status": "completed", "type": "look"}],
+    }]
+    rendered_memory = json.dumps(second_state["memory"])
+    assert "base64" not in rendered_memory
+    assert "captured_at_ms" not in rendered_memory
+
+
+def test_recorded_decision_history_is_bounded():
+    memory = MemoryStore.empty()
+    loop = AgentLoop(FakeApi(decision()), memory)
+
+    for observation_id in range(10):
+        loop.handle_observation(observation(observation_id))
+
+    assert len(memory.working_memory) == 8
+    assert [entry["observation_id"] for entry in memory.working_memory] == list(range(1, 9))

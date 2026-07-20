@@ -13,6 +13,7 @@ class Config:
     ws_host: str = "127.0.0.1"
     ws_port: int = 8765
     request_timeout_seconds: float = 45.0
+    api_max_retries: int = 2
     data_dir: Path | None = None
 
     @classmethod
@@ -20,6 +21,12 @@ class Config:
         key = os.environ.get("AI_PLAY_API_KEY", "").strip()
         if not key:
             raise ValueError("AI_PLAY_API_KEY is required")
+        try:
+            api_max_retries = int(
+                os.environ.get("AI_PLAY_API_MAX_RETRIES", str(cls.api_max_retries))
+            )
+        except ValueError as error:
+            raise ValueError("AI_PLAY_API_MAX_RETRIES must be 0..5") from error
         config = cls(
             api_key=key,
             base_url=os.environ.get("AI_PLAY_BASE_URL", cls.base_url).rstrip("/"),
@@ -32,6 +39,7 @@ class Config:
                     str(cls.request_timeout_seconds),
                 )
             ),
+            api_max_retries=api_max_retries,
             data_dir=Path(os.environ["AI_PLAY_DATA_DIR"]).expanduser()
             if os.environ.get("AI_PLAY_DATA_DIR")
             else None,
@@ -46,3 +54,5 @@ class Config:
             raise ValueError("AI_PLAY_WS_PORT must be between 1 and 65535")
         if not 1.0 <= self.request_timeout_seconds <= 120.0:
             raise ValueError("AI_PLAY_REQUEST_TIMEOUT_SECONDS must be 1..120")
+        if type(self.api_max_retries) is not int or not 0 <= self.api_max_retries <= 5:
+            raise ValueError("AI_PLAY_API_MAX_RETRIES must be 0..5")

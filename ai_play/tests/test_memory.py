@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,15 @@ def _write_memory(path, **overrides):
     data = MemoryStore.empty().to_prompt_dict()
     data.update(overrides)
     path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def _step(observation_id):
+    return {
+        "observation_id": observation_id,
+        "reason": "wait",
+        "actions": [{"type": "wait", "duration_ms": 50}],
+        "last_action_results": [{"status": "completed", "type": "wait"}],
+    }
 
 
 def test_memory_starts_empty():
@@ -30,7 +40,7 @@ def test_fact_requires_runtime_source():
 def test_working_memory_is_bounded():
     store = MemoryStore.empty()
     for index in range(12):
-        store.record_step({"observation_id": index, "result": "moved"})
+        store.record_step(_step(index))
     assert len(store.working_memory) == 8
 
 
@@ -123,7 +133,7 @@ def test_save_atomically_round_trips_memory(tmp_path, monkeypatch):
         [{"kind": "fact", "text": "Observed clue", "source": "observation:9", "confidence": 0.7}],
         9,
     )
-    store.record_step({"observation_id": 9, "result": "looked"})
+    store.record_step(_step(9))
     path = tmp_path / "memory.json"
     replace_calls = []
     original_replace = Path.replace
@@ -226,13 +236,81 @@ def test_load_rejects_oversized_optional_working_memory_text(tmp_path):
         MemoryStore.load(path)
 
 
-def test_load_allows_working_memory_without_text(tmp_path):
+def test_load_allows_exact_recorded_step(tmp_path):
     path = tmp_path / "memory.json"
-    _write_memory(path, working_memory=[{"observation_id": 1, "result": "moved"}])
+    step = {
+        "observation_id": 1,
+        "reason": "move",
+        "actions": [{"type": "wait", "duration_ms": 50}],
+        "last_action_results": [{"status": "completed", "type": "wait"}],
+    }
+    _write_memory(path, working_memory=[step])
 
-    assert MemoryStore.load(path).working_memory == [
-        {"observation_id": 1, "result": "moved"}
-    ]
+    assert MemoryStore.load(path).working_memory == [step]
+
+
+def test_record_step_rejects_arbitrary_observation_payload():
+    store = MemoryStore.empty()
+
+    with pytest.raises(ValueError):
+        store.record_step({
+            "observation_id": 1,
+            "reason": "move",
+            "actions": [{"type": "wait", "duration_ms": 50}],
+            "last_action_results": [],
+            "image": {"base64": "must-not-persist"},
+        })
+
+    assert store.working_memory == []
+
+
+def test_load_rejects_arbitrary_working_memory_payload(tmp_path):
+    path = tmp_path / "memory.json"
+    _write_memory(path, working_memory=[{
+        "observation_id": 1,
+        "reason": "move",
+        "actions": [{"type": "wait", "duration_ms": 50}],
+        "last_action_results": [],
+        "observation": {"image": "must-not-load"},
+    }])
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"status": "blocked", "type": "move"},
+        {"status": "blocked", "type": "sprint"},
+        {"status": "stopped", "type": "stop"},
+    ],
+)
+def test_working_memory_accepts_exact_blocked_and_stopped_results(result):
+    store = MemoryStore.empty()
+    step = _step(1)
+    step["last_action_results"] = [result]
+
+    store.record_step(step)
+
+    assert store.working_memory[0]["last_action_results"] == [result]
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"status": "blocked", "type": "look"},
+        {"status": "stopped", "type": "move"},
+        {"status": "blocked", "type": "move", "reason": "extra"},
+    ],
+)
+def test_working_memory_rejects_invalid_blocked_and_stopped_results(result):
+    store = MemoryStore.empty()
+    step = _step(1)
+    step["last_action_results"] = [result]
+
+    with pytest.raises(ValueError):
+        store.record_step(step)
 
 
 @pytest.mark.parametrize(
@@ -275,3 +353,45 @@ def test_load_rejects_over_capacity_task_collections(tmp_path, collection):
 
     with pytest.raises(ValueError):
         MemoryStore.load(path)
+
+
+@pytest.mark.parametrize("confidence", [math.nan, math.inf, -0.01, 1.01, True])
+def test_invalid_update_confidence_cannot_persist(confidence):
+    store = MemoryStore.empty()
+
+    store.apply_updates(
+        [{
+            "kind": "fact", "text": "Visible clue",
+            "source": "observation:1", "confidence": confidence,
+        }],
+        1,
+    )
+
+    assert store.facts[0]["confidence"] == 0.0
+    assert math.isfinite(store.facts[0]["confidence"])
+
+
+@pytest.mark.parametrize("confidence", [math.nan, math.inf, -0.01, 1.01, True])
+def test_load_rejects_invalid_confidence(tmp_path, confidence):
+    path = tmp_path / "memory.json"
+    _write_memory(
+        path,
+        facts=[{
+            "kind": "fact", "text": "Visible clue",
+            "source": "observation:1", "confidence": confidence,
+        }],
+    )
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)
+
+
+def test_save_disallows_nonstandard_nan(tmp_path):
+    store = MemoryStore.empty()
+    store.facts.append({
+        "kind": "fact", "text": "Visible clue",
+        "source": "observation:1", "confidence": math.nan,
+    })
+
+    with pytest.raises(ValueError):
+        store.save(tmp_path / "memory.json")

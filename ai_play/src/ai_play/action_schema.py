@@ -93,6 +93,8 @@ def validate_decision(payload, available_interactions, interface_open):
         raise ActionValidationError("actions must contain 1..3 entries")
 
     available = set(available_interactions)
-    for action in actions:
+    for index, action in enumerate(actions):
         _validate_action(action, available, interface_open)
+        if action["type"] in {"stop", "interact", "enter_digits", "close_ui"} and index != len(actions) - 1:
+            raise ActionValidationError("context-changing action must be last")
     return payload

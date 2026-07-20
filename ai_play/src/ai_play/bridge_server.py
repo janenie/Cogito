@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import threading
 
 from websockets.sync.server import serve as websocket_serve
 
@@ -24,7 +25,17 @@ def _send(connection, packet):
     connection.send(json.dumps(packet, ensure_ascii=False, separators=(",", ":")))
 
 
-def _handler(connection, config, agent_loop):
+def _handler(connection, config, agent_loop, session_lock):
+    if not session_lock.acquire(blocking=False):
+        _send(connection, _error("controller_busy"))
+        return
+    try:
+        _exclusive_handler(connection, config, agent_loop)
+    finally:
+        session_lock.release()
+
+
+def _exclusive_handler(connection, config, agent_loop):
     greeted = False
     for raw_packet in connection:
         try:
@@ -54,7 +65,7 @@ def _handler(connection, config, agent_loop):
             ):
                 _send(connection, _error("invalid_hello"))
                 continue
-            data_dir = config.data_dir or Path(hello_data_dir)
+            data_dir = (config.data_dir or Path(hello_data_dir)).expanduser().resolve()
             memory_dir = Path(data_dir) / "ai_play"
             memory_dir.mkdir(parents=True, exist_ok=True)
             agent_loop.configure_memory(memory_dir / "memory.json")
@@ -73,7 +84,8 @@ def _handler(connection, config, agent_loop):
 
 def serve(config, agent_loop):
     config.validate()
-    handler = lambda connection: _handler(connection, config, agent_loop)
+    session_lock = threading.Lock()
+    handler = lambda connection: _handler(connection, config, agent_loop, session_lock)
     with websocket_serve(
         handler,
         config.ws_host,

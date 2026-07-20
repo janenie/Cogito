@@ -158,3 +158,17 @@ def test_close_ui_requires_open_interface():
 @pytest.mark.parametrize("action_type", ["jump", "crouch", "close_ui", "stop"])
 def test_accepts_exact_field_state_actions(action_type):
     assert valid(decision({"type": action_type}), interface_open=True)
+
+
+@pytest.mark.parametrize(
+    ("actions", "interface_open"),
+    [
+        ([{"type": "stop"}, {"type": "look", "yaw": 0, "pitch": 0}], False),
+        ([{"type": "interact", "action": "interact"}, {"type": "wait", "duration_ms": 50}], False),
+        ([{"type": "enter_digits", "digits": "1"}, {"type": "wait", "duration_ms": 50}], True),
+        ([{"type": "close_ui"}, {"type": "wait", "duration_ms": 50}], True),
+    ],
+)
+def test_context_changing_actions_must_end_the_batch(actions, interface_open):
+    with pytest.raises(ActionValidationError, match="last"):
+        valid(decision(*actions), interface_open=interface_open)
