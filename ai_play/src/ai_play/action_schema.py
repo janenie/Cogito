@@ -20,6 +20,14 @@ ALLOWED_KEYS = {
     "wait": {"type", "duration_ms"},
     "stop": {"type"},
 }
+MEMORY_UPDATE_KEYS = {
+    "fact": {"kind", "text", "source", "confidence"},
+    "landmark": {"kind", "text", "source", "confidence"},
+    "goal": {"kind", "text"},
+    "question": {"kind", "text", "confidence"},
+    "hypothesis": {"kind", "text", "confidence"},
+    "failure": {"kind", "text", "confidence"},
+}
 
 
 def _require_number(value, lower, upper, field):
@@ -75,6 +83,44 @@ def _validate_action(action, available_interactions, interface_open):
         raise ActionValidationError("close_ui requires an open interface")
 
 
+def validate_memory_updates(updates):
+    if not isinstance(updates, list) or len(updates) > 8:
+        raise ActionValidationError("memory_updates must contain at most 8 entries")
+    for update in updates:
+        if not isinstance(update, dict):
+            raise ActionValidationError("memory update must be an object")
+        kind = update.get("kind")
+        if kind not in MEMORY_UPDATE_KEYS or set(update) != MEMORY_UPDATE_KEYS[kind]:
+            raise ActionValidationError("memory update has invalid fields")
+        text = update["text"]
+        if (
+            not isinstance(text, str)
+            or not text.strip()
+            or len(text) > 300
+            or any(ord(character) < 32 for character in text)
+        ):
+            raise ActionValidationError("memory update text is invalid")
+        if kind in {"fact", "landmark"}:
+            source = update["source"]
+            if (
+                not isinstance(source, str)
+                or not source
+                or len(source) > 64
+                or any(ord(character) < 32 for character in source)
+            ):
+                raise ActionValidationError("memory update source is invalid")
+        if "confidence" in update:
+            confidence = update["confidence"]
+            if (
+                isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
+                or not math.isfinite(confidence)
+                or not 0.0 <= confidence <= 1.0
+            ):
+                raise ActionValidationError("memory update confidence is invalid")
+    return updates
+
+
 def validate_decision(payload, available_interactions, interface_open):
     """Validate and return a decoded model decision without modifying it."""
     if not isinstance(payload, dict) or set(payload) != {
@@ -85,8 +131,7 @@ def validate_decision(payload, available_interactions, interface_open):
         raise ActionValidationError("decision has invalid fields")
     if not isinstance(payload["reason"], str) or len(payload["reason"]) > 500:
         raise ActionValidationError("reason must be a short string")
-    if not isinstance(payload["memory_updates"], list):
-        raise ActionValidationError("memory_updates must be a list")
+    validate_memory_updates(payload["memory_updates"])
 
     actions = payload["actions"]
     if not isinstance(actions, list) or not 1 <= len(actions) <= 3:

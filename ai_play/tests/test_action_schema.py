@@ -65,6 +65,44 @@ def test_rejects_non_list_memory_updates():
         valid({"reason": "x", "memory_updates": {}, "actions": [{"type": "stop"}]})
 
 
+def test_accepts_exact_bounded_memory_updates():
+    updates = [
+        {"kind": "fact", "text": "Seen", "source": "observation:1", "confidence": 1.0},
+        {"kind": "landmark", "text": "Door", "source": "observation:1", "confidence": 0.5},
+        {"kind": "goal", "text": "Explore"},
+        {"kind": "question", "text": "Open?", "confidence": 0.2},
+        {"kind": "hypothesis", "text": "Maybe", "confidence": 0.3},
+        {"kind": "failure", "text": "Blocked", "confidence": 0.9},
+    ]
+
+    assert valid({
+        "reason": "x", "memory_updates": updates, "actions": [{"type": "stop"}],
+    })["memory_updates"] == updates
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        [{"kind": "goal", "text": "x"}] * 9,
+        [None],
+        [{"kind": "route", "text": "x"}],
+        [{"kind": "goal", "text": "x", "extra": "nested"}],
+        [{"kind": "goal", "text": "   "}],
+        [{"kind": "goal", "text": "bad\ntext"}],
+        [{"kind": "goal", "text": "x" * 301}],
+        [{"kind": "fact", "text": "x", "source": 1, "confidence": 0.5}],
+        [{"kind": "fact", "text": "x", "source": "x" * 65, "confidence": 0.5}],
+        [{"kind": "fact", "text": "x", "source": "observation:1"}],
+        [{"kind": "question", "text": "x", "confidence": math.nan}],
+        [{"kind": "question", "text": "x", "confidence": True}],
+        [{"kind": "question", "text": {"nested": "x"}, "confidence": 0.5}],
+    ],
+)
+def test_rejects_invalid_memory_update_dto(updates):
+    with pytest.raises(ActionValidationError, match="memory"):
+        valid({"reason": "x", "memory_updates": updates, "actions": [{"type": "stop"}]})
+
+
 @pytest.mark.parametrize("actions", [None, [], [{"type": "stop"}] * 4])
 def test_rejects_invalid_action_count(actions):
     with pytest.raises(ActionValidationError, match="1..3"):

@@ -48,11 +48,14 @@ def test_updates_accept_only_supported_kinds():
     store = MemoryStore.empty()
     store.apply_updates(
         [
-            {"kind": "landmark", "text": "A marked doorway", "source": "observation:2"},
+            {
+                "kind": "landmark", "text": "A marked doorway",
+                "source": "observation:2", "confidence": 0.8,
+            },
             {"kind": "goal", "text": "Reach the doorway"},
-            {"kind": "question", "text": "Is it open?"},
-            {"kind": "hypothesis", "text": "The doorway may open"},
-            {"kind": "failure", "text": "First attempt failed"},
+            {"kind": "question", "text": "Is it open?", "confidence": 0.5},
+            {"kind": "hypothesis", "text": "The doorway may open", "confidence": 0.5},
+            {"kind": "failure", "text": "First attempt failed", "confidence": 1.0},
             {"kind": "route", "text": "Use a hidden shortcut"},
         ],
         2,
@@ -68,19 +71,22 @@ def test_updates_accept_only_supported_kinds():
 def test_landmark_requires_current_runtime_source():
     store = MemoryStore.empty()
     store.apply_updates(
-        [{"kind": "landmark", "text": "Old marker", "source": "observation:1"}],
+        [{
+            "kind": "landmark", "text": "Old marker",
+            "source": "observation:1", "confidence": 0.5,
+        }],
         2,
     )
     assert store.spatial_memory == []
 
 
-def test_update_text_is_capped_at_300_characters():
+def test_update_text_over_300_characters_is_rejected():
     store = MemoryStore.empty()
     store.apply_updates(
-        [{"kind": "question", "text": "x" * 301}],
+        [{"kind": "question", "text": "x" * 301, "confidence": 0.5}],
         1,
     )
-    assert store.task_state["questions"][0]["text"] == "x" * 300
+    assert store.task_state["questions"] == []
 
 
 def test_memory_collections_are_bounded():
@@ -88,15 +94,21 @@ def test_memory_collections_are_bounded():
     store.apply_updates(
         [
             *[
-                {"kind": "fact", "text": f"fact {index}", "source": "observation:7"}
+                    {
+                        "kind": "fact", "text": f"fact {index}",
+                        "source": "observation:7", "confidence": 0.5,
+                    }
                 for index in range(65)
             ],
             *[
-                {"kind": "landmark", "text": f"landmark {index}", "source": "observation:7"}
+                    {
+                        "kind": "landmark", "text": f"landmark {index}",
+                        "source": "observation:7", "confidence": 0.5,
+                    }
                 for index in range(49)
             ],
             *[
-                {"kind": kind, "text": f"{kind} {index}"}
+                    {"kind": kind, "text": f"{kind} {index}", "confidence": 0.5}
                 for kind in ("question", "hypothesis", "failure")
                 for index in range(25)
             ],
@@ -175,7 +187,7 @@ def test_load_rejects_malformed_data(tmp_path, contents):
 )
 def test_load_rejects_non_runtime_sources(tmp_path, collection, kind, source):
     path = tmp_path / "memory.json"
-    entry = {"kind": kind, "text": "Observed at runtime"}
+    entry = {"kind": kind, "text": "Observed at runtime", "confidence": 0.5}
     if source is not None:
         entry["source"] = source
     _write_memory(path, **{collection: [entry]})
@@ -190,15 +202,21 @@ def test_load_rejects_non_runtime_sources(tmp_path, collection, kind, source):
         (
             "facts",
             [
-                {"kind": "fact", "text": "Visible  Clue", "source": "observation:1"},
-                {"kind": "fact", "text": " visible clue ", "source": "observation:2"},
+                {
+                    "kind": "fact", "text": "Visible  Clue",
+                    "source": "observation:1", "confidence": 0.5,
+                },
+                {
+                    "kind": "fact", "text": " visible clue ",
+                    "source": "observation:2", "confidence": 0.5,
+                },
             ],
         ),
         (
             "questions",
             [
-                {"kind": "question", "text": "Is it open?"},
-                {"kind": "question", "text": " is it OPEN? "},
+                {"kind": "question", "text": "Is it open?", "confidence": 0.5},
+                {"kind": "question", "text": " is it OPEN? ", "confidence": 0.5},
             ],
         ),
     ],
@@ -221,7 +239,10 @@ def test_load_rejects_invalid_entry_text(tmp_path, text):
     path = tmp_path / "memory.json"
     _write_memory(
         path,
-        facts=[{"kind": "fact", "text": text, "source": "observation:1"}],
+        facts=[{
+            "kind": "fact", "text": text,
+            "source": "observation:1", "confidence": 0.5,
+        }],
     )
 
     with pytest.raises(ValueError):
@@ -332,6 +353,7 @@ def test_load_rejects_over_capacity_memory_collections(
             "kind": kind,
             "text": f"entry {index}",
             "source": f"observation:{index}",
+            "confidence": 0.5,
         }
         for index in range(limit + 1)
     ]
@@ -347,7 +369,8 @@ def test_load_rejects_over_capacity_task_collections(tmp_path, collection):
     data = MemoryStore.empty().to_prompt_dict()
     kind = collection[:-1] if collection != "hypotheses" else "hypothesis"
     data["task_state"][collection] = [
-        {"kind": kind, "text": f"entry {index}"} for index in range(25)
+        {"kind": kind, "text": f"entry {index}", "confidence": 0.5}
+        for index in range(25)
     ]
     path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -356,7 +379,7 @@ def test_load_rejects_over_capacity_task_collections(tmp_path, collection):
 
 
 @pytest.mark.parametrize("confidence", [math.nan, math.inf, -0.01, 1.01, True])
-def test_invalid_update_confidence_cannot_persist(confidence):
+def test_invalid_update_confidence_is_omitted(confidence):
     store = MemoryStore.empty()
 
     store.apply_updates(
@@ -367,8 +390,7 @@ def test_invalid_update_confidence_cannot_persist(confidence):
         1,
     )
 
-    assert store.facts[0]["confidence"] == 0.0
-    assert math.isfinite(store.facts[0]["confidence"])
+    assert store.facts == []
 
 
 @pytest.mark.parametrize("confidence", [math.nan, math.inf, -0.01, 1.01, True])
@@ -395,3 +417,32 @@ def test_save_disallows_nonstandard_nan(tmp_path):
 
     with pytest.raises(ValueError):
         store.save(tmp_path / "memory.json")
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"kind": "fact", "text": "Seen", "source": "observation:1"},
+        {
+            "kind": "fact", "text": "Seen", "source": "observation:1",
+            "confidence": 0.5, "extra": {"nested": "payload"},
+        },
+        {"kind": "question", "text": "Why?", "confidence": 0.5, "source": "extra"},
+        {"kind": "question", "text": "bad\ntext", "confidence": 0.5},
+        {
+            "kind": "fact", "text": "Seen", "source": "observation:" + "1" * 65,
+            "confidence": 0.5,
+        },
+    ],
+)
+def test_load_rejects_nonexact_persisted_entries(tmp_path, entry):
+    path = tmp_path / "memory.json"
+    if entry["kind"] == "fact":
+        _write_memory(path, facts=[entry])
+    else:
+        data = MemoryStore.empty().to_prompt_dict()
+        data["task_state"]["questions"] = [entry]
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        MemoryStore.load(path)

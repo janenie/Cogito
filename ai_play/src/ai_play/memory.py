@@ -7,7 +7,11 @@ import math
 from pathlib import Path
 from typing import Any
 
-from .action_schema import ActionValidationError, validate_decision
+from .action_schema import (
+    ActionValidationError,
+    validate_decision,
+    validate_memory_updates,
+)
 
 
 _SUPPORTED_KINDS = {"fact", "landmark", "goal", "question", "hypothesis", "failure"}
@@ -43,28 +47,29 @@ class MemoryStore:
     ) -> None:
         expected_source = f"observation:{observation_id}"
         for update in updates:
+            try:
+                validate_memory_updates([update])
+            except ActionValidationError:
+                continue
             kind = update.get("kind")
             if kind not in _SUPPORTED_KINDS:
                 continue
             if kind in {"fact", "landmark"} and update.get("source") != expected_source:
                 continue
 
-            text = update.get("text")
-            if not isinstance(text, str):
-                continue
-            text = text[:300]
-            if not self._normalize_text(text):
-                continue
+            text = update["text"]
 
             if kind == "goal":
                 self.task_state["goal"] = text
                 continue
 
-            entry = {"kind": kind, "text": text}
-            if "source" in update:
+            entry = {
+                "kind": kind,
+                "text": text,
+                "confidence": float(update["confidence"]),
+            }
+            if kind in {"fact", "landmark"}:
                 entry["source"] = update["source"]
-            if "confidence" in update:
-                entry["confidence"] = self._confidence(update)
 
             if kind == "fact":
                 self._add_entry(self.facts, entry, 64)
@@ -110,11 +115,12 @@ class MemoryStore:
             raise ValueError("malformed memory data") from error
 
         cls._validate_data(data)
+        safe_data = deepcopy(data)
         return cls(
-            working_memory=data["working_memory"],
-            facts=data["facts"],
-            spatial_memory=data["spatial_memory"],
-            task_state=data["task_state"],
+            working_memory=safe_data["working_memory"],
+            facts=safe_data["facts"],
+            spatial_memory=safe_data["spatial_memory"],
+            task_state=safe_data["task_state"],
         )
 
     @staticmethod
@@ -214,12 +220,20 @@ class MemoryStore:
                 return False
             if expected_kind is not None and entry.get("kind") != expected_kind:
                 return False
+            expected_fields = (
+                {"kind", "text", "source", "confidence"}
+                if require_runtime_source
+                else {"kind", "text", "confidence"}
+            )
+            if set(entry) != expected_fields:
+                return False
             if require_text:
                 text = entry.get("text")
                 if (
                     not isinstance(text, str)
                     or len(text) > 300
                     or not cls._normalize_text(text)
+                    or any(ord(character) < 32 for character in text)
                 ):
                     return False
                 identity = (entry.get("kind"), cls._normalize_text(text))
@@ -230,19 +244,22 @@ class MemoryStore:
                 not isinstance(entry["text"], str) or len(entry["text"]) > 300
             ):
                 return False
-            if "confidence" in entry:
-                confidence = entry["confidence"]
-                if (
-                    isinstance(confidence, bool)
-                    or not isinstance(confidence, (int, float))
-                    or not math.isfinite(confidence)
-                    or not 0.0 <= confidence <= 1.0
-                ):
-                    return False
+            confidence = entry["confidence"]
+            if (
+                isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
+                or not math.isfinite(confidence)
+                or not 0.0 <= confidence <= 1.0
+            ):
+                return False
             if require_runtime_source:
                 source = entry.get("source")
                 prefix = "observation:"
-                if not isinstance(source, str) or not source.startswith(prefix):
+                if (
+                    not isinstance(source, str)
+                    or len(source) > 64
+                    or not source.startswith(prefix)
+                ):
                     return False
                 observation_id = source[len(prefix):]
                 if not observation_id.isascii() or not observation_id.isdigit():

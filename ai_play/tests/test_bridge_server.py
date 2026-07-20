@@ -91,8 +91,60 @@ class FakeConnection:
     def __next__(self):
         return next(self.packets)
 
+    def recv(self, timeout=None):
+        return next(self.packets)
+
     def send(self, packet):
         self.sent.append(json.loads(packet))
+
+
+class IdleConnection(FakeConnection):
+    def __init__(self):
+        super().__init__([])
+
+    def recv(self, timeout=None):
+        raise TimeoutError
+
+    def __next__(self):
+        raise AssertionError("idle handshake must use bounded recv")
+
+
+def test_idle_client_times_out_without_taking_session_lock(tmp_path):
+    lock = threading.Lock()
+    agent = FakeAgentLoop()
+    connection = IdleConnection()
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, lock)
+
+    assert connection.sent[0]["code"] == "hello_timeout"
+    assert agent.memory_paths == []
+    assert lock.acquire(blocking=False)
+    lock.release()
+
+
+@pytest.mark.parametrize(
+    ("first_packet", "code"),
+    [
+        ({"not": "protocol"}, "unsupported_protocol"),
+        ({"type": "observation", "protocol_version": 1}, "hello_required"),
+        ({"type": "hello", "protocol_version": 2}, "unsupported_protocol"),
+    ],
+)
+def test_invalid_first_packet_returns_without_consuming_later_hello(
+    tmp_path, first_packet, code
+):
+    lock = threading.Lock()
+    agent = FakeAgentLoop()
+    connection = FakeConnection([first_packet, _hello(tmp_path)])
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, lock)
+
+    assert [packet["code"] for packet in connection.sent] == [code]
+    assert agent.memory_paths == []
+    assert lock.acquire(blocking=False)
+    lock.release()
 
 
 def test_busy_second_controller_cannot_reconfigure_memory(tmp_path):
@@ -184,3 +236,36 @@ def test_returns_agent_batch_for_valid_observation(tmp_path):
         "actions": [{"type": "wait", "duration_ms": 100}],
     }
     assert agent.observations == [observation]
+
+
+def test_idle_connection_does_not_starve_valid_controller(tmp_path):
+    uri, _ = _start_server(tmp_path)
+    idle = connect(uri, proxy=None)
+    with connect(uri, proxy=None) as valid_connection:
+        assert _send(valid_connection, _hello(tmp_path))["type"] == "hello"
+    idle.close()
+
+
+def test_invalid_first_packet_does_not_starve_valid_controller(tmp_path):
+    uri, _ = _start_server(tmp_path)
+    with connect(uri, proxy=None) as invalid_connection:
+        result = _send(
+            invalid_connection,
+            {"type": "observation", "protocol_version": 1},
+        )
+        assert result["code"] == "hello_required"
+    with connect(uri, proxy=None) as valid_connection:
+        assert _send(valid_connection, _hello(tmp_path))["type"] == "hello"
+
+
+def test_busy_valid_second_controller_cannot_reconfigure_memory(tmp_path):
+    uri, agent = _start_server(tmp_path)
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    with connect(uri, proxy=None) as first:
+        assert _send(first, _hello(first_dir))["type"] == "hello"
+        with connect(uri, proxy=None) as second:
+            result = _send(second, _hello(second_dir))
+            assert result["code"] == "controller_busy"
+
+    assert agent.memory_paths == [first_dir.resolve() / "ai_play" / "memory.json"]

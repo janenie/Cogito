@@ -11,6 +11,10 @@ from openai import OpenAI
 _JSON_FENCE = re.compile(r"\A```json[ \t]*\r?\n([\s\S]*?)\r?\n```\Z")
 
 
+def _reject_json_constant(value):
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
 def _strip_json_fence(content: str) -> str:
     stripped = content.strip()
     match = _JSON_FENCE.fullmatch(stripped)
@@ -39,4 +43,7 @@ class ApiClient:
         content = completion.choices[0].message.content
         if not isinstance(content, str):
             raise ValueError("model response content must be text JSON")
-        return json.loads(_strip_json_fence(content))
+        return json.loads(
+            _strip_json_fence(content),
+            parse_constant=_reject_json_constant,
+        )

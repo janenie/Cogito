@@ -88,3 +88,13 @@ def test_constructor_passes_bounded_retries_to_sdk(monkeypatch):
     ApiClient(config())
 
     assert arguments["max_retries"] == 2
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_decide_rejects_nonstandard_json_constants(constant):
+    fake = FakeOpenAI(
+        '{"reason":"x","memory_updates":[],"actions":[],"value":%s}' % constant
+    )
+
+    with pytest.raises(ValueError, match="constant"):
+        ApiClient(config(), client=fake).decide([])

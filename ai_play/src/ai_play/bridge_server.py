@@ -9,6 +9,7 @@ from websockets.sync.server import serve as websocket_serve
 
 PROTOCOL_VERSION = 1
 MAX_PACKET_SIZE = 4 * 1024 * 1024
+HELLO_TIMEOUT_SECONDS = 5
 
 
 def _error(code, observation_id=None):
@@ -26,17 +27,58 @@ def _send(connection, packet):
 
 
 def _handler(connection, config, agent_loop, session_lock):
+    hello = _receive_hello(connection, config)
+    if hello is None:
+        return
     if not session_lock.acquire(blocking=False):
         _send(connection, _error("controller_busy"))
         return
     try:
-        _exclusive_handler(connection, config, agent_loop)
+        _exclusive_handler(connection, config, agent_loop, hello)
     finally:
         session_lock.release()
 
 
-def _exclusive_handler(connection, config, agent_loop):
-    greeted = False
+def _receive_hello(connection, config):
+    try:
+        raw_packet = connection.recv(timeout=HELLO_TIMEOUT_SECONDS)
+    except TimeoutError:
+        _send(connection, _error("hello_timeout"))
+        return None
+    try:
+        if isinstance(raw_packet, bytes):
+            raise ValueError
+        packet = json.loads(raw_packet)
+        if not isinstance(packet, dict):
+            raise ValueError
+    except (UnicodeError, json.JSONDecodeError, ValueError):
+        _send(connection, _error("invalid_packet"))
+        return None
+    observation_id = packet.get("observation_id")
+    if type(packet.get("protocol_version")) is not int or packet["protocol_version"] != PROTOCOL_VERSION:
+        _send(connection, _error("unsupported_protocol", observation_id))
+        return None
+    if packet.get("type") != "hello":
+        _send(connection, _error("hello_required", observation_id))
+        return None
+    hello_data_dir = packet.get("data_dir")
+    if config.data_dir is None and (
+        not isinstance(hello_data_dir, str) or not hello_data_dir
+    ):
+        _send(connection, _error("invalid_hello"))
+        return None
+    return packet
+
+
+def _exclusive_handler(connection, config, agent_loop, hello):
+    data_dir = (config.data_dir or Path(hello["data_dir"])).expanduser().resolve()
+    memory_dir = Path(data_dir) / "ai_play"
+    memory_dir.mkdir(parents=True, exist_ok=True)
+    agent_loop.configure_memory(memory_dir / "memory.json")
+    _send(
+        connection,
+        {"type": "hello", "protocol_version": PROTOCOL_VERSION},
+    )
     for raw_packet in connection:
         try:
             if isinstance(raw_packet, bytes):
@@ -55,26 +97,7 @@ def _exclusive_handler(connection, config, agent_loop):
             continue
 
         packet_type = packet.get("type")
-        if not greeted:
-            if packet_type != "hello":
-                _send(connection, _error("hello_required", observation_id))
-                continue
-            hello_data_dir = packet.get("data_dir")
-            if config.data_dir is None and (
-                not isinstance(hello_data_dir, str) or not hello_data_dir
-            ):
-                _send(connection, _error("invalid_hello"))
-                continue
-            data_dir = (config.data_dir or Path(hello_data_dir)).expanduser().resolve()
-            memory_dir = Path(data_dir) / "ai_play"
-            memory_dir.mkdir(parents=True, exist_ok=True)
-            agent_loop.configure_memory(memory_dir / "memory.json")
-            greeted = True
-            _send(
-                connection,
-                {"type": "hello", "protocol_version": PROTOCOL_VERSION},
-            )
-        elif packet_type == "observation":
+        if packet_type == "observation":
             _send(connection, agent_loop.handle_observation(packet))
         elif packet_type == "stop":
             return
