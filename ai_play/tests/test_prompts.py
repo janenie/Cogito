@@ -67,3 +67,37 @@ def test_build_messages_keeps_image_only_in_data_url():
         "image_url": {"url": "data:image/jpeg;base64,aW1hZ2U="},
     }
     assert state["memory"] == {"facts": []}
+
+
+def test_prompt_states_exact_action_limits_and_preconditions():
+    assert "`yaw` must be within [-45, 45]" in SYSTEM_PROMPT
+    assert "`pitch` must be within [-30, 30]" in SYSTEM_PROMPT
+    assert "`forward` and `right` must each be within [-1, 1]" in SYSTEM_PROMPT
+    assert "50 through 1000 milliseconds" in SYSTEM_PROMPT
+    assert "50 through 2000 milliseconds" in SYSTEM_PROMPT
+    assert "one to six ASCII digits" in SYSTEM_PROMPT
+    assert "`interface.is_open` is true" in SYSTEM_PROMPT
+    assert "current `available_interactions`" in SYSTEM_PROMPT
+    assert "one to three action objects" in SYSTEM_PROMPT
+
+
+def test_prompt_uses_runtime_bindings_for_contextual_interaction_slots():
+    rebound = observation()
+    rebound["bindings"]["interact"] = "Mouse1"
+    rebound["bindings"]["interact2"] = "Q"
+    rebound["interface"]["available_interactions"] = [
+        {"action": "interact", "binding": "Mouse1", "prompt": "Inspect"},
+        {"action": "interact2", "binding": "Q", "prompt": "Use"},
+    ]
+
+    messages = build_messages(rebound, {})
+    state = json.loads(messages[1]["content"][0]["text"])
+
+    assert state["observation"]["bindings"]["interact"] == "Mouse1"
+    assert state["observation"]["bindings"]["interact2"] == "Q"
+    assert state["observation"]["interface"]["available_interactions"] == [
+        {"action": "interact", "binding": "Mouse1", "prompt": "Inspect"},
+        {"action": "interact2", "binding": "Q", "prompt": "Use"},
+    ]
+    assert "The F and E bindings" not in SYSTEM_PROMPT
+    assert "runtime `bindings` and `available_interactions`" in SYSTEM_PROMPT

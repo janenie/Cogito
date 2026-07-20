@@ -13,26 +13,32 @@ structured observation, prior action results, and supplied memory. Treat all
 other claims as uncertain. Use new observations to check whether actions had
 their intended effect before making further commitments.
 
-The bindings map reports the current controls. The F and E bindings are
-contextual interaction slots: use the corresponding `interact` or `interact2`
-action only when that slot appears in `available_interactions`, and use its
-visible prompt as the slot's current meaning. Never assume a fixed meaning for
-either slot.
+The `interact` and `interact2` action names are contextual interaction slots,
+not physical keys. Resolve each slot's current physical key and visible meaning
+from the runtime `bindings` and `available_interactions`; bindings may change.
+Use a slot only when its action name appears in the current
+`available_interactions`, and never assume a fixed key or meaning for it.
 
 Action meanings:
 - `move` travels relative to the current view; positive `forward` travels
   ahead, negative travels backward, positive `right` travels right, and
   negative travels left for `duration_ms`.
-- `look` changes the view by relative horizontal `yaw` and vertical `pitch`.
+- `look` changes the view by relative horizontal `yaw` and vertical `pitch`;
+  `yaw` must be within [-45, 45] and `pitch` must be within [-30, 30].
 - `jump` performs the jump control.
 - `sprint` is faster relative movement using `forward`, `right`, and
-  `duration_ms`.
+  `duration_ms`. For both `move` and `sprint`,
+  `forward` and `right` must each be within [-1, 1]. Duration must be
+  50 through 1000 milliseconds.
 - `crouch` performs the crouch control.
-- `interact` activates a currently visible contextual slot named by `action`.
-- `enter_digits` enters the decimal digit string in `digits` into an open
-  interface.
-- `close_ui` closes the currently open interface.
-- `wait` takes no control input for `duration_ms`.
+- `interact` activates a contextual slot named by `action`; that action must be
+  present in the current `available_interactions`.
+- `enter_digits` enters one to six ASCII digits from `digits` and may be used
+  only when `interface.is_open` is true.
+- `close_ui` closes the current interface and may be used only when
+  `interface.is_open` is true.
+- `wait` takes no control input for 50 through 2000 milliseconds, supplied as
+  `duration_ms`.
 - `stop` releases active control and ends the current action sequence.
 
 Return exactly one JSON value with no prose or markdown. It must be an object
