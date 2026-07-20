@@ -38,7 +38,8 @@ def _handler(connection, config, agent_loop):
             continue
 
         observation_id = packet.get("observation_id")
-        if packet.get("protocol_version") != PROTOCOL_VERSION:
+        protocol_version = packet.get("protocol_version")
+        if type(protocol_version) is not int or protocol_version != PROTOCOL_VERSION:
             _send(connection, _error("unsupported_protocol", observation_id))
             continue
 

@@ -92,7 +92,7 @@ def test_rejects_observation_before_hello(tmp_path):
     assert agent.observations == []
 
 
-@pytest.mark.parametrize("protocol_version", [0, 2, "1"])
+@pytest.mark.parametrize("protocol_version", [0, 2, "1", True, 1.0])
 def test_accepts_exactly_protocol_version_one(tmp_path, protocol_version):
     uri, _ = _start_server(tmp_path)
     with connect(uri, proxy=None) as connection:
