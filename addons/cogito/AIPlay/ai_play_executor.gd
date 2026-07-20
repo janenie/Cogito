@@ -1,0 +1,221 @@
+class_name AIPlayExecutor
+extends Node
+
+signal batch_finished(results: Array)
+
+const ACTION_FIELDS: Dictionary = {
+	"look": ["type", "yaw", "pitch"],
+	"move": ["type", "forward", "right", "duration_ms"],
+	"sprint": ["type", "forward", "right", "duration_ms"],
+	"jump": ["type"],
+	"crouch": ["type"],
+	"interact": ["type", "action"],
+	"enter_digits": ["type", "digits"],
+	"close_ui": ["type"],
+	"wait": ["type", "duration_ms"],
+	"stop": ["type"],
+}
+const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
+
+var held_actions: Dictionary = {}
+var _cancel_generation: int = 0
+
+
+func validate_action(action: Variant, context: Dictionary) -> Dictionary:
+	if not action is Dictionary:
+		return _invalid("action must be an object")
+	var action_dictionary: Dictionary = action
+	var action_type_value: Variant = action_dictionary.get("type")
+	if not action_type_value is String or not ACTION_FIELDS.has(action_type_value):
+		return _invalid("action type is not allowed")
+	var action_type: String = action_type_value
+	if not _has_exact_fields(action_dictionary, ACTION_FIELDS[action_type]):
+		return _invalid("action has invalid fields")
+
+	match action_type:
+		"look":
+			var error: String = _number_error(action_dictionary["yaw"], -45.0, 45.0, "yaw")
+			if not error.is_empty():
+				return _invalid(error)
+			error = _number_error(action_dictionary["pitch"], -30.0, 30.0, "pitch")
+			if not error.is_empty():
+				return _invalid(error)
+		"move", "sprint":
+			for field: String in ["forward", "right"]:
+				var error: String = _number_error(action_dictionary[field], -1.0, 1.0, field)
+				if not error.is_empty():
+					return _invalid(error)
+			var duration_error: String = _number_error(
+				action_dictionary["duration_ms"], 50.0, 1000.0, "duration_ms"
+			)
+			if not duration_error.is_empty():
+				return _invalid(duration_error)
+		"wait":
+			var error: String = _number_error(
+				action_dictionary["duration_ms"], 50.0, 2000.0, "duration_ms"
+			)
+			if not error.is_empty():
+				return _invalid(error)
+		"interact":
+			var interaction: Variant = action_dictionary["action"]
+			if not interaction is String or interaction not in ["interact", "interact2"]:
+				return _invalid("interaction action is not allowed")
+			var available: Variant = context.get("available_interactions", [])
+			if not available is Array or interaction not in available:
+				return _invalid("interaction is not currently available")
+		"enter_digits":
+			var digits: Variant = action_dictionary["digits"]
+			if not digits is String or not _digits_are_valid(digits):
+				return _invalid("digits must contain one to six decimal digits")
+			if context.get("interface_open", false) != true:
+				return _invalid("enter_digits requires an open interface")
+		"close_ui":
+			if context.get("interface_open", false) != true:
+				return _invalid("close_ui requires an open interface")
+
+	return {"valid": true}
+
+
+func execute_batch(actions: Array, context: Dictionary) -> void:
+	_cancel_generation += 1
+	var generation: int = _cancel_generation
+	_release_held_actions()
+	var results: Array = []
+
+	for action: Variant in actions:
+		var validation: Dictionary = validate_action(action, context)
+		if not validation.get("valid", false):
+			_release_held_actions()
+			results.append({"status": "error", "error": validation.get("error", "invalid action")})
+			batch_finished.emit(results)
+			return
+
+	for action: Variant in actions:
+		var result: Dictionary = await _execute_action(action, generation)
+		if generation != _cancel_generation:
+			return
+		results.append(result)
+		if result.get("status") == "error":
+			_release_held_actions()
+			batch_finished.emit(results)
+			return
+
+	_release_held_actions()
+	batch_finished.emit(results)
+
+
+func cancel_all(reason: String) -> void:
+	_release_held_actions()
+	_cancel_generation += 1
+	batch_finished.emit([{"status": "cancelled", "reason": reason}])
+
+
+func _execute_action(action: Dictionary, generation: int) -> Dictionary:
+	var action_type: String = action["type"]
+	match action_type:
+		"look":
+			var motion := InputEventMouseMotion.new()
+			motion.relative = Vector2(float(action["yaw"]), float(action["pitch"]))
+			Input.parse_input_event(motion)
+		"move", "sprint":
+			_press_axis("forward", "back", float(action["forward"]))
+			_press_axis("right", "left", float(action["right"]))
+			if action_type == "sprint":
+				_press_held("sprint", 1.0)
+			await get_tree().create_timer(float(action["duration_ms"]) / 1000.0).timeout
+			if generation != _cancel_generation:
+				return {"status": "cancelled"}
+			_release_held_actions()
+		"jump", "crouch":
+			_emit_action_pair(action_type)
+		"interact":
+			_emit_action_pair(action["action"])
+		"enter_digits":
+			for digit: String in action["digits"]:
+				_emit_digit_pair(digit)
+		"close_ui":
+			_emit_action_pair("menu")
+		"wait":
+			await get_tree().create_timer(float(action["duration_ms"]) / 1000.0).timeout
+			if generation != _cancel_generation:
+				return {"status": "cancelled"}
+		"stop":
+			_release_held_actions()
+		_:
+			return {"status": "error", "error": "action type is not allowed"}
+	return {"status": "completed", "type": action_type}
+
+
+func _press_axis(positive_action: String, negative_action: String, value: float) -> void:
+	if value > 0.0:
+		_press_held(positive_action, value)
+	elif value < 0.0:
+		_press_held(negative_action, -value)
+
+
+func _press_held(action_name: String, strength: float) -> void:
+	Input.action_press(action_name, strength)
+	held_actions[action_name] = true
+
+
+func _release_held_actions() -> void:
+	for action_name: String in held_actions.keys():
+		Input.action_release(action_name)
+	held_actions.clear()
+
+
+func _emit_action_pair(action_name: String) -> void:
+	var event := InputEventAction.new()
+	event.action = action_name
+	event.pressed = true
+	Input.parse_input_event(event)
+	var release := InputEventAction.new()
+	release.action = action_name
+	release.pressed = false
+	Input.parse_input_event(release)
+
+
+func _emit_digit_pair(digit: String) -> void:
+	var code: int = digit.unicode_at(0)
+	var event := InputEventKey.new()
+	event.keycode = code as Key
+	event.unicode = code
+	event.pressed = true
+	Input.parse_input_event(event)
+	var release := InputEventKey.new()
+	release.keycode = code as Key
+	release.unicode = code
+	release.pressed = false
+	Input.parse_input_event(release)
+
+
+func _has_exact_fields(action: Dictionary, expected: Array) -> bool:
+	if action.size() != expected.size():
+		return false
+	for field: Variant in expected:
+		if not action.has(field):
+			return false
+	return true
+
+
+func _number_error(value: Variant, minimum: float, maximum: float, field: String) -> String:
+	if typeof(value) not in [TYPE_INT, TYPE_FLOAT]:
+		return "%s must be a finite number between %s and %s" % [field, minimum, maximum]
+	var number: float = float(value)
+	if not is_finite(number) or number < minimum or number > maximum:
+		return "%s must be a finite number between %s and %s" % [field, minimum, maximum]
+	return ""
+
+
+func _digits_are_valid(digits: String) -> bool:
+	if digits.length() < 1 or digits.length() > 6:
+		return false
+	for index: int in digits.length():
+		var code: int = digits.unicode_at(index)
+		if code < 48 or code > 57:
+			return false
+	return true
+
+
+func _invalid(error: String) -> Dictionary:
+	return {"valid": false, "error": error}
