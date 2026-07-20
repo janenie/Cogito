@@ -44,6 +44,7 @@ class FakeBridge extends Node:
 class FakeExecutor extends Node:
 	signal batch_finished(results: Array)
 
+	var player: Node3D
 	var execute_calls: Array[Dictionary] = []
 	var cancel_reasons: Array[String] = []
 
@@ -70,10 +71,15 @@ func _run_tests() -> void:
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
 	await _test_observation_id_gate(controller_script)
+	await _test_stopped_batch_disables_without_recapture(controller_script)
+	await _test_blocked_batch_recaptures_immediately(controller_script)
+	await _test_context_change_recaptures_immediately(controller_script)
 	await _test_transport_failures_cancel(controller_script)
 	await _test_human_takeover(controller_script)
 	await _test_emergency_stop_latches(controller_script)
 	await _test_reusable_scene()
+	await _test_teardown_releases_without_late_signal()
+	await _test_bridge_teardown_disconnects()
 	_finish()
 
 
@@ -130,6 +136,7 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 	var controller: Node = fixture.controller
 	var bridge: FakeBridge = fixture.bridge
 	controller.enable_ai()
+	_assert(fixture.executor.player == fixture.player, "controller wires real player into executor")
 	_assert(bridge.connect_calls == [{"host": "127.0.0.1", "port": 8765}], "enabling connects")
 	bridge.connected.emit()
 	_assert(not bridge.sent_packets.is_empty(), "connection sends hello")
@@ -141,6 +148,85 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 		_assert(hello.get("data_dir") == OS.get_user_data_dir(), "hello contains user data directory")
 		_assert("res://" not in JSON.stringify(hello), "hello contains no repository path")
 	await _free_fixture(fixture)
+
+
+func _test_stopped_batch_disables_without_recapture(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	var initial_disconnect_count: int = fixture.bridge.disconnect_calls
+	fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"actions": [{"type": "stop"}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "stopped", "type": "stop"}])
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.DISABLED,
+		"stopped result disables controller",
+	)
+	_assert(fixture.timer.is_stopped(), "stopped result leaves observation timer stopped")
+	_assert(
+		fixture.bridge.disconnect_calls == initial_disconnect_count + 1,
+		"stopped result disconnects bridge once",
+	)
+	_assert(fixture.executor.cancel_reasons.is_empty(), "stopped result does not emit a second cancel batch")
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"stopped result does not capture another observation",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_blocked_batch_recaptures_immediately(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"actions": [{
+			"type": "move",
+			"forward": 1.0,
+			"right": 0.0,
+			"duration_ms": 50,
+		}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "blocked", "type": "move"}])
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.READY,
+		"blocked result keeps autonomous controller ready",
+	)
+	_assert(fixture.timer.is_stopped(), "blocked result does not start interval timer")
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"blocked recapture is deferred",
+	)
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count + 1,
+		"blocked result triggers immediate deferred recapture",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_context_change_recaptures_immediately(controller_script: GDScript) -> void:
+	for action_type: String in ["interact", "enter_digits", "close_ui"]:
+		var fixture: Dictionary = await _connected_fixture(controller_script)
+		var initial_capture_count: int = fixture.observer.capture_count
+		fixture.bridge.action_batch_received.emit({
+			"observation_id": 17,
+			"actions": [{"type": action_type}],
+		})
+		fixture.executor.batch_finished.emit([{"status": "completed", "type": action_type}])
+		_assert(fixture.timer.is_stopped(), "%s does not start interval timer" % action_type)
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s recapture is deferred" % action_type,
+		)
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count + 1,
+			"%s triggers immediate deferred recapture" % action_type,
+		)
+		await _free_fixture(fixture)
 
 
 func _test_observation_id_gate(controller_script: GDScript) -> void:
@@ -262,11 +348,47 @@ func _test_reusable_scene() -> void:
 	controller.free()
 
 
+func _test_teardown_releases_without_late_signal() -> void:
+	var packed: PackedScene = load("res://addons/cogito/AIPlay/ai_play_controller.tscn")
+	var controller: Node = packed.instantiate()
+	root.add_child(controller)
+	await process_frame
+	var executor: Node = controller.get_node("Executor")
+	var emitted: Array = []
+	executor.batch_finished.connect(
+		func(results: Array) -> void: emitted.append(results.duplicate(true))
+	)
+	for action_name: String in ["forward", "back", "left", "right", "sprint"]:
+		Input.action_press(action_name)
+		executor.held_actions[action_name] = true
+	controller.queue_free()
+	await process_frame
+	for action_name: String in ["forward", "back", "left", "right", "sprint"]:
+		_assert(not Input.is_action_pressed(action_name), "controller teardown releases %s" % action_name)
+		Input.action_release(action_name)
+	_assert(emitted.is_empty(), "controller teardown emits no late batch")
+
+
+func _test_bridge_teardown_disconnects() -> void:
+	var bridge := AIPlayBridge.new()
+	root.add_child(bridge)
+	await process_frame
+	bridge._socket = WebSocketPeer.new()
+	_assert(bridge._socket != null, "bridge teardown fixture owns a socket")
+	bridge._exit_tree()
+	_assert(bridge._socket == null, "bridge teardown closes its socket")
+	bridge.queue_free()
+	await process_frame
+
+
 func _make_fixture(controller_script: GDScript) -> Dictionary:
 	var controller: Node = controller_script.new()
 	controller.auto_start = false
 	controller.host = "127.0.0.1"
 	controller.port = 8765
+	var player_script: GDScript = load("res://addons/cogito/CogitoObjects/cogito_player.gd")
+	var player: Node3D = player_script.new()
+	controller.player = player
 	var observer := FakeObserver.new()
 	observer.name = "Observer"
 	var executor := FakeExecutor.new()
@@ -282,7 +404,14 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	controller.add_child(timer)
 	root.add_child(controller)
 	await process_frame
-	return {"controller": controller, "observer": observer, "executor": executor, "bridge": bridge, "timer": timer}
+	return {
+		"controller": controller,
+		"observer": observer,
+		"executor": executor,
+		"bridge": bridge,
+		"timer": timer,
+		"player": player,
+	}
 
 
 func _connected_fixture(controller_script: GDScript) -> Dictionary:
@@ -295,6 +424,7 @@ func _connected_fixture(controller_script: GDScript) -> Dictionary:
 func _free_fixture(fixture: Dictionary) -> void:
 	fixture.controller.queue_free()
 	await process_frame
+	fixture.player.free()
 
 
 func _finish() -> void:

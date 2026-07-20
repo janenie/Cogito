@@ -46,6 +46,11 @@ AI movement is sent through ordinary COGITO input and physics. `interact` and
 visible interaction list supplies their prompt and current binding (normally F
 and E). The agent may select one only while it appears in that list.
 
+Look `yaw` and `pitch` values are bounded relative mouse-control deltas and do
+not guarantee degrees. The player's runtime mouse sensitivity still applies;
+the agent confirms the actual turn from `yaw_degrees` and `pitch_degrees` in the
+next observation.
+
 Press F12 for an emergency stop. Any physical keyboard, mouse, or controller
 input also triggers immediate human takeover. Both paths disconnect AI and
 release held movement (`forward`, `back`, `left`, `right`, and `sprint`). If the

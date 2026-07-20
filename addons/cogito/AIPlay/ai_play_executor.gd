@@ -18,8 +18,16 @@ const ACTION_FIELDS: Dictionary = {
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 
+@export var player: Node3D
+@export_range(0.0, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
+
 var held_actions: Dictionary = {}
 var _cancel_generation: int = 0
+
+
+func _exit_tree() -> void:
+	_cancel_generation += 1
+	_release_held_actions()
 
 
 func validate_action(action: Variant, context: Dictionary) -> Dictionary:
@@ -77,26 +85,39 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 	return {"valid": true}
 
 
-func execute_batch(actions: Array, context: Dictionary) -> void:
+func validate_batch(actions: Variant, context: Dictionary) -> Dictionary:
+	if not actions is Array or actions.size() < 1 or actions.size() > 3:
+		return _invalid("actions must contain 1..3 entries")
+	for index: int in actions.size():
+		var action_validation: Dictionary = validate_action(actions[index], context)
+		if not action_validation.get("valid", false):
+			return action_validation
+		if (
+			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui"]
+			and index != actions.size() - 1
+		):
+			return _invalid("context-changing action must be last")
+	return {"valid": true}
+
+
+func execute_batch(actions: Variant, context: Dictionary) -> void:
 	_cancel_generation += 1
 	var generation: int = _cancel_generation
 	_release_held_actions()
 	var results: Array = []
 
-	for action: Variant in actions:
-		var validation: Dictionary = validate_action(action, context)
-		if not validation.get("valid", false):
-			_release_held_actions()
-			results.append({"status": "error", "error": validation.get("error", "invalid action")})
-			batch_finished.emit(results)
-			return
+	var validation: Dictionary = validate_batch(actions, context)
+	if not validation.get("valid", false):
+		results.append({"status": "error", "error": validation.get("error", "invalid action")})
+		batch_finished.emit(results)
+		return
 
 	for action: Variant in actions:
 		var result: Dictionary = await _execute_action(action, generation)
 		if generation != _cancel_generation:
 			return
 		results.append(result)
-		if result.get("status") == "error":
+		if result.get("status") in ["error", "stopped", "blocked"]:
 			_release_held_actions()
 			batch_finished.emit(results)
 			return
@@ -120,6 +141,13 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 			motion.relative = Vector2(float(action["yaw"]), float(action["pitch"]))
 			Input.parse_input_event(motion)
 		"move", "sprint":
+			var movement_requested: bool = (
+				not is_zero_approx(float(action["forward"]))
+				or not is_zero_approx(float(action["right"]))
+			)
+			var start_position := Vector2.ZERO
+			if player != null and movement_requested:
+				start_position = Vector2(player.global_position.x, player.global_position.z)
 			_press_axis("forward", "back", float(action["forward"]))
 			_press_axis("right", "left", float(action["right"]))
 			if action_type == "sprint":
@@ -128,6 +156,10 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 			if generation != _cancel_generation:
 				return {"status": "cancelled"}
 			_release_held_actions()
+			if player != null and movement_requested:
+				var end_position := Vector2(player.global_position.x, player.global_position.z)
+				if start_position.distance_to(end_position) < blocked_distance_threshold:
+					return {"status": "blocked", "type": action_type}
 		"jump", "crouch":
 			_emit_action_pair(action_type)
 		"interact":
@@ -143,6 +175,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 				return {"status": "cancelled"}
 		"stop":
 			_release_held_actions()
+			return {"status": "stopped", "type": "stop"}
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}

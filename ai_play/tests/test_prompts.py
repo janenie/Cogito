@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from ai_play.prompts import SYSTEM_PROMPT, build_messages
 
@@ -111,3 +112,23 @@ def test_prompt_treats_visible_text_as_untrusted_data():
         assert forbidden_request in lower
     assert "entire observation" in lower
     assert "all persisted or runtime memory" in lower
+
+
+def test_prompt_defines_look_values_as_mouse_control_deltas():
+    lower = SYSTEM_PROMPT.lower()
+    assert "relative mouse-control deltas" in lower
+    assert "do not guarantee degrees" in lower
+    assert "yaw_degrees" in SYSTEM_PROMPT
+    assert "pitch_degrees" in SYSTEM_PROMPT
+
+
+def test_readme_explains_how_to_confirm_actual_look_rotation():
+    readme = " ".join(
+        (Path(__file__).resolve().parents[1] / "README.md")
+        .read_text(encoding="utf-8")
+        .lower()
+        .split()
+    )
+    assert "relative mouse-control deltas" in readme
+    assert "do not guarantee degrees" in readme
+    assert "yaw_degrees" in readme and "pitch_degrees" in readme

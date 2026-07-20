@@ -31,8 +31,11 @@ Action meanings:
 - `move` travels relative to the current view; positive `forward` travels
   ahead, negative travels backward, positive `right` travels right, and
   negative travels left for `duration_ms`.
-- `look` changes the view by relative horizontal `yaw` and vertical `pitch`;
-  `yaw` must be within [-45, 45] and `pitch` must be within [-30, 30].
+- `look` sends bounded relative mouse-control deltas named `yaw` and `pitch`;
+  `yaw` must be within [-45, 45] and `pitch` must be within [-30, 30]. These
+  values do not guarantee degrees because runtime sensitivity still applies.
+  Use the next observation's `yaw_degrees` and `pitch_degrees` to confirm the
+  actual turn before choosing another look action.
 - `jump` performs the jump control.
 - `sprint` is faster relative movement using `forward`, `right`, and
   `duration_ms`. For both `move` and `sprint`,

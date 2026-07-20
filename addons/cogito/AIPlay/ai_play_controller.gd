@@ -35,6 +35,8 @@ func _ready() -> void:
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
 		_observer.player = player
+	if "player" in _executor:
+		_executor.player = player
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
@@ -163,8 +165,18 @@ func _on_batch_finished(results: Array) -> void:
 	if _state != State.EXECUTING:
 		return
 	_last_results = results.duplicate(true)
+	if _contains_stopped_result(results):
+		_state = State.DISABLED
+		_pending_observation_id = -1
+		_reconnect_remaining = -1.0
+		_observation_timer.stop()
+		_bridge.disconnect_from_server()
+		return
 	_state = State.READY
-	_observation_timer.start(observation_interval)
+	if _ends_with_immediate_recapture(results):
+		call_deferred("_capture_observation", _last_results)
+	else:
+		_observation_timer.start(observation_interval)
 
 
 func _on_observation_timer_timeout() -> void:
@@ -197,6 +209,25 @@ func _interaction_actions(interactions: Variant) -> Array[String]:
 			if interaction is Dictionary and interaction.get("action") is String:
 				actions.append(interaction["action"])
 	return actions
+
+
+func _contains_stopped_result(results: Array) -> bool:
+	for result: Variant in results:
+		if result is Dictionary and result.get("status") == "stopped":
+			return true
+	return false
+
+
+func _ends_with_immediate_recapture(results: Array) -> bool:
+	if results.is_empty() or not results[-1] is Dictionary:
+		return false
+	var final_result: Dictionary = results[-1]
+	if final_result.get("status") == "blocked":
+		return final_result.get("type") in ["move", "sprint"]
+	return (
+		final_result.get("status") == "completed"
+		and final_result.get("type") in ["interact", "enter_digits", "close_ui"]
+	)
 
 
 func _parse_observation_id(value: Variant) -> Dictionary:

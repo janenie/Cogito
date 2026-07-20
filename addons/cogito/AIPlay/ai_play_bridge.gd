@@ -13,6 +13,10 @@ var _socket: WebSocketPeer
 var _reported_open: bool = false
 
 
+func _exit_tree() -> void:
+	disconnect_from_server()
+
+
 func connect_to_server(host: String, port: int) -> Error:
 	if not _is_loopback_host(host):
 		return ERR_INVALID_PARAMETER
