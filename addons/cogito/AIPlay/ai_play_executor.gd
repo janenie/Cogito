@@ -17,9 +17,10 @@ const ACTION_FIELDS: Dictionary = {
 }
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
+const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
 
 @export var player: Node3D
-@export_range(0.0, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
+@export_range(0.01, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
 
 var held_actions: Dictionary = {}
 var _cancel_generation: int = 0
@@ -158,7 +159,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 			_release_held_actions()
 			if player != null and movement_requested:
 				var end_position := Vector2(player.global_position.x, player.global_position.z)
-				if start_position.distance_to(end_position) < blocked_distance_threshold:
+				if start_position.distance_to(end_position) < _effective_blocked_distance_threshold():
 					return {"status": "blocked", "type": action_type}
 		"jump", "crouch":
 			_emit_action_pair(action_type)
@@ -179,6 +180,10 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
+
+
+func _effective_blocked_distance_threshold() -> float:
+	return maxf(MIN_BLOCKED_DISTANCE_THRESHOLD, blocked_distance_threshold)
 
 
 func _press_axis(positive_action: String, negative_action: String, value: float) -> void:

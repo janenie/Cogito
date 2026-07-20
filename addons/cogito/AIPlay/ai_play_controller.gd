@@ -21,6 +21,7 @@ var _pending_context: Dictionary = {}
 var _last_results: Array = []
 var _emergency_stopped: bool = false
 var _reconnect_remaining: float = -1.0
+var _capture_generation: int = 0
 
 var _observer: Node
 var _executor: Node
@@ -68,6 +69,7 @@ func enable_ai() -> void:
 
 
 func disable_ai(reason: String = "disabled") -> void:
+	_capture_generation += 1
 	_state = State.DISABLED
 	_pending_observation_id = -1
 	_reconnect_remaining = -1.0
@@ -121,7 +123,7 @@ func _on_bridge_connected() -> void:
 
 
 func _capture_observation(results: Array) -> void:
-	if _state != State.READY:
+	if is_queued_for_deletion() or not is_inside_tree() or _state != State.READY:
 		return
 	if player == null and _observer is AIPlayObserver:
 		_pause_for_error("player_not_configured")
@@ -166,6 +168,7 @@ func _on_batch_finished(results: Array) -> void:
 		return
 	_last_results = results.duplicate(true)
 	if _contains_stopped_result(results):
+		_capture_generation += 1
 		_state = State.DISABLED
 		_pending_observation_id = -1
 		_reconnect_remaining = -1.0
@@ -174,9 +177,25 @@ func _on_batch_finished(results: Array) -> void:
 		return
 	_state = State.READY
 	if _ends_with_immediate_recapture(results):
-		call_deferred("_capture_observation", _last_results)
+		var generation: int = _capture_generation
+		call_deferred("_capture_observation_if_current", generation, _last_results)
 	else:
 		_observation_timer.start(observation_interval)
+
+
+func _capture_observation_if_current(generation: int, results: Array) -> void:
+	if (
+		generation != _capture_generation
+		or _state != State.READY
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
+		return
+	_capture_observation(results)
+
+
+func _exit_tree() -> void:
+	_capture_generation += 1
 
 
 func _on_observation_timer_timeout() -> void:
@@ -186,6 +205,7 @@ func _on_observation_timer_timeout() -> void:
 func _on_bridge_disconnected(reason: String) -> void:
 	if _state == State.DISABLED:
 		return
+	_capture_generation += 1
 	_state = State.CONNECTING
 	_pending_observation_id = -1
 	_observation_timer.stop()

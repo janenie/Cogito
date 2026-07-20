@@ -163,6 +163,13 @@ func _test_blocked_movement(executor: Node, recorder: InputRecorder) -> void:
 		is_equal_approx(executor.blocked_distance_threshold, 0.05),
 		"blocked distance threshold defaults to 0.05",
 	)
+	executor.blocked_distance_threshold = 0.0
+	_assert(
+		executor.has_method("_effective_blocked_distance_threshold")
+		and is_equal_approx(executor._effective_blocked_distance_threshold(), 0.01),
+		"zero blocked threshold is clamped to a positive minimum",
+	)
+	executor.blocked_distance_threshold = 0.05
 	var static_player := Node3D.new()
 	root.add_child(static_player)
 	executor.player = static_player

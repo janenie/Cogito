@@ -5,6 +5,7 @@ var _failures: Array[String] = []
 
 class FakeObserver extends Node:
 	var capture_count: int = 0
+	var capture_events: Array = []
 	var next_observation_id: int = 17
 
 	func get_bindings() -> Dictionary:
@@ -12,6 +13,7 @@ class FakeObserver extends Node:
 
 	func capture_observation(last_results: Array) -> Dictionary:
 		capture_count += 1
+		capture_events.append(last_results.duplicate(true))
 		return {
 			"observation_id": next_observation_id,
 			"interface": {"is_open": false, "available_interactions": []},
@@ -74,6 +76,7 @@ func _run_tests() -> void:
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
 	await _test_context_change_recaptures_immediately(controller_script)
+	await _test_deferred_recapture_is_cancelled_by_teardown(controller_script)
 	await _test_transport_failures_cancel(controller_script)
 	await _test_human_takeover(controller_script)
 	await _test_emergency_stop_latches(controller_script)
@@ -227,6 +230,39 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 			"%s triggers immediate deferred recapture" % action_type,
 		)
 		await _free_fixture(fixture)
+
+
+func _test_deferred_recapture_is_cancelled_by_teardown(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var capture_events: Array = fixture.observer.capture_events
+	var sent_packets: Array = fixture.bridge.sent_packets
+	fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"actions": [{"type": "interact"}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "completed", "type": "interact"}])
+	var captures_before_teardown: int = capture_events.size()
+	var packets_before_teardown: int = sent_packets.size()
+	fixture.controller.queue_free()
+	fixture.timer.timeout.emit()
+	_assert(
+		capture_events.size() == captures_before_teardown,
+		"queued teardown blocks direct timer recapture before frame cleanup",
+	)
+	_assert(
+		sent_packets.size() == packets_before_teardown,
+		"queued teardown blocks direct timer observation send before frame cleanup",
+	)
+	await process_frame
+	_assert(
+		capture_events.size() == captures_before_teardown,
+		"queued teardown invalidates deferred recapture",
+	)
+	_assert(
+		sent_packets.size() == packets_before_teardown,
+		"queued teardown prevents deferred observation send",
+	)
+	fixture.player.free()
 
 
 func _test_observation_id_gate(controller_script: GDScript) -> void:
