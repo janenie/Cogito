@@ -86,6 +86,23 @@ func _run_tests() -> void:
 	_assert(player_state.get("health_ratio") == null, "missing health ratio is null")
 	_assert(player_state.get("stamina_ratio") == null, "missing stamina ratio is null")
 	_assert(observation.get("last_action_results") == [{"status": "completed"}], "last results pass through")
+	var safe_nested: Array = [1, "safe"]
+	var injected_node := Node.new()
+	injected_node.name = "secret_injected_result_node"
+	var filtered_observation: Dictionary = observer.capture_observation([
+		{"status": "completed", "nested": safe_nested},
+		{"status": "bad", "value": injected_node},
+		{"status": "bad", "value": NodePath("/root/secret_result_path")},
+		{"status": "bad", "value": INF},
+	])
+	safe_nested.append("mutated_after_capture")
+	_assert(filtered_observation.get("last_action_results") == [
+		{"status": "completed", "nested": [1, "safe"]},
+	], "last results filter invalid entries and deep-copy safe values")
+	_assert(
+		_contains_only_json_values(filtered_observation),
+		"filtered observation remains JSON-compatible",
+	)
 
 	var image_payload: Dictionary = observation.get("image", {})
 	_assert(image_payload.get("mime_type") == "image/jpeg", "image MIME type is JPEG")
@@ -117,6 +134,7 @@ func _run_tests() -> void:
 	player.body.free()
 	player.head.free()
 	interaction_controller.free()
+	injected_node.free()
 	player.free()
 	target.free()
 	if _failures.is_empty():

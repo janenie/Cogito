@@ -7,6 +7,7 @@ const APPROVED_ACTIONS: Array[String] = [
 ]
 const IMAGE_WIDTH: int = 768
 const IMAGE_HEIGHT: int = 432
+const MAX_JSON_DEPTH: int = 16
 
 @export var player: CogitoPlayer
 @export_range(0.0, 1.0, 0.01) var jpeg_quality: float = 0.75
@@ -20,6 +21,8 @@ func capture_observation(last_results: Array) -> Dictionary:
 	bindings = get_bindings()
 	var image: Image
 	if DisplayServer.get_name() == "headless":
+		# The dummy headless renderer has no viewport texture. This blank JPEG exists only
+		# so automated tests can validate the wire shape; production requires a real viewport.
 		image = Image.create(IMAGE_WIDTH, IMAGE_HEIGHT, false, Image.FORMAT_RGB8)
 	else:
 		image = get_viewport().get_texture().get_image()
@@ -53,7 +56,7 @@ func capture_observation(last_results: Array) -> Dictionary:
 			"available_interactions": _available_interactions(),
 		},
 		"bindings": bindings,
-		"last_action_results": last_results,
+		"last_action_results": _sanitize_last_results(last_results),
 	}
 
 
@@ -93,3 +96,42 @@ func _attribute_ratio(attribute_name: String) -> Variant:
 	if attribute == null or attribute.value_max == 0.0:
 		return null
 	return attribute.value_current / attribute.value_max
+
+
+func _sanitize_last_results(last_results: Array) -> Array:
+	var safe_results: Array = []
+	for result: Variant in last_results:
+		var sanitized: Dictionary = _sanitize_json_value(result)
+		if sanitized["valid"]:
+			safe_results.append(sanitized["value"])
+	return safe_results
+
+
+func _sanitize_json_value(value: Variant, depth: int = 0) -> Dictionary:
+	if depth > MAX_JSON_DEPTH:
+		return {"valid": false}
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_STRING:
+			return {"valid": true, "value": value}
+		TYPE_FLOAT:
+			if is_finite(value):
+				return {"valid": true, "value": value}
+		TYPE_ARRAY:
+			var safe_array: Array = []
+			for item: Variant in value:
+				var sanitized_item: Dictionary = _sanitize_json_value(item, depth + 1)
+				if not sanitized_item["valid"]:
+					return {"valid": false}
+				safe_array.append(sanitized_item["value"])
+			return {"valid": true, "value": safe_array}
+		TYPE_DICTIONARY:
+			var safe_dictionary: Dictionary = {}
+			for key: Variant in value:
+				if not key is String:
+					return {"valid": false}
+				var sanitized_value: Dictionary = _sanitize_json_value(value[key], depth + 1)
+				if not sanitized_value["valid"]:
+					return {"valid": false}
+				safe_dictionary[key] = sanitized_value["value"]
+			return {"valid": true, "value": safe_dictionary}
+	return {"valid": false}
