@@ -17,11 +17,16 @@ export AI_PLAY_API_KEY
 PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main
 ```
 
-Start `addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` only after the sidecar is
-listening. Then explicitly call `enable_ai()` on the Lobby's
-`AIPlayController` from trusted local integration/debug tooling. The Lobby
-instance has `auto_start = false`; loading the scene alone never opts in. Call
-`disable_ai()` to stop normally.
+Start the Lobby with the exact Godot user argument below only after the sidecar
+is listening:
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+```
+
+The argument after `--` is an explicit per-run opt-in. The Lobby instance keeps
+`auto_start = false`, so launching it normally does not enable AI. Call
+`disable_ai()` on `AIPlayController` to stop normally.
 
 The sidecar listens only on `127.0.0.1:8765`. `AI_PLAY_WS_PORT` can change the
 port, and the controller must be configured to match it. `AI_PLAY_BASE_URL` and

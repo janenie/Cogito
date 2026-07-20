@@ -41,8 +41,12 @@ func _ready() -> void:
 	_bridge.remote_error.connect(_on_remote_error)
 	_executor.batch_finished.connect(_on_batch_finished)
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
-	if auto_start:
+	if auto_start or _should_enable_for_user_args(OS.get_cmdline_user_args()):
 		enable_ai()
+
+
+func _should_enable_for_user_args(user_args: Array) -> bool:
+	return "--ai-play" in user_args
 
 
 func get_state() -> State:

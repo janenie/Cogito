@@ -23,9 +23,10 @@ class FakeOpenAI:
 
 
 def config():
+    test_key = "secret"
     return SimpleNamespace(
         base_url="https://example.invalid/v1",
-        api_key="secret",
+        api_key=test_key,
         model="vision-model",
         request_timeout_seconds=12.5,
     )

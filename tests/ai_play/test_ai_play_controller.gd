@@ -66,6 +66,8 @@ func _run_tests() -> void:
 		return
 
 	_test_bridge_raw_json_packets()
+	_test_user_arg_opt_in(controller_script)
+	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_transport_failures_cancel(controller_script)
@@ -73,6 +75,29 @@ func _run_tests() -> void:
 	await _test_emergency_stop_latches(controller_script)
 	await _test_reusable_scene()
 	_finish()
+
+
+func _test_user_arg_opt_in(controller_script: GDScript) -> void:
+	var controller: Node = controller_script.new()
+	_assert(controller.has_method("_should_enable_for_user_args"), "controller exposes opt-in predicate")
+	if controller.has_method("_should_enable_for_user_args"):
+		_assert(not controller._should_enable_for_user_args([]), "ordinary launch stays disabled")
+		_assert(controller._should_enable_for_user_args(["--ai-play"]), "exact user arg enables AI")
+		for args: Array in [["ai-play"], ["--ai-play=true"], ["--AI-PLAY"]]:
+			_assert(not controller._should_enable_for_user_args(args), "similar user arg does not enable AI")
+	controller.free()
+
+
+func _test_bridge_requires_exact_loopback() -> void:
+	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
+	var bridge: Node = bridge_script.new()
+	_assert(bridge.has_method("_is_loopback_host"), "bridge exposes strict loopback predicate")
+	if bridge.has_method("_is_loopback_host"):
+		_assert(bridge._is_loopback_host("127.0.0.1"), "numeric IPv4 loopback is allowed")
+		for host: String in ["localhost", "::1", "192.0.2.1"]:
+			_assert(not bridge._is_loopback_host(host), "%s is rejected" % host)
+			_assert(bridge.connect_to_server(host, 8765) == ERR_INVALID_PARAMETER, "connect boundary rejects %s" % host)
+	bridge.free()
 
 
 func _test_bridge_raw_json_packets() -> void:

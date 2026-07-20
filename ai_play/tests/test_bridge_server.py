@@ -37,8 +37,9 @@ def _free_port():
 
 def _start_server(tmp_path, configured_data_dir=None):
     port = _free_port()
+    test_key = "test-key"
     config = Config(
-        api_key="test-key",
+        api_key=test_key,
         ws_port=port,
         data_dir=configured_data_dir,
     )

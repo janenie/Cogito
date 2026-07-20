@@ -10,12 +10,13 @@ from .config import Config
 from .memory import MemoryStore
 
 
-def main(argv=None):
+def main(argv=None, config=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args(argv)
 
-    config = Config.from_env()
+    if config is None:
+        config = Config.from_env()
     memory_path = None
     if config.data_dir is not None:
         memory_dir = config.data_dir / "ai_play"
@@ -36,12 +37,13 @@ def main(argv=None):
     serve(config, agent_loop)
 
 
-def _run_cli() -> int:
+def _run_cli(argv=None) -> int:
     try:
-        main()
+        config = Config.from_env()
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 2
+    main(argv, config=config)
     return 0
 
 

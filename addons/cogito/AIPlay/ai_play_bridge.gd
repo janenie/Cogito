@@ -14,6 +14,8 @@ var _reported_open: bool = false
 
 
 func connect_to_server(host: String, port: int) -> Error:
+	if not _is_loopback_host(host):
+		return ERR_INVALID_PARAMETER
 	disconnect_from_server()
 	_socket = WebSocketPeer.new()
 	_reported_open = false
@@ -21,6 +23,10 @@ func connect_to_server(host: String, port: int) -> Error:
 	if error != OK:
 		_socket = null
 	return error
+
+
+func _is_loopback_host(host: String) -> bool:
+	return host == "127.0.0.1"
 
 
 func send_packet(packet: Dictionary) -> Error:
