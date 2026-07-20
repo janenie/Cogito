@@ -169,6 +169,27 @@ def test_load_missing_file_returns_empty_memory(tmp_path):
     assert MemoryStore.load(tmp_path / "missing.json").to_prompt_dict() == MemoryStore.empty().to_prompt_dict()
 
 
+@pytest.mark.parametrize("goal", ["", "Explore safely"])
+def test_load_accepts_empty_or_safe_goal(tmp_path, goal):
+    path = tmp_path / "memory.json"
+    data = MemoryStore.empty().to_prompt_dict()
+    data["task_state"]["goal"] = goal
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    assert MemoryStore.load(path).task_state["goal"] == goal
+
+
+@pytest.mark.parametrize("goal", ["   ", "bad\ncontrol", "x" * 301])
+def test_load_rejects_invalid_nonempty_goal(tmp_path, goal):
+    path = tmp_path / "memory.json"
+    data = MemoryStore.empty().to_prompt_dict()
+    data["task_state"]["goal"] = goal
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="goal"):
+        MemoryStore.load(path)
+
+
 @pytest.mark.parametrize("contents", ["not json", "[]", '{"working_memory": []}'])
 def test_load_rejects_malformed_data(tmp_path, contents):
     path = tmp_path / "memory.json"

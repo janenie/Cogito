@@ -5,6 +5,7 @@ from pathlib import Path
 import threading
 
 from websockets.sync.server import serve as websocket_serve
+from websockets.exceptions import ConnectionClosed
 
 
 PROTOCOL_VERSION = 1
@@ -26,12 +27,20 @@ def _send(connection, packet):
     connection.send(json.dumps(packet, ensure_ascii=False, separators=(",", ":")))
 
 
+def _safe_send(connection, packet):
+    try:
+        _send(connection, packet)
+    except ConnectionClosed:
+        return False
+    return True
+
+
 def _handler(connection, config, agent_loop, session_lock):
     hello = _receive_hello(connection, config)
     if hello is None:
         return
     if not session_lock.acquire(blocking=False):
-        _send(connection, _error("controller_busy"))
+        _safe_send(connection, _error("controller_busy"))
         return
     try:
         _exclusive_handler(connection, config, agent_loop, hello)
@@ -42,8 +51,10 @@ def _handler(connection, config, agent_loop, session_lock):
 def _receive_hello(connection, config):
     try:
         raw_packet = connection.recv(timeout=HELLO_TIMEOUT_SECONDS)
+    except ConnectionClosed:
+        return None
     except TimeoutError:
-        _send(connection, _error("hello_timeout"))
+        _safe_send(connection, _error("hello_timeout"))
         return None
     try:
         if isinstance(raw_packet, bytes):
@@ -52,20 +63,20 @@ def _receive_hello(connection, config):
         if not isinstance(packet, dict):
             raise ValueError
     except (UnicodeError, json.JSONDecodeError, ValueError):
-        _send(connection, _error("invalid_packet"))
+        _safe_send(connection, _error("invalid_packet"))
         return None
     observation_id = packet.get("observation_id")
     if type(packet.get("protocol_version")) is not int or packet["protocol_version"] != PROTOCOL_VERSION:
-        _send(connection, _error("unsupported_protocol", observation_id))
+        _safe_send(connection, _error("unsupported_protocol", observation_id))
         return None
     if packet.get("type") != "hello":
-        _send(connection, _error("hello_required", observation_id))
+        _safe_send(connection, _error("hello_required", observation_id))
         return None
     hello_data_dir = packet.get("data_dir")
     if config.data_dir is None and (
         not isinstance(hello_data_dir, str) or not hello_data_dir
     ):
-        _send(connection, _error("invalid_hello"))
+        _safe_send(connection, _error("invalid_hello"))
         return None
     return packet
 

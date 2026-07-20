@@ -5,6 +5,7 @@ import time
 
 import pytest
 from websockets.sync.client import connect
+from websockets.exceptions import ConnectionClosedOK
 
 from ai_play.bridge_server import _handler, serve
 from ai_play.config import Config
@@ -107,6 +108,30 @@ class IdleConnection(FakeConnection):
 
     def __next__(self):
         raise AssertionError("idle handshake must use bounded recv")
+
+
+class ClosedReceiveConnection(FakeConnection):
+    def __init__(self):
+        super().__init__([])
+
+    def recv(self, timeout=None):
+        raise ConnectionClosedOK(None, None)
+
+
+class ClosedSendConnection(IdleConnection):
+    def send(self, packet):
+        raise ConnectionClosedOK(None, None)
+
+
+@pytest.mark.parametrize("connection", [ClosedReceiveConnection(), ClosedSendConnection()])
+def test_closed_peer_during_initial_handshake_returns_quietly(connection):
+    lock = threading.Lock()
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), FakeAgentLoop(), lock)
+
+    assert lock.acquire(blocking=False)
+    lock.release()
 
 
 def test_idle_client_times_out_without_taking_session_lock(tmp_path):

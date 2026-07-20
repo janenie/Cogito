@@ -197,7 +197,15 @@ class MemoryStore:
             "failures",
         }:
             raise ValueError("malformed task state")
-        if not isinstance(task_state["goal"], str) or len(task_state["goal"]) > 300:
+        goal = task_state["goal"]
+        if (
+            not isinstance(goal, str)
+            or len(goal) > 300
+            or (
+                bool(goal)
+                and (not goal.strip() or any(ord(character) < 32 for character in goal))
+            )
+        ):
             raise ValueError("malformed goal")
         for kind, key in _TASK_LISTS.items():
             if not cls._valid_entry_list(task_state[key], 24, expected_kind=kind):
