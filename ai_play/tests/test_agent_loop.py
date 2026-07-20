@@ -227,10 +227,13 @@ def test_applies_and_saves_memory_only_after_decision_validation(tmp_path):
     updates = [{"kind": "goal", "text": "Explore"}]
     loop = AgentLoop(FakeApi(decision(memory_updates=updates)), memory, tmp_path / "memory.json")
 
-    loop.handle_observation(observation())
+    result = loop.handle_observation(observation())
+    assert memory.updates == []
+    assert memory.saved_paths == []
+    assert loop.commit_action_batch_sent(result["observation_id"])
 
-    assert memory.updates == [(updates, 9)]
-    assert memory.saved_paths == [tmp_path / "memory.json"]
+    assert loop.memory.updates == [(updates, 9)]
+    assert loop.memory.saved_paths == [tmp_path / "memory.json"]
 
 
 def test_invalid_model_output_returns_safe_error_without_actions_or_memory():
@@ -311,9 +314,11 @@ def test_next_prompt_records_previous_decision_and_results():
     loop = AgentLoop(api, memory)
 
     loop.handle_observation(observation(1))
+    assert loop.commit_action_batch_sent(1)
     second = observation(2)
     second["last_action_results"] = [{"status": "completed", "type": "look"}]
     loop.handle_observation(second)
+    assert loop.commit_action_batch_sent(2)
 
     first_state = json.loads(api.messages[0][1]["content"][0]["text"])
     second_state = json.loads(api.messages[1][1]["content"][0]["text"])
@@ -334,7 +339,77 @@ def test_recorded_decision_history_is_bounded():
     loop = AgentLoop(FakeApi(decision()), memory)
 
     for observation_id in range(10):
-        loop.handle_observation(observation(observation_id))
+        result = loop.handle_observation(observation(observation_id))
+        assert loop.commit_action_batch_sent(result["observation_id"])
 
-    assert len(memory.working_memory) == 8
-    assert [entry["observation_id"] for entry in memory.working_memory] == list(range(1, 9))
+    assert len(loop.memory.working_memory) == 8
+    assert [entry["observation_id"] for entry in loop.memory.working_memory] == list(range(1, 9))
+
+
+def test_handle_stages_without_mutating_live_memory():
+    memory = MemoryStore.empty()
+    loop = AgentLoop(
+        FakeApi(decision(memory_updates=[{"kind": "goal", "text": "Explore"}])),
+        memory,
+    )
+
+    result = loop.handle_observation(observation(1))
+
+    assert result["type"] == "action_batch"
+    assert memory.task_state["goal"] == ""
+    assert loop._pending_step is None
+
+
+def test_mismatched_commit_is_rejected_without_live_mutation():
+    memory = MemoryStore.empty()
+    loop = AgentLoop(FakeApi(decision()), memory)
+    loop.handle_observation(observation(1))
+
+    assert not loop.commit_action_batch_sent(2)
+    assert loop.memory is memory
+    assert loop._pending_step is None
+    assert loop.discard_action_batch(1)
+
+
+def test_discarded_send_does_not_create_pending_or_live_updates():
+    memory = MemoryStore.empty()
+    loop = AgentLoop(
+        FakeApi(decision(memory_updates=[{"kind": "goal", "text": "Explore"}])),
+        memory,
+    )
+    result = loop.handle_observation(observation(1))
+
+    assert loop.discard_action_batch(result["observation_id"])
+
+    assert loop.memory is memory
+    assert loop.memory.task_state["goal"] == ""
+    assert loop.memory.working_memory == []
+    assert loop._pending_step is None
+
+
+def test_save_failure_discards_stage_without_live_mutation(tmp_path):
+    class FailingMemory(MemoryStore):
+        def save(self, path):
+            raise OSError("disk secret")
+
+    memory = FailingMemory.empty()
+    loop = AgentLoop(FakeApi(decision()), memory, tmp_path / "memory.json")
+    result = loop.handle_observation(observation(1))
+
+    assert not loop.commit_action_batch_sent(result["observation_id"])
+    assert loop.memory is memory
+    assert loop._pending_step is None
+    assert not loop.discard_action_batch(1)
+
+
+def test_same_path_reconnect_clears_pending_and_staged(tmp_path):
+    path = tmp_path / "memory.json"
+    loop = AgentLoop(FakeApi(decision()), MemoryStore.empty(), path)
+    result = loop.handle_observation(observation(1))
+    assert loop.commit_action_batch_sent(result["observation_id"])
+    loop.handle_observation(observation(2))
+
+    loop.configure_memory(path)
+
+    assert loop._pending_step is None
+    assert not loop.discard_action_batch(2)

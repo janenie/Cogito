@@ -54,7 +54,10 @@ def test_rejects_invalid_decision_fields(payload):
         valid(payload)
 
 
-@pytest.mark.parametrize("reason", [None, 42, "x" * 501])
+@pytest.mark.parametrize(
+    "reason",
+    [None, 42, "", "   ", "bad\nreason", "bad\x7freason", "bad\x85reason", "x" * 501],
+)
 def test_rejects_invalid_reason(reason):
     with pytest.raises(ActionValidationError, match="reason"):
         valid({"reason": reason, "memory_updates": [], "actions": [{"type": "stop"}]})

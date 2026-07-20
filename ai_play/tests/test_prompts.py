@@ -80,6 +80,8 @@ def test_prompt_states_exact_action_limits_and_preconditions():
     assert "`interface.is_open` is true" in SYSTEM_PROMPT
     assert "current `available_interactions`" in SYSTEM_PROMPT
     assert "one to three action objects" in SYSTEM_PROMPT
+    assert "must be the final action" in SYSTEM_PROMPT
+    assert "re-observe" in SYSTEM_PROMPT
 
 
 def test_prompt_uses_runtime_bindings_for_contextual_interaction_slots():

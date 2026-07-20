@@ -52,6 +52,9 @@ Action meanings:
   `duration_ms`.
 - `stop` releases active control and ends the current action sequence.
 
+`stop`, `interact`, `enter_digits`, and `close_ui` must be the final action in
+their batch. After any of them, re-observe before choosing another action.
+
 Return exactly one JSON value with no prose or markdown. It must be an object
 with exactly these keys: `reason`, `memory_updates`, and `actions`. `reason` is
 a short string grounded in visible evidence. `memory_updates` is an array.

@@ -109,7 +109,19 @@ def _exclusive_handler(connection, config, agent_loop, hello):
 
         packet_type = packet.get("type")
         if packet_type == "observation":
-            _send(connection, agent_loop.handle_observation(packet))
+            response = agent_loop.handle_observation(packet)
+            response_id = response.get("observation_id")
+            if response.get("type") == "action_batch":
+                try:
+                    _send(connection, response)
+                except Exception:
+                    agent_loop.discard_action_batch(response_id)
+                    return
+                if not agent_loop.commit_action_batch_sent(response_id):
+                    agent_loop.discard_action_batch(response_id)
+                    return
+            elif not _safe_send(connection, response):
+                return
         elif packet_type == "stop":
             return
         else:

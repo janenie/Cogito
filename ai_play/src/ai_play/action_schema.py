@@ -2,6 +2,7 @@
 
 import math
 import re
+import unicodedata
 
 
 class ActionValidationError(ValueError):
@@ -129,7 +130,13 @@ def validate_decision(payload, available_interactions, interface_open):
         "actions",
     }:
         raise ActionValidationError("decision has invalid fields")
-    if not isinstance(payload["reason"], str) or len(payload["reason"]) > 500:
+    reason = payload["reason"]
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason) > 500
+        or any(unicodedata.category(character) == "Cc" for character in reason)
+    ):
         raise ActionValidationError("reason must be a short string")
     validate_memory_updates(payload["memory_updates"])
 

@@ -15,6 +15,9 @@ class FakeAgentLoop:
     def __init__(self):
         self.memory_paths = []
         self.observations = []
+        self.commits = []
+        self.discards = []
+        self.commit_result = True
 
     def configure_memory(self, path):
         self.memory_paths.append(path)
@@ -28,6 +31,14 @@ class FakeAgentLoop:
             "reason": "fake",
             "actions": [{"type": "wait", "duration_ms": 100}],
         }
+
+    def commit_action_batch_sent(self, observation_id):
+        self.commits.append(observation_id)
+        return self.commit_result
+
+    def discard_action_batch(self, observation_id):
+        self.discards.append(observation_id)
+        return True
 
 
 def _free_port():
@@ -123,6 +134,18 @@ class ClosedSendConnection(IdleConnection):
         raise ConnectionClosedOK(None, None)
 
 
+class FailingActionSendConnection(FakeConnection):
+    def __init__(self, packets):
+        super().__init__(packets)
+        self.send_count = 0
+
+    def send(self, packet):
+        self.send_count += 1
+        if self.send_count == 2:
+            raise OSError("transport secret")
+        super().send(packet)
+
+
 @pytest.mark.parametrize("connection", [ClosedReceiveConnection(), ClosedSendConnection()])
 def test_closed_peer_during_initial_handshake_returns_quietly(connection):
     lock = threading.Lock()
@@ -199,6 +222,30 @@ def test_hello_canonicalizes_memory_directory(tmp_path):
     _handler(connection, Config(api_key=test_key), agent, threading.Lock())
 
     assert agent.memory_paths == [selected.resolve() / "ai_play" / "memory.json"]
+
+
+def test_action_batch_send_failure_discards_and_ends_session(tmp_path):
+    agent = FakeAgentLoop()
+    observation = {"type": "observation", "protocol_version": 1, "observation_id": 7}
+    connection = FailingActionSendConnection([_hello(tmp_path), observation])
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, threading.Lock())
+
+    assert agent.discards == [7]
+    assert agent.commits == []
+
+
+def test_commit_failure_ends_session_after_successful_send(tmp_path):
+    agent = FakeAgentLoop()
+    agent.commit_result = False
+    observation = {"type": "observation", "protocol_version": 1, "observation_id": 8}
+    connection = FakeConnection([_hello(tmp_path), observation])
+    test_key = "test-key"
+
+    _handler(connection, Config(api_key=test_key), agent, threading.Lock())
+
+    assert agent.commits == [8]
 
 
 def test_rejects_observation_before_hello(tmp_path):
