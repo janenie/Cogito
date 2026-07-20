@@ -65,12 +65,20 @@ func _receive_packet(bytes: PackedByteArray) -> void:
 	if _socket == null or not _socket.was_string_packet():
 		_protocol_error("invalid_packet", "packet must be JSON text")
 		return
-	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	_handle_text_packet(bytes.get_string_from_utf8())
+
+
+func _handle_text_packet(raw_packet: String) -> void:
+	var json := JSON.new()
+	if json.parse(raw_packet) != OK:
+		_protocol_error("invalid_packet", "packet must be valid JSON")
+		return
+	var parsed: Variant = json.data
 	if not parsed is Dictionary:
 		_protocol_error("invalid_packet", "packet must be a JSON object")
 		return
 	var packet: Dictionary = parsed
-	if typeof(packet.get("protocol_version")) != TYPE_INT or packet.get("protocol_version") != PROTOCOL_VERSION:
+	if not _is_protocol_version_one(packet.get("protocol_version")):
 		_protocol_error("unsupported_protocol", "protocol version must be 1")
 		return
 	match packet.get("type"):
@@ -82,6 +90,14 @@ func _receive_packet(bytes: PackedByteArray) -> void:
 			remote_error.emit(packet)
 		_:
 			_protocol_error("unexpected_packet", "unexpected packet type")
+
+
+func _is_protocol_version_one(value: Variant) -> bool:
+	if typeof(value) == TYPE_INT:
+		return value == PROTOCOL_VERSION
+	if typeof(value) == TYPE_FLOAT:
+		return is_finite(value) and value == float(PROTOCOL_VERSION)
+	return false
 
 
 func _protocol_error(code: String, message: String) -> void:

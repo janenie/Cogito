@@ -65,6 +65,7 @@ func _run_tests() -> void:
 		_finish()
 		return
 
+	_test_bridge_raw_json_packets()
 	await _test_enable_and_hello(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_transport_failures_cancel(controller_script)
@@ -72,6 +73,31 @@ func _run_tests() -> void:
 	await _test_emergency_stop_latches(controller_script)
 	await _test_reusable_scene()
 	_finish()
+
+
+func _test_bridge_raw_json_packets() -> void:
+	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
+	var bridge: Node = bridge_script.new()
+	var batches: Array[Dictionary] = []
+	var errors: Array[Dictionary] = []
+	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
+	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
+	bridge._handle_text_packet('{"type":"hello","protocol_version":1}')
+	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version one")
+	bridge._handle_text_packet(
+		'{"type":"action_batch","protocol_version":1,"observation_id":7,"actions":[]}'
+	)
+	_assert(batches.size() == 1, "raw JSON action batch emits through bridge")
+	for invalid_packet: String in [
+		'{"type":"hello","protocol_version":true}',
+		'{"type":"hello","protocol_version":"1"}',
+		'{"type":"hello","protocol_version":1.5}',
+		'{"type":"hello","protocol_version":NaN}',
+	]:
+		var previous_errors: int = errors.size()
+		bridge._handle_text_packet(invalid_packet)
+		_assert(errors.size() == previous_errors + 1, "raw JSON rejects invalid protocol version")
+	bridge.free()
 
 
 func _test_enable_and_hello(controller_script: GDScript) -> void:
@@ -97,20 +123,32 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	var bridge: FakeBridge = fixture.bridge
 	var executor: FakeExecutor = fixture.executor
 	bridge.action_batch_received.emit({
-		"observation_id": 17,
+		"observation_id": 17.0,
 		"actions": [{"type": "wait", "duration_ms": 50}],
 	})
-	_assert(executor.execute_calls.size() == 1, "matching observation ID executes")
+	_assert(executor.execute_calls.size() == 1, "matching parsed numeric observation ID executes")
 	executor.batch_finished.emit([{"status": "completed"}])
 	fixture.observer.next_observation_id = 18
 	fixture.timer.emit_signal("timeout")
 	bridge.action_batch_received.emit({
-		"observation_id": 17,
+		"observation_id": 18.5,
 		"actions": [{"type": "stop"}],
 	})
-	_assert(executor.execute_calls.size() == 1, "stale observation ID does not execute")
-	_assert("stale_observation" in executor.cancel_reasons, "stale observation ID cancels")
+	_assert(executor.execute_calls.size() == 1, "fractional observation ID does not execute")
+	_assert("stale_observation" in executor.cancel_reasons, "invalid observation ID cancels")
 	await _free_fixture(fixture)
+
+	var boolean_fixture: Dictionary = await _connected_fixture(controller_script)
+	boolean_fixture.bridge.action_batch_received.emit({"observation_id": true, "actions": []})
+	_assert(boolean_fixture.executor.execute_calls.is_empty(), "boolean observation ID does not execute")
+	_assert("stale_observation" in boolean_fixture.executor.cancel_reasons, "boolean observation ID cancels")
+	await _free_fixture(boolean_fixture)
+
+	var stale_fixture: Dictionary = await _connected_fixture(controller_script)
+	stale_fixture.bridge.action_batch_received.emit({"observation_id": 16.0, "actions": []})
+	_assert(stale_fixture.executor.execute_calls.is_empty(), "stale observation ID does not execute")
+	_assert("stale_observation" in stale_fixture.executor.cancel_reasons, "stale observation ID cancels")
+	await _free_fixture(stale_fixture)
 
 
 func _test_transport_failures_cancel(controller_script: GDScript) -> void:
@@ -142,6 +180,15 @@ func _test_human_takeover(controller_script: GDScript) -> void:
 	mouse_fixture.controller._input(mouse)
 	_assert(mouse_fixture.controller.get_state() == mouse_fixture.controller.State.DISABLED, "physical mouse movement pauses AI")
 	await _free_fixture(mouse_fixture)
+
+	var action_fixture: Dictionary = await _connected_fixture(controller_script)
+	var action := InputEventAction.new()
+	action.action = &"forward"
+	action.pressed = true
+	action.device = 0
+	action_fixture.controller._input(action)
+	_assert(action_fixture.controller.get_state() == action_fixture.controller.State.DISABLED, "unmarked input action pauses AI")
+	await _free_fixture(action_fixture)
 
 	var synthetic_fixture: Dictionary = await _connected_fixture(controller_script)
 	var synthetic := InputEventMouseMotion.new()

@@ -6,6 +6,7 @@ enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 const PROTOCOL_VERSION: int = 1
 const EXECUTOR_DEVICE_ID: int = AIPlayExecutor.SYNTHETIC_DEVICE_ID
 const RECONNECT_DELAY_SECONDS: float = 1.0
+const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
 @export var player: CogitoPlayer
 @export var auto_start: bool = false
@@ -84,7 +85,7 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.device == EXECUTOR_DEVICE_ID or event is InputEventAction:
+	if event.device == EXECUTOR_DEVICE_ID:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == emergency_stop_key or event.physical_keycode == emergency_stop_key:
@@ -120,13 +121,13 @@ func _capture_observation(results: Array) -> void:
 		_pause_for_error("player_not_configured")
 		return
 	var observation: Dictionary = _observer.capture_observation(results)
-	var observation_id: Variant = observation.get("observation_id")
-	if typeof(observation_id) != TYPE_INT:
+	var observation_id: Dictionary = _parse_observation_id(observation.get("observation_id"))
+	if not observation_id["valid"]:
 		_pause_for_error("invalid_observation")
 		return
 	observation["type"] = "observation"
 	observation["protocol_version"] = PROTOCOL_VERSION
-	_pending_observation_id = observation_id
+	_pending_observation_id = observation_id["value"]
 	var interface: Dictionary = observation.get("interface", {})
 	_pending_context = {
 		"interface_open": interface.get("is_open", false),
@@ -141,8 +142,8 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	if _state != State.WAITING_FOR_DECISION:
 		_pause_for_error("unexpected_action_batch")
 		return
-	var observation_id: Variant = batch.get("observation_id")
-	if typeof(observation_id) != TYPE_INT or observation_id != _pending_observation_id:
+	var observation_id: Dictionary = _parse_observation_id(batch.get("observation_id"))
+	if not observation_id["valid"] or observation_id["value"] != _pending_observation_id:
 		_pause_for_error("stale_observation")
 		return
 	var actions: Variant = batch.get("actions")
@@ -194,6 +195,21 @@ func _interaction_actions(interactions: Variant) -> Array[String]:
 	return actions
 
 
+func _parse_observation_id(value: Variant) -> Dictionary:
+	if typeof(value) == TYPE_INT:
+		if value >= 0 and value <= MAX_SAFE_JSON_INTEGER:
+			return {"valid": true, "value": value}
+	elif typeof(value) == TYPE_FLOAT:
+		if (
+			is_finite(value)
+			and value >= 0.0
+			and value <= float(MAX_SAFE_JSON_INTEGER)
+			and value == floor(value)
+		):
+			return {"valid": true, "value": int(value)}
+	return {"valid": false, "value": -1}
+
+
 func _is_human_control_event(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
 		return event.relative != Vector2.ZERO
@@ -203,6 +219,8 @@ func _is_human_control_event(event: InputEvent) -> bool:
 		return event.pressed
 	if event is InputEventJoypadMotion:
 		return absf(event.axis_value) > 0.1
+	if event is InputEventAction:
+		return event.pressed
 	if event is InputEventKey:
 		return event.pressed and not event.echo
 	return false
