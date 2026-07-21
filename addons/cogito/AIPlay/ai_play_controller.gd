@@ -13,14 +13,13 @@ const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 @export var host: String = "127.0.0.1"
 @export_range(1, 65535, 1) var port: int = 8765
 @export_range(0.0, 60.0, 0.05) var observation_interval: float = 0.25
-@export var emergency_stop_key: Key = KEY_F12
+@export var stop_key: Key = KEY_ESCAPE
 
 var _state: State = State.DISABLED
 var _pending_observation_id: int = -1
 var _executing_observation_id: int = -1
 var _pending_context: Dictionary = {}
 var _last_results: Array = []
-var _emergency_stopped: bool = false
 var _reconnect_remaining: float = -1.0
 var _capture_generation: int = 0
 
@@ -60,7 +59,6 @@ func get_state() -> State:
 
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
-	_emergency_stopped = false
 	_reconnect_remaining = -1.0
 	if _state != State.DISABLED:
 		_bridge.disconnect_from_server()
@@ -88,7 +86,7 @@ func disable_ai(reason: String = "disabled") -> void:
 
 
 func _process(delta: float) -> void:
-	if _state != State.CONNECTING or _emergency_stopped or _reconnect_remaining < 0.0:
+	if _state != State.CONNECTING or _reconnect_remaining < 0.0:
 		return
 	_reconnect_remaining -= delta
 	if _reconnect_remaining <= 0.0:
@@ -99,16 +97,31 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.device == EXECUTOR_DEVICE_ID:
+	if event.device == EXECUTOR_DEVICE_ID or _state == State.DISABLED:
 		return
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == emergency_stop_key or event.physical_keycode == emergency_stop_key:
-			_emergency_stopped = true
-			disable_ai("emergency_stop")
-			return
-	if _state == State.DISABLED or not _is_human_control_event(event):
+	if not event is InputEventKey or not event.pressed or event.echo:
 		return
-	disable_ai("human_takeover")
+	if event.keycode != stop_key and event.physical_keycode != stop_key:
+		return
+	_send_stop_packet("escape_stop")
+	disable_ai("escape_stop")
+
+
+func _send_stop_packet(reason: String) -> void:
+	var observation_id: Variant = null
+	var results: Array = []
+	if _executing_observation_id >= 0:
+		observation_id = _executing_observation_id
+		results = [{"status": "cancelled", "reason": reason}]
+	elif _pending_observation_id >= 0:
+		observation_id = _pending_observation_id
+	_bridge.send_packet({
+		"type": "stop",
+		"protocol_version": PROTOCOL_VERSION,
+		"observation_id": observation_id,
+		"reason": reason,
+		"results": results,
+	})
 
 
 func _on_bridge_connected() -> void:
@@ -232,8 +245,7 @@ func _on_bridge_disconnected(reason: String) -> void:
 	_executing_observation_id = -1
 	_observation_timer.stop()
 	_executor.cancel_all(reason)
-	if not _emergency_stopped:
-		_reconnect_remaining = RECONNECT_DELAY_SECONDS
+	_reconnect_remaining = RECONNECT_DELAY_SECONDS
 
 
 func _on_remote_error(error: Dictionary) -> void:
@@ -287,18 +299,3 @@ func _parse_observation_id(value: Variant) -> Dictionary:
 			return {"valid": true, "value": int(value)}
 	return {"valid": false, "value": -1}
 
-
-func _is_human_control_event(event: InputEvent) -> bool:
-	if event is InputEventMouseMotion:
-		return false
-	if event is InputEventMouseButton:
-		return event.pressed
-	if event is InputEventJoypadButton:
-		return event.pressed
-	if event is InputEventJoypadMotion:
-		return absf(event.axis_value) > 0.1
-	if event is InputEventAction:
-		return event.pressed
-	if event is InputEventKey:
-		return event.pressed and not event.echo
-	return false

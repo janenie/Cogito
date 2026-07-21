@@ -79,8 +79,8 @@ func _run_tests() -> void:
 	await _test_context_change_recaptures_immediately(controller_script)
 	await _test_deferred_recapture_is_cancelled_by_teardown(controller_script)
 	await _test_transport_failures_cancel(controller_script)
-	await _test_human_takeover(controller_script)
-	await _test_emergency_stop_latches(controller_script)
+	await _test_non_escape_input_keeps_ai(controller_script)
+	await _test_escape_stops_ai(controller_script)
 	await _test_reusable_scene()
 	await _test_teardown_releases_without_late_signal()
 	await _test_bridge_teardown_disconnects()
@@ -333,15 +333,24 @@ func _test_transport_failures_cancel(controller_script: GDScript) -> void:
 	await _free_fixture(error_fixture)
 
 
-func _test_human_takeover(controller_script: GDScript) -> void:
+func _test_non_escape_input_keeps_ai(controller_script: GDScript) -> void:
 	var key_fixture: Dictionary = await _connected_fixture(controller_script)
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_W
 	key.pressed = true
 	key.device = 0
 	key_fixture.controller._input(key)
-	_assert(key_fixture.controller.get_state() == key_fixture.controller.State.DISABLED, "physical movement pauses AI")
+	_assert(key_fixture.controller.get_state() != key_fixture.controller.State.DISABLED, "physical movement does not stop AI")
 	await _free_fixture(key_fixture)
+
+	var f12_fixture: Dictionary = await _connected_fixture(controller_script)
+	var f12 := InputEventKey.new()
+	f12.keycode = KEY_F12
+	f12.pressed = true
+	f12.device = 0
+	f12_fixture.controller._input(f12)
+	_assert(f12_fixture.controller.get_state() != f12_fixture.controller.State.DISABLED, "F12 does not stop AI")
+	await _free_fixture(f12_fixture)
 
 	var mouse_fixture: Dictionary = await _connected_fixture(controller_script)
 	var mouse := InputEventMouseMotion.new()
@@ -357,7 +366,7 @@ func _test_human_takeover(controller_script: GDScript) -> void:
 	click.pressed = true
 	click.device = 0
 	click_fixture.controller._input(click)
-	_assert(click_fixture.controller.get_state() == click_fixture.controller.State.DISABLED, "physical mouse click pauses AI")
+	_assert(click_fixture.controller.get_state() != click_fixture.controller.State.DISABLED, "physical mouse click does not stop AI")
 	await _free_fixture(click_fixture)
 
 	var action_fixture: Dictionary = await _connected_fixture(controller_script)
@@ -366,8 +375,17 @@ func _test_human_takeover(controller_script: GDScript) -> void:
 	action.pressed = true
 	action.device = 0
 	action_fixture.controller._input(action)
-	_assert(action_fixture.controller.get_state() == action_fixture.controller.State.DISABLED, "unmarked input action pauses AI")
+	_assert(action_fixture.controller.get_state() != action_fixture.controller.State.DISABLED, "unmarked input action does not stop AI")
 	await _free_fixture(action_fixture)
+
+	var joypad_fixture: Dictionary = await _connected_fixture(controller_script)
+	var joypad := InputEventJoypadButton.new()
+	joypad.button_index = JOY_BUTTON_A
+	joypad.pressed = true
+	joypad.device = 0
+	joypad_fixture.controller._input(joypad)
+	_assert(joypad_fixture.controller.get_state() != joypad_fixture.controller.State.DISABLED, "joypad input does not stop AI")
+	await _free_fixture(joypad_fixture)
 
 	var synthetic_fixture: Dictionary = await _connected_fixture(controller_script)
 	var synthetic := InputEventMouseMotion.new()
@@ -382,19 +400,25 @@ func _test_human_takeover(controller_script: GDScript) -> void:
 	await _free_fixture(synthetic_fixture)
 
 
-func _test_emergency_stop_latches(controller_script: GDScript) -> void:
+func _test_escape_stops_ai(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
 	var emergency := InputEventKey.new()
-	emergency.keycode = KEY_F12
+	emergency.keycode = KEY_ESCAPE
 	emergency.pressed = true
 	emergency.device = 0
 	fixture.controller._input(emergency)
-	_assert(fixture.controller.get_state() == fixture.controller.State.DISABLED, "emergency stop disables AI")
+	_assert(fixture.controller.get_state() == fixture.controller.State.DISABLED, "Escape disables AI")
+	var stop_packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "stop"
+	)
+	_assert(stop_packets.size() == 1, "Escape sends exactly one stop packet")
+	if stop_packets.size() == 1:
+		_assert(stop_packets[0].get("reason") == "escape_stop", "Escape reports stable stop reason")
 	var previous_connects: int = fixture.bridge.connect_calls.size()
 	fixture.controller._process(10.0)
-	_assert(fixture.bridge.connect_calls.size() == previous_connects, "emergency stop prevents reconnect")
+	_assert(fixture.bridge.connect_calls.size() == previous_connects, "Escape stop prevents reconnect")
 	fixture.controller.enable_ai()
-	_assert(fixture.bridge.connect_calls.size() == previous_connects + 1, "explicit enable clears emergency latch")
+	_assert(fixture.bridge.connect_calls.size() == previous_connects + 1, "explicit enable resumes after Escape")
 	await _free_fixture(fixture)
 
 
