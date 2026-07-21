@@ -17,6 +17,8 @@ class FakeAgentLoop:
         self.observations = []
         self.commits = []
         self.discards = []
+        self.action_results = []
+        self.stops = []
         self.commit_result = True
 
     def configure_memory(self, path):
@@ -39,6 +41,13 @@ class FakeAgentLoop:
     def discard_action_batch(self, observation_id):
         self.discards.append(observation_id)
         return True
+
+    def record_action_results(self, observation_id, results):
+        self.action_results.append((observation_id, results))
+        return True
+
+    def record_stop(self, reason, observation_id=None, results=None):
+        self.stops.append((reason, observation_id, results))
 
 
 def _free_port():
@@ -222,6 +231,46 @@ def test_hello_canonicalizes_memory_directory(tmp_path):
     _handler(connection, Config(api_key=test_key), agent, threading.Lock())
 
     assert agent.memory_paths == [selected.resolve() / "ai_play" / "memory.json"]
+
+
+def test_routes_action_results_to_the_correlated_round(tmp_path):
+    agent = FakeAgentLoop()
+    results = [{"status": "completed", "type": "move"}]
+    connection = FakeConnection([
+        _hello(tmp_path),
+        {
+            "type": "action_results",
+            "protocol_version": 1,
+            "observation_id": 17,
+            "results": results,
+        },
+    ])
+
+    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+
+    assert agent.action_results == [(17, results)]
+    assert [packet["type"] for packet in connection.sent] == ["hello"]
+
+
+def test_routes_escape_stop_and_ends_the_session(tmp_path):
+    agent = FakeAgentLoop()
+    results = [{"status": "cancelled", "reason": "escape_stop"}]
+    connection = FakeConnection([
+        _hello(tmp_path),
+        {
+            "type": "stop",
+            "protocol_version": 1,
+            "observation_id": 17,
+            "reason": "escape_stop",
+            "results": results,
+        },
+        {"type": "observation", "protocol_version": 1, "observation_id": 18},
+    ])
+
+    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+
+    assert agent.stops == [("escape_stop", 17, results)]
+    assert agent.observations == []
 
 
 def test_action_batch_send_failure_discards_and_ends_session(tmp_path):

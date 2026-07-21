@@ -72,6 +72,7 @@ func _run_tests() -> void:
 	_test_user_arg_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
+	await _test_action_results_are_reported(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
@@ -177,6 +178,28 @@ func _test_stopped_batch_disables_without_recapture(controller_script: GDScript)
 		fixture.observer.capture_count == initial_capture_count,
 		"stopped result does not capture another observation",
 	)
+	await _free_fixture(fixture)
+
+
+func _test_action_results_are_reported(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"actions": [{"type": "wait", "duration_ms": 50}],
+	})
+	var results: Array = [{"status": "completed", "type": "wait"}]
+	fixture.executor.batch_finished.emit(results)
+	var result_packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "action_results"
+	)
+	_assert(result_packets.size() == 1, "completed batch sends one action-results packet")
+	if result_packets.size() == 1:
+		_assert(result_packets[0] == {
+			"type": "action_results",
+			"protocol_version": 1,
+			"observation_id": 17,
+			"results": results,
+		}, "action-results packet preserves observation correlation and results")
 	await _free_fixture(fixture)
 
 
@@ -325,8 +348,17 @@ func _test_human_takeover(controller_script: GDScript) -> void:
 	mouse.relative = Vector2(3.0, -2.0)
 	mouse.device = 0
 	mouse_fixture.controller._input(mouse)
-	_assert(mouse_fixture.controller.get_state() == mouse_fixture.controller.State.DISABLED, "physical mouse movement pauses AI")
+	_assert(mouse_fixture.controller.get_state() != mouse_fixture.controller.State.DISABLED, "passive mouse movement does not pause AI")
 	await _free_fixture(mouse_fixture)
+
+	var click_fixture: Dictionary = await _connected_fixture(controller_script)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.device = 0
+	click_fixture.controller._input(click)
+	_assert(click_fixture.controller.get_state() == click_fixture.controller.State.DISABLED, "physical mouse click pauses AI")
+	await _free_fixture(click_fixture)
 
 	var action_fixture: Dictionary = await _connected_fixture(controller_script)
 	var action := InputEventAction.new()

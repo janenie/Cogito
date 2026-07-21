@@ -17,6 +17,7 @@ const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
 var _state: State = State.DISABLED
 var _pending_observation_id: int = -1
+var _executing_observation_id: int = -1
 var _pending_context: Dictionary = {}
 var _last_results: Array = []
 var _emergency_stopped: bool = false
@@ -44,6 +45,7 @@ func _ready() -> void:
 	_bridge.remote_error.connect(_on_remote_error)
 	_executor.batch_finished.connect(_on_batch_finished)
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
+	print("AI_PLAY controller ready; user_args=%s auto_start=%s" % [OS.get_cmdline_user_args(), auto_start])
 	if auto_start or _should_enable_for_user_args(OS.get_cmdline_user_args()):
 		enable_ai()
 
@@ -57,21 +59,25 @@ func get_state() -> State:
 
 
 func enable_ai() -> void:
+	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
 	_emergency_stopped = false
 	_reconnect_remaining = -1.0
 	if _state != State.DISABLED:
 		_bridge.disconnect_from_server()
 	_state = State.CONNECTING
 	_pending_observation_id = -1
+	_executing_observation_id = -1
 	var error: Error = _bridge.connect_to_server(host, port)
 	if error != OK:
 		_on_bridge_disconnected("connect_error:%d" % error)
 
 
 func disable_ai(reason: String = "disabled") -> void:
+	print("AI_PLAY disabled; reason=%s" % reason)
 	_capture_generation += 1
 	_state = State.DISABLED
 	_pending_observation_id = -1
+	_executing_observation_id = -1
 	_reconnect_remaining = -1.0
 	if _observation_timer != null:
 		_observation_timer.stop()
@@ -108,6 +114,7 @@ func _input(event: InputEvent) -> void:
 func _on_bridge_connected() -> void:
 	if _state != State.CONNECTING:
 		return
+	print("AI_PLAY WebSocket connected")
 	_reconnect_remaining = -1.0
 	var hello: Dictionary = {
 		"type": "hello",
@@ -135,6 +142,7 @@ func _capture_observation(results: Array) -> void:
 		return
 	observation["type"] = "observation"
 	observation["protocol_version"] = PROTOCOL_VERSION
+	print("AI_PLAY sending observation=%d" % observation_id["value"])
 	_pending_observation_id = observation_id["value"]
 	var interface: Dictionary = observation.get("interface", {})
 	_pending_context = {
@@ -150,6 +158,7 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	if _state != State.WAITING_FOR_DECISION:
 		_pause_for_error("unexpected_action_batch")
 		return
+	print("AI_PLAY received action batch for observation=%s" % str(batch.get("observation_id")))
 	var observation_id: Dictionary = _parse_observation_id(batch.get("observation_id"))
 	if not observation_id["valid"] or observation_id["value"] != _pending_observation_id:
 		_pause_for_error("stale_observation")
@@ -158,6 +167,7 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	if not actions is Array:
 		_pause_for_error("invalid_action_batch")
 		return
+	_executing_observation_id = observation_id["value"]
 	_pending_observation_id = -1
 	_state = State.EXECUTING
 	_executor.execute_batch(actions, _pending_context)
@@ -165,6 +175,16 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 
 func _on_batch_finished(results: Array) -> void:
 	if _state != State.EXECUTING:
+		return
+	var completed_observation_id: int = _executing_observation_id
+	_executing_observation_id = -1
+	if _bridge.send_packet({
+		"type": "action_results",
+		"protocol_version": PROTOCOL_VERSION,
+		"observation_id": completed_observation_id,
+		"results": results.duplicate(true),
+	}) != OK:
+		_pause_for_error("action_results_send_failed")
 		return
 	_last_results = results.duplicate(true)
 	if _contains_stopped_result(results):
@@ -205,9 +225,11 @@ func _on_observation_timer_timeout() -> void:
 func _on_bridge_disconnected(reason: String) -> void:
 	if _state == State.DISABLED:
 		return
+	print("AI_PLAY WebSocket disconnected; reason=%s" % reason)
 	_capture_generation += 1
 	_state = State.CONNECTING
 	_pending_observation_id = -1
+	_executing_observation_id = -1
 	_observation_timer.stop()
 	_executor.cancel_all(reason)
 	if not _emergency_stopped:
@@ -215,6 +237,7 @@ func _on_bridge_disconnected(reason: String) -> void:
 
 
 func _on_remote_error(error: Dictionary) -> void:
+	print("AI_PLAY remote error; code=%s" % str(error.get("code", "unknown")))
 	_pause_for_error("remote_error:%s" % str(error.get("code", "unknown")))
 
 
@@ -267,7 +290,7 @@ func _parse_observation_id(value: Variant) -> Dictionary:
 
 func _is_human_control_event(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
-		return event.relative != Vector2.ZERO
+		return false
 	if event is InputEventMouseButton:
 		return event.pressed
 	if event is InputEventJoypadButton:

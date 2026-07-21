@@ -65,6 +65,41 @@ def _vector(value, length, label, lower, upper):
     return [_number(component, label, lower, upper) for component in value]
 
 
+def validate_action_results(results):
+    if not isinstance(results, list) or len(results) > 3:
+        raise ObservationValidationError("last_action_results is invalid")
+    safe_results = []
+    for result in results:
+        if not isinstance(result, dict) or not set(result).issubset({"status", "type", "error", "reason"}) or "status" not in result:
+            raise ObservationValidationError("action result has invalid fields")
+        status = _text(result["status"], "result status", 16, allow_empty=False)
+        if status not in {"completed", "cancelled", "error", "blocked", "stopped"}:
+            raise ObservationValidationError("action result status is invalid")
+        result_fields = set(result)
+        if (
+            (status == "completed" and result_fields != {"status", "type"})
+            or (status == "error" and result_fields != {"status", "error"})
+            or (
+                status == "cancelled"
+                and result_fields not in ({"status"}, {"status", "reason"})
+            )
+            or (status in {"blocked", "stopped"} and result_fields != {"status", "type"})
+        ):
+            raise ObservationValidationError("action result fields do not match status")
+        safe_result = {"status": status}
+        for key in ("type", "error", "reason"):
+            if key in result:
+                safe_result[key] = _text(result[key], f"result {key}", 200, allow_empty=False)
+        if "type" in safe_result and safe_result["type"] not in ACTION_TYPES:
+            raise ObservationValidationError("action result type is invalid")
+        if status == "blocked" and safe_result["type"] not in {"move", "sprint"}:
+            raise ObservationValidationError("blocked result type is invalid")
+        if status == "stopped" and safe_result["type"] != "stop":
+            raise ObservationValidationError("stopped result type is invalid")
+        safe_results.append(safe_result)
+    return safe_results
+
+
 def validate_observation(value):
     """Return a fresh safe observation DTO or raise before any model call."""
     _exact(value, OBSERVATION_FIELDS, "observation")
@@ -133,38 +168,7 @@ def validate_observation(value):
             "prompt": _text(interaction["prompt"], "interaction prompt", 200),
         })
 
-    results = value["last_action_results"]
-    if not isinstance(results, list) or len(results) > 3:
-        raise ObservationValidationError("last_action_results is invalid")
-    safe_results = []
-    for result in results:
-        if not isinstance(result, dict) or not set(result).issubset({"status", "type", "error", "reason"}) or "status" not in result:
-            raise ObservationValidationError("action result has invalid fields")
-        status = _text(result["status"], "result status", 16, allow_empty=False)
-        if status not in {"completed", "cancelled", "error", "blocked", "stopped"}:
-            raise ObservationValidationError("action result status is invalid")
-        result_fields = set(result)
-        if (
-            (status == "completed" and result_fields != {"status", "type"})
-            or (status == "error" and result_fields != {"status", "error"})
-            or (
-                status == "cancelled"
-                and result_fields not in ({"status"}, {"status", "reason"})
-            )
-            or (status in {"blocked", "stopped"} and result_fields != {"status", "type"})
-        ):
-            raise ObservationValidationError("action result fields do not match status")
-        safe_result = {"status": status}
-        for key in ("type", "error", "reason"):
-            if key in result:
-                safe_result[key] = _text(result[key], f"result {key}", 200, allow_empty=False)
-        if "type" in safe_result and safe_result["type"] not in ACTION_TYPES:
-            raise ObservationValidationError("action result type is invalid")
-        if status == "blocked" and safe_result["type"] not in {"move", "sprint"}:
-            raise ObservationValidationError("blocked result type is invalid")
-        if status == "stopped" and safe_result["type"] != "stop":
-            raise ObservationValidationError("stopped result type is invalid")
-        safe_results.append(safe_result)
+    safe_results = validate_action_results(value["last_action_results"])
 
     return {
         "observation_id": _integer(value["observation_id"], "observation_id"),

@@ -7,6 +7,8 @@ import threading
 from websockets.sync.server import serve as websocket_serve
 from websockets.exceptions import ConnectionClosed
 
+from .observation_schema import ObservationValidationError, validate_action_results
+
 
 PROTOCOL_VERSION = 1
 MAX_PACKET_SIZE = 4 * 1024 * 1024
@@ -122,7 +124,37 @@ def _exclusive_handler(connection, config, agent_loop, hello):
                     return
             elif not _safe_send(connection, response):
                 return
+        elif packet_type == "action_results":
+            if set(packet) != {
+                "type", "protocol_version", "observation_id", "results"
+            }:
+                _send(connection, _error("invalid_action_results", observation_id))
+                continue
+            try:
+                if type(observation_id) is not int:
+                    raise ObservationValidationError("observation_id is invalid")
+                results = validate_action_results(packet["results"])
+            except ObservationValidationError:
+                _send(connection, _error("invalid_action_results", observation_id))
+                continue
+            if not agent_loop.record_action_results(observation_id, results):
+                _send(connection, _error("unknown_action_results", observation_id))
         elif packet_type == "stop":
+            if set(packet) != {
+                "type", "protocol_version", "observation_id", "reason", "results"
+            }:
+                _send(connection, _error("invalid_stop", observation_id))
+                continue
+            try:
+                if observation_id is not None and type(observation_id) is not int:
+                    raise ObservationValidationError("observation_id is invalid")
+                if packet["reason"] != "escape_stop":
+                    raise ObservationValidationError("stop reason is invalid")
+                results = validate_action_results(packet["results"])
+            except (KeyError, ObservationValidationError):
+                _send(connection, _error("invalid_stop", observation_id))
+                continue
+            agent_loop.record_stop(packet["reason"], observation_id, results)
             return
         else:
             _send(connection, _error("unexpected_packet", observation_id))
