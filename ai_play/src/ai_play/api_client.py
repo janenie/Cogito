@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import re
+import time
 
 from openai import OpenAI
 
@@ -23,6 +25,19 @@ def _strip_json_fence(content: str) -> str:
     return stripped
 
 
+def parse_model_json(content: str):
+    return json.loads(
+        _strip_json_fence(content),
+        parse_constant=_reject_json_constant,
+    )
+
+
+@dataclass(frozen=True)
+class ModelCompletion:
+    raw_content: str
+    latency_ms: int
+
+
 class ApiClient:
     """Send decision messages to an OpenAI-compatible endpoint."""
 
@@ -34,7 +49,8 @@ class ApiClient:
             max_retries=config.api_max_retries,
         )
 
-    def decide(self, messages):
+    def complete(self, messages):
+        started_ns = time.monotonic_ns()
         completion = self.client.chat.completions.create(
             model=self.config.model,
             messages=messages,
@@ -43,7 +59,10 @@ class ApiClient:
         content = completion.choices[0].message.content
         if not isinstance(content, str):
             raise ValueError("model response content must be text JSON")
-        return json.loads(
-            _strip_json_fence(content),
-            parse_constant=_reject_json_constant,
+        return ModelCompletion(
+            raw_content=content,
+            latency_ms=(time.monotonic_ns() - started_ns) // 1_000_000,
         )
+
+    def decide(self, messages):
+        return parse_model_json(self.complete(messages).raw_content)

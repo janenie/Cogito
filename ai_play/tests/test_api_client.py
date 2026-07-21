@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 import ai_play.api_client as api_client_module
-from ai_play.api_client import ApiClient
+from ai_play.api_client import ApiClient, ModelCompletion, parse_model_json
 
 
 class FakeCompletions:
@@ -54,6 +54,24 @@ def test_decide_forwards_request_and_decodes_json():
         "memory_updates": [],
         "actions": [{"type": "wait", "duration_ms": 100}],
     }
+
+
+def test_complete_preserves_raw_content_and_reports_latency():
+    raw = '```json\n{"actions": []}\n```'
+    fake = FakeOpenAI(raw)
+
+    completion = ApiClient(config(), client=fake).complete([])
+
+    assert completion == ModelCompletion(
+        raw_content=raw,
+        latency_ms=completion.latency_ms,
+    )
+    assert type(completion.latency_ms) is int
+    assert completion.latency_ms >= 0
+
+
+def test_parse_model_json_accepts_one_surrounding_json_fence():
+    assert parse_model_json('```json\n{"actions": []}\n```') == {"actions": []}
 
 
 def test_decide_accepts_one_surrounding_json_fence():
