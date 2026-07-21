@@ -104,3 +104,19 @@ def build_messages(observation: dict[str, Any], memory: dict[str, Any]) -> list[
             ],
         },
     ]
+
+
+def build_log_messages(messages: list[dict], image_path: str) -> list[dict]:
+    """Return the exact request shape with image bytes replaced by a log path."""
+    logged = deepcopy(messages)
+    for message in logged:
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for index, part in enumerate(content):
+            if isinstance(part, dict) and part.get("type") == "image_url":
+                content[index] = {
+                    "type": "image_path",
+                    "image_path": image_path,
+                }
+    return logged

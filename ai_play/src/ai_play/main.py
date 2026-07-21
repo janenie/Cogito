@@ -8,6 +8,7 @@ from .api_client import ApiClient
 from .bridge_server import serve
 from .config import Config
 from .memory import MemoryStore
+from .run_logger import RunLogger
 
 
 def main(argv=None, config=None):
@@ -27,14 +28,20 @@ def main(argv=None, config=None):
         if args.resume and memory_path is not None
         else MemoryStore.empty()
     )
-    agent_loop = AgentLoop(
-        ApiClient(config),
-        memory,
-        memory_path=memory_path,
-        resume=args.resume,
-    )
-    print(f"{config.ws_host}:{config.ws_port} {config.model}")
-    serve(config, agent_loop)
+    run_logger = RunLogger.create(config.log_root, config.model)
+    try:
+        agent_loop = AgentLoop(
+            ApiClient(config),
+            memory,
+            memory_path=memory_path,
+            resume=args.resume,
+            run_logger=run_logger,
+        )
+        print(f"{config.ws_host}:{config.ws_port} {config.model}")
+        print(f"AI_PLAY logs: {run_logger.run_dir}")
+        serve(config, agent_loop)
+    finally:
+        run_logger.close()
 
 
 def _run_cli(argv=None) -> int:

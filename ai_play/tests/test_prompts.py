@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from ai_play.prompts import SYSTEM_PROMPT, build_messages
+from ai_play.prompts import SYSTEM_PROMPT, build_log_messages, build_messages
 
 
 FORBIDDEN = ["game_script/", "code_read/", ".gd", ".tscn", "passcode", "walkthrough"]
@@ -68,6 +68,19 @@ def test_build_messages_keeps_image_only_in_data_url():
         "image_url": {"url": "data:image/jpeg;base64,aW1hZ2U="},
     }
     assert state["memory"] == {"facts": []}
+
+
+def test_build_log_messages_replaces_image_data_url_with_relative_path():
+    messages = build_messages(observation(), {"facts": []})
+
+    logged = build_log_messages(messages, "img/000007.jpg")
+
+    assert logged[1]["content"][1] == {
+        "type": "image_path",
+        "image_path": "img/000007.jpg",
+    }
+    assert "base64" not in json.dumps(logged)
+    assert messages[1]["content"][1]["type"] == "image_url"
 
 
 def test_prompt_states_exact_action_limits_and_preconditions():

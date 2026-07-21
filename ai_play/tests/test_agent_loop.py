@@ -5,7 +5,9 @@ import pytest
 
 import ai_play.agent_loop as agent_loop_module
 from ai_play.agent_loop import AgentLoop
+from ai_play.api_client import ModelCompletion
 from ai_play.memory import MemoryStore
+from ai_play.run_logger import RunLogger
 
 
 def observation(observation_id=9):
@@ -46,13 +48,22 @@ def observation(observation_id=9):
 
 
 class FakeApi:
-    def __init__(self, decision):
+    def __init__(self, decision, raw_content=None):
         self.decision = decision
+        self.raw_content = raw_content
         self.messages = []
+        self.config = type("Config", (), {"model": "test-model"})()
 
     def decide(self, messages):
         self.messages.append(messages)
         return self.decision
+
+    def complete(self, messages):
+        self.messages.append(messages)
+        raw = self.raw_content
+        if raw is None:
+            raw = json.dumps(self.decision, ensure_ascii=False)
+        return ModelCompletion(raw_content=raw, latency_ms=12)
 
 
 class FakeMemory:
@@ -78,6 +89,74 @@ def decision(**overrides):
     }
     value.update(overrides)
     return value
+
+
+def _logged_events(logger):
+    return [
+        json.loads(line)
+        for line in logger.jsonl_path.read_text(encoding="utf-8").splitlines()
+    ]
+
+
+def test_logs_complete_round_lifecycle_without_base64(tmp_path):
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(FakeApi(decision()), FakeMemory(), run_logger=logger)
+    try:
+        response = loop.handle_observation(observation())
+
+        assert [event["event"] for event in _logged_events(logger)] == [
+            "model_input",
+            "model_output",
+            "decision_validated",
+            "action_dispatch_requested",
+        ]
+        model_input = _logged_events(logger)[0]
+        assert model_input["model"] == "test-model"
+        assert model_input["image_path"] == "img/000001.jpg"
+        assert model_input["messages"][1]["content"][1] == {
+            "type": "image_path",
+            "image_path": "img/000001.jpg",
+        }
+        assert "base64" not in json.dumps(model_input)
+
+        assert loop.commit_action_batch_sent(response["observation_id"])
+        assert loop.record_action_results(
+            response["observation_id"],
+            [{"status": "completed", "type": "wait"}],
+        )
+        assert [event["event"] for event in _logged_events(logger)] == [
+            "model_input",
+            "model_output",
+            "decision_validated",
+            "action_dispatch_requested",
+            "action_dispatched",
+            "godot_result",
+        ]
+    finally:
+        logger.close()
+
+
+def test_logs_raw_malformed_model_output_before_parse_error(tmp_path):
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(
+        FakeApi(decision(), raw_content="not valid json"),
+        FakeMemory(),
+        run_logger=logger,
+    )
+    try:
+        response = loop.handle_observation(observation())
+        events = _logged_events(logger)
+
+        assert response["type"] == "error"
+        assert [event["event"] for event in events] == [
+            "model_input",
+            "model_output",
+            "round_error",
+        ]
+        assert events[1]["raw_content"] == "not valid json"
+        assert events[2]["stage"] == "parse"
+    finally:
+        logger.close()
 
 
 def test_passes_visible_interaction_action_names_to_validation(monkeypatch):
