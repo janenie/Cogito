@@ -1,8 +1,48 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 import os
 from pathlib import Path
+
+
+def _read_local_openai_config(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError) as error:
+        raise ValueError("api_key.py could not be parsed") from error
+
+    candidates: list[dict[str, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        function_name = (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else ""
+        )
+        if function_name != "OpenAI":
+            continue
+        values = {
+            keyword.arg: keyword.value.value
+            for keyword in node.keywords
+            if keyword.arg in {"api_key", "base_url"}
+            and isinstance(keyword.value, ast.Constant)
+            and isinstance(keyword.value.value, str)
+        }
+        if set(values) == {"api_key", "base_url"}:
+            candidates.append(values)
+
+    if len(candidates) != 1:
+        raise ValueError(
+            "api_key.py must contain exactly one OpenAI call with literal "
+            "base_url and api_key strings"
+        )
+    return candidates[0]
 
 
 @dataclass(frozen=True)
@@ -15,10 +55,18 @@ class Config:
     request_timeout_seconds: float = 45.0
     api_max_retries: int = 2
     data_dir: Path | None = None
+    log_root: Path = Path("~/workspace/cogito_logs").expanduser()
 
     @classmethod
     def from_env(cls) -> "Config":
-        key = os.environ.get("AI_PLAY_API_KEY", "").strip()
+        environment_key = os.environ.get("AI_PLAY_API_KEY", "").strip()
+        environment_base_url = os.environ.get("AI_PLAY_BASE_URL", "").strip()
+        local = (
+            _read_local_openai_config(Path("api_key.py"))
+            if not environment_key or not environment_base_url
+            else {}
+        )
+        key = environment_key or local.get("api_key", "").strip()
         if not key:
             raise ValueError("AI_PLAY_API_KEY is required")
         try:
@@ -29,7 +77,9 @@ class Config:
             raise ValueError("AI_PLAY_API_MAX_RETRIES must be 0..5") from error
         config = cls(
             api_key=key,
-            base_url=os.environ.get("AI_PLAY_BASE_URL", cls.base_url).rstrip("/"),
+            base_url=(
+                environment_base_url or local.get("base_url", cls.base_url)
+            ).rstrip("/"),
             model=os.environ.get("AI_PLAY_MODEL", cls.model),
             ws_host=os.environ.get("AI_PLAY_WS_HOST", cls.ws_host),
             ws_port=int(os.environ.get("AI_PLAY_WS_PORT", str(cls.ws_port))),
@@ -43,6 +93,9 @@ class Config:
             data_dir=Path(os.environ["AI_PLAY_DATA_DIR"]).expanduser()
             if os.environ.get("AI_PLAY_DATA_DIR")
             else None,
+            log_root=Path(
+                os.environ.get("AI_PLAY_LOG_ROOT", str(cls.log_root))
+            ).expanduser(),
         )
         config.validate()
         return config

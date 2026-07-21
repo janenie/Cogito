@@ -18,6 +18,7 @@ data_*/
 /testing
 
 # AI Play local secrets and runtime data
+api_key.py
 ai_play/.env
 ai_play/runtime/
 ai_play/**/*.log

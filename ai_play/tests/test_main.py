@@ -8,7 +8,7 @@ import pytest
 from ai_play import main as main_module
 
 
-def test_module_entry_reports_missing_key_without_traceback():
+def test_module_entry_reports_missing_key_without_traceback(tmp_path):
     env = os.environ.copy()
     env.pop("AI_PLAY_API_KEY", None)
     source_dir = Path(__file__).resolve().parents[1] / "src"
@@ -18,6 +18,7 @@ def test_module_entry_reports_missing_key_without_traceback():
         [sys.executable, "-m", "ai_play.main"],
         capture_output=True,
         check=False,
+        cwd=tmp_path,
         env=env,
         text=True,
     )
