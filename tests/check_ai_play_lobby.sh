@@ -15,7 +15,11 @@ controller_block="$(awk '
 	capture { print }
 ' "$scene")"
 grep -q 'player = NodePath("../Player")' <<<"$controller_block"
-grep -q 'auto_start = false' <<<"$controller_block"
+grep -q '^auto_start = false$' "$controller"
+if grep -q 'auto_start = true' <<<"$controller_block"; then
+	echo "Lobby must not override AIPlayController auto_start to true" >&2
+	exit 1
+fi
 grep -q '^host = "127.0.0.1"$' addons/cogito/AIPlay/ai_play_controller.tscn
 
 if ! tests/check_ai_play_secrets.sh; then

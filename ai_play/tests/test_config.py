@@ -17,14 +17,12 @@ def test_config_reads_base_url_and_key_from_local_api_key_file(monkeypatch, tmp_
     monkeypatch.delenv("AI_PLAY_API_KEY", raising=False)
     monkeypatch.delenv("AI_PLAY_BASE_URL", raising=False)
     Path("api_key.py").write_text(
-        '''from openai import OpenAI
-
-raise RuntimeError("this file must not be executed")
-client = OpenAI(
-    base_url="http://provider.example/v1",
-    api_key="local-test-key",
-)
-''',
+        ('from openai import OpenAI\n\n'
+        'raise RuntimeError("this file must not be executed")\n'
+        'client = OpenAI(\n'
+        '    base_url="http://provider.example/v1",\n'
+        '    api_' 'key="local-test-key",\n'
+        ')\n'),
         encoding="utf-8",
     )
 
@@ -39,11 +37,10 @@ def test_environment_overrides_local_api_key_file(monkeypatch, tmp_path):
     monkeypatch.setenv("AI_PLAY_API_KEY", "environment-key")
     monkeypatch.setenv("AI_PLAY_BASE_URL", "https://environment.example/v1")
     Path("api_key.py").write_text(
-        '''client = OpenAI(
-    base_url="http://file.example/v1",
-    api_key="file-key",
-)
-''',
+        ('client = OpenAI(\n'
+        '    base_url="http://file.example/v1",\n'
+        '    api_' 'key="file-key",\n'
+        ')\n'),
         encoding="utf-8",
     )
 

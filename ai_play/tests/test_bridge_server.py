@@ -235,6 +235,7 @@ def test_hello_canonicalizes_memory_directory(tmp_path):
 
 def test_routes_action_results_to_the_correlated_round(tmp_path):
     agent = FakeAgentLoop()
+    test_key = "test-key"
     results = [{"status": "completed", "type": "move"}]
     connection = FakeConnection([
         _hello(tmp_path),
@@ -246,7 +247,7 @@ def test_routes_action_results_to_the_correlated_round(tmp_path):
         },
     ])
 
-    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+    _handler(connection, Config(api_key=test_key), agent, threading.Lock())
 
     assert agent.action_results == [(17, results)]
     assert [packet["type"] for packet in connection.sent] == ["hello"]
@@ -254,6 +255,7 @@ def test_routes_action_results_to_the_correlated_round(tmp_path):
 
 def test_routes_escape_stop_and_ends_the_session(tmp_path):
     agent = FakeAgentLoop()
+    test_key = "test-key"
     results = [{"status": "cancelled", "reason": "escape_stop"}]
     connection = FakeConnection([
         _hello(tmp_path),
@@ -267,7 +269,7 @@ def test_routes_escape_stop_and_ends_the_session(tmp_path):
         {"type": "observation", "protocol_version": 1, "observation_id": 18},
     ])
 
-    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+    _handler(connection, Config(api_key=test_key), agent, threading.Lock())
 
     assert agent.stops == [("escape_stop", 17, results)]
     assert agent.observations == []

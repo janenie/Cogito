@@ -22,6 +22,7 @@ var _pending_context: Dictionary = {}
 var _last_results: Array = []
 var _reconnect_remaining: float = -1.0
 var _capture_generation: int = 0
+var _stop_delivery_pending: bool = false
 
 var _observer: Node
 var _executor: Node
@@ -59,6 +60,7 @@ func get_state() -> State:
 
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
+	_stop_delivery_pending = false
 	_reconnect_remaining = -1.0
 	if _state != State.DISABLED:
 		_bridge.disconnect_from_server()
@@ -70,7 +72,7 @@ func enable_ai() -> void:
 		_on_bridge_disconnected("connect_error:%d" % error)
 
 
-func disable_ai(reason: String = "disabled") -> void:
+func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> void:
 	print("AI_PLAY disabled; reason=%s" % reason)
 	_capture_generation += 1
 	_state = State.DISABLED
@@ -81,7 +83,7 @@ func disable_ai(reason: String = "disabled") -> void:
 		_observation_timer.stop()
 	if _executor != null:
 		_executor.cancel_all(reason)
-	if _bridge != null:
+	if _bridge != null and disconnect_bridge:
 		_bridge.disconnect_from_server()
 
 
@@ -103,11 +105,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.keycode != stop_key and event.physical_keycode != stop_key:
 		return
-	_send_stop_packet("escape_stop")
-	disable_ai("escape_stop")
+	var stop_error: Error = _send_stop_packet("escape_stop")
+	_stop_delivery_pending = stop_error == OK
+	disable_ai("escape_stop", not _stop_delivery_pending)
 
 
-func _send_stop_packet(reason: String) -> void:
+func _send_stop_packet(reason: String) -> Error:
 	var observation_id: Variant = null
 	var results: Array = []
 	if _executing_observation_id >= 0:
@@ -115,7 +118,7 @@ func _send_stop_packet(reason: String) -> void:
 		results = [{"status": "cancelled", "reason": reason}]
 	elif _pending_observation_id >= 0:
 		observation_id = _pending_observation_id
-	_bridge.send_packet({
+	return _bridge.send_packet({
 		"type": "stop",
 		"protocol_version": PROTOCOL_VERSION,
 		"observation_id": observation_id,
@@ -169,6 +172,8 @@ func _capture_observation(results: Array) -> void:
 
 func _on_action_batch_received(batch: Dictionary) -> void:
 	if _state != State.WAITING_FOR_DECISION:
+		if _state == State.DISABLED and _stop_delivery_pending:
+			return
 		_pause_for_error("unexpected_action_batch")
 		return
 	print("AI_PLAY received action batch for observation=%s" % str(batch.get("observation_id")))
@@ -237,6 +242,7 @@ func _on_observation_timer_timeout() -> void:
 
 func _on_bridge_disconnected(reason: String) -> void:
 	if _state == State.DISABLED:
+		_stop_delivery_pending = false
 		return
 	print("AI_PLAY WebSocket disconnected; reason=%s" % reason)
 	_capture_generation += 1
@@ -249,8 +255,15 @@ func _on_bridge_disconnected(reason: String) -> void:
 
 
 func _on_remote_error(error: Dictionary) -> void:
-	print("AI_PLAY remote error; code=%s" % str(error.get("code", "unknown")))
-	_pause_for_error("remote_error:%s" % str(error.get("code", "unknown")))
+	var code: String = str(error.get("code", "unknown"))
+	print("AI_PLAY remote error; code=%s" % code)
+	if code == "decision_failed" and _state == State.WAITING_FOR_DECISION:
+		_pending_observation_id = -1
+		_last_results = [{"status": "error", "error": "decision_failed"}]
+		_state = State.READY
+		_observation_timer.start(maxf(observation_interval, 1.0))
+		return
+	_pause_for_error("remote_error:%s" % code)
 
 
 func _pause_for_error(reason: String) -> void:
@@ -298,4 +311,3 @@ func _parse_observation_id(value: Variant) -> Dictionary:
 		):
 			return {"valid": true, "value": int(value)}
 	return {"valid": false, "value": -1}
-

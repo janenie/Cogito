@@ -79,6 +79,7 @@ func _run_tests() -> void:
 	await _test_context_change_recaptures_immediately(controller_script)
 	await _test_deferred_recapture_is_cancelled_by_teardown(controller_script)
 	await _test_transport_failures_cancel(controller_script)
+	await _test_invalid_model_decision_retries(controller_script)
 	await _test_non_escape_input_keeps_ai(controller_script)
 	await _test_escape_stops_ai(controller_script)
 	await _test_reusable_scene()
@@ -333,6 +334,18 @@ func _test_transport_failures_cancel(controller_script: GDScript) -> void:
 	await _free_fixture(error_fixture)
 
 
+func _test_invalid_model_decision_retries(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	fixture.bridge.remote_error.emit({"code": "decision_failed", "message": "JSONDecodeError"})
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.READY,
+		"invalid model decision keeps autonomous session ready",
+	)
+	_assert(not fixture.timer.is_stopped(), "invalid model decision schedules another observation")
+	_assert(fixture.executor.cancel_reasons.is_empty(), "invalid model decision has no action to cancel")
+	await _free_fixture(fixture)
+
+
 func _test_non_escape_input_keeps_ai(controller_script: GDScript) -> void:
 	var key_fixture: Dictionary = await _connected_fixture(controller_script)
 	var key := InputEventKey.new()
@@ -402,12 +415,17 @@ func _test_non_escape_input_keeps_ai(controller_script: GDScript) -> void:
 
 func _test_escape_stops_ai(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var disconnects_before_escape: int = fixture.bridge.disconnect_calls
 	var emergency := InputEventKey.new()
 	emergency.keycode = KEY_ESCAPE
 	emergency.pressed = true
 	emergency.device = 0
 	fixture.controller._input(emergency)
 	_assert(fixture.controller.get_state() == fixture.controller.State.DISABLED, "Escape disables AI")
+	_assert(
+		fixture.bridge.disconnect_calls == disconnects_before_escape,
+		"Escape keeps transport open until queued stop reaches sidecar",
+	)
 	var stop_packets: Array = fixture.bridge.sent_packets.filter(
 		func(packet: Dictionary) -> bool: return packet.get("type") == "stop"
 	)

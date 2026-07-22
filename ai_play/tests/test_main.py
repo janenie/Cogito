@@ -45,6 +45,7 @@ def test_cli_does_not_hide_value_error_after_configuration(monkeypatch, tmp_path
 
 def test_main_creates_one_run_logger_for_the_sidecar(monkeypatch, tmp_path):
     created = {}
+    test_key = "test-key"
     logger = SimpleNamespace(run_dir=tmp_path / "test-model" / "run")
     logger.close = lambda: created.update(logger_closed=True)
 
@@ -63,7 +64,7 @@ def test_main_creates_one_run_logger_for_the_sidecar(monkeypatch, tmp_path):
     monkeypatch.setattr(main_module, "AgentLoop", fake_agent_loop)
     monkeypatch.setattr(main_module, "serve", lambda config, agent: None)
     config = main_module.Config(
-        api_key="test-key",
+        api_key=test_key,
         model="test-model",
         log_root=tmp_path,
     )

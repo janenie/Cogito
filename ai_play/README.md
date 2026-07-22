@@ -6,14 +6,23 @@ the operator remains in control of when screenshots begin leaving the game.
 
 ## Setup and start
 
-From the repository root, create the environment and enter a newly rotated API
-key without echoing it or putting it in shell history:
+From the repository root, create the environment. If a local `api_key.py`
+contains one `OpenAI(...)` call with literal `base_url` and `api_key` strings,
+the sidecar reads those two values without executing the file:
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r ai_play/requirements.txt
+PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main
+```
+
+Environment variables remain the preferred production setup and override the
+matching values in `api_key.py`:
+
+```bash
 read -rs AI_PLAY_API_KEY
 export AI_PLAY_API_KEY
+export AI_PLAY_BASE_URL="https://provider.example/v1"
 PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main
 ```
 
@@ -51,12 +60,44 @@ not guarantee degrees. The player's runtime mouse sensitivity still applies;
 the agent confirms the actual turn from `yaw_degrees` and `pitch_degrees` in the
 next observation.
 
-Press F12 for an emergency stop. Any physical keyboard, mouse, or controller
-input also triggers immediate human takeover. Both paths disconnect AI and
-release held movement (`forward`, `back`, `left`, `right`, and `sprint`). If the
-Python sidecar stops or disconnects, Godot cancels the current action and
-releases those inputs as well. Restarting the sidecar does not bypass the
-manual opt-in after an emergency stop.
+Escape is the only physical input that stops an active AI session. The
+controller releases held movement (`forward`, `back`, `left`, `right`, and
+`sprint`), reports `escape_stop`, and leaves the same Escape event available so
+the normal pause menu opens. Other keyboard, mouse, and controller input does
+not disable AI. If the Python sidecar stops or disconnects, Godot cancels the
+current action and releases held inputs as well.
+
+## Run logs
+
+Each sidecar process creates one timestamped trace under
+`~/workspace/cogito_logs` by default. Dots and unsafe path characters in the
+model name become underscores:
+
+```text
+~/workspace/cogito_logs/
+└── gemini-3_5-flash/
+    └── 20260721-10-45/
+        ├── gemini_godot.jsonl
+        └── img/
+            ├── 000001.jpg
+            └── 000002.jpg
+```
+
+Set `AI_PLAY_LOG_ROOT` to choose another root. If a run name already exists, a
+numeric suffix such as `-02` prevents overwrite.
+
+The JSONL stream records `model_input`, raw `model_output`,
+`decision_validated`, `action_dispatch_requested`, `action_dispatched`, and
+`godot_result` events for each `round_idx`. It also records bounded error and
+session-stop events. Images are stored once under `img/`; JSONL refers to their
+relative paths and never duplicates image base64. A dispatch without a later
+Godot result marks an incomplete round after a crash or disconnect.
+
+The sidecar prints the exact run directory at startup. To follow a known run:
+
+```bash
+tail -f ~/workspace/cogito_logs/gemini-3_5-flash/20260721-10-45/gemini_godot.jsonl
+```
 
 ## Memory
 
@@ -74,18 +115,18 @@ under the selected data directory when a fresh persisted state is required.
 
 ## Privacy and cost
 
-Every decision can send a 768x432 JPEG plus visible prompts and structured
-player state to the configured API. This can expose on-screen information and
-incur image/token/API charges, so keep camera-image logging off and enable AI
-only for an intentional run. Loopback protects the Godot-to-sidecar transport;
-it does not prevent the sidecar from sending observations to the configured
-external API.
+Every decision sends a 768x432 JPEG plus visible prompts and structured player
+state to the configured API, and the sidecar saves the same JPEG plus the model
+request/response trace locally. This can expose on-screen information and incur
+image/token/API charges, so enable AI only for an intentional run and protect
+the log root accordingly. Loopback protects the Godot-to-sidecar transport; it
+does not prevent external API transmission or local trace persistence.
 
-Never place a real key in `.env.example`, source, tests, documentation, commits,
-or command arguments. Load it from a local shell as above, or from the ignored
-`ai_play/.env` using your own local shell tooling. The program reads environment
-variables but does not automatically parse that file. If a key is ever exposed,
-revoke and rotate it before another run.
+Never place a real key in `.env.example`, tracked source, tests, documentation,
+commits, or command arguments. A repository-root `api_key.py` is ignored for
+local development, and `ai_play/.env` is also ignored for your own shell
+tooling. The program does not automatically parse `.env`. If a key is ever
+exposed, revoke and rotate it before another run.
 
 ## Credential-free checks
 
@@ -103,7 +144,6 @@ without contacting any external provider:
 PYTHONPATH=ai_play/src .venv/bin/pytest ai_play/tests -q
 ```
 
-An actual black-box AI run is opt-in because it sends screenshots and consumes
-an external service. Perform it only with a newly rotated operator-supplied key;
-do not inspect or seed scenario solutions, and record only transport/action
-failures needed for debugging.
+An actual black-box AI run is opt-in because it sends screenshots, persists run
+traces, and consumes an external service. Perform it only with a newly rotated
+operator-supplied key; do not inspect or seed scenario solutions.
