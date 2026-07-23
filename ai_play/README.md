@@ -25,6 +25,11 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
 
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 
+只有模型 API、没有现成 MCP Host 时，可参考
+[`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
+stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
+完整运行步骤见 [`tutorial/README.md`](../tutorial/README.md)。
+
 ## MCP 工具
 
 服务只注册四个游玩工具：

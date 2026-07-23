@@ -9,6 +9,11 @@ AI First Play 是一套需要显式启用的自主游玩系统：
 - 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码、不保存截图或游玩轨迹。
 - Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 2。
 
+只有模型 API 时，可使用 [`tutorial/ai_play_api_host.py`](../../../tutorial/ai_play_api_host.py)
+作为最小 Host 参考实现。该教学代码在客户端侧连接本地 stdio MCP、把工具定义映射为
+模型 function tools，并将 MCP 的结构化结果和图片送回模型；它不改变 MCP Server 或
+Godot 桥的安全边界。
+
 ## 不可妥协的安全边界
 
 - AI 游玩必须保持显式启用。正常启动 Lobby 时 `auto_start = false`；精确的 Godot 用户参数是 `-- --ai-play`。

@@ -122,6 +122,14 @@ C:\ABSOLUTE\PATH\TO\Cogito\.venv\Scripts\python.exe
 并传入参数 `-m ai_play.mcp_server`，同时把 `PYTHONPATH` 设置为
 `C:\ABSOLUTE\PATH\TO\Cogito\ai_play\src`。
 
+### 只有模型 API 时
+
+如果没有现成的 Codex 或 Claude Desktop，可以自行实现一个很薄的 MCP Host：
+启动 stdio MCP Server、读取工具定义、把工具交给模型 API、执行模型请求的工具调用，
+再把结果送回模型。仓库提供了可直接阅读和运行的 Python 示例：
+[`tutorial/ai_play_api_host.py`](tutorial/ai_play_api_host.py)，使用说明见
+[`tutorial/README.md`](tutorial/README.md)。
+
 ## 3. 启动游戏
 
 先让 MCP Host 启动 `cogito-ai-play` 服务，再从仓库根目录单独启动 Godot Lobby：

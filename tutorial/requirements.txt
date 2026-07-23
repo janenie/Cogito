@@ -1,0 +1,2 @@
+-r ../ai_play/requirements.txt
+openai>=2.0,<3
