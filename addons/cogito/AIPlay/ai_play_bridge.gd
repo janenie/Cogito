@@ -4,10 +4,10 @@ extends Node
 signal connected
 signal disconnected(reason: String)
 signal action_batch_received(batch: Dictionary)
-signal game_over_received(result: Dictionary)
+signal stop_request_received(request: Dictionary)
 signal remote_error(error: Dictionary)
 
-const PROTOCOL_VERSION: int = 1
+const PROTOCOL_VERSION: int = 2
 const MAX_PACKET_SIZE: int = 4 * 1024 * 1024
 
 var _socket: WebSocketPeer
@@ -81,36 +81,43 @@ func _receive_packet(bytes: PackedByteArray) -> void:
 
 func _handle_text_packet(raw_packet: String) -> void:
 	var json := JSON.new()
-	if json.parse(raw_packet) != OK:
+	if json.parse(raw_packet) != OK or not json.data is Dictionary:
 		_protocol_error("invalid_packet", "packet must be valid JSON")
 		return
-	var parsed: Variant = json.data
-	if not parsed is Dictionary:
-		_protocol_error("invalid_packet", "packet must be a JSON object")
-		return
-	var packet: Dictionary = parsed
-	if not _is_protocol_version_one(packet.get("protocol_version")):
-		_protocol_error("unsupported_protocol", "protocol version must be 1")
+	var packet: Dictionary = json.data
+	if not _is_protocol_version_two(packet.get("protocol_version")):
+		_protocol_error("unsupported_protocol", "protocol version must be 2")
 		return
 	match packet.get("type"):
 		"hello":
 			pass
 		"action_batch":
 			action_batch_received.emit(packet)
-		"game_over":
-			game_over_received.emit(packet)
+		"stop_request":
+			if _has_exact_keys(
+				packet,
+				["type", "protocol_version", "observation_id", "reason"],
+			) and packet["reason"] == "mcp_stop":
+				stop_request_received.emit(packet)
+			else:
+				_protocol_error("invalid_stop_request", "invalid stop request")
 		"error":
 			remote_error.emit(packet)
 		_:
 			_protocol_error("unexpected_packet", "unexpected packet type")
 
 
-func _is_protocol_version_one(value: Variant) -> bool:
-	if typeof(value) == TYPE_INT:
-		return value == PROTOCOL_VERSION
-	if typeof(value) == TYPE_FLOAT:
-		return is_finite(value) and value == float(PROTOCOL_VERSION)
-	return false
+func _has_exact_keys(packet: Dictionary, expected: Array[String]) -> bool:
+	if packet.size() != expected.size():
+		return false
+	for key: String in expected:
+		if not packet.has(key):
+			return false
+	return true
+
+
+func _is_protocol_version_two(value: Variant) -> bool:
+	return typeof(value) == TYPE_INT and value == PROTOCOL_VERSION
 
 
 func _protocol_error(code: String, message: String) -> void:
