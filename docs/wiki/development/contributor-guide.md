@@ -11,7 +11,7 @@
 - 可以使用 Godot 编辑器时，范围较大的 `.tscn` 或 `.tres` 改动应通过编辑器完成。手动编辑时保持差异最小，并运行编辑器导入和解析检查。
 - 不要手动编辑 `.godot/`、Python 缓存、运行时记忆和日志、`docs/_build/` 等生成缓存。没有资源相关理由时，不要删除或重新生成已跟踪的 `.uid` 和 `.import` 文件。
 
-## Python 边车环境与运行
+## Python MCP 环境与运行
 
 在 PowerShell 中配置 Python 边车：
 
@@ -21,30 +21,34 @@ python -m venv .venv
 $env:PYTHONPATH = "ai_play/src"
 ```
 
-运行边车：
+运行 stdio MCP Server（通常由 MCP 宿主启动）：
 
 ```powershell
-.\.venv\Scripts\python.exe -m ai_play.main
+.\.venv\Scripts\python.exe -m ai_play.mcp_server
 ```
 
-边车开始监听后，需要显式启用 AI 的 Lobby 启动命令为：
+MCP Server 不需要 API Key 或模型配置；它只在 `127.0.0.1:8765` 等待已显式启用的
+Godot 桥连接。启动 MCP 进程后，Lobby 命令为：
 
 ```text
 godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
 ```
 
-环境变量、恢复记忆、轨迹位置、隐私影响和模型提供方要求见 [`ai_play/README.md`](../../../ai_play/README.md)。
+WebSocket 桥配置、MCP 客户端配置和隐私边界见 [`ai_play/README.md`](../../../ai_play/README.md)。
 
 ## 验证
 
 先运行与改动最相关的最小测试，再运行受影响的完整测试套件。
 
-Python 边车：
+Python/MCP：
 
 ```powershell
 $env:PYTHONPATH = "ai_play/src"
 .\.venv\Scripts\python.exe -m pytest ai_play\tests -q
 ```
+
+MCP 相关测试还必须验证工具列表、结构化结果、图片内容、串行动作、过期观察 ID、
+Godot 断线和停止时的输入释放；测试不得启动真实外部模型或使用真实凭据。
 
 Godot AI 契约测试：
 
@@ -76,4 +80,5 @@ sphinx-build -b html docs docs/_build/html
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md) 和已批准的
+[`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)。
