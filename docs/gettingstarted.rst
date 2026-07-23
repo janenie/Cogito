@@ -10,7 +10,7 @@ Installation
 Installation steps:
 
 #. Clone this repo or download it and unzip it into its own directory.
-#. Open the project with the Godot editor (make sure you use a compatible version, currently 4.3)
+#. Open the project with the Godot 4.7 editor.
 
 
 Setup
