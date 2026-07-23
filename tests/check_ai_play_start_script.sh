@@ -5,7 +5,7 @@ script="ai_play/start_ai.sh"
 
 test -x "$script"
 grep -q 'PYTHONPATH=ai_play/src' "$script"
-grep -q -- '-m ai_play.main "$@"' "$script"
+grep -q -- '-m ai_play.mcp_server "$@"' "$script"
 
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT
@@ -22,8 +22,8 @@ printf 'args=%s\n' "$*"
 PY
 chmod +x "$fixture/../.venv/bin/python"
 
-output="$(cd /tmp && "$fixture/start_ai.sh" --resume)"
+output="$(cd /tmp && "$fixture/start_ai.sh" --test-flag)"
 
 grep -q "cwd=$(cd "$fixture/.." && pwd)" <<<"$output"
 grep -q "PYTHONPATH=ai_play/src" <<<"$output"
-grep -q "args=-m ai_play.main --resume" <<<"$output"
+grep -q "args=-m ai_play.mcp_server --test-flag" <<<"$output"
