@@ -6,8 +6,8 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
 `project.godot` 为准；当前项目面向 Godot 4.7，启动场景为
 `addons/cogito/DemoScenes/COGITO_0_MainMenu.tscn`。
 
-当前分支包含需要显式启用的 AI First Play 自主游玩系统。Godot 与 Python 边车默认通过
-`127.0.0.1:8765` 通信，协议版本为 1。
+当前分支包含需要显式启用的 AI First Play MCP 游玩系统。外部 MCP 客户端通过 stdio
+调用 Python 服务，Godot 与 Python 桥默认通过 `127.0.0.1:8765` 通信，协议版本为 2。
 
 ## 项目 Wiki
 
@@ -26,13 +26,12 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   用户参数是 `-- --ai-play`。Escape 必须始终作为物理紧急停止键。
 - Godot 到 Python 的服务器只能绑定精确的数字回环地址 `127.0.0.1`。断开连接、无效
   数据、API 失败和节点销毁都必须释放所有模拟输入。
-- 绝不能提交或传播 API 密钥。使用 `AI_PLAY_API_KEY`，或采用 `ai_play/README.md`
-  中记录且已被忽略的本地 `api_key.py` 机制。
-- 游玩模型只能接收获准公开的运行时观察。场景源码、节点路径、隐藏状态、仓库文件、
-  谜题答案，以及 `game_script/`、`code_read/`、测试、规格和计划中的事实不得进入模型
-  上下文或黑盒验收提示。
-- 未经用户明确要求并确认截图、令牌、费用和本地轨迹持久化影响，不得运行真实外部模型
-  验收。自动化测试不得依赖真实凭据。
+- MCP Server 不需要 API Key；外部 MCP 客户端凭据不得进入仓库或 Godot/Python 桥协议。
+- 外部 MCP 工具只能接收获准公开的运行时观察。场景源码、节点路径、隐藏状态、仓库文件、
+  谜题答案，以及 `game_script/`、`code_read/`、测试、规格和计划中的事实不得进入工具
+  结果或黑盒验收提示。
+- 未经用户明确要求并确认截图、令牌、费用和本地轨迹持久化影响，不得运行真实外部 MCP
+  客户端验收。自动化测试不得依赖真实凭据。
 
 完整边界和跨层契约见 [AI First Play 系统指南](docs/wiki/ai-play/system-guide.md)。
 
