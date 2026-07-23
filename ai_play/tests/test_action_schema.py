@@ -240,6 +240,19 @@ def test_probe_interaction_rejects_invalid_coordinate(value):
         validate_decision(payload, [], False)
 
 
+@pytest.mark.parametrize("value", [-0.01, 1.01, float("inf"), float("nan"), True, "0.5"])
+def test_probe_interaction_rejects_invalid_target_y(value):
+    payload = {
+        "reason": "Probe.",
+        "memory_updates": [],
+        "actions": [
+            {"type": "probe_interaction", "target_x": 0.5, "target_y": value}
+        ],
+    }
+    with pytest.raises(ActionValidationError):
+        validate_decision(payload, [], False)
+
+
 def test_probe_interaction_must_be_only_action_and_requires_closed_interface():
     probe = {"type": "probe_interaction", "target_x": 0.5, "target_y": 0.5}
     for actions, interface_open in [
