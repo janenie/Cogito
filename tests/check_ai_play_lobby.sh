@@ -21,6 +21,9 @@ if grep -q 'auto_start = true' <<<"$controller_block"; then
 	exit 1
 fi
 grep -q '^host = "127.0.0.1"$' addons/cogito/AIPlay/ai_play_controller.tscn
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn"' "$scene"
+grep -q 'name="GameOverScreen" parent="AIPlayController/TerminalMonitor"' "$scene"
+grep -q 'game_over_screen = NodePath("GameOverScreen")' "$scene"
 
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2

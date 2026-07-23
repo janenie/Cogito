@@ -70,6 +70,11 @@ class FakeInteractionProbe extends Node:
 class FakeTerminalMonitor extends Node:
 	signal game_finished(outcome: String, reason: String)
 
+	var shown_results: Array[Dictionary] = []
+
+	func show_result(outcome: String, reason: String) -> void:
+		shown_results.append({"outcome": outcome, "reason": reason})
+
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
@@ -299,6 +304,13 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			fixture.bridge.disconnect_calls == 0,
 			"%s leaves the bridge open for queued terminal delivery" % terminal_case.reason,
 		)
+		_assert(
+			fixture.terminal_monitor.shown_results == [{
+				"outcome": terminal_case.outcome,
+				"reason": terminal_case.reason,
+			}],
+			"%s displays one terminal result" % terminal_case.reason,
+		)
 		await _free_fixture(fixture)
 
 	var limit_fixture: Dictionary = await _connected_fixture(controller_script)
@@ -320,6 +332,13 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 				and limit_packets[0].get("request_count") == 1000,
 			"request limit returns max_requests failure",
 		)
+	_assert(
+		limit_fixture.terminal_monitor.shown_results == [{
+			"outcome": "failure",
+			"reason": "max_requests",
+		}],
+		"request limit displays failure",
+	)
 	await _free_fixture(limit_fixture)
 
 	var limit_stop_fixture: Dictionary = await _connected_fixture(controller_script)
@@ -372,6 +391,13 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	_assert(
 		remote_fixture.controller.get_state() == remote_fixture.controller.State.DISABLED,
 		"remote request-limit result disables AI",
+	)
+	_assert(
+		remote_fixture.terminal_monitor.shown_results == [{
+			"outcome": "failure",
+			"reason": "max_requests",
+		}],
+		"remote request limit displays failure",
 	)
 	_assert(
 		remote_fixture.bridge.sent_packets.filter(

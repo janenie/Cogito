@@ -1,0 +1,75 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.gd" id="1_screen"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_result"]
+bg_color = Color(0.105882, 0.117647, 0.129412, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.423529, 0.454902, 0.486275, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="GameOverScreen" type="CanvasLayer"]
+process_mode = 3
+layer = 100
+visible = false
+script = ExtResource("1_screen")
+
+[node name="Screen" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.027451, 0.0313725, 0.0352941, 0.92)
+
+[node name="Center" type="CenterContainer" parent="Screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="PanelContainer" parent="Screen/Center"]
+custom_minimum_size = Vector2(440, 260)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_result")
+
+[node name="Margin" type="MarginContainer" parent="Screen/Center/Content"]
+layout_mode = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 42
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 42
+
+[node name="Labels" type="VBoxContainer" parent="Screen/Center/Content/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Title" type="Label" parent="Screen/Center/Content/Margin/Labels"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.898039, 0.913725, 0.929412, 1)
+theme_override_font_sizes/font_size = 24
+text = "游戏结束"
+horizontal_alignment = 1
+
+[node name="Outcome" type="Label" parent="Screen/Center/Content/Margin/Labels"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "解谜成功"
+horizontal_alignment = 1
+
+[node name="Reason" type="Label" parent="Screen/Center/Content/Margin/Labels"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.713726, 0.741176, 0.768627, 1)
+theme_override_font_sizes/font_size = 18
+text = "密码正确"
+horizontal_alignment = 1

@@ -110,6 +110,7 @@
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_observer.gd" id="ai_play_find_contract_observer"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_wjbty"]
 panorama = ExtResource("2_a8imk")
@@ -3292,9 +3293,12 @@ player = NodePath("../Player")
 [node name="Observer" parent="AIPlayController" index="0"]
 script = ExtResource("ai_play_find_contract_observer")
 
-[node name="TerminalMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("keypad")]
+[node name="TerminalMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("keypad", "game_over_screen")]
 script = ExtResource("ai_play_find_contract_terminal")
 keypad = NodePath("../../ARCHIVE/Keypad")
+game_over_screen = NodePath("GameOverScreen")
+
+[node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" instance=ExtResource("ai_play_game_over_screen")]
 
 [node name="QUESTS" type="Node3D" parent="." unique_id=2115615126]
 

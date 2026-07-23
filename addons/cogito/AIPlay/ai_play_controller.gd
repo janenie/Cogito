@@ -342,6 +342,7 @@ func _on_remote_game_over(result: Dictionary) -> void:
 		% _active_request_count
 	)
 	disable_ai("game_over:max_requests")
+	_show_game_over_result("failure", "max_requests")
 
 
 func _pause_for_error(reason: String) -> void:
@@ -378,6 +379,12 @@ func _finish_game(outcome: String, reason: String, observation_id: int) -> void:
 		"request_count": _active_request_count,
 	})
 	disable_ai("game_over:%s" % reason, send_error != OK)
+	_show_game_over_result(outcome, reason)
+
+
+func _show_game_over_result(outcome: String, reason: String) -> void:
+	if _terminal_monitor != null and _terminal_monitor.has_method("show_result"):
+		_terminal_monitor.show_result(outcome, reason)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:
