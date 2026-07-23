@@ -6442,6 +6442,19 @@ cogito_name = ""
 [node name="FindContract_CeoContract" parent="UPPER_OFFICE_CEO" unique_id=1015770145 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.45, 0.95, -1.12)
 
+[node name="ReadableComponent" parent="UPPER_OFFICE_CEO/FindContract_CeoContract" index="6"]
+readable_title = "LUMEN Renewal Contract"
+readable_content = "合同文件：LUMEN Renewal Contract
+
+供应方：Lumen Office Systems
+负责人：H. Voss
+签署日期：08/30
+版本号：01
+
+归档备注：
+该文件应回收至 ARCHIVE。"
+interaction_text = "Read contract"
+
 [node name="laptop_real" parent="UPPER_OFFICE_CEO" unique_id=843226851 instance=ExtResource("35_s7tgx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12195, 0.80538, -5.77168)
 cogito_name = ""
@@ -6725,6 +6738,15 @@ transform = Transform3D(-0.936685, 0, 0.350175, 0, 1, 0, -0.350175, 0, -0.936685
 [node name="FindContract_ArchiveDecoyBox" parent="ARCHIVE" unique_id=146937592 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.25, 0.9, -1.95)
 
+[node name="ReadableComponent" parent="ARCHIVE/FindContract_ArchiveDecoyBox" index="6"]
+readable_title = "旧包装箱"
+readable_content = "里面都是空文件夹和废弃包装。
+
+没有 LUMEN Renewal Contract。
+
+有人刚翻过这里，但真正的合同不在档案室门边。"
+interaction_text = "Inspect box"
+
 [node name="Keypad" parent="ARCHIVE" unique_id=339358418 node_paths=PackedStringArray("doors_to_unlock") instance=ExtResource("33_3mvl6")]
 transform = Transform3D(-4.37114e-08, -1, -4.37114e-08, 0, -4.37114e-08, 1, -1, 4.37114e-08, 1.91069e-15, -3.10724, 1.21361, -1.39617)
 passcode = "083001"
@@ -6823,6 +6845,21 @@ shape = SubResource("ConcavePolygonShape3D_4nw7u")
 
 [node name="FindContract_AuditRecord" parent="MEETING_ROOM" unique_id=743659445 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -3.25, 0.95, -23.55)
+
+[node name="ReadableComponent" parent="MEETING_ROOM/FindContract_AuditRecord" index="6"]
+readable_title = "LUMEN Renewal 审核会"
+readable_content = "结论：
+合同原件需要重新核对签署日期。
+
+门禁备注：
+临时档案室密码格式为 6 位：
+签署日期四位 + 合同版本两位
+
+例：MMDD + VV
+
+下一步：
+签署日期不在系统里。请询问 H. Voss，他最后接触过合同原件。"
+interaction_text = "Read audit note"
 
 [node name="chairModernFrameCushion5" parent="MEETING_ROOM" unique_id=354999562 instance=ExtResource("67_qkgep")]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, -3.06992, -4.84288e-08, -23.4374)
@@ -7412,6 +7449,20 @@ outline_size = 10
 [node name="FindContract_ComputerRecord" parent="CUBICLE_AREA" unique_id=89287231 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 5.95, 1.28, -0.2)
 
+[node name="ReadableComponent" parent="CUBICLE_AREA/FindContract_ComputerRecord" index="6"]
+readable_title = "合同检索系统"
+readable_content = "最近访问记录：
+
+文件名：LUMEN Renewal Contract
+负责人：H. Voss
+版本号：01
+状态：临时借出
+签署日期：被会议复核锁定
+审核地点：MEETING_ROOM
+
+备注：档案室访问码不只使用日期。请查看审核会记录中的门禁规则。"
+interaction_text = "Read terminal"
+
 [node name="computerMouse" parent="CUBICLE_AREA" unique_id=567346878 instance=ExtResource("53_7i3co")]
 
 [node name="computerKeyboard2" parent="CUBICLE_AREA" unique_id=1777441381 instance=ExtResource("51_ysw6n")]
@@ -7699,8 +7750,23 @@ surface_material_override/0 = SubResource("StandardMaterial3D_yhahm")
 [node name="Hint_01_Welcome" parent="DEMO_HINTS" unique_id=1567671524 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 1.90368, 1.44587, -15.4)
 
+[node name="ReadableComponent" parent="DEMO_HINTS/Hint_01_Welcome" index="6"]
+readable_title = "档案室门禁任务"
+readable_content = "任务目标：
+找到 6 位密码，打开 ARCHIVE 的密码盘。
+
+第一步：
+从入口沿右侧办公桌区域前进，找到标着 CUBICLE AREA 的电脑工位。
+
+那台电脑里有合同检索记录，会给出第一段密码线索和下一步地点。"
+interaction_text = "Read task"
+
 [node name="Hint_02_LampSwitch" parent="DEMO_HINTS" unique_id=1452028984 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 6.9916, 1.44587, -9.49445)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_02_LampSwitch" index="6"]
 readable_title = "Cogito Switch"
@@ -7714,7 +7780,11 @@ To create a Cogito Switch object, just attach said script to a Node3D-derived ob
 If you look at the wall near the entrance, you can find an example of a more complex Switch object."
 
 [node name="Hint_03_AdvancedSwitch" parent="DEMO_HINTS" unique_id=1093726400 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 6.30891, 1.21174, -15.5319)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_03_AdvancedSwitch" index="6"]
 readable_title = "Connected Switch"
@@ -7727,7 +7797,11 @@ When you press the red button, it will trigger one ceiling light after the other
 You can also use this to control doors or use the included signal to hook up your own custom scripts."
 
 [node name="Hint_04_Breakroom" parent="DEMO_HINTS" unique_id=242474024 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -2.25377, 1.0441, -8.68306)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_04_Breakroom" index="6"]
 readable_title = "Break Room"
@@ -7740,7 +7814,11 @@ The fridge is a Cogito container."
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_05_Platform" parent="DEMO_HINTS" unique_id=165779200 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -2.55377, 1.28785, 7.30465)
+visible = false
+collision_layer = 0
+collision_mask = 0
 metadata/_edit_group_ = true
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_05_Platform" index="6"]
@@ -7752,7 +7830,11 @@ The platform itself is a \"Door\" that slides upwards. It has no InteractionComp
 Play around with all the options each Cogito script provides and see what you can come up with."
 
 [node name="Hint_06_AdvancedDoors" parent="DEMO_HINTS" unique_id=443245661 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -1.68055, 4.0441, -13.7996)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_06_AdvancedDoors" index="6"]
 readable_title = "Advanced Doors"
@@ -7768,7 +7850,11 @@ You can also use other ways like Keypads or Switches to unlock a door."
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_07_Keypad" parent="DEMO_HINTS" unique_id=1530911609 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.171214, 1.1744, 8.66609)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_07_Keypad" index="6"]
 readable_title = "Keypads"
@@ -7781,7 +7867,11 @@ Keypads are set up to work with doors, but you can also use them to trigger othe
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_08_Sittable_Static" parent="DEMO_HINTS" unique_id=1001387808 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 4.61808, 0.551412, -9.63398)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_08_Sittable_Static" index="6"]
 readable_title = "Sittables"
@@ -7798,7 +7888,11 @@ rich_text = true
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_09_Sittable_Auto" parent="DEMO_HINTS" unique_id=370611424 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -2.26547, 1.00668, 11.2442)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_09_Sittable_Auto" index="6"]
 readable_title = "Sittables - Sit Area"
@@ -7821,7 +7915,11 @@ rich_text = true
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_10_Sittable_Physics" parent="DEMO_HINTS" unique_id=951709784 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -5.24664, 0.551412, -14.7463)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_10_Sittable_Physics" index="6"]
 readable_title = "Sittables - Physics Sittable"
@@ -7847,7 +7945,11 @@ rich_text = true
 shape = SubResource("SphereShape3D_n25yf")
 
 [node name="Hint_11_Sittable_Vehicle" parent="DEMO_HINTS" unique_id=338276463 instance=ExtResource("62_y3og2")]
+process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 4.05165, 1.67329, 0.113413)
+visible = false
+collision_layer = 0
+collision_mask = 0
 
 [node name="ReadableComponent" parent="DEMO_HINTS/Hint_11_Sittable_Vehicle" index="6"]
 readable_title = "Sittables - Basic Vehicles"
