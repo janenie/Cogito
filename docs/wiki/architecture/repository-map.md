@@ -18,12 +18,12 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   - `AIPlay/`：观察器、执行器、WebSocket 桥接器、控制器和可复用控制器场景。
 - `addons/input_helper/` 和 `addons/quick_audio/`：仓库内附带的第三方插件。除非任务明确涉及它们，否则不要修改。
 - `ai_play/src/ai_play/`：Python 边车源代码。
-  - `config.py` 和 `main.py`：配置与进程入口。
+  - `config.py` 和 `mcp_server.py`：配置、stdio MCP 工具和进程入口。
   - `bridge_server.py`：本机回环 WebSocket 协议和会话所有权。
-  - `agent_loop.py`：串行化的观察、决策、行动生命周期。
-  - `api_client.py` 和 `prompts.py`：多模态 API 调用和模型消息。
+  - `game_session.py`：串行化的观察、行动、停止和终局生命周期。
+  - `briefing.py`：经过白名单筛选的公开任务简报和固定参考图入口。
   - `action_schema.py` 和 `observation_schema.py`：严格的传输数据验证。
-  - `memory.py` 和 `run_logger.py`：有容量限制的持久化和只追加运行轨迹。
+- `ai_play/assets/find_contract/`：公开简报使用的固定视觉参考资产；不包含谜题答案。
 - `ai_play/tests/`：pytest 单元测试和本机回环集成测试。
 - `tests/ai_play/`：Godot 无界面契约测试。
 - `tests/*.sh`：场景、启动、NPC 和凭据的静态检查。

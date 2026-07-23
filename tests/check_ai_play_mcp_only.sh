@@ -16,6 +16,7 @@ test -f ai_play/src/ai_play/mcp_server.py
 test ! -f ai_play/src/ai_play/main.py
 
 grep -q 'stdio MCP' ai_play/README.md
+grep -q 'briefing' ai_play/README.md
 grep -q 'observe' ai_play/README.md
 grep -q 'act' ai_play/README.md
 grep -q 'stop' ai_play/README.md

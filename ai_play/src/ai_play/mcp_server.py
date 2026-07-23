@@ -7,6 +7,7 @@ import sys
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, ImageContent, TextContent
 
+from .briefing import load_public_briefing
 from .bridge_server import start
 from .config import Config
 from .game_session import GameSession, SessionError
@@ -44,6 +45,22 @@ def _error(code):
 
 def _configured():
     return game_session is not None and config is not None
+
+
+@mcp.tool()
+async def briefing() -> CallToolResult:
+    """Read the public game objective, rules, object guide, and reference atlas."""
+    try:
+        public_briefing, image_bytes = load_public_briefing()
+    except RuntimeError as error:
+        return _error(str(error))
+    return _result(
+        {
+            "status": "ready",
+            "briefing": public_briefing,
+        },
+        image_bytes,
+    )
 
 
 @mcp.tool()

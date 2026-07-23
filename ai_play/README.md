@@ -1,6 +1,6 @@
 # AI First Play MCP
 
-AI First Play 现在是一个本地 stdio MCP 服务：外部 AI 客户端负责观察和决策，Python 只负责把 MCP 工具调用转发给已显式启用的 Godot Lobby。Godot 仍是动作校验、输入执行、观察公开范围和安全停止的最终权威。
+AI First Play 现在是一个本地 stdio MCP 服务：外部 AI 客户端负责观察和决策，Python 提供经过白名单筛选的公开游玩简报，并把回合工具调用转发给已显式启用的 Godot Lobby。Godot 仍是动作校验、输入执行、运行时观察公开范围和安全停止的最终权威。
 
 ## 快速启动
 
@@ -27,8 +27,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
 
 ## MCP 工具
 
-服务只注册三个游玩工具：
+服务只注册四个游玩工具：
 
+- `briefing()`：返回 `find_contract` 的公开目标、规则、物体操作说明和参考图谱。它不需要 Godot 连接，可在首个 `observe` 前调用一次。
 - `observe()`：等待并返回最新获准观察。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
@@ -45,7 +46,7 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 
 ## 结果与隐私边界
 
-工具结果使用标准 MCP 多模态内容：结构化 JSON 包含观察、动作结果和终局状态，截图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图；不会把源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实放进 MCP 结果。
+工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。`briefing` 只公开 `ai_play.briefing` 中经过筛选的目标、规则和物体操作说明，并读取固定的 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`；它不会返回资产清单里的内部类名或文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 服务端不保存截图、令牌、提示词、模型上下文、记忆或游玩轨迹。MCP Host 是否保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，MCP 同步返回受限的终局状态。
 
@@ -56,7 +57,7 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 - Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `2` 的表示，并在桥内规范化为整数 `2`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
-- 首版只支持 `find_contract` Lobby 的运行时终局事件；不通过 MCP 提供场景源码或任务内部知识。
+- 首版只支持 `find_contract` Lobby 的运行时终局事件和公开简报；不通过 MCP 提供场景源码、线索原文、密码或任务内部知识。
 
 ## 配置
 

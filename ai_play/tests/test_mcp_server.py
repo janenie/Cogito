@@ -98,10 +98,45 @@ def test_mcp_exposes_only_game_tools():
         ) as client:
             tools = await client.list_tools()
             assert [tool.name for tool in tools.tools] == [
+                "briefing",
                 "observe",
                 "act",
                 "stop",
             ]
+
+    asyncio.run(run())
+
+
+def test_briefing_contains_public_context_and_reference_image():
+    async def run():
+        async with create_connected_server_and_client_session(
+            mcp_server.mcp,
+            raise_exceptions=True,
+        ) as client:
+            result = await client.call_tool("briefing", {})
+            assert result.structuredContent["status"] == "ready"
+            briefing = result.structuredContent["briefing"]
+            assert briefing["game_id"] == "find_contract"
+            assert "ARCHIVE" in briefing["objective"]
+            assert {item["id"] for item in briefing["objects"]} == {
+                "clue_hint",
+                "carryable_cup",
+                "operable_door",
+                "pickup_key",
+                "elevator_button",
+                "keypad",
+                "archive_goal_door",
+                "operable_drawer",
+                "readable_notebook",
+                "readable_document",
+                "friendly_npc",
+            }
+            serialized = str(briefing)
+            assert "system_name" not in serialized
+            assert "ArchiveDoor/FrontDoor" not in serialized
+            assert "黄色" not in serialized
+            assert "1000" not in serialized
+            assert any(isinstance(item, ImageContent) for item in result.content)
 
     asyncio.run(run())
 

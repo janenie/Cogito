@@ -10,8 +10,9 @@
 
 AI First Play 当前通过本地 stdio MCP Server 接入外部 AI 客户端。操作者先启动
 Python MCP 进程，再用精确的 `-- --ai-play` 参数启动 `COGITO_3_Lobby.tscn`；
-普通 Lobby 启动保持 `auto_start = false`。外部 AI 通过三个工具控制回合：
+普通 Lobby 启动保持 `auto_start = false`。外部 AI 通过四个工具获取简报并控制回合：
 
+- `briefing`：读取经过白名单筛选的公开目标、规则、物体操作说明和参考图谱。
 - `observe`：读取获准的结构化运行时状态和截图。
 - `act`：携带最近观察 ID，提交 1～3 个安全动作，并同步获取动作结果和下一次观察。
 - `stop`：请求取消当前动作并释放模拟输入；实体 Escape 仍是物理紧急停止键。

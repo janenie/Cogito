@@ -39,8 +39,9 @@ AI First Play 使用 stdio：通常应由 Codex、Claude Desktop 或其他 MCP H
 启动 Python 服务，而不是把 `ai_play/start_ai.sh` 当作普通后台服务手动运行。
 MCP 协议独占该进程的标准输入和标准输出。
 
-服务只公开三个工具：
+服务只公开四个工具：
 
+- `briefing()`：取得公开任务目标、规则、物体操作说明和参考图；应在首次观察前调用一次。
 - `observe()`：取得最新的获准观察和截图。
 - `act(observation_id, actions)`：基于最新观察执行 1～3 个动作，并等待动作结果和下一次观察。
 - `stop()`：结束 MCP 控制会话并释放所有模拟输入；重复调用是安全的。
@@ -58,7 +59,7 @@ command = "/ABSOLUTE/PATH/TO/Cogito/ai_play/start_ai.sh"
 cwd = "/ABSOLUTE/PATH/TO/Cogito"
 startup_timeout_sec = 10
 tool_timeout_sec = 40
-enabled_tools = ["observe", "act", "stop"]
+enabled_tools = ["briefing", "observe", "act", "stop"]
 ```
 
 修改配置后，重新启动 Codex 或新建会话。配置字段的当前说明见
@@ -158,14 +159,15 @@ $env:PYTHONPATH = "ai_play/src"
 
 连接成功后，agent 应严格按以下顺序行动：
 
-1. 调用 `observe()`。
-2. 只有返回 `status: "ready"` 时才规划动作。
-3. 只依据返回的截图、公开玩家状态、界面状态、按键绑定和动作结果决策。
-4. 从 `observation.observation_id` 复制最新观察编号。
-5. 调用 `act`，提交 1～3 个动作；同一时间只能有一个 `act` 调用。
-6. 把 `act` 返回的新观察视为唯一的当前状态，然后重复第 2～5 步。
-7. 收到 `game_over`、`stopped` 或 `disconnected` 后停止提交动作。
-8. 放弃本次游玩、无法安全继续或需要退出时调用 MCP 工具 `stop()`。
+1. 调用一次 `briefing()`，阅读公开任务说明和物体参考图；参考图不代表当前位置。
+2. 调用 `observe()`。
+3. 只有返回 `status: "ready"` 时才规划动作。
+4. 只依据公开简报、当前截图、公开玩家状态、界面状态、按键绑定和动作结果决策。
+5. 从 `observation.observation_id` 复制最新观察编号。
+6. 调用 `act`，提交 1～3 个动作；同一时间只能有一个 `act` 调用。
+7. 把 `act` 返回的新观察视为唯一的当前状态，然后重复第 3～6 步。
+8. 收到 `game_over`、`stopped` 或 `disconnected` 后停止提交动作。
+9. 放弃本次游玩、无法安全继续或需要退出时调用 MCP 工具 `stop()`。
 
 最小的 `act` 参数示例：
 
@@ -185,8 +187,8 @@ $env:PYTHONPATH = "ai_play/src"
 可以把下面这段规则加入 MCP Host 给游玩 agent 的指令：
 
 ```text
-仅根据 Cogito MCP 工具返回的截图和结构化运行时观察游玩。
-先 observe，再使用最新 observation_id 调用 act；一次只进行一个 act 调用。
+先调用一次 briefing，了解公开目标、玩法和物体参考；参考图不代表当前位置。
+随后调用 observe，再使用最新 observation_id 调用 act；一次只进行一个 act 调用。
 每次 act 返回后重新观察和规划，不得使用仓库源码、节点路径、测试、规格、
 game_script、code_read 或任何隐藏的谜题答案。
 若返回 game_over、stopped 或 disconnected，停止行动。
@@ -281,8 +283,8 @@ AI_PLAY_STOP_TIMEOUT_SECONDS=5
 - 键盘上的物理 Escape 始终是紧急停止键：它会取消当前动作、释放模拟输入并停止 AI
   控制。
 - Godot 断线、无效数据、Python 退出和相关节点销毁也会释放保持中的移动输入。
-- Agent 只能接收获准公开的运行时观察。场景源码、节点路径、隐藏状态、仓库文件和谜题
-  答案不能进入 MCP 结果或 agent 提示。
+- Agent 只能接收获准公开的简报和运行时观察。简报不包含内部类名、节点路径、线索原文、
+  密码或正确解谜顺序；其他仓库文件和隐藏状态不能进入 MCP 结果或 agent 提示。
 - `game_script/`、`code_read/`、测试、规格和计划是开发资料，绝不能成为游玩 agent
   的输入。
 - MCP 服务端不保存截图、提示词、令牌、模型上下文、记忆或游玩轨迹；MCP Host
