@@ -53,7 +53,7 @@ func capture_observation(last_results: Array) -> Dictionary:
 		"interface": {
 			"is_open": player.is_showing_ui,
 			"visible_object_text": "",
-			"available_interactions": _available_interactions(),
+			"available_interactions": get_available_interactions(),
 		},
 		"bindings": bindings,
 		"last_action_results": _sanitize_last_results(last_results),
@@ -89,6 +89,10 @@ func _available_interactions() -> Array[Dictionary]:
 			"prompt": tr(component.interaction_text),
 		})
 	return result
+
+
+func get_available_interactions() -> Array[Dictionary]:
+	return _available_interactions()
 
 
 func _attribute_ratio(attribute_name: String) -> Variant:

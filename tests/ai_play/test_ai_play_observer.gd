@@ -62,6 +62,14 @@ func _run_tests() -> void:
 	target.add_child(disabled)
 	target.add_child(unapproved)
 	player.player_interaction_component.interactable = target
+	observer.get_bindings()
+	_assert(
+		observer.get_available_interactions() == [
+			{"action": "interact", "binding": "F", "prompt": "Read"},
+			{"action": "interact2", "binding": "E", "prompt": "Move"},
+		],
+		"observer publicly exposes only approved visible interactions",
+	)
 
 	await process_frame
 	var observation: Dictionary = observer.capture_observation([{"status": "completed"}])
