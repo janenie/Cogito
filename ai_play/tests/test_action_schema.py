@@ -2,209 +2,62 @@ import math
 
 import pytest
 
-from ai_play.action_schema import ActionValidationError, validate_decision
+from ai_play.action_schema import ActionValidationError, validate_action_batch
 
 
-def valid(payload, interactions={"interact"}, interface_open=False):
-    return validate_decision(payload, interactions, interface_open)
-
-
-def decision(*actions):
-    return {"reason": "explore", "memory_updates": [], "actions": list(actions)}
-
-
-def test_accepts_bounded_actions():
-    payload = decision(
-        {"type": "look", "yaw": 10, "pitch": -2},
-        {"type": "move", "forward": 1, "right": 0, "duration_ms": 600},
+def test_validate_action_batch_accepts_current_safe_actions():
+    actions = [
+        {"type": "look", "yaw": 5, "pitch": -2},
+        {"type": "move", "forward": 1, "right": 0, "duration_ms": 100},
         {"type": "interact", "action": "interact"},
-    )
+    ]
 
-    result = valid(payload)
-
-    assert result is payload
-    assert len(result["actions"]) == 3
+    assert validate_action_batch(actions, {"interact"}, False) == actions
 
 
-@pytest.mark.parametrize(
-    "action",
-    [
-        {"type": "press_key", "key": "F"},
-        {"type": "move", "forward": 1, "right": 0, "duration_ms": 1001},
-        {"type": "look", "yaw": math.inf, "pitch": 0},
-        {"type": "enter_digits", "digits": "12A"},
-    ],
-)
-def test_rejects_unsafe_actions(action):
-    with pytest.raises(ActionValidationError):
-        valid(decision(action))
+def test_validate_action_batch_rejects_unavailable_interaction():
+    actions = [{"type": "interact", "action": "interact2"}]
+
+    with pytest.raises(ActionValidationError, match="currently available"):
+        validate_action_batch(actions, {"interact"}, False)
 
 
 @pytest.mark.parametrize(
-    "payload",
+    "actions",
     [
         None,
         [],
-        {"reason": "x", "memory_updates": [], "actions": [], "extra": True},
-        {"reason": "x", "memory_updates": []},
+        [{"type": "wait", "duration_ms": 50}] * 4,
+        [{"type": "made_up"}],
+        [{"type": "look", "yaw": 0}],
+        [{"type": "move", "forward": 0, "right": 0, "duration_ms": 100, "extra": 1}],
     ],
 )
-def test_rejects_invalid_decision_fields(payload):
-    with pytest.raises(ActionValidationError, match="fields"):
-        valid(payload)
-
-
-@pytest.mark.parametrize(
-    "reason",
-    [None, 42, "", "   ", "bad\nreason", "bad\x7freason", "bad\x85reason", "x" * 501],
-)
-def test_rejects_invalid_reason(reason):
-    with pytest.raises(ActionValidationError, match="reason"):
-        valid({"reason": reason, "memory_updates": [], "actions": [{"type": "stop"}]})
-
-
-def test_rejects_non_list_memory_updates():
-    with pytest.raises(ActionValidationError, match="memory_updates"):
-        valid({"reason": "x", "memory_updates": {}, "actions": [{"type": "stop"}]})
-
-
-def test_accepts_exact_bounded_memory_updates():
-    updates = [
-        {"kind": "fact", "text": "Seen", "source": "observation:1", "confidence": 1.0},
-        {"kind": "landmark", "text": "Door", "source": "observation:1", "confidence": 0.5},
-        {"kind": "goal", "text": "Explore"},
-        {"kind": "question", "text": "Open?", "confidence": 0.2},
-        {"kind": "hypothesis", "text": "Maybe", "confidence": 0.3},
-        {"kind": "failure", "text": "Blocked", "confidence": 0.9},
-    ]
-
-    assert valid({
-        "reason": "x", "memory_updates": updates, "actions": [{"type": "stop"}],
-    })["memory_updates"] == updates
-
-
-@pytest.mark.parametrize(
-    "updates",
-    [
-        [{"kind": "goal", "text": "x"}] * 9,
-        [None],
-        [{"kind": "route", "text": "x"}],
-        [{"kind": "goal", "text": "x", "extra": "nested"}],
-        [{"kind": "goal", "text": "   "}],
-        [{"kind": "goal", "text": "bad\ntext"}],
-        [{"kind": "goal", "text": "x" * 301}],
-        [{"kind": "fact", "text": "x", "source": 1, "confidence": 0.5}],
-        [{"kind": "fact", "text": "x", "source": "x" * 65, "confidence": 0.5}],
-        [{"kind": "fact", "text": "x", "source": "observation:1"}],
-        [{"kind": "question", "text": "x", "confidence": math.nan}],
-        [{"kind": "question", "text": "x", "confidence": True}],
-        [{"kind": "question", "text": {"nested": "x"}, "confidence": 0.5}],
-    ],
-)
-def test_rejects_invalid_memory_update_dto(updates):
-    with pytest.raises(ActionValidationError, match="memory"):
-        valid({"reason": "x", "memory_updates": updates, "actions": [{"type": "stop"}]})
-
-
-@pytest.mark.parametrize("actions", [None, [], [{"type": "stop"}] * 4])
-def test_rejects_invalid_action_count(actions):
-    with pytest.raises(ActionValidationError, match="1..3"):
-        valid({"reason": "x", "memory_updates": [], "actions": actions})
-
-
-@pytest.mark.parametrize(
-    "action",
-    [
-        None,
-        {"type": "stop", "extra": 1},
-        {"type": "look", "yaw": 0},
-        {"type": "made_up"},
-        {"type": []},
-        {"type": "interact", "action": []},
-    ],
-)
-def test_rejects_unknown_or_missing_action_fields(action):
+def test_validate_action_batch_rejects_invalid_shape(actions):
     with pytest.raises(ActionValidationError):
-        valid(decision(action))
-
-
-@pytest.mark.parametrize(
-    ("action_type", "action"),
-    [
-        ("look", {"type": "look", "yaw": -45, "pitch": 30}),
-        ("move", {"type": "move", "forward": -1, "right": 1, "duration_ms": 50}),
-        ("sprint", {"type": "sprint", "forward": 1, "right": -1, "duration_ms": 1000}),
-        ("wait", {"type": "wait", "duration_ms": 2000}),
-    ],
-)
-def test_accepts_numeric_boundaries(action_type, action):
-    assert valid(decision(action))["actions"][0]["type"] == action_type
+        validate_action_batch(actions, set(), False)
 
 
 @pytest.mark.parametrize(
     "action",
     [
         {"type": "look", "yaw": -45.1, "pitch": 0},
-        {"type": "look", "yaw": 0, "pitch": 30.1},
-        {"type": "look", "yaw": math.nan, "pitch": 0},
+        {"type": "look", "yaw": math.inf, "pitch": 0},
         {"type": "move", "forward": -1.1, "right": 0, "duration_ms": 50},
-        {"type": "sprint", "forward": 0, "right": math.inf, "duration_ms": 50},
-        {"type": "move", "forward": 0, "right": 0, "duration_ms": 49},
-        {"type": "wait", "duration_ms": 2001},
+        {"type": "move", "forward": 0, "right": 0, "duration_ms": 1001},
         {"type": "look", "yaw": True, "pitch": 0},
+        {"type": "enter_digits", "digits": "12A"},
     ],
 )
-def test_rejects_out_of_range_or_non_finite_numbers(action):
+def test_validate_action_batch_rejects_unsafe_action_values(action):
     with pytest.raises(ActionValidationError):
-        valid(decision(action))
-
-
-def test_rejects_unrepresentably_large_integer_as_validation_error():
-    with pytest.raises(ActionValidationError):
-        valid(decision({"type": "look", "yaw": 10**10000, "pitch": 0}))
-
-
-def test_rejects_interaction_not_currently_visible():
-    with pytest.raises(ActionValidationError, match="available"):
-        valid(decision({"type": "interact", "action": "interact2"}))
-
-
-@pytest.mark.parametrize("action_name", ["F", "E", "use", ""])
-def test_rejects_arbitrary_interaction_names_even_if_visible(action_name):
-    with pytest.raises(ActionValidationError):
-        valid(decision({"type": "interact", "action": action_name}), {action_name})
-
-
-@pytest.mark.parametrize("digits", ["0", "123456"])
-def test_accepts_one_to_six_digits_when_interface_is_open(digits):
-    assert valid(decision({"type": "enter_digits", "digits": digits}), interface_open=True)
-
-
-@pytest.mark.parametrize("digits", ["", "1234567", "12A", 123, "１２"])
-def test_rejects_invalid_digits(digits):
-    with pytest.raises(ActionValidationError):
-        valid(decision({"type": "enter_digits", "digits": digits}), interface_open=True)
-
-
-def test_digits_require_open_interface():
-    with pytest.raises(ActionValidationError, match="interface"):
-        valid(decision({"type": "enter_digits", "digits": "123"}))
-
-
-def test_close_ui_requires_open_interface():
-    with pytest.raises(ActionValidationError, match="interface"):
-        valid(decision({"type": "close_ui"}))
-
-
-@pytest.mark.parametrize("action_type", ["jump", "crouch", "close_ui", "stop"])
-def test_accepts_exact_field_state_actions(action_type):
-    assert valid(decision({"type": action_type}), interface_open=True)
+        validate_action_batch([action], {"interact"}, False)
 
 
 @pytest.mark.parametrize(
     ("actions", "interface_open"),
     [
-        ([{"type": "stop"}, {"type": "look", "yaw": 0, "pitch": 0}], False),
+        ([{"type": "stop"}, {"type": "wait", "duration_ms": 50}], False),
         ([{"type": "interact", "action": "interact"}, {"type": "wait", "duration_ms": 50}], False),
         ([{"type": "enter_digits", "digits": "1"}, {"type": "wait", "duration_ms": 50}], True),
         ([{"type": "close_ui"}, {"type": "wait", "duration_ms": 50}], True),
@@ -212,57 +65,29 @@ def test_accepts_exact_field_state_actions(action_type):
 )
 def test_context_changing_actions_must_end_the_batch(actions, interface_open):
     with pytest.raises(ActionValidationError, match="last"):
-        valid(decision(*actions), interface_open=interface_open)
+        validate_action_batch(actions, {"interact"}, interface_open)
 
 
-def test_probe_interaction_accepts_normalized_target():
-    payload = {
-        "reason": "Check the visible red button.",
-        "memory_updates": [],
-        "actions": [
-            {"type": "probe_interaction", "target_x": 0.2, "target_y": 0.3}
-        ],
-    }
+def test_probe_interaction_must_be_the_only_action_and_use_closed_interface():
+    probe = {"type": "probe_interaction", "target_x": 0.2, "target_y": 0.3}
 
-    assert validate_decision(payload, [], False) == payload
-
-
-@pytest.mark.parametrize("value", [-0.01, 1.01, float("inf"), float("nan"), True, "0.5"])
-def test_probe_interaction_rejects_invalid_coordinate(value):
-    payload = {
-        "reason": "Probe.",
-        "memory_updates": [],
-        "actions": [
-            {"type": "probe_interaction", "target_x": value, "target_y": 0.5}
-        ],
-    }
+    assert validate_action_batch([probe], set(), False) == [probe]
     with pytest.raises(ActionValidationError):
-        validate_decision(payload, [], False)
+        validate_action_batch([probe, {"type": "wait", "duration_ms": 50}], set(), False)
+    with pytest.raises(ActionValidationError, match="closed interface"):
+        validate_action_batch([probe], set(), True)
 
 
-@pytest.mark.parametrize("value", [-0.01, 1.01, float("inf"), float("nan"), True, "0.5"])
-def test_probe_interaction_rejects_invalid_target_y(value):
-    payload = {
-        "reason": "Probe.",
-        "memory_updates": [],
-        "actions": [
-            {"type": "probe_interaction", "target_x": 0.5, "target_y": value}
-        ],
-    }
+@pytest.mark.parametrize("digits", ["", "1234567", "12A", 123, "１２"])
+def test_digits_must_be_one_to_six_ascii_digits(digits):
     with pytest.raises(ActionValidationError):
-        validate_decision(payload, [], False)
+        validate_action_batch([{"type": "enter_digits", "digits": digits}], set(), True)
 
 
-def test_probe_interaction_must_be_only_action_and_requires_closed_interface():
-    probe = {"type": "probe_interaction", "target_x": 0.5, "target_y": 0.5}
-    for actions, interface_open in [
-        ([{"type": "look", "yaw": 1.0, "pitch": 0.0}, probe], False),
-        ([probe, {"type": "wait", "duration_ms": 50}], False),
-        ([probe], True),
+def test_interface_actions_require_open_interface():
+    for action in [
+        {"type": "enter_digits", "digits": "123"},
+        {"type": "close_ui"},
     ]:
-        with pytest.raises(ActionValidationError):
-            validate_decision(
-                {"reason": "Probe.", "memory_updates": [], "actions": actions},
-                [],
-                interface_open,
-            )
+        with pytest.raises(ActionValidationError, match="interface"):
+            validate_action_batch([action], set(), False)

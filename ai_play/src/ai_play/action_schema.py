@@ -1,12 +1,11 @@
-"""Strict validation for model-selected player actions."""
+"""Strict validation for actions entering the Godot executor."""
 
 import math
 import re
-import unicodedata
 
 
 class ActionValidationError(ValueError):
-    """Raised when a model decision is outside the safe action schema."""
+    """Raised when an action is outside the safe action schema."""
 
 
 ALLOWED_KEYS = {
@@ -21,14 +20,6 @@ ALLOWED_KEYS = {
     "wait": {"type", "duration_ms"},
     "stop": {"type"},
     "probe_interaction": {"type", "target_x", "target_y"},
-}
-MEMORY_UPDATE_KEYS = {
-    "fact": {"kind", "text", "source", "confidence"},
-    "landmark": {"kind", "text", "source", "confidence"},
-    "goal": {"kind", "text"},
-    "question": {"kind", "text", "confidence"},
-    "hypothesis": {"kind", "text", "confidence"},
-    "failure": {"kind", "text", "confidence"},
 }
 
 
@@ -92,74 +83,20 @@ def _validate_action(action, available_interactions, interface_open):
             )
 
 
-def validate_memory_updates(updates):
-    if not isinstance(updates, list) or len(updates) > 8:
-        raise ActionValidationError("memory_updates must contain at most 8 entries")
-    for update in updates:
-        if not isinstance(update, dict):
-            raise ActionValidationError("memory update must be an object")
-        kind = update.get("kind")
-        if kind not in MEMORY_UPDATE_KEYS or set(update) != MEMORY_UPDATE_KEYS[kind]:
-            raise ActionValidationError("memory update has invalid fields")
-        text = update["text"]
-        if (
-            not isinstance(text, str)
-            or not text.strip()
-            or len(text) > 300
-            or any(ord(character) < 32 for character in text)
-        ):
-            raise ActionValidationError("memory update text is invalid")
-        if kind in {"fact", "landmark"}:
-            source = update["source"]
-            if (
-                not isinstance(source, str)
-                or not source
-                or len(source) > 64
-                or any(ord(character) < 32 for character in source)
-            ):
-                raise ActionValidationError("memory update source is invalid")
-        if "confidence" in update:
-            confidence = update["confidence"]
-            if (
-                isinstance(confidence, bool)
-                or not isinstance(confidence, (int, float))
-                or not math.isfinite(confidence)
-                or not 0.0 <= confidence <= 1.0
-            ):
-                raise ActionValidationError("memory update confidence is invalid")
-    return updates
-
-
-def validate_decision(payload, available_interactions, interface_open):
-    """Validate and return a decoded model decision without modifying it."""
-    if not isinstance(payload, dict) or set(payload) != {
-        "reason",
-        "memory_updates",
-        "actions",
-    }:
-        raise ActionValidationError("decision has invalid fields")
-    reason = payload["reason"]
-    if (
-        not isinstance(reason, str)
-        or not reason.strip()
-        or len(reason) > 500
-        or any(unicodedata.category(character) == "Cc" for character in reason)
-    ):
-        raise ActionValidationError("reason must be a short string")
-    validate_memory_updates(payload["memory_updates"])
-
-    actions = payload["actions"]
+def validate_action_batch(actions, available_interactions, interface_open):
+    """Validate and return an unchanged bounded batch of player actions."""
     if not isinstance(actions, list) or not 1 <= len(actions) <= 3:
         raise ActionValidationError("actions must contain 1..3 entries")
 
     available = set(available_interactions)
     for index, action in enumerate(actions):
         _validate_action(action, available, interface_open)
-        if action["type"] in {"stop", "interact", "enter_digits", "close_ui"} and index != len(actions) - 1:
-            raise ActionValidationError("context-changing action must be last")
+        if action["type"] in {"stop", "interact", "enter_digits", "close_ui"}:
+            if index != len(actions) - 1:
+                raise ActionValidationError("context-changing action must be last")
     if (
         any(action["type"] == "probe_interaction" for action in actions)
         and len(actions) != 1
     ):
         raise ActionValidationError("probe_interaction must be the only action")
-    return payload
+    return actions

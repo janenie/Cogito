@@ -215,3 +215,21 @@ def validate_observation(value):
         "bindings": safe_bindings,
         "last_action_results": safe_results,
     }
+
+
+def prepare_mcp_observation(value):
+    """Return public structured observation data and its separately carried image bytes."""
+    safe = validate_observation(value)
+    encoded = safe["image"]["base64"]
+    try:
+        image_bytes = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ObservationValidationError("image base64 is invalid") from error
+
+    public = {key: item for key, item in safe.items()}
+    public["image"] = {
+        key: item
+        for key, item in safe["image"].items()
+        if key != "base64"
+    }
+    return public, image_bytes
