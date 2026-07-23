@@ -1,26 +1,42 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import threading
 
-from websockets.sync.server import serve as websocket_serve
 from websockets.exceptions import ConnectionClosed
+from websockets.sync.server import serve as websocket_serve
 
-from .observation_schema import ObservationValidationError, validate_action_results
+from .game_session import GameSession, SessionError
 
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 MAX_PACKET_SIZE = 4 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
-GAME_OVER_FIELDS = {
-    "type",
-    "protocol_version",
+OBSERVATION_FIELDS = {
     "observation_id",
-    "outcome",
-    "reason",
-    "request_count",
+    "captured_at_ms",
+    "image",
+    "player",
+    "interface",
+    "bindings",
+    "last_action_results",
 }
+
+
+class BridgeHandle:
+    def __init__(self, server, thread):
+        self._server = server
+        self._thread = thread
+        self._closed = False
+        self._lock = threading.Lock()
+
+    def close(self):
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._server.shutdown()
+        self._thread.join(timeout=2.0)
 
 
 def _error(code, observation_id=None):
@@ -40,49 +56,64 @@ def _send(connection, packet):
 def _safe_send(connection, packet):
     try:
         _send(connection, packet)
-    except ConnectionClosed:
+    except (ConnectionClosed, OSError):
         return False
     return True
 
 
-def _validate_game_over(packet, max_model_requests):
-    if set(packet) != GAME_OVER_FIELDS:
-        return False
-    observation_id = packet.get("observation_id")
-    request_count = packet.get("request_count")
-    outcome = packet.get("outcome")
-    reason = packet.get("reason")
-    if type(observation_id) is not int or observation_id < 0:
-        return False
-    if (
-        type(request_count) is not int
-        or request_count < 1
-        or request_count > max_model_requests
-    ):
-        return False
-    if (outcome, reason) not in {
-        ("success", "correct_password"),
-        ("failure", "wrong_password"),
-        ("failure", "max_requests"),
-    }:
-        return False
-    return reason != "max_requests" or request_count == max_model_requests
+def start(config, session: GameSession) -> BridgeHandle:
+    config.validate()
+    ready = threading.Event()
+    holder = {}
+
+    def run():
+        try:
+            with websocket_serve(
+                lambda connection: _handler(connection, config, session),
+                config.ws_host,
+                config.ws_port,
+                max_size=MAX_PACKET_SIZE,
+                compression=None,
+            ) as server:
+                holder["server"] = server
+                ready.set()
+                server.serve_forever()
+        except BaseException as error:  # surfaced to the starter thread
+            holder["error"] = error
+            ready.set()
+
+    thread = threading.Thread(
+        target=run,
+        name="ai-play-godot-bridge",
+        daemon=True,
+    )
+    thread.start()
+    if not ready.wait(timeout=2.0):
+        raise RuntimeError("Godot bridge did not start")
+    if "error" in holder:
+        raise RuntimeError("Godot bridge did not start") from holder["error"]
+    return BridgeHandle(holder["server"], thread)
 
 
-def _handler(connection, config, agent_loop, session_lock):
-    hello = _receive_hello(connection, config)
+def _handler(connection, config, session):
+    del config
+    hello = _receive_hello(connection)
     if hello is None:
         return
-    if not session_lock.acquire(blocking=False):
-        _safe_send(connection, _error("controller_busy"))
-        return
+
     try:
-        _exclusive_handler(connection, config, agent_loop, hello)
+        session.attach(lambda packet: _safe_send(connection, packet))
+    except SessionError as error:
+        _safe_send(connection, _error(str(error)))
+        return
+
+    try:
+        _exclusive_handler(connection, session)
     finally:
-        session_lock.release()
+        session.detach("connection_closed")
 
 
-def _receive_hello(connection, config):
+def _receive_hello(connection):
     try:
         raw_packet = connection.recv(timeout=HELLO_TIMEOUT_SECONDS)
     except ConnectionClosed:
@@ -90,133 +121,111 @@ def _receive_hello(connection, config):
     except TimeoutError:
         _safe_send(connection, _error("hello_timeout"))
         return None
-    try:
-        if isinstance(raw_packet, bytes):
-            raise ValueError
-        packet = json.loads(raw_packet)
-        if not isinstance(packet, dict):
-            raise ValueError
-    except (UnicodeError, json.JSONDecodeError, ValueError):
+
+    packet = _decode_packet(raw_packet)
+    if packet is None:
         _safe_send(connection, _error("invalid_packet"))
         return None
-    observation_id = packet.get("observation_id")
-    if type(packet.get("protocol_version")) is not int or packet["protocol_version"] != PROTOCOL_VERSION:
-        _safe_send(connection, _error("unsupported_protocol", observation_id))
+    if type(packet.get("protocol_version")) is not int or packet.get(
+        "protocol_version"
+    ) != PROTOCOL_VERSION:
+        _safe_send(connection, _error("unsupported_protocol"))
         return None
     if packet.get("type") != "hello":
-        _safe_send(connection, _error("hello_required", observation_id))
+        _safe_send(connection, _error("hello_required"))
         return None
-    hello_data_dir = packet.get("data_dir")
-    if config.data_dir is None and (
-        not isinstance(hello_data_dir, str) or not hello_data_dir
-    ):
+    if set(packet) != {"type", "protocol_version"}:
         _safe_send(connection, _error("invalid_hello"))
         return None
     return packet
 
 
-def _exclusive_handler(connection, config, agent_loop, hello):
-    data_dir = (config.data_dir or Path(hello["data_dir"])).expanduser().resolve()
-    memory_dir = Path(data_dir) / "ai_play"
-    memory_dir.mkdir(parents=True, exist_ok=True)
-    agent_loop.configure_memory(memory_dir / "memory.json")
-    _send(
+def _exclusive_handler(connection, session):
+    if not _safe_send(
         connection,
         {"type": "hello", "protocol_version": PROTOCOL_VERSION},
-    )
-    for raw_packet in connection:
-        try:
-            if isinstance(raw_packet, bytes):
-                raise ValueError
-            packet = json.loads(raw_packet)
-            if not isinstance(packet, dict):
-                raise ValueError
-        except (UnicodeError, json.JSONDecodeError, ValueError):
-            _send(connection, _error("invalid_packet"))
-            continue
+    ):
+        return
 
-        observation_id = packet.get("observation_id")
-        protocol_version = packet.get("protocol_version")
-        if type(protocol_version) is not int or protocol_version != PROTOCOL_VERSION:
-            _send(connection, _error("unsupported_protocol", observation_id))
-            continue
+    try:
+        for raw_packet in connection:
+            packet = _decode_packet(raw_packet)
+            if packet is None:
+                if not _safe_send(connection, _error("invalid_packet")):
+                    return
+                continue
 
-        packet_type = packet.get("type")
-        if packet_type == "observation":
-            response = agent_loop.handle_observation(packet)
-            response_id = response.get("observation_id")
-            if response.get("type") == "action_batch":
-                try:
-                    _send(connection, response)
-                except Exception:
-                    agent_loop.discard_action_batch(response_id)
-                    return
-                if not agent_loop.commit_action_batch_sent(response_id):
-                    agent_loop.discard_action_batch(response_id)
-                    return
-            else:
-                if not _safe_send(connection, response):
-                    return
-                if response.get("type") == "game_over":
-                    return
-        elif packet_type == "action_results":
-            if set(packet) != {
-                "type", "protocol_version", "observation_id", "results"
-            }:
-                _send(connection, _error("invalid_action_results", observation_id))
-                continue
-            try:
-                if type(observation_id) is not int:
-                    raise ObservationValidationError("observation_id is invalid")
-                results = validate_action_results(packet["results"])
-            except ObservationValidationError:
-                _send(connection, _error("invalid_action_results", observation_id))
-                continue
-            if not agent_loop.record_action_results(observation_id, results):
-                _send(connection, _error("unknown_action_results", observation_id))
-        elif packet_type == "stop":
-            if set(packet) != {
-                "type", "protocol_version", "observation_id", "reason", "results"
-            }:
-                _send(connection, _error("invalid_stop", observation_id))
-                continue
-            try:
-                if observation_id is not None and type(observation_id) is not int:
-                    raise ObservationValidationError("observation_id is invalid")
-                if packet["reason"] != "escape_stop":
-                    raise ObservationValidationError("stop reason is invalid")
-                results = validate_action_results(packet["results"])
-            except (KeyError, ObservationValidationError):
-                _send(connection, _error("invalid_stop", observation_id))
-                continue
-            agent_loop.record_stop(packet["reason"], observation_id, results)
-            return
-        elif packet_type == "game_over":
-            if not _validate_game_over(packet, config.max_model_requests):
-                _send(connection, _error("invalid_game_over", observation_id))
-                continue
-            if not agent_loop.record_game_over(
-                observation_id,
-                packet["outcome"],
-                packet["reason"],
-                packet["request_count"],
+            observation_id = packet.get("observation_id")
+            if (
+                type(packet.get("protocol_version")) is not int
+                or packet.get("protocol_version") != PROTOCOL_VERSION
             ):
-                _send(connection, _error("invalid_game_over", observation_id))
+                if not _safe_send(
+                    connection,
+                    _error("unsupported_protocol", observation_id),
+                ):
+                    return
                 continue
-            return
-        else:
-            _send(connection, _error("unexpected_packet", observation_id))
+
+            packet_type = packet.get("type")
+            try:
+                if packet_type == "observation":
+                    if set(packet) != OBSERVATION_FIELDS | {
+                        "type",
+                        "protocol_version",
+                    }:
+                        raise SessionError("invalid_observation")
+                    session.receive_observation({
+                        key: value
+                        for key, value in packet.items()
+                        if key not in {"type", "protocol_version"}
+                    })
+                elif packet_type == "action_results":
+                    if set(packet) != {
+                        "type",
+                        "protocol_version",
+                        "observation_id",
+                        "results",
+                    }:
+                        raise SessionError("invalid_action_results")
+                    session.receive_action_results(
+                        packet["observation_id"],
+                        packet["results"],
+                    )
+                elif packet_type == "stop":
+                    if set(packet) != {
+                        "type",
+                        "protocol_version",
+                        "observation_id",
+                        "reason",
+                        "results",
+                    }:
+                        raise SessionError("invalid_stop")
+                    session.receive_stop(packet)
+                    return
+                elif packet_type == "stop_ack":
+                    session.receive_stop_ack(packet)
+                    return
+                elif packet_type == "game_over":
+                    session.receive_game_over(packet)
+                    return
+                else:
+                    raise SessionError("unexpected_packet")
+            except SessionError as error:
+                if not _safe_send(
+                    connection,
+                    _error(str(error), observation_id),
+                ):
+                    return
+    except ConnectionClosed:
+        return
 
 
-def serve(config, agent_loop):
-    config.validate()
-    session_lock = threading.Lock()
-    handler = lambda connection: _handler(connection, config, agent_loop, session_lock)
-    with websocket_serve(
-        handler,
-        config.ws_host,
-        config.ws_port,
-        max_size=MAX_PACKET_SIZE,
-        compression=None,
-    ) as server:
-        server.serve_forever()
+def _decode_packet(raw_packet):
+    if not isinstance(raw_packet, str):
+        return None
+    try:
+        packet = json.loads(raw_packet)
+    except (UnicodeError, json.JSONDecodeError):
+        return None
+    return packet if isinstance(packet, dict) else None
