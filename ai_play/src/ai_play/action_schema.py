@@ -20,6 +20,7 @@ ALLOWED_KEYS = {
     "close_ui": {"type"},
     "wait": {"type", "duration_ms"},
     "stop": {"type"},
+    "probe_interaction": {"type", "target_x", "target_y"},
 }
 MEMORY_UPDATE_KEYS = {
     "fact": {"kind", "text", "source", "confidence"},
@@ -82,6 +83,13 @@ def _validate_action(action, available_interactions, interface_open):
             raise ActionValidationError("enter_digits requires an open interface")
     elif action_type == "close_ui" and not interface_open:
         raise ActionValidationError("close_ui requires an open interface")
+    elif action_type == "probe_interaction":
+        _require_number(action["target_x"], 0, 1, "target_x")
+        _require_number(action["target_y"], 0, 1, "target_y")
+        if interface_open:
+            raise ActionValidationError(
+                "probe_interaction requires a closed interface"
+            )
 
 
 def validate_memory_updates(updates):
@@ -149,4 +157,9 @@ def validate_decision(payload, available_interactions, interface_open):
         _validate_action(action, available, interface_open)
         if action["type"] in {"stop", "interact", "enter_digits", "close_ui"} and index != len(actions) - 1:
             raise ActionValidationError("context-changing action must be last")
+    if (
+        any(action["type"] == "probe_interaction" for action in actions)
+        and len(actions) != 1
+    ):
+        raise ActionValidationError("probe_interaction must be the only action")
     return payload

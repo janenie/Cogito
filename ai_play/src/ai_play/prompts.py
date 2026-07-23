@@ -44,6 +44,12 @@ Action meanings:
 - `crouch` performs the crouch control.
 - `interact` activates a contextual slot named by `action`; that action must be
   present in the current `available_interactions`.
+- `probe_interaction` attempts to align the crosshair with a visible object at
+  normalized image coordinates `target_x` and `target_y`, each from 0 through 1.
+  It does not activate the object. Use it only for a visible, plausible
+  interaction target. It must be the only action in its batch and requires a
+  closed interface. After it completes, inspect the fresh observation and use
+  only the newly reported `available_interactions`.
 - `enter_digits` enters one to six ASCII digits from `digits` and may be used
   only when `interface.is_open` is true.
 - `close_ui` closes the current interface and may be used only when
@@ -73,6 +79,7 @@ attempts as failures rather than facts.
 - {"type":"jump"}
 - {"type":"crouch"}
 - {"type":"interact","action":<currently available slot name>}
+- {"type":"probe_interaction","target_x":<finite normalized x>,"target_y":<finite normalized y>}
 - {"type":"enter_digits","digits":<decimal digit string>}
 - {"type":"close_ui"}
 - {"type":"wait","duration_ms":<duration>}

@@ -213,3 +213,43 @@ def test_accepts_exact_field_state_actions(action_type):
 def test_context_changing_actions_must_end_the_batch(actions, interface_open):
     with pytest.raises(ActionValidationError, match="last"):
         valid(decision(*actions), interface_open=interface_open)
+
+
+def test_probe_interaction_accepts_normalized_target():
+    payload = {
+        "reason": "Check the visible red button.",
+        "memory_updates": [],
+        "actions": [
+            {"type": "probe_interaction", "target_x": 0.2, "target_y": 0.3}
+        ],
+    }
+
+    assert validate_decision(payload, [], False) == payload
+
+
+@pytest.mark.parametrize("value", [-0.01, 1.01, float("inf"), float("nan"), True, "0.5"])
+def test_probe_interaction_rejects_invalid_coordinate(value):
+    payload = {
+        "reason": "Probe.",
+        "memory_updates": [],
+        "actions": [
+            {"type": "probe_interaction", "target_x": value, "target_y": 0.5}
+        ],
+    }
+    with pytest.raises(ActionValidationError):
+        validate_decision(payload, [], False)
+
+
+def test_probe_interaction_must_be_only_action_and_requires_closed_interface():
+    probe = {"type": "probe_interaction", "target_x": 0.5, "target_y": 0.5}
+    for actions, interface_open in [
+        ([{"type": "look", "yaw": 1.0, "pitch": 0.0}, probe], False),
+        ([probe, {"type": "wait", "duration_ms": 50}], False),
+        ([probe], True),
+    ]:
+        with pytest.raises(ActionValidationError):
+            validate_decision(
+                {"reason": "Probe.", "memory_updates": [], "actions": actions},
+                [],
+                interface_open,
+            )

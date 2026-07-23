@@ -137,6 +137,15 @@ def test_prompt_defines_look_values_as_mouse_control_deltas():
     assert "pitch_degrees" in SYSTEM_PROMPT
 
 
+def test_prompt_documents_interaction_probe():
+    assert "`probe_interaction`" in SYSTEM_PROMPT
+    assert "`target_x`" in SYSTEM_PROMPT
+    assert "`target_y`" in SYSTEM_PROMPT
+    assert "only action in its batch" in SYSTEM_PROMPT
+    assert "does not activate" in SYSTEM_PROMPT
+    assert '"type":"probe_interaction"' in SYSTEM_PROMPT
+
+
 def test_readme_explains_how_to_confirm_actual_look_rotation():
     readme = " ".join(
         (Path(__file__).resolve().parents[1] / "README.md")

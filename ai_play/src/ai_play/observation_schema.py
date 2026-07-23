@@ -21,7 +21,7 @@ OBSERVATION_FIELDS = {
 }
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
-    "enter_digits", "close_ui", "wait", "stop",
+    "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -70,12 +70,28 @@ def validate_action_results(results):
         raise ObservationValidationError("last_action_results is invalid")
     safe_results = []
     for result in results:
-        if not isinstance(result, dict) or not set(result).issubset({"status", "type", "error", "reason"}) or "status" not in result:
+        if not isinstance(result, dict) or not set(result).issubset(
+            {"status", "type", "error", "reason", "outcome", "scan_steps"}
+        ) or "status" not in result:
             raise ObservationValidationError("action result has invalid fields")
         status = _text(result["status"], "result status", 16, allow_empty=False)
         if status not in {"completed", "cancelled", "error", "blocked", "stopped"}:
             raise ObservationValidationError("action result status is invalid")
         result_fields = set(result)
+        if status == "completed" and result.get("type") == "probe_interaction":
+            if result_fields != {"status", "type", "outcome", "scan_steps"}:
+                raise ObservationValidationError("probe result fields are invalid")
+            if result["outcome"] not in {"aligned", "not_found"}:
+                raise ObservationValidationError("probe outcome is invalid")
+            if type(result["scan_steps"]) is not int or not 0 <= result["scan_steps"] <= 9:
+                raise ObservationValidationError("probe scan_steps is invalid")
+            safe_results.append({
+                "status": status,
+                "type": "probe_interaction",
+                "outcome": result["outcome"],
+                "scan_steps": result["scan_steps"],
+            })
+            continue
         if (
             (status == "completed" and result_fields != {"status", "type"})
             or (status == "error" and result_fields != {"status", "error"})
