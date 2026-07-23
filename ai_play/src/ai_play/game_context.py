@@ -73,7 +73,7 @@ def _load_goal(path: Path) -> dict[str, Any]:
         raise GameContextError("GAME_GOAL must be a literal dictionary") from error
     required = {
         "game_id", "title", "description", "rules",
-        "success_condition", "failure_condition",
+        "success_condition", "failure_condition", "limitations",
     }
     if not isinstance(goal, dict) or set(goal) != required:
         raise GameContextError("GAME_GOAL fields are invalid")

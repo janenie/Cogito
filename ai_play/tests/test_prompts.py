@@ -1,8 +1,14 @@
 import json
 from pathlib import Path
 
+from ai_play import prompts
 from ai_play.game_context import load_game_context
-from ai_play.prompts import SYSTEM_PROMPT, build_log_messages, build_messages
+from ai_play.prompts import (
+    SYSTEM_PROMPT,
+    build_log_messages,
+    build_messages,
+    build_system_prompt,
+)
 
 
 FORBIDDEN = ["game_script/", "code_read/", ".gd", ".tscn", "passcode", "walkthrough"]
@@ -21,6 +27,17 @@ def observation():
             "health_ratio": 1,
             "stamina_ratio": 1,
         },
+        "nearby_interactables": [{
+            "tracking_id": 42,
+            "category": "readable",
+            "distance_m": 2.5,
+            "world_position": [0.5, 1.0, -2.0],
+            "relative_position": {"forward": 2.0, "right": 0.5, "up": 0.0},
+            "relative_yaw_degrees": 14.0,
+            "relative_pitch_degrees": 0.0,
+            "screen_position": {"x": 0.6, "y": 0.5},
+            "interactions": [{"action": "interact", "prompt": "Read hint"}],
+        }],
         "interface": {
             "is_open": False,
             "visible_object_text": "",
@@ -69,6 +86,13 @@ def test_build_messages_keeps_image_only_in_data_url():
         "image_url": {"url": "data:image/jpeg;base64,aW1hZ2U="},
     }
     assert state["memory"] == {"facts": []}
+    assert state["probe_interaction_harness"] == {
+        "status": "aligned",
+        "success": True,
+        "success_condition": "current_available_interactions_non_empty",
+        "available_actions": ["interact", "interact2"],
+        "required_next_step": "use_available_interaction",
+    }
 
 
 def test_build_log_messages_replaces_image_data_url_with_relative_path():
@@ -97,6 +121,25 @@ def test_game_context_adds_chinese_goal_asset_catalog_and_one_reference_image():
     assert "083001" not in system
     assert len([part for part in user_content if part["type"] == "image_url"]) == 2
     assert user_content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+
+def test_find_contract_prompt_leads_with_readable_task_rules_and_limit():
+    ai_play_root = Path(__file__).resolve().parents[1]
+    context = load_game_context("find_contract", ai_play_root)
+
+    assert hasattr(prompts, "find_contract_system_prompt")
+    system = prompts.find_contract_system_prompt(context)
+
+    assert system.startswith("# 本局任务")
+    assert "寻找合同密码并进入档案室" in system
+    assert "你最多走1000步，所以请仔细规划。" in system
+    assert "## 成功条件" in system
+    assert "## 失败条件" in system
+    assert "## 本局规则" in system
+    assert "## 可识别物体与操作机制" in system
+    assert "FriendlyHumanNPC / BasicInteraction" in system
+    assert '"game":' not in system
+    assert build_system_prompt(context) == system
 
 
 def test_log_messages_names_current_and_reference_images_separately():
@@ -172,6 +215,26 @@ def test_prompt_documents_interaction_probe():
     assert "必须单独成为一个" in SYSTEM_PROMPT
     assert "不会激活" in SYSTEM_PROMPT
     assert '"type":"probe_interaction"' in SYSTEM_PROMPT
+
+
+def test_prompt_teaches_nearby_interactable_aiming_feedback():
+    assert "`nearby_interactables`" in SYSTEM_PROMPT
+    assert "`screen_position`" in SYSTEM_PROMPT
+    assert "`relative_position`" in SYSTEM_PROMPT
+    assert "`distance_m`" in SYSTEM_PROMPT
+    assert "最多五个" in SYSTEM_PROMPT
+    assert "不代表已经对准" in SYSTEM_PROMPT
+    assert "新坐标" in SYSTEM_PROMPT
+
+
+def test_prompt_teaches_probe_harness_success_loop():
+    assert "`probe_interaction_harness`" in SYSTEM_PROMPT
+    assert "唯一成功条件" in SYSTEM_PROMPT
+    assert "当前 `available_interactions` 非空" in SYSTEM_PROMPT
+    assert "仅仅看到图标" in SYSTEM_PROMPT
+    assert "`aligned`" in SYSTEM_PROMPT
+    assert "`not_aligned`" in SYSTEM_PROMPT
+    assert "当前列出的交互槽" in SYSTEM_PROMPT
 
 
 def test_readme_explains_how_to_confirm_actual_look_rotation():

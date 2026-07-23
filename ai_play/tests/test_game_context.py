@@ -16,6 +16,7 @@ def test_find_contract_context_has_expected_visual_assets_without_solution():
     assert len(context.assets) == 11
     assert "正确密码" in context.goal["success_condition"]
     assert "解锁" in context.goal["success_condition"]
+    assert context.goal["limitations"] == "你最多走1000步，所以请仔细规划。"
     assert context.reference_image_path.name == "reference_atlas.jpg"
     assert context.reference_image_path.is_file()
     rendered = json.dumps(context.to_prompt_dict(), ensure_ascii=False)

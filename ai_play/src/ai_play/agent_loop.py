@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import threading
 from copy import deepcopy
@@ -9,7 +8,8 @@ from .action_schema import validate_decision
 from .api_client import parse_model_json
 from .memory import MemoryStore
 from .observation_schema import OBSERVATION_FIELDS, ObservationValidationError, validate_observation
-from .prompts import build_log_messages, build_messages
+from .probe_interaction_harness import build_probe_interaction_harness
+from .prompts import build_messages
 
 
 REDACTED_VALUE = "[REDACTED]"
@@ -47,15 +47,6 @@ def _redact_for_log(value, sensitive_values):
             redacted = redacted.replace(sensitive, REDACTED_VALUE)
         return redacted
     return deepcopy(value)
-
-
-def _redact_logged_memory(messages, memory):
-    logged_messages = deepcopy(messages)
-    state_part = logged_messages[1]["content"][0]
-    state = json.loads(state_part["text"])
-    state["memory"] = _redact_for_log(memory, [])
-    state_part["text"] = json.dumps(state, ensure_ascii=False)
-    return logged_messages
 
 
 class AgentLoop:
@@ -129,10 +120,12 @@ class AgentLoop:
                 )
                 staged_memory.record_step(completed_step)
             prompt_memory = staged_memory.to_prompt_dict()
+            probe_harness = build_probe_interaction_harness(safe_observation)
             messages = build_messages(
                 safe_observation,
                 prompt_memory,
                 self.game_context,
+                probe_harness,
             )
             if self.model_request_count >= self.max_model_requests:
                 return self._max_requests_packet(safe_observation["observation_id"])
@@ -145,26 +138,21 @@ class AgentLoop:
                 logged_observation = deepcopy(safe_observation)
                 logged_observation["image"].pop("base64", None)
                 stage = "model_input_log"
+                model_input_fields = {
+                    "model": self.api_client.config.model,
+                    "image_path": round_ref.image_path,
+                    "observation": logged_observation,
+                    "memory": _redact_for_log(prompt_memory, []),
+                    "probe_interaction_harness": deepcopy(probe_harness),
+                }
+                if self.game_context is not None:
+                    model_input_fields["reference_atlas_path"] = (
+                        self.game_context.reference_log_path
+                    )
                 self.run_logger.write_event(
                     "model_input",
                     round_ref,
-                    model=self.api_client.config.model,
-                    image_path=round_ref.image_path,
-                    system_prompt=messages[0]["content"],
-                    observation=logged_observation,
-                    memory=_redact_for_log(prompt_memory, []),
-                    messages=_redact_logged_memory(
-                        build_log_messages(
-                            messages,
-                            round_ref.image_path,
-                            (
-                                self.game_context.reference_log_path
-                                if self.game_context is not None
-                                else None
-                            ),
-                        ),
-                        prompt_memory,
-                    ),
+                    **model_input_fields,
                 )
                 stage = "api"
                 self.model_request_count += 1
@@ -176,7 +164,7 @@ class AgentLoop:
                     self.run_logger.write_event(
                         "model_output",
                         round_ref,
-                        raw_content=_redact_for_log(completion.raw_content, []),
+                        raw_content=completion.raw_content,
                         latency_ms=completion.latency_ms,
                     )
                     stage = "parse"
@@ -186,10 +174,7 @@ class AgentLoop:
                 self.run_logger.write_event(
                     "model_output",
                     round_ref,
-                    raw_content=_redact_for_log(
-                        completion.raw_content,
-                        sensitive_values,
-                    ),
+                    raw_content=completion.raw_content,
                     latency_ms=completion.latency_ms,
                 )
             interface = safe_observation["interface"]

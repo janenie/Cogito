@@ -17,7 +17,16 @@ APPROVED_ACTIONS = (
 )
 OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
-    "bindings", "last_action_results",
+    "nearby_interactables", "bindings", "last_action_results",
+}
+NEARBY_FIELDS = {
+    "tracking_id", "category", "distance_m", "world_position",
+    "relative_position", "relative_yaw_degrees", "relative_pitch_degrees",
+    "screen_position", "interactions",
+}
+NEARBY_CATEGORIES = {
+    "readable", "keypad", "door", "button", "character", "object",
+    "interactable",
 }
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
@@ -116,6 +125,79 @@ def validate_action_results(results):
     return safe_results
 
 
+def _validate_nearby_interactables(items):
+    if not isinstance(items, list) or len(items) > 5:
+        raise ObservationValidationError("nearby_interactables is invalid")
+    safe_items = []
+    seen_ids = set()
+    previous_distance = -1.0
+    for item in items:
+        _exact(item, NEARBY_FIELDS, "nearby interactable")
+        tracking_id = _integer(item["tracking_id"], "nearby tracking_id")
+        if tracking_id in seen_ids:
+            raise ObservationValidationError("nearby tracking_id must be unique")
+        seen_ids.add(tracking_id)
+        category = item["category"]
+        if category not in NEARBY_CATEGORIES:
+            raise ObservationValidationError("nearby category is invalid")
+        distance = _number(item["distance_m"], "nearby distance_m", 0, 2_000_000)
+        if distance < previous_distance:
+            raise ObservationValidationError("nearby interactables are not distance sorted")
+        previous_distance = distance
+
+        relative = item["relative_position"]
+        _exact(relative, {"forward", "right", "up"}, "nearby relative_position")
+        screen = item["screen_position"]
+        _exact(screen, {"x", "y"}, "nearby screen_position")
+        interactions = item["interactions"]
+        if not isinstance(interactions, list) or not 1 <= len(interactions) <= 2:
+            raise ObservationValidationError("nearby interactions are invalid")
+        safe_interactions = []
+        seen_actions = set()
+        for interaction in interactions:
+            _exact(interaction, {"action", "prompt"}, "nearby interaction")
+            action = interaction["action"]
+            if action not in {"interact", "interact2"} or action in seen_actions:
+                raise ObservationValidationError("nearby interaction action is invalid")
+            seen_actions.add(action)
+            safe_interactions.append({
+                "action": action,
+                "prompt": _text(
+                    interaction["prompt"], "nearby interaction prompt", 200
+                ),
+            })
+        safe_items.append({
+            "tracking_id": tracking_id,
+            "category": category,
+            "distance_m": distance,
+            "world_position": _vector(
+                item["world_position"], 3, "nearby world_position",
+                -1_000_000, 1_000_000,
+            ),
+            "relative_position": {
+                axis: _number(
+                    relative[axis], f"nearby relative {axis}",
+                    -2_000_000, 2_000_000,
+                )
+                for axis in ("forward", "right", "up")
+            },
+            "relative_yaw_degrees": _number(
+                item["relative_yaw_degrees"], "nearby relative_yaw_degrees",
+                -180, 180,
+            ),
+            "relative_pitch_degrees": _number(
+                item["relative_pitch_degrees"], "nearby relative_pitch_degrees",
+                -90, 90,
+            ),
+            "screen_position": {
+                axis: _number(screen[axis], f"nearby screen {axis}", 0, 1)
+                for axis in ("x", "y")
+            },
+            "interactions": safe_interactions,
+        })
+    return safe_items
+
+
 def validate_observation(value):
     """Return a fresh safe observation DTO or raise before any model call."""
     _exact(value, OBSERVATION_FIELDS, "observation")
@@ -190,6 +272,7 @@ def validate_observation(value):
         })
 
     safe_results = validate_action_results(value["last_action_results"])
+    safe_nearby = _validate_nearby_interactables(value["nearby_interactables"])
 
     return {
         "observation_id": _integer(value["observation_id"], "observation_id"),
@@ -207,6 +290,7 @@ def validate_observation(value):
             "on_floor": player["on_floor"],
             **ratios,
         },
+        "nearby_interactables": safe_nearby,
         "interface": {
             "is_open": interface["is_open"],
             "visible_object_text": _text(interface["visible_object_text"], "visible object text", 500),

@@ -1,13 +1,18 @@
 import threading
 import json
+from pathlib import Path
 
 import pytest
 
 import ai_play.agent_loop as agent_loop_module
 from ai_play.agent_loop import AgentLoop
 from ai_play.api_client import ModelCompletion
+from ai_play.game_context import load_game_context
 from ai_play.memory import MemoryStore
 from ai_play.run_logger import RunLogger
+
+
+AI_PLAY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def observation(observation_id=9):
@@ -31,6 +36,17 @@ def observation(observation_id=9):
             "health_ratio": None,
             "stamina_ratio": 0.5,
         },
+        "nearby_interactables": [{
+            "tracking_id": 42,
+            "category": "readable",
+            "distance_m": 2.5,
+            "world_position": [0.5, 1.0, -2.0],
+            "relative_position": {"forward": 2.0, "right": 0.5, "up": 0.0},
+            "relative_yaw_degrees": 14.0,
+            "relative_pitch_degrees": 0.0,
+            "screen_position": {"x": 0.6, "y": 0.5},
+            "interactions": [{"action": "interact", "prompt": "Read hint"}],
+        }],
         "interface": {
             "is_open": False,
             "visible_object_text": "",
@@ -110,7 +126,8 @@ def _logged_events(logger):
 
 def test_logs_complete_round_lifecycle_without_base64(tmp_path):
     logger = RunLogger.create(tmp_path, "test-model")
-    loop = AgentLoop(FakeApi(decision()), FakeMemory(), run_logger=logger)
+    api = FakeApi(decision())
+    loop = AgentLoop(api, FakeMemory(), run_logger=logger)
     try:
         response = loop.handle_observation(observation())
 
@@ -123,10 +140,21 @@ def test_logs_complete_round_lifecycle_without_base64(tmp_path):
         model_input = _logged_events(logger)[0]
         assert model_input["model"] == "test-model"
         assert model_input["image_path"] == "img/000001.jpg"
-        assert model_input["messages"][1]["content"][1] == {
-            "type": "image_path",
-            "image_path": "img/000001.jpg",
+        assert model_input["observation"]["observation_id"] == 9
+        assert model_input["memory"] == {"facts": []}
+        prompt_state = json.loads(api.messages[0][1]["content"][0]["text"])
+        assert model_input["probe_interaction_harness"] == (
+            prompt_state["probe_interaction_harness"]
+        )
+        assert model_input["probe_interaction_harness"] == {
+            "status": "aligned",
+            "success": True,
+            "success_condition": "current_available_interactions_non_empty",
+            "available_actions": ["interact2"],
+            "required_next_step": "use_available_interaction",
         }
+        assert "system_prompt" not in model_input
+        assert "messages" not in model_input
         assert "base64" not in json.dumps(model_input)
 
         assert loop.commit_action_batch_sent(response["observation_id"])
@@ -142,6 +170,27 @@ def test_logs_complete_round_lifecycle_without_base64(tmp_path):
             "action_dispatched",
             "godot_result",
         ]
+    finally:
+        logger.close()
+
+
+def test_model_input_logs_reference_atlas_path_without_message_envelope(tmp_path):
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(
+        FakeApi(decision()),
+        FakeMemory(),
+        run_logger=logger,
+        game_context=load_game_context("find_contract", AI_PLAY_ROOT),
+    )
+    try:
+        loop.handle_observation(observation())
+
+        model_input = _logged_events(logger)[0]
+        assert model_input["reference_atlas_path"] == (
+            "assets/find_contract/imgs/reference_atlas.jpg"
+        )
+        assert "system_prompt" not in model_input
+        assert "messages" not in model_input
     finally:
         logger.close()
 
@@ -207,30 +256,31 @@ def test_logs_raw_malformed_model_output_before_parse_error(tmp_path):
         logger.close()
 
 
-def test_redacts_digits_from_malformed_model_output(tmp_path):
+def test_logs_raw_malformed_model_output_with_digits_before_parse_error(tmp_path):
     submitted_digits = "654321"
+    raw_content = (
+        '{"reason":"submit","memory_updates":[],"actions":'
+        f'[{{"type":"enter_digits","digits":"{submitted_digits}"}}]}} trailing'
+    )
     logger = RunLogger.create(tmp_path, "test-model")
     loop = AgentLoop(
         FakeApi(
             decision(),
-            raw_content=(
-                '{"reason":"submit","memory_updates":[],"actions":'
-                f'[{{"type":"enter_digits","digits":"{submitted_digits}"}}]}} trailing'
-            ),
+            raw_content=raw_content,
         ),
         FakeMemory(),
         run_logger=logger,
     )
     try:
         assert loop.handle_observation(observation())["type"] == "error"
-        log_text = logger.jsonl_path.read_text(encoding="utf-8")
-        assert submitted_digits not in log_text
-        assert "[REDACTED]" in log_text
+        model_output = _logged_events(logger)[1]
+        assert model_output["event"] == "model_output"
+        assert model_output["raw_content"] == raw_content
     finally:
         logger.close()
 
 
-def test_redacts_submitted_digits_from_model_and_dispatch_logs(tmp_path):
+def test_logs_exact_raw_model_output_before_redacting_downstream_events(tmp_path):
     submitted_digits = "654321"
     proposal = decision(
         reason=f"submit {submitted_digits}",
@@ -241,18 +291,37 @@ def test_redacts_submitted_digits_from_model_and_dispatch_logs(tmp_path):
         }],
         actions=[{"type": "enter_digits", "digits": submitted_digits}],
     )
+    raw_content = (
+        '{ "reason": "submit 654321", "memory_updates": '
+        '[{"kind":"hypothesis","text":"candidate 654321","confidence":0.8}], '
+        '"actions": [{"type":"enter_digits","digits":"654321"}] }'
+    )
     value = observation()
     value["interface"]["is_open"] = True
     logger = RunLogger.create(tmp_path, "test-model")
-    loop = AgentLoop(FakeApi(proposal), FakeMemory(), run_logger=logger)
+    loop = AgentLoop(
+        FakeApi(proposal, raw_content=raw_content),
+        FakeMemory(),
+        run_logger=logger,
+    )
     try:
         response = loop.handle_observation(value)
         assert response["actions"][0]["digits"] == submitted_digits
         assert loop.commit_action_batch_sent(response["observation_id"])
 
-        log_text = logger.jsonl_path.read_text(encoding="utf-8")
-        assert submitted_digits not in log_text
-        assert "[REDACTED]" in log_text
+        events = _logged_events(logger)
+        model_output = next(
+            event for event in events if event["event"] == "model_output"
+        )
+        assert model_output["raw_content"] == raw_content
+        for event in events:
+            if event["event"] in {
+                "decision_validated",
+                "action_dispatch_requested",
+                "action_dispatched",
+            }:
+                assert submitted_digits not in json.dumps(event)
+                assert "[REDACTED]" in json.dumps(event)
     finally:
         logger.close()
 
@@ -390,7 +459,7 @@ def test_valid_observation_reaches_api_without_wire_envelope():
 
     assert set(state["observation"]) == {
         "observation_id", "captured_at_ms", "image", "player", "interface",
-        "bindings", "last_action_results",
+        "nearby_interactables", "bindings", "last_action_results",
     }
     assert "type" not in state["observation"]
     assert "protocol_version" not in state["observation"]
@@ -448,6 +517,13 @@ def test_find_contract_observation_accepts_omitted_health_and_stamina():
         lambda value: value["player"].update({"yaw_degrees": -1_000_000.1}),
         lambda value: value["player"].update({"pitch_degrees": 90.1}),
         lambda value: value["player"].update({"planar_velocity": [0, 10_000.1]}),
+        lambda value: value["nearby_interactables"][0].update({"path": "/secret"}),
+        lambda value: value["nearby_interactables"][0]["screen_position"].update(
+            {"x": 1.1}
+        ),
+        lambda value: value.update({
+            "nearby_interactables": value["nearby_interactables"] * 6
+        }),
         lambda value: value.update({
             "last_action_results": [{"status": "blocked", "type": "look"}]
         }),

@@ -103,11 +103,13 @@ contains:
 
 - `model`.
 - `image_path`, relative to the run directory.
-- The exact system prompt.
+- `reference_atlas_path` when the request includes a visual reference atlas.
 - The structured observation sent to the model, excluding image base64.
 - The current bounded memory supplied to the model.
-- The final Chat Completions message structure with the image data URL replaced
-  by a stable `image_path` reference.
+
+It intentionally omits the system prompt and final Chat Completions `messages`
+envelope. Those values are request-construction details and substantially
+duplicate the structured fields above.
 
 ### `model_output`
 
@@ -118,7 +120,10 @@ validation. It contains:
 - `latency_ms`: elapsed API-call duration.
 
 This preserves malformed model output for diagnosis. API transport failures
-produce `round_error` instead because no model output exists.
+produce `round_error` instead because no model output exists. The raw response
+is not redacted and may include candidate passwords or other sensitive
+model-generated text, so the run directory must be treated as sensitive
+harness-debugging data.
 
 ### `decision_validated`
 

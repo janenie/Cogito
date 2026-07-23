@@ -94,6 +94,10 @@ func _run_tests() -> void:
 	_assert(player_state.get("health_ratio") == null, "missing health ratio is null")
 	_assert(player_state.get("stamina_ratio") == null, "missing stamina ratio is null")
 	_assert(observation.get("last_action_results") == [{"status": "completed"}], "last results pass through")
+	_assert(
+		observation.get("nearby_interactables") == [],
+		"observer emits an empty nearby list when no camera candidates are visible",
+	)
 	var safe_nested: Array = [1, "safe"]
 	var injected_node := Node.new()
 	injected_node.name = "secret_injected_result_node"
@@ -121,6 +125,10 @@ func _run_tests() -> void:
 	root.add_child(find_contract_observer)
 	var find_contract_observation: Dictionary = find_contract_observer.capture_observation([])
 	var find_contract_player: Dictionary = find_contract_observation.get("player", {})
+	_assert(
+		find_contract_observation.has("nearby_interactables"),
+		"find_contract observer preserves nearby interactables",
+	)
 	_assert(
 		not find_contract_player.has("health_ratio"),
 		"find_contract observer omits health ratio",

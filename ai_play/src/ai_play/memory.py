@@ -13,6 +13,7 @@ from .action_schema import (
     validate_decision,
     validate_memory_updates,
 )
+from .observation_schema import ObservationValidationError, validate_action_results
 
 
 _SUPPORTED_KINDS = {"fact", "landmark", "goal", "question", "hypothesis", "failure"}
@@ -350,46 +351,26 @@ class MemoryStore:
         observation_id = step["observation_id"]
         if type(observation_id) is not int or not 0 <= observation_id <= 9_007_199_254_740_991:
             return False
-        try:
-            validate_decision(
-                {"reason": step["reason"], "memory_updates": [], "actions": step["actions"]},
-                {"interact", "interact2"},
-                True,
-            )
-        except ActionValidationError:
+        decision = {
+            "reason": step["reason"],
+            "memory_updates": [],
+            "actions": step["actions"],
+        }
+        for interface_open in (False, True):
+            try:
+                validate_decision(
+                    decision,
+                    {"interact", "interact2"},
+                    interface_open,
+                )
+                break
+            except ActionValidationError:
+                continue
+        else:
             return False
         results = step["last_action_results"]
-        if not isinstance(results, list) or len(results) > 3:
+        try:
+            validate_action_results(results)
+        except ObservationValidationError:
             return False
-        for result in results:
-            if (
-                not isinstance(result, dict)
-                or "status" not in result
-                or not set(result).issubset({"status", "type", "error", "reason"})
-                or result["status"] not in {
-                    "completed", "cancelled", "error", "blocked", "stopped",
-                }
-            ):
-                return False
-            status = result["status"]
-            fields = set(result)
-            if (
-                (status == "completed" and fields != {"status", "type"})
-                or (status == "error" and fields != {"status", "error"})
-                or (
-                    status == "cancelled"
-                    and fields not in ({"status"}, {"status", "reason"})
-                )
-                or (status in {"blocked", "stopped"} and fields != {"status", "type"})
-            ):
-                return False
-            if status == "blocked" and result["type"] not in {"move", "sprint"}:
-                return False
-            if status == "stopped" and result["type"] != "stop":
-                return False
-            if any(
-                not isinstance(value, str) or not value or len(value) > 200
-                for value in result.values()
-            ):
-                return False
         return True

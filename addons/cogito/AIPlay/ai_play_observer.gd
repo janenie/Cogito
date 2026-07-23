@@ -1,6 +1,9 @@
 class_name AIPlayObserver
 extends Node
 
+const NearbyInteractables = preload(
+	"res://addons/cogito/AIPlay/ai_play_nearby_interactables.gd"
+)
 const APPROVED_ACTIONS: Array[String] = [
 	"forward", "back", "left", "right", "jump", "sprint", "crouch", "interact",
 	"interact2", "menu",
@@ -14,6 +17,7 @@ const MAX_JSON_DEPTH: int = 16
 
 var bindings: Dictionary = {}
 var _observation_id: int = 0
+var nearby_interactables_collector = NearbyInteractables.new()
 
 
 func capture_observation(last_results: Array) -> Dictionary:
@@ -50,6 +54,7 @@ func capture_observation(last_results: Array) -> Dictionary:
 			"health_ratio": _attribute_ratio("health"),
 			"stamina_ratio": _attribute_ratio("stamina"),
 		},
+		"nearby_interactables": _nearby_interactables(),
 		"interface": {
 			"is_open": player.is_showing_ui,
 			"visible_object_text": "",
@@ -58,6 +63,26 @@ func capture_observation(last_results: Array) -> Dictionary:
 		"bindings": bindings,
 		"last_action_results": _sanitize_last_results(last_results),
 	}
+
+
+func _nearby_interactables() -> Array[Dictionary]:
+	if player == null or not is_instance_valid(player) or not is_inside_tree():
+		return []
+	var viewport := get_viewport()
+	if viewport == null:
+		return []
+	var camera := viewport.get_camera_3d()
+	if camera == null and "camera" in player:
+		camera = player.get("camera") as Camera3D
+	var viewport_size := viewport.get_visible_rect().size
+	if camera == null or viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return []
+	return nearby_interactables_collector.collect(
+		player,
+		camera,
+		get_tree().get_nodes_in_group("interactable"),
+		viewport_size,
+	)
 
 
 func get_bindings() -> Dictionary:

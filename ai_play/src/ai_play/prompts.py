@@ -6,6 +6,8 @@ from copy import deepcopy
 import json
 from typing import Any
 
+from .probe_interaction_harness import build_probe_interaction_harness
+
 
 SYSTEM_PROMPT = """你通过第一人称画面控制游戏角色。以短小的“观察-行动”回合工作，
 只依据当前截图、结构化观察、上一回合动作结果、受限记忆，以及下方明确提供的游戏
@@ -37,6 +39,24 @@ NPC。看到疑似可交互物但准星下没有提示时，先靠近并使用 `
 - `probe_interaction`：尝试将准星对准截图归一化坐标 `target_x`、`target_y`
   指向的可疑物体，两个坐标都必须在 [0, 1]。它不会激活物体，必须单独成为一个
   动作批次，且只能在界面关闭时使用。完成后检查新观察，只使用新报告的交互槽。
+
+每回合的 `nearby_interactables` 最多五个，列出当前画面内且无遮挡的可交互物，
+并按玩家到交互点的三维 `distance_m` 排序。使用 `relative_position` 判断是否
+需要靠近，使用 `screen_position` 作为 `probe_interaction` 的估计目标。该坐标
+不代表已经对准；只有当前 `available_interactions` 非空才算成功。移动、转向或
+探测后必须使用下一回合的新坐标，不要复用旧坐标。
+
+每回合读取结构化的 `probe_interaction_harness`。对准的唯一成功条件是当前 `available_interactions` 非空；
+仅仅看到图标、物体或历史 `aligned` 结果都不代表
+当前已经对准：
+- `aligned`：当前存在交互槽。只从 `available_actions` 和当前
+  `available_interactions` 选择当前列出的交互槽；不要再次 probe。
+- `not_aligned`：上次 probe 没有让交互提示出现。不能 interact 或声称成功；根据
+  新截图先靠近物体，或选择新的归一化目标坐标。
+- `inconsistent`：历史结果声称 aligned，但当前交互槽为空。按未对准处理并重新观察。
+- `interface_open`：先处理或关闭当前界面，不能 probe。
+- `ready_to_probe`：尚未对准；找到可疑的可见物体后，靠近并用单独的 probe 批次。
+
 - `enter_digits`：仅在 `interface.is_open` 为 true 时输入一至六位 ASCII 数字。
 - `close_ui`：仅在 `interface.is_open` 为 true 时关闭当前界面。
 - `wait`：等待 50 到 2000 毫秒。`stop`：释放控制并结束动作序列。
@@ -70,9 +90,68 @@ confidence 是 0 到 1 的有限数；text 非空且最多 300 字符。未确�
 不要添加形状之外的字段。证据不足时优先选择短小、可逆的动作。"""
 
 
+def find_contract_system_prompt(game_context) -> str:
+    """把 find_contract 的任务、机制和通用动作协议渲染成醒目的系统提示词。"""
+    if game_context.game_id != "find_contract":
+        raise ValueError("find_contract_system_prompt requires find_contract context")
+
+    goal = game_context.goal
+    rules = "\n".join(
+        f"{index}. {rule}"
+        for index, rule in enumerate(goal["rules"], start=1)
+    )
+    assets = []
+    for asset_name, asset in game_context.assets.items():
+        operations = "；".join(
+            f"`{action}`：{meaning}"
+            for action, meaning in asset["operation"].items()
+        )
+        assets.append(
+            f"- `{asset_name}`（{asset['system_name']}）：{asset['meaning']}\n"
+            f"  可用操作机制：{operations}"
+        )
+    asset_catalog = "\n".join(assets)
+
+    return f"""# 本局任务
+
+## 任务名称
+{goal["title"]}
+
+## 任务说明
+{goal["description"]}
+
+## 成功条件
+{goal["success_condition"]}
+
+## 失败条件
+{goal["failure_condition"]}
+
+## 资源限制
+{goal["limitations"]}
+
+## 本局规则
+{rules}
+
+## 视觉输入与判断原则
+- 用户消息中的第一张图片是当前实时游戏画面，是本回合行动的主要依据。
+- 用户消息中的第二张图片是带标签的视觉参考图谱，只用于识别物体类别和理解操作
+  机制，不能把参考图谱中的内容当成当前位置、当前交互状态或谜题答案。
+- 当前截图、结构化 observation、动作结果和运行时记忆始终优先于参考图谱。
+- 下面的物体目录只说明物体通常是什么、如何调查，不包含密码、线索原文、正确
+  路线或完整解谜顺序。
+
+## 可识别物体与操作机制
+{asset_catalog}
+
+# 通用控制、安全与输出协议
+{SYSTEM_PROMPT}"""
+
+
 def build_system_prompt(game_context=None) -> str:
     if game_context is None:
         return SYSTEM_PROMPT
+    if game_context.game_id == "find_contract":
+        return find_contract_system_prompt(game_context)
     context = json.dumps(
         game_context.to_prompt_dict(),
         ensure_ascii=False,
@@ -91,14 +170,24 @@ def build_messages(
     observation: dict[str, Any],
     memory: dict[str, Any],
     game_context=None,
+    probe_interaction_harness: dict[str, Any] | None = None,
 ) -> list[dict]:
     """构造文本、当前截图和可选参考图谱，不在状态 JSON 中重复图片字节。"""
     safe_observation = deepcopy(observation)
     image = safe_observation["image"]
     encoded = image.pop("base64")
     mime = image["mime_type"]
+    probe_harness = (
+        build_probe_interaction_harness(observation)
+        if probe_interaction_harness is None
+        else deepcopy(probe_interaction_harness)
+    )
     state = json.dumps(
-        {"observation": safe_observation, "memory": memory},
+        {
+            "observation": safe_observation,
+            "memory": memory,
+            "probe_interaction_harness": probe_harness,
+        },
         ensure_ascii=False,
     )
     content = [

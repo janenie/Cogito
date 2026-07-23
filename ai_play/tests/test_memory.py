@@ -320,6 +320,33 @@ def test_load_allows_exact_recorded_step(tmp_path):
     assert MemoryStore.load(path).working_memory == [step]
 
 
+def test_working_memory_accepts_completed_probe_result():
+    store = MemoryStore.empty()
+    step = {
+        "observation_id": 1,
+        "reason": "inspect the visible target",
+        "actions": [
+            {
+                "type": "probe_interaction",
+                "target_x": 0.5,
+                "target_y": 0.5,
+            }
+        ],
+        "last_action_results": [
+            {
+                "status": "completed",
+                "type": "probe_interaction",
+                "outcome": "not_found",
+                "scan_steps": 9,
+            }
+        ],
+    }
+
+    store.record_step(step)
+
+    assert store.working_memory == [step]
+
+
 def test_record_step_rejects_arbitrary_observation_payload():
     store = MemoryStore.empty()
 

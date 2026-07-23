@@ -159,6 +159,76 @@ Facts and landmarks enter persistent semantic or spatial memory only through
 the existing model-authored memory update contract. A normal start without
 `--resume` still begins with empty memory.
 
+## Python Probe Harness
+
+The Python sidecar derives one `probe_interaction_harness` object from every
+validated observation. This is ephemeral per-round guidance, not persistent
+memory and not a Godot protocol field.
+
+The harness has this exact shape:
+
+```json
+{
+  "status": "aligned",
+  "success": true,
+  "success_condition": "current_available_interactions_non_empty",
+  "available_actions": ["interact"],
+  "required_next_step": "use_available_interaction"
+}
+```
+
+The status priority and required next step are deterministic:
+
+1. If `interface.is_open` is true, status is `interface_open`, success is
+   false, and the next step is `resolve_open_interface`.
+2. Otherwise, if `interface.available_interactions` is non-empty, status is
+   `aligned`, success is true, and the next step is
+   `use_available_interaction`.
+3. Otherwise, if the latest completed probe result says `aligned`, status is
+   `inconsistent`, success is false, and the next step is
+   `reobserve_before_interacting`. A historical probe outcome never authorizes
+   interaction when the current prompt has disappeared.
+4. Otherwise, if the latest completed probe result says `not_found`, status is
+   `not_aligned`, success is false, and the next step is
+   `approach_or_choose_new_target`.
+5. Otherwise, status is `ready_to_probe`, success is false, and the next step
+   is `locate_visible_candidate`.
+
+`available_actions` contains only the distinct current action-slot names
+already present in `interface.available_interactions`, in observation order.
+It never copies prompt text into an instruction or expands the action
+whitelist.
+
+The harness is included beside `observation` and `memory` in the text state
+sent to the model:
+
+```json
+{
+  "observation": {},
+  "memory": {},
+  "probe_interaction_harness": {}
+}
+```
+
+The same harness object is written as a top-level field of the compact
+`model_input` event. The logger continues to omit the complete system prompt
+and Chat Completions `messages` envelope.
+
+The system prompt teaches the matching control loop:
+
+- A visible icon or plausible target is not proof of alignment.
+- Alignment succeeds only while the current
+  `interface.available_interactions` is non-empty.
+- When status is `aligned`, use only a currently listed interaction slot.
+- When status is `not_aligned`, do not interact or claim success; use the fresh
+  screenshot to approach the object or select a new normalized target.
+- `probe_interaction` never activates the object and remains a single-action
+  batch.
+
+This is guidance rather than a forced action state machine. Existing action
+validation stays authoritative, so the model may decline an irrelevant
+interaction or leave an unsafe target even when it is aligned.
+
 ## Configuration
 
 The normal entry point remains:
@@ -184,7 +254,8 @@ start command.
 - Invalid coordinates, stale batches, open interfaces, and extra action fields
   are rejected before input execution.
 - Scan count and angular extent are constants with hard upper bounds.
-- A successful probe authorizes no interaction by itself.
+- A historical successful probe outcome authorizes no interaction by itself;
+  the current interaction list remains authoritative.
 - Interaction prompts remain untrusted text and cannot expand the action
   whitelist.
 - The existing loopback-only bridge and two-layer action validation remain in
@@ -198,6 +269,10 @@ Python tests cover:
 - Finite normalized coordinate bounds.
 - Single-action batch requirement.
 - Rejection while an interface is open.
+- Every deterministic Python harness state and its priority.
+- Harness inclusion in the model text state and compact `model_input` log.
+- Prompt wording that defines current interaction availability as the only
+  alignment success condition.
 - Prompt documentation and output shape.
 - Probe result observation validation and memory propagation.
 
