@@ -1,8 +1,69 @@
-# AI First Play operator guide
+# AI First Play
 
 AI First Play connects the COGITO Lobby to a local Python sidecar. The Godot
 controller is installed in the Lobby but is deliberately disabled at startup;
 the operator remains in control of when screenshots begin leaving the game.
+
+## AI Play 怎么玩
+
+AI Play 让视觉模型像玩家一样，以“观察一回合、操作一回合”的方式探索
+COGITO Lobby。它不是读取关卡答案或直接修改角色坐标，而是反复执行下面的
+循环：
+
+1. Godot 截取当前第一人称画面，并提供角色位置、朝向、界面状态和准星下
+   当前可用的交互提示。
+2. Python sidecar 将这一回合的截图和结构化状态发送给视觉模型。
+3. 模型根据当前证据选择 1 到 3 个短动作。
+4. Godot 严格校验动作，通过正常输入和物理系统执行，然后把结果交给下一
+   回合。
+5. 模型查看新截图，确认移动、转向或交互是否成功，再决定下一步。
+
+模型可用的操作范围：
+
+- `look`：小幅转动视角。
+- `move` / `sprint`：相对当前视角前后左右移动，单次最长 1 秒。
+- `jump` / `crouch`：跳跃或蹲下。
+- `probe_interaction`：对准画面中的可疑物体，并在附近小范围寻找交互点。
+- `interact`：只有当前观察明确报告 `interact` 或 `interact2` 可用时，才会
+  执行对应交互。
+- `enter_digits` / `close_ui`：在已打开的数字界面中输入，或关闭界面。
+- `wait` / `stop`：等待，或结束控制。
+
+交互探索分成两个回合。模型看到按钮、门、抽屉等可疑物体但准星下还没有
+交互提示时，会先发送该物体在截图中的归一化坐标。Godot 只转动视角，并在
+目标附近最多扫描 9 个位置；这个过程不会自动按 F/E，也不会移动角色。如果
+找到交互提示，系统立即截取新画面，下一回合再由模型决定是否执行
+`interact`。如果没找到，视角会恢复到探测前的位置，模型可以换目标或继续
+探索。
+
+## 快速启动
+
+在仓库根目录准备 `api_key.py`。程序只静态读取其中唯一一个 `OpenAI(...)`
+调用里的字面量 `api_key` 和 `base_url`，不会执行这个文件。默认模型是
+`gemini-3.5-flash`；需要更换时设置 `AI_PLAY_MODEL`。
+
+首次运行先安装依赖：
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r ai_play/requirements.txt
+```
+
+终端 1 启动 AI sidecar：
+
+```bash
+ai_play/start_ai.sh
+```
+
+终端 2 启动允许 AI 控制的 Lobby：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+```
+
+必须带上 `-- --ai-play` 才会启用 AI。运行中按实体键盘 `Escape` 会立即取消
+当前动作、释放移动按键并停止 AI；正常启动 Lobby 而不带这个参数时，AI
+保持关闭。
 
 ## Setup and start
 
@@ -13,7 +74,7 @@ the sidecar reads those two values without executing the file:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r ai_play/requirements.txt
-PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main
+ai_play/start_ai.sh
 ```
 
 Environment variables remain the preferred production setup and override the
@@ -54,6 +115,15 @@ AI movement is sent through ordinary COGITO input and physics. `interact` and
 `interact2` are contextual action slots, not permanent meanings: the current
 visible interaction list supplies their prompt and current binding (normally F
 and E). The agent may select one only while it appears in that list.
+
+When a visible object looks relevant but no interaction is currently available,
+the agent can issue one `probe_interaction` action with normalized screenshot
+coordinates. Godot aims through normal mouse input and checks at most nine
+nearby crosshair positions within four degrees per axis. The probe never moves
+the player and never presses `interact` or `interact2`. An aligned or failed
+probe immediately produces a fresh observation, so the model decides in the
+next round whether to interact, probe elsewhere, or continue exploring. A
+failed probe restores the starting view.
 
 Look `yaw` and `pitch` values are bounded relative mouse-control deltas and do
 not guarantee degrees. The player's runtime mouse sensitivity still applies;
