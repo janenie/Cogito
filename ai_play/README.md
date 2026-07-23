@@ -53,6 +53,7 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 
 - Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 2。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
+- Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `2` 的表示，并在桥内规范化为整数 `2`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 首版只支持 `find_contract` Lobby 的运行时终局事件；不通过 MCP 提供场景源码或任务内部知识。

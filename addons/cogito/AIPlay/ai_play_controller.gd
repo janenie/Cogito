@@ -362,12 +362,6 @@ func _finish_game(outcome: String, reason: String, observation_id: int) -> void:
 func _show_game_over_result(outcome: String, reason: String) -> void:
 	if _terminal_monitor != null and _terminal_monitor.has_method("show_result"):
 		_terminal_monitor.show_result(outcome, reason)
-	_show_game_over_result(outcome, reason)
-
-
-func _show_game_over_result(outcome: String, reason: String) -> void:
-	if _terminal_monitor != null and _terminal_monitor.has_method("show_result"):
-		_terminal_monitor.show_result(outcome, reason)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:

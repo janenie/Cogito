@@ -18,7 +18,7 @@
 - MCP 结果使用标准多模态内容：结构化 JSON 只放获准运行时状态和动作结果，截图作为 MCP `ImageContent` 返回；不在结构化结果中重复 Base64 图片。
 - 不新增服务端截图、令牌、模型输入、模型输出、记忆或游玩轨迹持久化。MCP 客户端是否保存工具结果不属于本服务的控制范围。
 - 首版只支持 `COGITO_3_Lobby.tscn` 中的 `find_contract` 终局事件；控制动作和观察 DTO 保持可复用，不为其他场景增加自动启动或任务编排。
-- 内部 Godot/Python 桥协议升级为版本 `2`，明确区分 MCP 请求、Godot 观察、动作结果、终局和停止确认，拒绝旧版本数据。
+- 内部 Godot/Python 桥协议升级为版本 `2`，明确区分 MCP 请求、Godot 观察、动作结果、终局和停止确认，拒绝旧版本数据。Godot 的 JSON 解析会把数值规范化为浮点；Python 到 Godot 的 `protocol_version` 因此只要是非布尔数值且精确等于 `2` 即有效，并会被桥规范化为整数 `2`。
 - 使用官方 MCP Python SDK 稳定 v1.x 兼容线，依赖约束为 `mcp[cli]>=1.28,<2`；不依赖仍在预发布阶段的 v2 API。
 
 ## 架构
@@ -54,6 +54,10 @@ Python 到 Godot 的消息包括：
 
 Godot 在处理 `stop_request` 后向 Python 发送 `stop_ack`，确认已取消执行并释放模拟输入。
 
+#### JSON 数值规范化
+
+Godot 接收 JSON 时无法保留 `2`、`2.0` 和 `2e0` 的词法差异；版本 2 的 Godot 接收边界将这些数值中精确等于 `2` 的非布尔表示视为同一协议版本，拒绝字符串、布尔值、非有限值和其他数值。桥会把有效版本规范化为整数 `2`，并把有效的有限安全整数 `observation_id`（0～2^53-1）规范化为整数后才发出 GDScript 信号或构造 `stop_ack`；非整数或越界 ID 仍由控制器拒绝。
+
 观察和动作仍经过 Python 与 GDScript 两端的边界校验。Godot 断开连接、收到 `stop_request`、节点销毁或执行器取消时，必须调用既有的输入释放路径；Python 端的连接关闭和 MCP 进程退出也必须停止向 Godot 派发动作。
 
 ## 流程
@@ -83,7 +87,7 @@ Godot 在处理 `stop_request` 后向 Python 发送 `stop_ack`，确认已取消
 
 - Python 单元测试覆盖动作批次校验、观察 DTO 清理、`GameSession` 的握手/单连接/观察等待/动作关联/过期 ID/终局/停止/断线/超时状态机。
 - Python MCP 测试使用官方 SDK 的内存测试传输或等价无外部凭据测试，验证工具列表、结构化结果、图片内容、工具错误和 stdio stdout 清洁性。
-- Godot headless 测试覆盖协议版本 2、动作批次字段、远程 `stop_request`、`stop_ack`、终局字段、Escape、断线和输入释放；保留 Lobby 的显式 `-- --ai-play` 与 `auto_start = false` 回归测试。
+- Godot headless 测试覆盖协议版本 2 的 JSON 数值规范化、动作批次字段、远程 `stop_request`、`stop_ack`、终局字段、Escape、断线和输入释放；保留 Lobby 的显式 `-- --ai-play` 与 `auto_start = false` 回归测试。
 - Shell 测试覆盖 MCP 启动脚本的工作目录、`PYTHONPATH`、模块入口和凭据扫描。
 - 不运行真实外部模型验收，不使用真实 API Key，不持久化截图、令牌或本地游玩轨迹作为自动化测试前提。
 
