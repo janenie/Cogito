@@ -113,6 +113,23 @@ func _run_tests() -> void:
 	)
 	_assert(not _contains_only_json_values(INF), "JSON test helper rejects non-finite floats")
 
+	var find_contract_script: GDScript = load(
+		"res://addons/cogito/AIPlay/ai_play_find_contract_observer.gd"
+	)
+	var find_contract_observer: Node = find_contract_script.new()
+	find_contract_observer.player = player
+	root.add_child(find_contract_observer)
+	var find_contract_observation: Dictionary = find_contract_observer.capture_observation([])
+	var find_contract_player: Dictionary = find_contract_observation.get("player", {})
+	_assert(
+		not find_contract_player.has("health_ratio"),
+		"find_contract observer omits health ratio",
+	)
+	_assert(
+		not find_contract_player.has("stamina_ratio"),
+		"find_contract observer omits stamina ratio",
+	)
+
 	var image_payload: Dictionary = observation.get("image", {})
 	_assert(image_payload.get("mime_type") == "image/jpeg", "image MIME type is JPEG")
 	_assert(image_payload.get("width") == 768 and image_payload.get("height") == 432, "image reports 768x432")
@@ -140,6 +157,7 @@ func _run_tests() -> void:
 		InputMap.action_add_event("interact", event)
 
 	observer.free()
+	find_contract_observer.free()
 	player.body.free()
 	player.head.free()
 	interaction_controller.free()

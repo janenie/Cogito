@@ -165,6 +165,35 @@ def test_save_atomically_round_trips_memory(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == [path]
 
 
+def test_redacted_save_remains_loadable_after_expansion_and_deduplication(tmp_path):
+    store = MemoryStore.empty()
+    store.apply_updates(
+        [
+            {"kind": "hypothesis", "text": "room 1", "confidence": 0.4},
+            {"kind": "hypothesis", "text": "room 2", "confidence": 0.8},
+            {
+                "kind": "hypothesis",
+                "text": " ".join(["1"] * 150),
+                "confidence": 0.6,
+            },
+        ],
+        1,
+    )
+    path = tmp_path / "memory.json"
+
+    store.save_redacted(path)
+    loaded = MemoryStore.load(path)
+
+    assert len(loaded.task_state["hypotheses"]) == 2
+    assert all(
+        len(entry["text"]) <= 300
+        for entry in loaded.task_state["hypotheses"]
+    )
+    assert "room [REDACTED]" in {
+        entry["text"] for entry in loaded.task_state["hypotheses"]
+    }
+
+
 def test_load_missing_file_returns_empty_memory(tmp_path):
     assert MemoryStore.load(tmp_path / "missing.json").to_prompt_dict() == MemoryStore.empty().to_prompt_dict()
 

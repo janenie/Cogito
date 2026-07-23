@@ -13,6 +13,14 @@ from .observation_schema import ObservationValidationError, validate_action_resu
 PROTOCOL_VERSION = 1
 MAX_PACKET_SIZE = 4 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
+GAME_OVER_FIELDS = {
+    "type",
+    "protocol_version",
+    "observation_id",
+    "outcome",
+    "reason",
+    "request_count",
+}
 
 
 def _error(code, observation_id=None):
@@ -35,6 +43,30 @@ def _safe_send(connection, packet):
     except ConnectionClosed:
         return False
     return True
+
+
+def _validate_game_over(packet, max_model_requests):
+    if set(packet) != GAME_OVER_FIELDS:
+        return False
+    observation_id = packet.get("observation_id")
+    request_count = packet.get("request_count")
+    outcome = packet.get("outcome")
+    reason = packet.get("reason")
+    if type(observation_id) is not int or observation_id < 0:
+        return False
+    if (
+        type(request_count) is not int
+        or request_count < 1
+        or request_count > max_model_requests
+    ):
+        return False
+    if (outcome, reason) not in {
+        ("success", "correct_password"),
+        ("failure", "wrong_password"),
+        ("failure", "max_requests"),
+    }:
+        return False
+    return reason != "max_requests" or request_count == max_model_requests
 
 
 def _handler(connection, config, agent_loop, session_lock):
@@ -122,8 +154,11 @@ def _exclusive_handler(connection, config, agent_loop, hello):
                 if not agent_loop.commit_action_batch_sent(response_id):
                     agent_loop.discard_action_batch(response_id)
                     return
-            elif not _safe_send(connection, response):
-                return
+            else:
+                if not _safe_send(connection, response):
+                    return
+                if response.get("type") == "game_over":
+                    return
         elif packet_type == "action_results":
             if set(packet) != {
                 "type", "protocol_version", "observation_id", "results"
@@ -155,6 +190,19 @@ def _exclusive_handler(connection, config, agent_loop, hello):
                 _send(connection, _error("invalid_stop", observation_id))
                 continue
             agent_loop.record_stop(packet["reason"], observation_id, results)
+            return
+        elif packet_type == "game_over":
+            if not _validate_game_over(packet, config.max_model_requests):
+                _send(connection, _error("invalid_game_over", observation_id))
+                continue
+            if not agent_loop.record_game_over(
+                observation_id,
+                packet["outcome"],
+                packet["reason"],
+                packet["request_count"],
+            ):
+                _send(connection, _error("invalid_game_over", observation_id))
+                continue
             return
         else:
             _send(connection, _error("unexpected_packet", observation_id))

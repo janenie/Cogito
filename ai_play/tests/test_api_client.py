@@ -31,6 +31,7 @@ def config():
         model="vision-model",
         request_timeout_seconds=12.5,
         api_max_retries=2,
+        max_tokens=8192,
     )
 
 
@@ -48,6 +49,7 @@ def test_decide_forwards_request_and_decodes_json():
         "model": "vision-model",
         "messages": messages,
         "timeout": 12.5,
+        "max_tokens": 8192,
     }
     assert decision == {
         "reason": "observe",

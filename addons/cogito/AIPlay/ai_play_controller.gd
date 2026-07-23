@@ -23,10 +23,14 @@ var _last_results: Array = []
 var _reconnect_remaining: float = -1.0
 var _capture_generation: int = 0
 var _stop_delivery_pending: bool = false
+var _active_request_count: int = 0
+var _active_request_limit: int = 0
+var _game_finished: bool = false
 
 var _observer: Node
 var _executor: Node
 var _interaction_probe: Node
+var _terminal_monitor: Node
 var _bridge: Node
 var _observation_timer: Timer
 
@@ -35,6 +39,7 @@ func _ready() -> void:
 	_observer = get_node("Observer")
 	_executor = get_node("Executor")
 	_interaction_probe = get_node("InteractionProbe")
+	_terminal_monitor = get_node_or_null("TerminalMonitor")
 	_bridge = get_node("Bridge")
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
@@ -53,8 +58,11 @@ func _ready() -> void:
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
+	_bridge.game_over_received.connect(_on_remote_game_over)
 	_bridge.remote_error.connect(_on_remote_error)
 	_executor.batch_finished.connect(_on_batch_finished)
+	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
+		_terminal_monitor.game_finished.connect(_on_game_finished)
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
 	print("AI_PLAY controller ready; user_args=%s auto_start=%s" % [OS.get_cmdline_user_args(), auto_start])
 	if auto_start or _should_enable_for_user_args(OS.get_cmdline_user_args()):
@@ -72,6 +80,9 @@ func get_state() -> State:
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
 	_stop_delivery_pending = false
+	_game_finished = false
+	_active_request_count = 0
+	_active_request_limit = 0
 	_reconnect_remaining = -1.0
 	if _state != State.DISABLED:
 		_bridge.disconnect_from_server()
@@ -196,6 +207,17 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	if not actions is Array:
 		_pause_for_error("invalid_action_batch")
 		return
+	var request_count: Dictionary = _parse_positive_integer(batch.get("request_count"))
+	var request_limit: Dictionary = _parse_positive_integer(batch.get("request_limit"))
+	if (
+		not request_count["valid"]
+		or not request_limit["valid"]
+		or request_count["value"] > request_limit["value"]
+	):
+		_pause_for_error("invalid_request_metadata")
+		return
+	_active_request_count = request_count["value"]
+	_active_request_limit = request_limit["value"]
 	_executing_observation_id = observation_id["value"]
 	_pending_observation_id = -1
 	_state = State.EXECUTING
@@ -216,6 +238,13 @@ func _on_batch_finished(results: Array) -> void:
 		_pause_for_error("action_results_send_failed")
 		return
 	_last_results = results.duplicate(true)
+	if _active_request_count >= _active_request_limit:
+		_finish_game(
+			"failure",
+			"max_requests",
+			completed_observation_id,
+		)
+		return
 	if _contains_stopped_result(results):
 		_capture_generation += 1
 		_state = State.DISABLED
@@ -277,8 +306,78 @@ func _on_remote_error(error: Dictionary) -> void:
 	_pause_for_error("remote_error:%s" % code)
 
 
+func _on_remote_game_over(result: Dictionary) -> void:
+	if _state != State.WAITING_FOR_DECISION or _game_finished:
+		_pause_for_error("unexpected_game_over")
+		return
+	if result.keys().size() != 6:
+		_pause_for_error("invalid_game_over")
+		return
+	for field: String in [
+		"type",
+		"protocol_version",
+		"observation_id",
+		"outcome",
+		"reason",
+		"request_count",
+	]:
+		if not result.has(field):
+			_pause_for_error("invalid_game_over")
+			return
+	var observation_id: Dictionary = _parse_observation_id(result.get("observation_id"))
+	var request_count: Dictionary = _parse_positive_integer(result.get("request_count"))
+	if (
+		not observation_id["valid"]
+		or observation_id["value"] != _pending_observation_id
+		or not request_count["valid"]
+		or result.get("outcome") != "failure"
+		or result.get("reason") != "max_requests"
+	):
+		_pause_for_error("invalid_game_over")
+		return
+	_game_finished = true
+	_active_request_count = request_count["value"]
+	print(
+		"AI_PLAY game over; outcome=failure reason=max_requests requests=%d"
+		% _active_request_count
+	)
+	disable_ai("game_over:max_requests")
+
+
 func _pause_for_error(reason: String) -> void:
 	disable_ai(reason)
+
+
+func _on_game_finished(outcome: String, reason: String) -> void:
+	var observation_id: int = _executing_observation_id
+	if observation_id < 0:
+		observation_id = _pending_observation_id
+	_finish_game(outcome, reason, observation_id)
+
+
+func _finish_game(outcome: String, reason: String, observation_id: int) -> void:
+	if _game_finished:
+		return
+	if (
+		outcome not in ["success", "failure"]
+		or reason not in ["correct_password", "wrong_password", "max_requests"]
+	):
+		_pause_for_error("invalid_game_outcome")
+		return
+	_game_finished = true
+	print(
+		"AI_PLAY game over; outcome=%s reason=%s requests=%d"
+		% [outcome, reason, _active_request_count]
+	)
+	var send_error: Error = _bridge.send_packet({
+		"type": "game_over",
+		"protocol_version": PROTOCOL_VERSION,
+		"observation_id": observation_id,
+		"outcome": outcome,
+		"reason": reason,
+		"request_count": _active_request_count,
+	})
+	disable_ai("game_over:%s" % reason, send_error != OK)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:
@@ -327,3 +426,10 @@ func _parse_observation_id(value: Variant) -> Dictionary:
 		):
 			return {"valid": true, "value": int(value)}
 	return {"valid": false, "value": -1}
+
+
+func _parse_positive_integer(value: Variant) -> Dictionary:
+	var parsed: Dictionary = _parse_observation_id(value)
+	if not parsed["valid"] or parsed["value"] < 1:
+		return {"valid": false, "value": -1}
+	return parsed

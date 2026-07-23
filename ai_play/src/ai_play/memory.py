@@ -5,6 +5,7 @@ from copy import deepcopy
 import json
 import math
 from pathlib import Path
+import re
 from typing import Any
 
 from .action_schema import (
@@ -20,6 +21,8 @@ _TASK_LISTS = {
     "hypothesis": "hypotheses",
     "failure": "failures",
 }
+_MODEL_NUMERIC_TEXT = re.compile(r"(?<![0-9])[0-9]{1,6}(?![0-9])")
+_REDACTED_VALUE = "[REDACTED]"
 
 
 @dataclass
@@ -93,16 +96,80 @@ class MemoryStore:
         }
 
     def save(self, path: Path) -> None:
+        self._save_data(path, self.to_prompt_dict())
+
+    def save_redacted(self, path: Path) -> None:
+        data = deepcopy(self.to_prompt_dict())
+        data["working_memory"] = [
+            step
+            for step in data["working_memory"]
+            if not any(
+                action.get("type") == "enter_digits"
+                for action in step.get("actions", [])
+                if isinstance(action, dict)
+            )
+        ]
+        for step in data["working_memory"]:
+            step["reason"] = self._redact_numeric_text(step["reason"], 500)
+            step["last_action_results"] = self._redact_strings(
+                step["last_action_results"]
+            )
+        data["facts"] = self._redact_entries(data["facts"])
+        data["spatial_memory"] = self._redact_entries(data["spatial_memory"])
+        task_state = data["task_state"]
+        task_state["goal"] = self._redact_numeric_text(task_state["goal"])
+        for key in ("questions", "hypotheses", "failures"):
+            task_state[key] = self._redact_entries(task_state[key])
+        self._validate_data(data)
+        self._save_data(path, data)
+
+    @staticmethod
+    def _save_data(path: Path, data: dict[str, Any]) -> None:
         path = Path(path)
         temporary_path = path.with_name(f".{path.name}.tmp")
         serialized = json.dumps(
-            self.to_prompt_dict(), ensure_ascii=False, indent=2, allow_nan=False
+            data, ensure_ascii=False, indent=2, allow_nan=False
         )
         temporary_path.write_text(
             serialized,
             encoding="utf-8",
         )
         temporary_path.replace(path)
+
+    @staticmethod
+    def _redact_numeric_text(text: str, limit: int = 300) -> str:
+        return _MODEL_NUMERIC_TEXT.sub(_REDACTED_VALUE, text)[:limit]
+
+    @classmethod
+    def _redact_entries(cls, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        redacted_entries = []
+        positions = {}
+        for entry in entries:
+            redacted = deepcopy(entry)
+            redacted["text"] = cls._redact_numeric_text(redacted["text"])
+            identity = (redacted["kind"], cls._normalize_text(redacted["text"]))
+            existing_index = positions.get(identity)
+            if existing_index is None:
+                positions[identity] = len(redacted_entries)
+                redacted_entries.append(redacted)
+            elif cls._confidence(redacted) > cls._confidence(
+                redacted_entries[existing_index]
+            ):
+                redacted_entries[existing_index] = redacted
+        return redacted_entries
+
+    @classmethod
+    def _redact_strings(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: cls._redact_strings(child)
+                for key, child in value.items()
+            }
+        if isinstance(value, list):
+            return [cls._redact_strings(child) for child in value]
+        if isinstance(value, str):
+            return cls._redact_numeric_text(value)
+        return value
 
     @classmethod
     def load(cls, path: Path) -> "MemoryStore":

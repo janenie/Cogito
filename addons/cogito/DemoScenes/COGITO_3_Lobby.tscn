@@ -111,6 +111,8 @@
 [ext_resource type="PackedScene" uid="uid://cuwptpgheq4l5" path="res://addons/cogito/PackedScenes/inventory_bag.tscn" id="104_mm36t"]
 [ext_resource type="PackedScene" uid="uid://be30t42msjnp8" path="res://addons/cogito/DemoScenes/friendly_human_npc.tscn" id="108_human_npc"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_observer.gd" id="ai_play_find_contract_observer"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_wjbty"]
 panorama = ExtResource("2_a8imk")
@@ -3289,6 +3291,13 @@ step_height_camera_lerp = 1.5
 
 [node name="AIPlayController" parent="." unique_id=875272983 node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
 player = NodePath("../Player")
+
+[node name="Observer" parent="AIPlayController" index="0"]
+script = ExtResource("ai_play_find_contract_observer")
+
+[node name="TerminalMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("keypad")]
+script = ExtResource("ai_play_find_contract_terminal")
+keypad = NodePath("../../ARCHIVE/Keypad")
 
 [node name="QUESTS" type="Node3D" parent="." unique_id=2115615126]
 

@@ -19,6 +19,7 @@ class FakeAgentLoop:
         self.discards = []
         self.action_results = []
         self.stops = []
+        self.game_overs = []
         self.commit_result = True
 
     def configure_memory(self, path):
@@ -30,6 +31,8 @@ class FakeAgentLoop:
             "type": "action_batch",
             "protocol_version": 1,
             "observation_id": observation["observation_id"],
+            "request_count": 1,
+            "request_limit": 1000,
             "reason": "fake",
             "actions": [{"type": "wait", "duration_ms": 100}],
         }
@@ -48,6 +51,12 @@ class FakeAgentLoop:
 
     def record_stop(self, reason, observation_id=None, results=None):
         self.stops.append((reason, observation_id, results))
+
+    def record_game_over(self, observation_id, outcome, reason, request_count):
+        if observation_id != 17:
+            return False
+        self.game_overs.append((observation_id, outcome, reason, request_count))
+        return True
 
 
 def _free_port():
@@ -275,6 +284,74 @@ def test_routes_escape_stop_and_ends_the_session(tmp_path):
     assert agent.observations == []
 
 
+@pytest.mark.parametrize(
+    ("outcome", "reason", "request_count"),
+    [
+        ("success", "correct_password", 37),
+        ("failure", "wrong_password", 37),
+        ("failure", "max_requests", 1000),
+    ],
+)
+def test_routes_game_over_and_ends_the_session(
+    tmp_path,
+    outcome,
+    reason,
+    request_count,
+):
+    agent = FakeAgentLoop()
+    connection = FakeConnection([
+        _hello(tmp_path),
+        {
+            "type": "game_over",
+            "protocol_version": 1,
+            "observation_id": 17,
+            "outcome": outcome,
+            "reason": reason,
+            "request_count": request_count,
+        },
+        {"type": "observation", "protocol_version": 1, "observation_id": 18},
+    ])
+
+    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+
+    assert agent.game_overs == [(17, outcome, reason, request_count)]
+    assert agent.observations == []
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"extra": "field"},
+        {"outcome": "win"},
+        {"outcome": "success", "reason": "wrong_password"},
+        {"outcome": "failure", "reason": "correct_password"},
+        {"reason": "unknown"},
+        {"request_count": 0},
+        {"request_count": True},
+        {"request_count": 1001},
+        {"reason": "max_requests", "request_count": 37},
+        {"observation_id": 18},
+    ],
+)
+def test_rejects_invalid_or_stale_game_over(tmp_path, overrides):
+    agent = FakeAgentLoop()
+    packet = {
+        "type": "game_over",
+        "protocol_version": 1,
+        "observation_id": 17,
+        "outcome": "failure",
+        "reason": "wrong_password",
+        "request_count": 37,
+    }
+    packet.update(overrides)
+    connection = FakeConnection([_hello(tmp_path), packet])
+
+    _handler(connection, Config(api_key="test-key"), agent, threading.Lock())
+
+    assert agent.game_overs == []
+    assert connection.sent[-1]["code"] == "invalid_game_over"
+
+
 def test_action_batch_send_failure_discards_and_ends_session(tmp_path):
     agent = FakeAgentLoop()
     observation = {"type": "observation", "protocol_version": 1, "observation_id": 7}
@@ -355,6 +432,8 @@ def test_returns_agent_batch_for_valid_observation(tmp_path):
         "type": "action_batch",
         "protocol_version": 1,
         "observation_id": 14,
+        "request_count": 1,
+        "request_limit": 1000,
         "reason": "fake",
         "actions": [{"type": "wait", "duration_ms": 100}],
     }

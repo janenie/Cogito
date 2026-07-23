@@ -1,0 +1,107 @@
+{
+  "clue_hint": {
+    "img": "imgs/clue_hint.png",
+    "system_name": "COGITO_HINT / ReadableComponent",
+    "meaning": "悬浮旋转的 COGITO 标志表示附近有可阅读的解谜线索。",
+    "operation": {
+      "probe_interaction": "将准星对准标志，寻找当前可用的阅读交互。",
+      "interact": "出现阅读提示后打开线索。",
+      "close_ui": "记住有用信息后关闭阅读界面。"
+    }
+  },
+  "carryable_cup": {
+    "img": "imgs/carryable_cup.png",
+    "system_name": "CogitoObject / CarryableComponent",
+    "meaning": "杯子等物理道具可以拿起、移动或放下，但不一定与谜题有关。",
+    "operation": {
+      "probe_interaction": "对准物体确认是否存在拿起或移动交互。",
+      "interact": "按当前交互提示拿起、移动或放下物体。"
+    }
+  },
+  "operable_door": {
+    "img": "imgs/operable_door.png",
+    "system_name": "CogitoDoor / BasicInteraction",
+    "meaning": "普通门或门把手可以尝试开关；锁住时应寻找别的解锁方式。",
+    "operation": {
+      "probe_interaction": "对准门板或门把手寻找开门提示。",
+      "interact": "按当前提示尝试打开或关闭门。"
+    }
+  },
+  "pickup_key": {
+    "img": "imgs/pickup_key.png",
+    "system_name": "CogitoObject / PickupComponent",
+    "meaning": "钥匙是可拾取物，可能用于解锁某扇门。",
+    "operation": {
+      "probe_interaction": "对准钥匙确认拾取交互。",
+      "interact": "出现拾取提示后拿起钥匙。"
+    }
+  },
+  "elevator_button": {
+    "img": "imgs/elevator_button.png",
+    "system_name": "CogitoButton / BasicInteraction",
+    "meaning": "红色按钮可触发升降平台、电梯或其他机关。",
+    "operation": {
+      "probe_interaction": "对准按钮寻找按下提示。",
+      "interact": "出现按钮提示后按下，并在下一回合观察机关变化。"
+    }
+  },
+  "keypad": {
+    "img": "imgs/keypad.png",
+    "system_name": "CogitoKeypad / BasicInteraction",
+    "meaning": "密码盘用于输入数字密码；密码必须从游戏内线索推导，不能盲猜。",
+    "operation": {
+      "probe_interaction": "对准密码盘寻找使用提示。",
+      "interact": "打开密码输入界面。",
+      "enter_digits": "仅在密码界面已打开且证据充分时输入一至六位数字。",
+      "close_ui": "离开密码输入界面，继续寻找线索。"
+    }
+  },
+  "archive_goal_door": {
+    "img": "imgs/archive_goal_door.png",
+    "system_name": "CogitoDoor / BasicInteraction (ARCHIVE/ArchiveDoor/FrontDoor)",
+    "meaning": "标有 ARCHIVE 的门是本局最终目标；需要先解锁，再打开并进入。",
+    "operation": {
+      "probe_interaction": "对准门或门把手确认状态和交互提示。",
+      "interact": "解锁后打开门并进入档案室。"
+    }
+  },
+  "operable_drawer": {
+    "img": "imgs/operable_drawer.png",
+    "system_name": "CogitoDoor / BasicInteraction",
+    "meaning": "带把手的抽屉可以打开，内部或附近可能藏有线索或物品。",
+    "operation": {
+      "probe_interaction": "对准抽屉把手寻找开关提示。",
+      "interact": "打开或关闭抽屉，并观察抽屉内部。"
+    }
+  },
+  "readable_notebook": {
+    "img": "imgs/readable_notebook.png",
+    "system_name": "CogitoObject / ReadableComponent",
+    "meaning": "本子、笔记等可阅读物可能包含谜题线索。",
+    "operation": {
+      "probe_interaction": "对准本子寻找阅读提示。",
+      "interact": "打开并阅读内容。",
+      "close_ui": "记录关键信息后关闭阅读界面。"
+    }
+  },
+  "readable_document": {
+    "img": "imgs/readable_document.png",
+    "system_name": "CogitoObject / ReadableComponent",
+    "meaning": "纸张、文件或合同等可阅读物可能包含谜题线索。",
+    "operation": {
+      "probe_interaction": "对准文件寻找阅读提示。",
+      "interact": "打开并阅读内容。",
+      "close_ui": "记录关键信息后关闭阅读界面。"
+    }
+  },
+  "friendly_npc": {
+    "img": "imgs/friendly_npc.png",
+    "system_name": "FriendlyHumanNPC / BasicInteraction",
+    "meaning": "友好 NPC 可以对话，可能提供线索或指出值得调查的地点。",
+    "operation": {
+      "probe_interaction": "靠近 NPC 并将准星对准其身体，寻找对话提示。",
+      "interact": "出现对话提示后与 NPC 交谈，并观察其回复。",
+      "close_ui": "记住有用信息后退出对话界面。"
+    }
+  }
+}

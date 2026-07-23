@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import threading
 from copy import deepcopy
 
@@ -7,7 +9,53 @@ from .action_schema import validate_decision
 from .api_client import parse_model_json
 from .memory import MemoryStore
 from .observation_schema import OBSERVATION_FIELDS, ObservationValidationError, validate_observation
-from .prompts import SYSTEM_PROMPT, build_log_messages, build_messages
+from .prompts import build_log_messages, build_messages
+
+
+REDACTED_VALUE = "[REDACTED]"
+MODEL_NUMERIC_TEXT = re.compile(r"(?<![0-9])[0-9]{1,6}(?![0-9])")
+
+
+def _submitted_digit_values(value):
+    if not isinstance(value, dict) or not isinstance(value.get("actions"), list):
+        return []
+    return [
+        action["digits"]
+        for action in value["actions"]
+        if isinstance(action, dict)
+        and action.get("type") == "enter_digits"
+        and isinstance(action.get("digits"), str)
+        and action["digits"]
+    ]
+
+
+def _redact_for_log(value, sensitive_values):
+    if isinstance(value, dict):
+        return {
+            key: (
+                REDACTED_VALUE
+                if key == "digits" and isinstance(child, str)
+                else _redact_for_log(child, sensitive_values)
+            )
+            for key, child in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_for_log(child, sensitive_values) for child in value]
+    if isinstance(value, str):
+        redacted = MODEL_NUMERIC_TEXT.sub(REDACTED_VALUE, value)
+        for sensitive in sensitive_values:
+            redacted = redacted.replace(sensitive, REDACTED_VALUE)
+        return redacted
+    return deepcopy(value)
+
+
+def _redact_logged_memory(messages, memory):
+    logged_messages = deepcopy(messages)
+    state_part = logged_messages[1]["content"][0]
+    state = json.loads(state_part["text"])
+    state["memory"] = _redact_for_log(memory, [])
+    state_part["text"] = json.dumps(state, ensure_ascii=False)
+    return logged_messages
 
 
 class AgentLoop:
@@ -18,15 +66,25 @@ class AgentLoop:
         memory_path=None,
         resume=False,
         run_logger=None,
+        game_context=None,
     ):
         self.api_client = api_client
         self.memory = memory
         self.memory_path = memory_path
         self.resume = resume
         self.run_logger = run_logger
+        self.game_context = game_context
+        api_config = getattr(api_client, "config", None)
+        self.max_model_requests = getattr(
+            api_config,
+            "max_model_requests",
+            1000,
+        )
+        self.model_request_count = 0
         self._decision_lock = threading.Lock()
         self._pending_step = None
         self._staged_batch = None
+        self._game_over_recorded = False
 
     def configure_memory(self, memory_path):
         with self._decision_lock:
@@ -71,8 +129,17 @@ class AgentLoop:
                 )
                 staged_memory.record_step(completed_step)
             prompt_memory = staged_memory.to_prompt_dict()
-            messages = build_messages(safe_observation, prompt_memory)
+            messages = build_messages(
+                safe_observation,
+                prompt_memory,
+                self.game_context,
+            )
+            if self.model_request_count >= self.max_model_requests:
+                return self._max_requests_packet(safe_observation["observation_id"])
+            sensitive_values = []
             if self.run_logger is None:
+                stage = "api"
+                self.model_request_count += 1
                 proposal = self.api_client.decide(messages)
             else:
                 logged_observation = deepcopy(safe_observation)
@@ -83,22 +150,48 @@ class AgentLoop:
                     round_ref,
                     model=self.api_client.config.model,
                     image_path=round_ref.image_path,
-                    system_prompt=SYSTEM_PROMPT,
+                    system_prompt=messages[0]["content"],
                     observation=logged_observation,
-                    memory=prompt_memory,
-                    messages=build_log_messages(messages, round_ref.image_path),
+                    memory=_redact_for_log(prompt_memory, []),
+                    messages=_redact_logged_memory(
+                        build_log_messages(
+                            messages,
+                            round_ref.image_path,
+                            (
+                                self.game_context.reference_log_path
+                                if self.game_context is not None
+                                else None
+                            ),
+                        ),
+                        prompt_memory,
+                    ),
                 )
                 stage = "api"
+                self.model_request_count += 1
                 completion = self.api_client.complete(messages)
+                stage = "parse"
+                try:
+                    proposal = parse_model_json(completion.raw_content)
+                except Exception:
+                    self.run_logger.write_event(
+                        "model_output",
+                        round_ref,
+                        raw_content=_redact_for_log(completion.raw_content, []),
+                        latency_ms=completion.latency_ms,
+                    )
+                    stage = "parse"
+                    raise
+                sensitive_values = _submitted_digit_values(proposal)
                 stage = "model_output_log"
                 self.run_logger.write_event(
                     "model_output",
                     round_ref,
-                    raw_content=completion.raw_content,
+                    raw_content=_redact_for_log(
+                        completion.raw_content,
+                        sensitive_values,
+                    ),
                     latency_ms=completion.latency_ms,
                 )
-                stage = "parse"
-                proposal = parse_model_json(completion.raw_content)
             interface = safe_observation["interface"]
             visible_actions = [
                 interaction.get("action")
@@ -113,12 +206,13 @@ class AgentLoop:
                 interface.get("is_open") is True,
             )
             observation_id = safe_observation["observation_id"]
+            sensitive_values = _submitted_digit_values(decision)
             if self.run_logger is not None:
                 stage = "decision_log"
                 self.run_logger.write_event(
                     "decision_validated",
                     round_ref,
-                    decision=decision,
+                    decision=_redact_for_log(decision, sensitive_values),
                 )
             staged_memory.apply_updates(decision["memory_updates"], observation_id)
             next_pending_step = {
@@ -130,6 +224,8 @@ class AgentLoop:
                 "type": "action_batch",
                 "protocol_version": 1,
                 "observation_id": observation_id,
+                "request_count": self.model_request_count,
+                "request_limit": self.max_model_requests,
                 "reason": decision["reason"],
                 "actions": decision["actions"],
             }
@@ -138,9 +234,12 @@ class AgentLoop:
                 self.run_logger.write_event(
                     "action_dispatch_requested",
                     round_ref,
-                    reason=decision["reason"],
-                    memory_updates=decision["memory_updates"],
-                    actions=decision["actions"],
+                    reason=_redact_for_log(decision["reason"], sensitive_values),
+                    memory_updates=_redact_for_log(
+                        decision["memory_updates"],
+                        sensitive_values,
+                    ),
+                    actions=_redact_for_log(decision["actions"], sensitive_values),
                 )
             self._staged_batch = {
                 "observation_id": observation_id,
@@ -148,6 +247,7 @@ class AgentLoop:
                 "pending_step": next_pending_step,
                 "round_ref": round_ref,
                 "packet": deepcopy(packet),
+                "sensitive_values": sensitive_values,
             }
             action_types = [action["type"] for action in decision["actions"]]
             print(
@@ -171,6 +271,8 @@ class AgentLoop:
                 except Exception:
                     pass
                 self.run_logger.finish_round(round_ref.observation_id)
+            if self.model_request_count >= self.max_model_requests:
+                return self._max_requests_packet(received_id)
             return self._error(observation, exc)
         finally:
             self._decision_lock.release()
@@ -182,14 +284,24 @@ class AgentLoop:
                 return False
             try:
                 if self.memory_path is not None:
-                    staged["memory"].save(self.memory_path)
+                    save_redacted = getattr(staged["memory"], "save_redacted", None)
+                    if callable(save_redacted):
+                        save_redacted(self.memory_path)
+                    else:
+                        staged["memory"].save(self.memory_path)
                 if self.run_logger is not None:
                     packet = staged["packet"]
                     self.run_logger.write_event(
                         "action_dispatched",
                         staged["round_ref"],
-                        reason=packet["reason"],
-                        actions=packet["actions"],
+                        reason=_redact_for_log(
+                            packet["reason"],
+                            staged["sensitive_values"],
+                        ),
+                        actions=_redact_for_log(
+                            packet["actions"],
+                            staged["sensitive_values"],
+                        ),
                     )
             except Exception:
                 self._staged_batch = None
@@ -230,6 +342,24 @@ class AgentLoop:
         if observation_id is not None:
             self.run_logger.finish_round(observation_id)
 
+    def record_game_over(self, observation_id, outcome, reason, request_count):
+        with self._decision_lock:
+            if self._game_over_recorded or self._pending_step is None:
+                return False
+            if self._pending_step["observation_id"] != observation_id:
+                return False
+            if request_count != self.model_request_count:
+                return False
+            if not self._is_valid_game_over(outcome, reason):
+                return False
+            self._record_game_over_event(
+                observation_id,
+                outcome,
+                reason,
+                request_count,
+            )
+            return True
+
     def discard_action_batch(self, observation_id):
         with self._decision_lock:
             if (
@@ -260,3 +390,54 @@ class AgentLoop:
             "code": "decision_failed",
             "message": type(exc).__name__,
         }
+
+    def _max_requests_packet(self, observation_id):
+        self._record_game_over_event(
+            observation_id,
+            "failure",
+            "max_requests",
+            self.model_request_count,
+        )
+        return {
+            "type": "game_over",
+            "protocol_version": 1,
+            "observation_id": observation_id,
+            "outcome": "failure",
+            "reason": "max_requests",
+            "request_count": self.model_request_count,
+        }
+
+    @staticmethod
+    def _is_valid_game_over(outcome, reason):
+        return (outcome, reason) in {
+            ("success", "correct_password"),
+            ("failure", "wrong_password"),
+            ("failure", "max_requests"),
+        }
+
+    def _record_game_over_event(
+        self,
+        observation_id,
+        outcome,
+        reason,
+        request_count,
+    ):
+        if self._game_over_recorded:
+            return
+        self._game_over_recorded = True
+        if self.run_logger is not None:
+            round_ref = self.run_logger.round_for_observation(observation_id)
+            fields = {
+                "outcome": outcome,
+                "reason": reason,
+                "request_count": request_count,
+            }
+            if round_ref is None:
+                fields["observation_id"] = observation_id
+            self.run_logger.write_event("game_over", round_ref, **fields)
+            self.run_logger.finish_round(observation_id)
+        print(
+            "AI_PLAY game over: "
+            f"outcome={outcome} reason={reason} requests={request_count}",
+            flush=True,
+        )

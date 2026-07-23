@@ -55,6 +55,7 @@ class ApiClient:
             model=self.config.model,
             messages=messages,
             timeout=self.config.request_timeout_seconds,
+            max_tokens=self.config.max_tokens,
         )
         content = completion.choices[0].message.content
         if not isinstance(content, str):

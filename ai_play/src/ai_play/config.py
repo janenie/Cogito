@@ -56,6 +56,9 @@ class Config:
     api_max_retries: int = 2
     data_dir: Path | None = None
     log_root: Path = Path("~/workspace/cogito_logs").expanduser()
+    game_id: str = "find_contract"
+    max_model_requests: int = 1000
+    max_tokens: int = 8192
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -75,6 +78,24 @@ class Config:
             )
         except ValueError as error:
             raise ValueError("AI_PLAY_API_MAX_RETRIES must be 0..5") from error
+        try:
+            max_model_requests = int(
+                os.environ.get(
+                    "AI_PLAY_MAX_MODEL_REQUESTS",
+                    str(cls.max_model_requests),
+                )
+            )
+        except ValueError as error:
+            raise ValueError("AI_PLAY_MAX_MODEL_REQUESTS must be 1..10000") from error
+        try:
+            max_tokens = int(
+                os.environ.get(
+                    "AI_PLAY_MAX_TOKENS",
+                    str(cls.max_tokens),
+                )
+            )
+        except ValueError as error:
+            raise ValueError("AI_PLAY_MAX_TOKENS must be 1..65536") from error
         config = cls(
             api_key=key,
             base_url=(
@@ -96,6 +117,9 @@ class Config:
             log_root=Path(
                 os.environ.get("AI_PLAY_LOG_ROOT", str(cls.log_root))
             ).expanduser(),
+            game_id=os.environ.get("AI_PLAY_GAME", cls.game_id).strip(),
+            max_model_requests=max_model_requests,
+            max_tokens=max_tokens,
         )
         config.validate()
         return config
@@ -109,3 +133,19 @@ class Config:
             raise ValueError("AI_PLAY_REQUEST_TIMEOUT_SECONDS must be 1..120")
         if type(self.api_max_retries) is not int or not 0 <= self.api_max_retries <= 5:
             raise ValueError("AI_PLAY_API_MAX_RETRIES must be 0..5")
+        if (
+            not self.game_id
+            or len(self.game_id) > 64
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyz0123456789_"
+                for character in self.game_id
+            )
+        ):
+            raise ValueError("AI_PLAY_GAME must contain lowercase letters, digits, or underscores")
+        if (
+            type(self.max_model_requests) is not int
+            or not 1 <= self.max_model_requests <= 10000
+        ):
+            raise ValueError("AI_PLAY_MAX_MODEL_REQUESTS must be 1..10000")
+        if type(self.max_tokens) is not int or not 1 <= self.max_tokens <= 65536:
+            raise ValueError("AI_PLAY_MAX_TOKENS must be 1..65536")

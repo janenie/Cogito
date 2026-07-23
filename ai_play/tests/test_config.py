@@ -78,6 +78,9 @@ def test_config_uses_safe_defaults(monkeypatch, tmp_path):
         "AI_PLAY_API_MAX_RETRIES",
         "AI_PLAY_DATA_DIR",
         "AI_PLAY_LOG_ROOT",
+        "AI_PLAY_GAME",
+        "AI_PLAY_MAX_MODEL_REQUESTS",
+        "AI_PLAY_MAX_TOKENS",
     ):
         monkeypatch.delenv(name, raising=False)
     config = Config.from_env()
@@ -87,6 +90,59 @@ def test_config_uses_safe_defaults(monkeypatch, tmp_path):
     assert config.ws_port == 8765
     assert config.request_timeout_seconds == 45.0
     assert config.api_max_retries == 2
+    assert config.game_id == "find_contract"
+    assert config.max_model_requests == 1000
+    assert config.max_tokens == 8192
+
+
+def test_config_reads_game_id(monkeypatch):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_GAME", "find_contract")
+
+    assert Config.from_env().game_id == "find_contract"
+
+
+@pytest.mark.parametrize("game_id", ["../find_contract", "Find-Contract", ""])
+def test_config_rejects_invalid_game_id(monkeypatch, game_id):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_GAME", game_id)
+
+    with pytest.raises(ValueError, match="AI_PLAY_GAME"):
+        Config.from_env()
+
+
+@pytest.mark.parametrize("limit", ["0", "10001", "not-an-integer"])
+def test_config_rejects_invalid_model_request_limit(monkeypatch, limit):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_MAX_MODEL_REQUESTS", limit)
+
+    with pytest.raises(ValueError, match="AI_PLAY_MAX_MODEL_REQUESTS"):
+        Config.from_env()
+
+
+@pytest.mark.parametrize("limit", ["1", "1000", "10000"])
+def test_config_accepts_model_request_limit(monkeypatch, limit):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_MAX_MODEL_REQUESTS", limit)
+
+    assert Config.from_env().max_model_requests == int(limit)
+
+
+@pytest.mark.parametrize("limit", ["0", "65537", "not-an-integer"])
+def test_config_rejects_invalid_max_tokens(monkeypatch, limit):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_MAX_TOKENS", limit)
+
+    with pytest.raises(ValueError, match="AI_PLAY_MAX_TOKENS"):
+        Config.from_env()
+
+
+@pytest.mark.parametrize("limit", ["1", "16384", "65536"])
+def test_config_accepts_max_tokens(monkeypatch, limit):
+    monkeypatch.setenv("AI_PLAY_API_KEY", "test-key")
+    monkeypatch.setenv("AI_PLAY_MAX_TOKENS", limit)
+
+    assert Config.from_env().max_tokens == int(limit)
 
 
 def test_config_rejects_non_loopback_host(monkeypatch):

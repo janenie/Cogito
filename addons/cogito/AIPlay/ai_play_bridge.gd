@@ -4,6 +4,7 @@ extends Node
 signal connected
 signal disconnected(reason: String)
 signal action_batch_received(batch: Dictionary)
+signal game_over_received(result: Dictionary)
 signal remote_error(error: Dictionary)
 
 const PROTOCOL_VERSION: int = 1
@@ -96,6 +97,8 @@ func _handle_text_packet(raw_packet: String) -> void:
 			pass
 		"action_batch":
 			action_batch_received.emit(packet)
+		"game_over":
+			game_over_received.emit(packet)
 		"error":
 			remote_error.emit(packet)
 		_:

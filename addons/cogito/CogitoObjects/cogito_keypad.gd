@@ -4,6 +4,7 @@ class_name CogitoKeypad
 
 ## Emitted when the correct code has been entered.
 signal correct_code_entered
+signal code_checked(is_correct: bool)
 ## Emitted when the object status changes, used for UI prompts.
 signal object_state_updated(interaction_text:String)
 
@@ -140,7 +141,9 @@ func update_code_display():
 	
 
 func check_entered_code():
-	if entered_code == passcode and is_locked:
+	var is_correct: bool = entered_code == passcode and is_locked
+	code_checked.emit(is_correct)
+	if is_correct:
 		unlock_keypad()
 	else:
 		Audio.play_sound(wrong_code_entered_sound)

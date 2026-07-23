@@ -48,11 +48,18 @@ def observation(observation_id=9):
 
 
 class FakeApi:
-    def __init__(self, decision, raw_content=None):
+    def __init__(self, decision, raw_content=None, max_model_requests=1000):
         self.decision = decision
         self.raw_content = raw_content
         self.messages = []
-        self.config = type("Config", (), {"model": "test-model"})()
+        self.config = type(
+            "Config",
+            (),
+            {
+                "model": "test-model",
+                "max_model_requests": max_model_requests,
+            },
+        )()
 
     def decide(self, messages):
         self.messages.append(messages)
@@ -76,6 +83,9 @@ class FakeMemory:
 
     def apply_updates(self, updates, observation_id):
         self.updates.append((updates, observation_id))
+
+    def record_step(self, _step):
+        pass
 
     def save(self, path):
         self.saved_paths.append(path)
@@ -136,6 +146,44 @@ def test_logs_complete_round_lifecycle_without_base64(tmp_path):
         logger.close()
 
 
+def test_records_terminal_outcome_once_and_finishes_correlated_round(tmp_path):
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(FakeApi(decision()), FakeMemory(), run_logger=logger)
+    try:
+        response = loop.handle_observation(observation())
+        assert loop.commit_action_batch_sent(response["observation_id"])
+
+        assert loop.record_game_over(
+            response["observation_id"],
+            "success",
+            "correct_password",
+            1,
+        )
+        assert not loop.record_game_over(
+            response["observation_id"],
+            "failure",
+            "wrong_password",
+            1,
+        )
+
+        event = _logged_events(logger)[-1]
+        assert event["event"] == "game_over"
+        assert event["outcome"] == "success"
+        assert event["reason"] == "correct_password"
+        assert event["request_count"] == 1
+        assert logger.round_for_observation(response["observation_id"]) is None
+    finally:
+        logger.close()
+
+
+def test_rejects_game_over_for_stale_observation():
+    loop = AgentLoop(FakeApi(decision()), FakeMemory())
+    response = loop.handle_observation(observation())
+    assert loop.commit_action_batch_sent(response["observation_id"])
+
+    assert not loop.record_game_over(999, "failure", "wrong_password", 1)
+
+
 def test_logs_raw_malformed_model_output_before_parse_error(tmp_path):
     logger = RunLogger.create(tmp_path, "test-model")
     loop = AgentLoop(
@@ -155,6 +203,99 @@ def test_logs_raw_malformed_model_output_before_parse_error(tmp_path):
         ]
         assert events[1]["raw_content"] == "not valid json"
         assert events[2]["stage"] == "parse"
+    finally:
+        logger.close()
+
+
+def test_redacts_digits_from_malformed_model_output(tmp_path):
+    submitted_digits = "654321"
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(
+        FakeApi(
+            decision(),
+            raw_content=(
+                '{"reason":"submit","memory_updates":[],"actions":'
+                f'[{{"type":"enter_digits","digits":"{submitted_digits}"}}]}} trailing'
+            ),
+        ),
+        FakeMemory(),
+        run_logger=logger,
+    )
+    try:
+        assert loop.handle_observation(observation())["type"] == "error"
+        log_text = logger.jsonl_path.read_text(encoding="utf-8")
+        assert submitted_digits not in log_text
+        assert "[REDACTED]" in log_text
+    finally:
+        logger.close()
+
+
+def test_redacts_submitted_digits_from_model_and_dispatch_logs(tmp_path):
+    submitted_digits = "654321"
+    proposal = decision(
+        reason=f"submit {submitted_digits}",
+        memory_updates=[{
+            "kind": "hypothesis",
+            "text": f"candidate {submitted_digits}",
+            "confidence": 0.8,
+        }],
+        actions=[{"type": "enter_digits", "digits": submitted_digits}],
+    )
+    value = observation()
+    value["interface"]["is_open"] = True
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(FakeApi(proposal), FakeMemory(), run_logger=logger)
+    try:
+        response = loop.handle_observation(value)
+        assert response["actions"][0]["digits"] == submitted_digits
+        assert loop.commit_action_batch_sent(response["observation_id"])
+
+        log_text = logger.jsonl_path.read_text(encoding="utf-8")
+        assert submitted_digits not in log_text
+        assert "[REDACTED]" in log_text
+    finally:
+        logger.close()
+
+
+def test_redacts_numeric_model_memory_before_persisting(tmp_path):
+    candidate = "654321"
+    updates = [{
+        "kind": "hypothesis",
+        "text": f"candidate password {candidate}",
+        "confidence": 0.8,
+    }]
+    path = tmp_path / "memory.json"
+    loop = AgentLoop(
+        FakeApi(decision(memory_updates=updates)),
+        MemoryStore.empty(),
+        memory_path=path,
+    )
+
+    response = loop.handle_observation(observation())
+    assert loop.commit_action_batch_sent(response["observation_id"])
+
+    persisted = path.read_text(encoding="utf-8")
+    assert candidate not in persisted
+    assert "[REDACTED]" in persisted
+    assert loop.memory.task_state["hypotheses"][0]["text"].endswith(candidate)
+
+
+def test_model_input_log_failure_does_not_consume_request(tmp_path, monkeypatch):
+    api = FakeApi(decision())
+    logger = RunLogger.create(tmp_path, "test-model")
+    loop = AgentLoop(api, FakeMemory(), run_logger=logger)
+    original_write_event = logger.write_event
+
+    def fail_model_input(event, *args, **kwargs):
+        if event == "model_input":
+            raise OSError("disk full")
+        return original_write_event(event, *args, **kwargs)
+
+    monkeypatch.setattr(logger, "write_event", fail_model_input)
+    try:
+        assert loop.handle_observation(observation())["type"] == "error"
+        assert loop.model_request_count == 0
+        assert api.messages == []
     finally:
         logger.close()
 
@@ -185,8 +326,58 @@ def test_action_batch_copies_observation_id():
         "type": "action_batch",
         "protocol_version": 1,
         "observation_id": 9,
+        "request_count": 1,
+        "request_limit": 1000,
         "reason": "observe",
         "actions": [{"type": "wait", "duration_ms": 100}],
+    }
+
+
+def test_model_request_count_increments_once_per_decision_not_per_action():
+    api = FakeApi(decision(actions=[
+        {"type": "look", "yaw": 1, "pitch": 0},
+        {"type": "wait", "duration_ms": 100},
+    ]))
+    loop = AgentLoop(api, FakeMemory())
+
+    first = loop.handle_observation(observation(9))
+    assert first["request_count"] == 1
+    assert first["request_limit"] == 1000
+    assert loop.commit_action_batch_sent(9)
+    second = loop.handle_observation(observation(10))
+
+    assert second["request_count"] == 2
+    assert len(api.messages) == 2
+
+
+def test_final_request_with_valid_decision_still_returns_action_batch():
+    loop = AgentLoop(
+        FakeApi(decision(), max_model_requests=1),
+        FakeMemory(),
+    )
+
+    response = loop.handle_observation(observation())
+
+    assert response["type"] == "action_batch"
+    assert response["request_count"] == 1
+    assert response["request_limit"] == 1
+
+
+def test_final_request_decision_failure_returns_terminal_failure():
+    loop = AgentLoop(
+        FakeApi({"not": "a decision"}, max_model_requests=1),
+        FakeMemory(),
+    )
+
+    response = loop.handle_observation(observation())
+
+    assert response == {
+        "type": "game_over",
+        "protocol_version": 1,
+        "observation_id": 9,
+        "outcome": "failure",
+        "reason": "max_requests",
+        "request_count": 1,
     }
 
 
@@ -203,6 +394,18 @@ def test_valid_observation_reaches_api_without_wire_envelope():
     }
     assert "type" not in state["observation"]
     assert "protocol_version" not in state["observation"]
+
+
+def test_find_contract_observation_accepts_omitted_health_and_stamina():
+    value = observation()
+    del value["player"]["health_ratio"]
+    del value["player"]["stamina_ratio"]
+    api = FakeApi(decision())
+
+    assert AgentLoop(api, FakeMemory()).handle_observation(value)["type"] == "action_batch"
+    state = json.loads(api.messages[0][1]["content"][0]["text"])
+    assert "health_ratio" not in state["observation"]["player"]
+    assert "stamina_ratio" not in state["observation"]["player"]
 
 
 @pytest.mark.parametrize(
@@ -468,7 +671,7 @@ def test_discarded_send_does_not_create_pending_or_live_updates():
 
 def test_save_failure_discards_stage_without_live_mutation(tmp_path):
     class FailingMemory(MemoryStore):
-        def save(self, path):
+        def save_redacted(self, path):
             raise OSError("disk secret")
 
     memory = FailingMemory.empty()

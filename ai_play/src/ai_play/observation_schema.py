@@ -139,19 +139,24 @@ def validate_observation(value):
         raise ObservationValidationError("image metadata is invalid")
 
     player = value["player"]
-    _exact(
-        player,
-        {
-            "position", "yaw_degrees", "pitch_degrees", "planar_velocity",
-            "on_floor", "health_ratio", "stamina_ratio",
-        },
-        "player",
-    )
+    required_player_fields = {
+        "position", "yaw_degrees", "pitch_degrees", "planar_velocity", "on_floor",
+    }
+    optional_player_fields = {"health_ratio", "stamina_ratio"}
+    if (
+        not isinstance(player, dict)
+        or not required_player_fields.issubset(player)
+        or not set(player).issubset(required_player_fields | optional_player_fields)
+    ):
+        raise ObservationValidationError("player fields are invalid")
     if type(player["on_floor"]) is not bool:
         raise ObservationValidationError("on_floor must be boolean")
     ratios = {}
     for name in ("health_ratio", "stamina_ratio"):
-        ratios[name] = None if player[name] is None else _number(player[name], name, 0, 1)
+        if name in player:
+            ratios[name] = (
+                None if player[name] is None else _number(player[name], name, 0, 1)
+            )
 
     bindings = value["bindings"]
     _exact(bindings, APPROVED_ACTIONS, "bindings")

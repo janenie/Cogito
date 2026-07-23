@@ -28,6 +28,7 @@ class FakeBridge extends Node:
 	signal connected
 	signal disconnected(reason: String)
 	signal action_batch_received(batch: Dictionary)
+	signal game_over_received(result: Dictionary)
 	signal remote_error(error: Dictionary)
 
 	var connect_calls: Array[Dictionary] = []
@@ -66,6 +67,10 @@ class FakeInteractionProbe extends Node:
 	var interaction_provider: Callable
 
 
+class FakeTerminalMonitor extends Node:
+	signal game_finished(outcome: String, reason: String)
+
+
 func _initialize() -> void:
 	call_deferred("_run_tests")
 
@@ -82,6 +87,7 @@ func _run_tests() -> void:
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
 	await _test_action_results_are_reported(controller_script)
+	await _test_terminal_outcomes(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
@@ -126,14 +132,23 @@ func _test_bridge_raw_json_packets() -> void:
 	var bridge: Node = bridge_script.new()
 	var batches: Array[Dictionary] = []
 	var errors: Array[Dictionary] = []
+	var game_overs: Array[Dictionary] = []
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
+	bridge.game_over_received.connect(
+		func(result: Dictionary) -> void: game_overs.append(result)
+	)
 	bridge._handle_text_packet('{"type":"hello","protocol_version":1}')
 	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version one")
 	bridge._handle_text_packet(
 		'{"type":"action_batch","protocol_version":1,"observation_id":7,"actions":[]}'
 	)
 	_assert(batches.size() == 1, "raw JSON action batch emits through bridge")
+	bridge._handle_text_packet(
+		'{"type":"game_over","protocol_version":1,"observation_id":7,'
+		+ '"outcome":"failure","reason":"max_requests","request_count":1000}'
+	)
+	_assert(game_overs.size() == 1, "raw JSON game_over emits through bridge")
 	for invalid_packet: String in [
 		'{"type":"hello","protocol_version":true}',
 		'{"type":"hello","protocol_version":"1"}',
@@ -184,6 +199,8 @@ func _test_stopped_batch_disables_without_recapture(controller_script: GDScript)
 	var initial_disconnect_count: int = fixture.bridge.disconnect_calls
 	fixture.bridge.action_batch_received.emit({
 		"observation_id": 17,
+		"request_count": 1,
+		"request_limit": 1000,
 		"actions": [{"type": "stop"}],
 	})
 	fixture.executor.batch_finished.emit([{"status": "stopped", "type": "stop"}])
@@ -209,6 +226,8 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
 	fixture.bridge.action_batch_received.emit({
 		"observation_id": 17,
+		"request_count": 1,
+		"request_limit": 1000,
 		"actions": [{"type": "wait", "duration_ms": 50}],
 	})
 	var results: Array = [{"status": "completed", "type": "wait"}]
@@ -227,11 +246,149 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	await _free_fixture(fixture)
 
 
+func _test_terminal_outcomes(controller_script: GDScript) -> void:
+	for terminal_case: Dictionary in [
+		{
+			"outcome": "success",
+			"reason": "correct_password",
+			"request_count": 37,
+		},
+		{
+			"outcome": "failure",
+			"reason": "wrong_password",
+			"request_count": 38,
+		},
+	]:
+		var fixture: Dictionary = await _connected_fixture(controller_script)
+		fixture.bridge.action_batch_received.emit({
+			"observation_id": 17,
+			"request_count": terminal_case.request_count,
+			"request_limit": 1000,
+			"actions": [{"type": "wait", "duration_ms": 50}],
+		})
+		fixture.terminal_monitor.game_finished.emit(
+			terminal_case.outcome,
+			terminal_case.reason,
+		)
+		fixture.terminal_monitor.game_finished.emit(
+			terminal_case.outcome,
+			terminal_case.reason,
+		)
+		var packets: Array = fixture.bridge.sent_packets.filter(
+			func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+		)
+		_assert(packets.size() == 1, "%s emits one terminal packet" % terminal_case.reason)
+		if packets.size() == 1:
+			_assert(packets[0] == {
+				"type": "game_over",
+				"protocol_version": 1,
+				"observation_id": 17,
+				"outcome": terminal_case.outcome,
+				"reason": terminal_case.reason,
+				"request_count": terminal_case.request_count,
+			}, "%s terminal packet has exact fields" % terminal_case.reason)
+		_assert(
+			fixture.controller.get_state() == fixture.controller.State.DISABLED,
+			"%s disables AI" % terminal_case.reason,
+		)
+		_assert(
+			"game_over:%s" % terminal_case.reason in fixture.executor.cancel_reasons,
+			"%s cancels and releases executor input" % terminal_case.reason,
+		)
+		_assert(
+			fixture.bridge.disconnect_calls == 0,
+			"%s leaves the bridge open for queued terminal delivery" % terminal_case.reason,
+		)
+		await _free_fixture(fixture)
+
+	var limit_fixture: Dictionary = await _connected_fixture(controller_script)
+	limit_fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"request_count": 1000,
+		"request_limit": 1000,
+		"actions": [{"type": "wait", "duration_ms": 50}],
+	})
+	limit_fixture.executor.batch_finished.emit([{"status": "completed", "type": "wait"}])
+	var limit_packets: Array = limit_fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+	_assert(limit_packets.size() == 1, "request limit emits one terminal packet")
+	if limit_packets.size() == 1:
+		_assert(
+			limit_packets[0].get("outcome") == "failure"
+				and limit_packets[0].get("reason") == "max_requests"
+				and limit_packets[0].get("request_count") == 1000,
+			"request limit returns max_requests failure",
+		)
+	await _free_fixture(limit_fixture)
+
+	var limit_stop_fixture: Dictionary = await _connected_fixture(controller_script)
+	limit_stop_fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"request_count": 1000,
+		"request_limit": 1000,
+		"actions": [{"type": "stop"}],
+	})
+	limit_stop_fixture.executor.batch_finished.emit([{"status": "stopped", "type": "stop"}])
+	var limit_stop_packets: Array = limit_stop_fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+	_assert(
+		limit_stop_packets.size() == 1
+			and limit_stop_packets[0].get("reason") == "max_requests",
+		"request limit returns max_requests even when final action is stop",
+	)
+	await _free_fixture(limit_stop_fixture)
+
+	var priority_fixture: Dictionary = await _connected_fixture(controller_script)
+	priority_fixture.bridge.action_batch_received.emit({
+		"observation_id": 17,
+		"request_count": 1000,
+		"request_limit": 1000,
+		"actions": [{"type": "wait", "duration_ms": 50}],
+	})
+	priority_fixture.terminal_monitor.game_finished.emit("success", "correct_password")
+	priority_fixture.executor.batch_finished.emit([{"status": "completed", "type": "wait"}])
+	var priority_packets: Array = priority_fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+	_assert(priority_packets.size() == 1, "password result wins request-limit race")
+	if priority_packets.size() == 1:
+		_assert(
+			priority_packets[0].get("reason") == "correct_password",
+			"correct password takes priority over max requests",
+		)
+	await _free_fixture(priority_fixture)
+
+	var remote_fixture: Dictionary = await _connected_fixture(controller_script)
+	remote_fixture.bridge.game_over_received.emit({
+		"type": "game_over",
+		"protocol_version": 1,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "max_requests",
+		"request_count": 1000,
+	})
+	_assert(
+		remote_fixture.controller.get_state() == remote_fixture.controller.State.DISABLED,
+		"remote request-limit result disables AI",
+	)
+	_assert(
+		remote_fixture.bridge.sent_packets.filter(
+			func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+		).is_empty(),
+		"remote terminal result is not echoed back",
+	)
+	await _free_fixture(remote_fixture)
+
+
 func _test_blocked_batch_recaptures_immediately(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
 	var initial_capture_count: int = fixture.observer.capture_count
 	fixture.bridge.action_batch_received.emit({
 		"observation_id": 17,
+		"request_count": 1,
+		"request_limit": 1000,
 		"actions": [{
 			"type": "move",
 			"forward": 1.0,
@@ -263,6 +420,8 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 		var initial_capture_count: int = fixture.observer.capture_count
 		fixture.bridge.action_batch_received.emit({
 			"observation_id": 17,
+			"request_count": 1,
+			"request_limit": 1000,
 			"actions": [{"type": action_type}],
 		})
 		fixture.executor.batch_finished.emit([{"status": "completed", "type": action_type}])
@@ -285,6 +444,8 @@ func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
 		var initial_capture_count: int = fixture.observer.capture_count
 		fixture.bridge.action_batch_received.emit({
 			"observation_id": 17,
+			"request_count": 1,
+			"request_limit": 1000,
 			"actions": [{
 				"type": "probe_interaction",
 				"target_x": 0.5,
@@ -312,6 +473,8 @@ func _test_deferred_recapture_is_cancelled_by_teardown(controller_script: GDScri
 	var sent_packets: Array = fixture.bridge.sent_packets
 	fixture.bridge.action_batch_received.emit({
 		"observation_id": 17,
+		"request_count": 1,
+		"request_limit": 1000,
 		"actions": [{"type": "interact"}],
 	})
 	fixture.executor.batch_finished.emit([{"status": "completed", "type": "interact"}])
@@ -345,6 +508,8 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	var executor: FakeExecutor = fixture.executor
 	bridge.action_batch_received.emit({
 		"observation_id": 17.0,
+		"request_count": 1,
+		"request_limit": 1000,
 		"actions": [{"type": "wait", "duration_ms": 50}],
 	})
 	_assert(executor.execute_calls.size() == 1, "matching parsed numeric observation ID executes")
@@ -353,6 +518,8 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	fixture.timer.emit_signal("timeout")
 	bridge.action_batch_received.emit({
 		"observation_id": 18.5,
+		"request_count": 2,
+		"request_limit": 1000,
 		"actions": [{"type": "stop"}],
 	})
 	_assert(executor.execute_calls.size() == 1, "fractional observation ID does not execute")
@@ -360,13 +527,23 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	await _free_fixture(fixture)
 
 	var boolean_fixture: Dictionary = await _connected_fixture(controller_script)
-	boolean_fixture.bridge.action_batch_received.emit({"observation_id": true, "actions": []})
+	boolean_fixture.bridge.action_batch_received.emit({
+		"observation_id": true,
+		"request_count": 1,
+		"request_limit": 1000,
+		"actions": [],
+	})
 	_assert(boolean_fixture.executor.execute_calls.is_empty(), "boolean observation ID does not execute")
 	_assert("stale_observation" in boolean_fixture.executor.cancel_reasons, "boolean observation ID cancels")
 	await _free_fixture(boolean_fixture)
 
 	var stale_fixture: Dictionary = await _connected_fixture(controller_script)
-	stale_fixture.bridge.action_batch_received.emit({"observation_id": 16.0, "actions": []})
+	stale_fixture.bridge.action_batch_received.emit({
+		"observation_id": 16.0,
+		"request_count": 1,
+		"request_limit": 1000,
+		"actions": [],
+	})
 	_assert(stale_fixture.executor.execute_calls.is_empty(), "stale observation ID does not execute")
 	_assert("stale_observation" in stale_fixture.executor.cancel_reasons, "stale observation ID cancels")
 	await _free_fixture(stale_fixture)
@@ -559,6 +736,8 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	executor.name = "Executor"
 	var interaction_probe := FakeInteractionProbe.new()
 	interaction_probe.name = "InteractionProbe"
+	var terminal_monitor := FakeTerminalMonitor.new()
+	terminal_monitor.name = "TerminalMonitor"
 	var bridge := FakeBridge.new()
 	bridge.name = "Bridge"
 	var timer := Timer.new()
@@ -567,6 +746,7 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	controller.add_child(observer)
 	controller.add_child(executor)
 	controller.add_child(interaction_probe)
+	controller.add_child(terminal_monitor)
 	controller.add_child(bridge)
 	controller.add_child(timer)
 	root.add_child(controller)
@@ -576,6 +756,7 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 		"observer": observer,
 		"executor": executor,
 		"interaction_probe": interaction_probe,
+		"terminal_monitor": terminal_monitor,
 		"bridge": bridge,
 		"timer": timer,
 		"player": player,

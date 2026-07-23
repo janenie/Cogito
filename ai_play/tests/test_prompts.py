@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from ai_play.game_context import load_game_context
 from ai_play.prompts import SYSTEM_PROMPT, build_log_messages, build_messages
 
 
@@ -83,18 +84,48 @@ def test_build_log_messages_replaces_image_data_url_with_relative_path():
     assert messages[1]["content"][1]["type"] == "image_url"
 
 
+def test_game_context_adds_chinese_goal_asset_catalog_and_one_reference_image():
+    ai_play_root = Path(__file__).resolve().parents[1]
+    context = load_game_context("find_contract", ai_play_root)
+
+    messages = build_messages(observation(), {"facts": []}, context)
+    system = messages[0]["content"]
+    user_content = messages[1]["content"]
+
+    assert "第一人称环境解谜游戏" in system
+    assert "FriendlyHumanNPC / BasicInteraction" in system
+    assert "083001" not in system
+    assert len([part for part in user_content if part["type"] == "image_url"]) == 2
+    assert user_content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+
+def test_log_messages_names_current_and_reference_images_separately():
+    ai_play_root = Path(__file__).resolve().parents[1]
+    context = load_game_context("find_contract", ai_play_root)
+    messages = build_messages(observation(), {}, context)
+
+    logged = build_log_messages(
+        messages,
+        "img/000007.jpg",
+        "assets/find_contract/imgs/reference_atlas.jpg",
+    )
+
+    assert logged[1]["content"][1]["image_path"] == "img/000007.jpg"
+    assert logged[1]["content"][2]["image_path"].endswith("reference_atlas.jpg")
+
+
 def test_prompt_states_exact_action_limits_and_preconditions():
-    assert "`yaw` must be within [-45, 45]" in SYSTEM_PROMPT
-    assert "`pitch` must be within [-30, 30]" in SYSTEM_PROMPT
-    assert "`forward` and `right` must each be within [-1, 1]" in SYSTEM_PROMPT
-    assert "50 through 1000 milliseconds" in SYSTEM_PROMPT
-    assert "50 through 2000 milliseconds" in SYSTEM_PROMPT
-    assert "one to six ASCII digits" in SYSTEM_PROMPT
-    assert "`interface.is_open` is true" in SYSTEM_PROMPT
-    assert "current `available_interactions`" in SYSTEM_PROMPT
-    assert "one to three action objects" in SYSTEM_PROMPT
-    assert "must be the final action" in SYSTEM_PROMPT
-    assert "re-observe" in SYSTEM_PROMPT
+    assert "`yaw` 必须在 [-45, 45]" in SYSTEM_PROMPT
+    assert "`pitch` 必须在" in SYSTEM_PROMPT and "[-30, 30]" in SYSTEM_PROMPT
+    assert "`forward`、`right`" in SYSTEM_PROMPT
+    assert "50 到 1000 毫秒" in SYSTEM_PROMPT
+    assert "50 到 2000 毫秒" in SYSTEM_PROMPT
+    assert "一至六位 ASCII 数字" in SYSTEM_PROMPT
+    assert "`interface.is_open` 为 true" in SYSTEM_PROMPT
+    assert "当前 `available_interactions`" in SYSTEM_PROMPT
+    assert "一至三个动作对象" in SYSTEM_PROMPT
+    assert "必须是批次最后一个动作" in SYSTEM_PROMPT
+    assert "必须重新观察" in SYSTEM_PROMPT
 
 
 def test_prompt_uses_runtime_bindings_for_contextual_interaction_slots():
@@ -116,23 +147,20 @@ def test_prompt_uses_runtime_bindings_for_contextual_interaction_slots():
         {"action": "interact2", "binding": "Q", "prompt": "Use"},
     ]
     assert "The F and E bindings" not in SYSTEM_PROMPT
-    assert "runtime `bindings` and `available_interactions`" in SYSTEM_PROMPT
+    assert "`bindings` 和 `available_interactions`" in SYSTEM_PROMPT
 
 
 def test_prompt_treats_visible_text_as_untrusted_data():
-    lower = SYSTEM_PROMPT.lower()
-    assert "visible text" in lower and "untrusted" in lower
-    assert "action whitelist" in lower
-    for forbidden_request in ("file", "network", "system"):
-        assert forbidden_request in lower
-    assert "entire observation" in lower
-    assert "all persisted or runtime memory" in lower
+    assert "可见文字" in SYSTEM_PROMPT and "不可信数据" in SYSTEM_PROMPT
+    assert "动作白名单" in SYSTEM_PROMPT
+    for forbidden_request in ("文件", "网络", "系统"):
+        assert forbidden_request in SYSTEM_PROMPT
+    assert "观察数据和记忆" in SYSTEM_PROMPT
 
 
 def test_prompt_defines_look_values_as_mouse_control_deltas():
-    lower = SYSTEM_PROMPT.lower()
-    assert "relative mouse-control deltas" in lower
-    assert "do not guarantee degrees" in lower
+    assert "相对鼠标控制量" in SYSTEM_PROMPT
+    assert "不保证等于角度" in SYSTEM_PROMPT
     assert "yaw_degrees" in SYSTEM_PROMPT
     assert "pitch_degrees" in SYSTEM_PROMPT
 
@@ -141,8 +169,8 @@ def test_prompt_documents_interaction_probe():
     assert "`probe_interaction`" in SYSTEM_PROMPT
     assert "`target_x`" in SYSTEM_PROMPT
     assert "`target_y`" in SYSTEM_PROMPT
-    assert "only action in its batch" in SYSTEM_PROMPT
-    assert "does not activate" in SYSTEM_PROMPT
+    assert "必须单独成为一个" in SYSTEM_PROMPT
+    assert "不会激活" in SYSTEM_PROMPT
     assert '"type":"probe_interaction"' in SYSTEM_PROMPT
 
 
