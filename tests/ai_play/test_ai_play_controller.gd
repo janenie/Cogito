@@ -143,7 +143,9 @@ func _test_bridge_raw_json_packets() -> void:
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
 	bridge._handle_text_packet('{"type":"hello","protocol_version":2}')
-	_assert(errors.is_empty(), "raw JSON hello accepts integer protocol version two")
+	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version two")
+	bridge._handle_text_packet('{"type":"hello","protocol_version":2.0}')
+	_assert(errors.is_empty(), "raw JSON hello accepts normalized numeric protocol version two")
 	bridge._handle_text_packet(
 		'{"type":"action_batch","protocol_version":2,"observation_id":7,"actions":[]}'
 	)
@@ -151,7 +153,7 @@ func _test_bridge_raw_json_packets() -> void:
 	for invalid_packet: String in [
 		'{"type":"hello","protocol_version":true}',
 		'{"type":"hello","protocol_version":"2"}',
-		'{"type":"hello","protocol_version":2.0}',
+		'{"type":"hello","protocol_version":2.5}',
 		'{"type":"hello","protocol_version":1}',
 		'{"type":"hello","protocol_version":NaN}',
 	]:

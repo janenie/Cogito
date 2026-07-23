@@ -56,8 +56,12 @@ Godot AI 契约测试：
 godot --headless --path . --script tests/ai_play/test_ai_play_executor.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_observer.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_interaction_probe.gd
+godot --headless --path . --script tests/ai_play/test_cogito_keypad_result.gd
 godot --headless --path . --editor --quit
 ```
+
+桥协议变更还必须覆盖 Godot JSON 数值规范化：协议版本只接受非布尔且数值精确等于 `2` 的表示，安全整数 `observation_id` 必须在回调和 `stop_ack` 中保持整数语义。
 
 静态集成和密钥检查：
 

@@ -9,6 +9,7 @@ signal remote_error(error: Dictionary)
 
 const PROTOCOL_VERSION: int = 2
 const MAX_PACKET_SIZE: int = 4 * 1024 * 1024
+const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
 var _socket: WebSocketPeer
 var _reported_open: bool = false
@@ -88,6 +89,12 @@ func _handle_text_packet(raw_packet: String) -> void:
 	if not _is_protocol_version_two(packet.get("protocol_version")):
 		_protocol_error("unsupported_protocol", "protocol version must be 2")
 		return
+	packet["protocol_version"] = PROTOCOL_VERSION
+	var normalized_observation_id: Dictionary = _normalize_observation_id(
+		packet.get("observation_id")
+	)
+	if normalized_observation_id["valid"]:
+		packet["observation_id"] = normalized_observation_id["value"]
 	match packet.get("type"):
 		"hello":
 			pass
@@ -117,7 +124,25 @@ func _has_exact_keys(packet: Dictionary, expected: Array[String]) -> bool:
 
 
 func _is_protocol_version_two(value: Variant) -> bool:
-	return typeof(value) == TYPE_INT and value == PROTOCOL_VERSION
+	return (
+		(typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT)
+		and value == PROTOCOL_VERSION
+	)
+
+
+func _normalize_observation_id(value: Variant) -> Dictionary:
+	if typeof(value) == TYPE_INT:
+		if value >= 0 and value <= MAX_SAFE_JSON_INTEGER:
+			return {"valid": true, "value": value}
+	elif typeof(value) == TYPE_FLOAT:
+		if (
+			is_finite(value)
+			and value >= 0.0
+			and value <= float(MAX_SAFE_JSON_INTEGER)
+			and value == floor(value)
+		):
+			return {"valid": true, "value": int(value)}
+	return {"valid": false, "value": null}
 
 
 func _protocol_error(code: String, message: String) -> void:

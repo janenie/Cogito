@@ -16,6 +16,8 @@ Python MCP 进程，再用精确的 `-- --ai-play` 参数启动 `COGITO_3_Lobby.
 - `act`：携带最近观察 ID，提交 1～3 个安全动作，并同步获取动作结果和下一次观察。
 - `stop`：请求取消当前动作并释放模拟输入；实体 Escape 仍是物理紧急停止键。
 
+Godot 接收 JSON 时会把数值规范化为浮点；桥将数值精确等于 `2` 的非布尔协议版本和有限安全整数观察 ID 规范化为内部整数，保证 Python 侧的严格回合关联与 `stop_ack` 契约。
+
 首版只覆盖 `find_contract` Demo，不自动启动 Godot、不调用内置模型，也不在服务端
 持久化截图、令牌或游玩轨迹。完整契约和安全边界见
 [`system-guide.md`](system-guide.md)。

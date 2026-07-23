@@ -9,6 +9,8 @@
 
 **Tech Stack:** Python 3.10+、mcp[cli]>=1.28,<2、websockets>=14,<16、pytest、Godot 4.7 GDScript。MCP SDK 的内存测试使用 mcp.shared.memory.create_connected_server_and_client_session。
 
+> **已批准兼容性修订（2026-07-23）：** Godot 的 JSON 解析将数值规范化为浮点。Godot 接收端将非布尔且数值精确等于 `2` 的 `protocol_version` 规范化为整数 `2`，并将有限安全整数 `observation_id` 规范化为整数；测试接受 JSON `2.0`，但继续拒绝布尔、字符串和其他数值。
+
 ---
 
 ## 文件结构
@@ -974,7 +976,7 @@ func _handle_text_packet(raw_packet: String) -> void:
 			_protocol_error("unexpected_packet", "unexpected packet type")
 ~~~
 
-Keep the exact loopback predicate and MAX_PACKET_SIZE. Replace the version helper and all tests with integer version 2 checks. game_over is no longer a Python-to-Godot packet.
+Keep the exact loopback predicate and MAX_PACKET_SIZE. At the Godot JSON boundary, accept the normalized non-boolean numeric value exactly equal to 2, canonicalize it to integer version 2, and canonicalize finite safe integer observation IDs before signals. Keep rejecting booleans, strings, non-integral IDs, and other protocol numbers. game_over is no longer a Python-to-Godot packet.
 
 - [ ] **Step 4: Run bridge and executor tests**
 
