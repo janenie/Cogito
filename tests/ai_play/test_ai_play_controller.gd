@@ -26,10 +26,11 @@ class FakeObserver extends Node:
 
 class FakeBridge extends Node:
 	signal connected
-	signal disconnected(reason: String)
-	signal action_batch_received(batch: Dictionary)
-	signal game_over_received(result: Dictionary)
-	signal remote_error(error: Dictionary)
+signal disconnected(reason: String)
+signal action_batch_received(batch: Dictionary)
+signal game_over_received(result: Dictionary)
+signal stop_request_received(request: Dictionary)
+signal remote_error(error: Dictionary)
 
 	var connect_calls: Array[Dictionary] = []
 	var sent_packets: Array[Dictionary] = []
@@ -88,6 +89,7 @@ func _run_tests() -> void:
 		return
 
 	_test_bridge_raw_json_packets()
+	_test_bridge_accepts_protocol_two_and_emits_stop_request()
 	_test_user_arg_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
@@ -137,32 +139,79 @@ func _test_bridge_raw_json_packets() -> void:
 	var bridge: Node = bridge_script.new()
 	var batches: Array[Dictionary] = []
 	var errors: Array[Dictionary] = []
-	var game_overs: Array[Dictionary] = []
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
-	bridge.game_over_received.connect(
-		func(result: Dictionary) -> void: game_overs.append(result)
-	)
-	bridge._handle_text_packet('{"type":"hello","protocol_version":1}')
-	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version one")
+	bridge._handle_text_packet('{"type":"hello","protocol_version":2}')
+	_assert(errors.is_empty(), "raw JSON hello accepts integer protocol version two")
 	bridge._handle_text_packet(
-		'{"type":"action_batch","protocol_version":1,"observation_id":7,"actions":[]}'
+		'{"type":"action_batch","protocol_version":2,"observation_id":7,"actions":[]}'
 	)
 	_assert(batches.size() == 1, "raw JSON action batch emits through bridge")
-	bridge._handle_text_packet(
-		'{"type":"game_over","protocol_version":1,"observation_id":7,'
-		+ '"outcome":"failure","reason":"max_requests","request_count":1000}'
-	)
-	_assert(game_overs.size() == 1, "raw JSON game_over emits through bridge")
 	for invalid_packet: String in [
 		'{"type":"hello","protocol_version":true}',
-		'{"type":"hello","protocol_version":"1"}',
-		'{"type":"hello","protocol_version":1.5}',
+		'{"type":"hello","protocol_version":"2"}',
+		'{"type":"hello","protocol_version":2.0}',
+		'{"type":"hello","protocol_version":1}',
 		'{"type":"hello","protocol_version":NaN}',
 	]:
 		var previous_errors: int = errors.size()
 		bridge._handle_text_packet(invalid_packet)
 		_assert(errors.size() == previous_errors + 1, "raw JSON rejects invalid protocol version")
+	bridge.free()
+
+
+func _test_bridge_accepts_protocol_two_and_emits_stop_request() -> void:
+	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
+	var bridge: Node = bridge_script.new()
+	var requests: Array[Dictionary] = []
+	var errors: Array[Dictionary] = []
+	bridge.stop_request_received.connect(
+		func(request: Dictionary) -> void: requests.append(request)
+	)
+	bridge.remote_error.connect(
+		func(error: Dictionary) -> void: errors.append(error)
+	)
+	bridge._handle_text_packet(JSON.stringify({
+		"type": "stop_request",
+		"protocol_version": 2,
+		"observation_id": 9,
+		"reason": "mcp_stop",
+	}))
+
+	_assert(requests == [{
+		"type": "stop_request",
+		"protocol_version": 2,
+		"observation_id": 9,
+		"reason": "mcp_stop",
+	}], "bridge emits validated MCP stop request")
+	for invalid_packet: Dictionary in [
+		{
+			"type": "stop_request",
+			"protocol_version": 1,
+			"observation_id": 9,
+			"reason": "mcp_stop",
+		},
+		{
+			"type": "stop_request",
+			"protocol_version": 2,
+			"observation_id": 9,
+			"reason": "mcp_stop",
+			"extra": true,
+		},
+		{
+			"type": "stop_request",
+			"protocol_version": 2,
+			"observation_id": 9,
+			"reason": "escape_stop",
+		},
+		{
+			"type": "unknown",
+			"protocol_version": 2,
+		},
+	]:
+		var previous_errors: int = errors.size()
+		bridge._handle_text_packet(JSON.stringify(invalid_packet))
+		_assert(errors.size() == previous_errors + 1, "bridge rejects invalid incoming packet")
 	bridge.free()
 
 
