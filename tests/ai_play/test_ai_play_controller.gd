@@ -11,6 +11,9 @@ class FakeObserver extends Node:
 	func get_bindings() -> Dictionary:
 		return {"forward": "W", "interact": "F"}
 
+	func get_available_interactions() -> Array[Dictionary]:
+		return [{"action": "interact"}]
+
 	func capture_observation(last_results: Array) -> Dictionary:
 		capture_count += 1
 		capture_events.append(last_results.duplicate(true))
@@ -47,6 +50,7 @@ class FakeExecutor extends Node:
 	signal batch_finished(results: Array)
 
 	var player: Node3D
+	var interaction_probe: Node
 	var execute_calls: Array[Dictionary] = []
 	var cancel_reasons: Array[String] = []
 
@@ -55,6 +59,11 @@ class FakeExecutor extends Node:
 
 	func cancel_all(reason: String) -> void:
 		cancel_reasons.append(reason)
+
+
+class FakeInteractionProbe extends Node:
+	var player: Node
+	var interaction_provider: Callable
 
 
 func _initialize() -> void:
@@ -77,6 +86,7 @@ func _run_tests() -> void:
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
 	await _test_context_change_recaptures_immediately(controller_script)
+	await _test_probe_recaptures_immediately(controller_script)
 	await _test_deferred_recapture_is_cancelled_by_teardown(controller_script)
 	await _test_transport_failures_cancel(controller_script)
 	await _test_invalid_model_decision_retries(controller_script)
@@ -142,6 +152,19 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 	var bridge: FakeBridge = fixture.bridge
 	controller.enable_ai()
 	_assert(fixture.executor.player == fixture.player, "controller wires real player into executor")
+	_assert(
+		fixture.interaction_probe.player == fixture.player,
+		"controller wires real player into interaction probe",
+	)
+	_assert(
+		fixture.executor.interaction_probe == fixture.interaction_probe,
+		"controller wires interaction probe into executor",
+	)
+	_assert(
+		fixture.interaction_probe.interaction_provider.call()
+			== [{"action": "interact"}],
+		"interaction probe reads observer-approved interactions",
+	)
 	_assert(bridge.connect_calls == [{"host": "127.0.0.1", "port": 8765}], "enabling connects")
 	bridge.connected.emit()
 	_assert(not bridge.sent_packets.is_empty(), "connection sends hello")
@@ -252,6 +275,33 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 		_assert(
 			fixture.observer.capture_count == initial_capture_count + 1,
 			"%s triggers immediate deferred recapture" % action_type,
+		)
+		await _free_fixture(fixture)
+
+
+func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
+	for outcome: String in ["aligned", "not_found"]:
+		var fixture: Dictionary = await _connected_fixture(controller_script)
+		var initial_capture_count: int = fixture.observer.capture_count
+		fixture.bridge.action_batch_received.emit({
+			"observation_id": 17,
+			"actions": [{
+				"type": "probe_interaction",
+				"target_x": 0.5,
+				"target_y": 0.5,
+			}],
+		})
+		fixture.executor.batch_finished.emit([{
+			"status": "completed",
+			"type": "probe_interaction",
+			"outcome": outcome,
+			"scan_steps": 2 if outcome == "aligned" else 9,
+		}])
+		_assert(fixture.timer.is_stopped(), "%s probe does not start interval timer" % outcome)
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count + 1,
+			"%s probe triggers immediate recapture" % outcome,
 		)
 		await _free_fixture(fixture)
 
@@ -446,7 +496,11 @@ func _test_reusable_scene() -> void:
 	if packed == null:
 		return
 	var controller: Node = packed.instantiate()
-	_assert(controller.get_child_count() == 4, "controller scene has four children")
+	_assert(controller.get_child_count() == 5, "controller scene has five children")
+	_assert(
+		controller.get_node_or_null("InteractionProbe") != null,
+		"controller scene includes interaction probe",
+	)
 	_assert(controller.get_node_or_null("Observer") != null, "controller scene has observer")
 	_assert(controller.get_node_or_null("Executor") != null, "controller scene has executor")
 	_assert(controller.get_node_or_null("Bridge") != null, "controller scene has bridge")
@@ -503,6 +557,8 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	observer.name = "Observer"
 	var executor := FakeExecutor.new()
 	executor.name = "Executor"
+	var interaction_probe := FakeInteractionProbe.new()
+	interaction_probe.name = "InteractionProbe"
 	var bridge := FakeBridge.new()
 	bridge.name = "Bridge"
 	var timer := Timer.new()
@@ -510,6 +566,7 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	timer.one_shot = true
 	controller.add_child(observer)
 	controller.add_child(executor)
+	controller.add_child(interaction_probe)
 	controller.add_child(bridge)
 	controller.add_child(timer)
 	root.add_child(controller)
@@ -518,6 +575,7 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 		"controller": controller,
 		"observer": observer,
 		"executor": executor,
+		"interaction_probe": interaction_probe,
 		"bridge": bridge,
 		"timer": timer,
 		"player": player,

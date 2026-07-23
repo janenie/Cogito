@@ -26,6 +26,7 @@ var _stop_delivery_pending: bool = false
 
 var _observer: Node
 var _executor: Node
+var _interaction_probe: Node
 var _bridge: Node
 var _observation_timer: Timer
 
@@ -33,12 +34,22 @@ var _observation_timer: Timer
 func _ready() -> void:
 	_observer = get_node("Observer")
 	_executor = get_node("Executor")
+	_interaction_probe = get_node("InteractionProbe")
 	_bridge = get_node("Bridge")
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
 		_observer.player = player
 	if "player" in _executor:
 		_executor.player = player
+	if "player" in _interaction_probe:
+		_interaction_probe.player = player
+	if "interaction_provider" in _interaction_probe:
+		_interaction_probe.interaction_provider = Callable(
+			_observer,
+			"get_available_interactions",
+		)
+	if "interaction_probe" in _executor:
+		_executor.interaction_probe = _interaction_probe
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
@@ -294,7 +305,12 @@ func _ends_with_immediate_recapture(results: Array) -> bool:
 		return final_result.get("type") in ["move", "sprint"]
 	return (
 		final_result.get("status") == "completed"
-		and final_result.get("type") in ["interact", "enter_digits", "close_ui"]
+		and final_result.get("type") in [
+			"interact",
+			"enter_digits",
+			"close_ui",
+			"probe_interaction",
+		]
 	)
 
 

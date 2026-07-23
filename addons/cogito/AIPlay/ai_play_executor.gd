@@ -10,6 +10,7 @@ const ACTION_FIELDS: Dictionary = {
 	"jump": ["type"],
 	"crouch": ["type"],
 	"interact": ["type", "action"],
+	"probe_interaction": ["type", "target_x", "target_y"],
 	"enter_digits": ["type", "digits"],
 	"close_ui": ["type"],
 	"wait": ["type", "duration_ms"],
@@ -23,11 +24,14 @@ const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
 @export_range(0.01, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
 
 var held_actions: Dictionary = {}
+var interaction_probe: Node
 var _cancel_generation: int = 0
 
 
 func _exit_tree() -> void:
 	_cancel_generation += 1
+	if interaction_probe != null:
+		interaction_probe.cancel("executor_teardown")
 	_release_held_actions()
 
 
@@ -73,6 +77,15 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 			var available: Variant = context.get("available_interactions", [])
 			if not available is Array or interaction not in available:
 				return _invalid("interaction is not currently available")
+		"probe_interaction":
+			for field: String in ["target_x", "target_y"]:
+				var error: String = _number_error(
+					action_dictionary[field], 0.0, 1.0, field
+				)
+				if not error.is_empty():
+					return _invalid(error)
+			if context.get("interface_open", false) == true:
+				return _invalid("probe_interaction requires a closed interface")
 		"enter_digits":
 			var digits: Variant = action_dictionary["digits"]
 			if not digits is String or not _digits_are_valid(digits):
@@ -93,6 +106,8 @@ func validate_batch(actions: Variant, context: Dictionary) -> Dictionary:
 		var action_validation: Dictionary = validate_action(actions[index], context)
 		if not action_validation.get("valid", false):
 			return action_validation
+		if actions[index]["type"] == "probe_interaction" and actions.size() != 1:
+			return _invalid("probe_interaction must be the only action")
 		if (
 			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui"]
 			and index != actions.size() - 1
@@ -130,6 +145,8 @@ func execute_batch(actions: Variant, context: Dictionary) -> void:
 func cancel_all(reason: String) -> void:
 	_release_held_actions()
 	_cancel_generation += 1
+	if interaction_probe != null:
+		interaction_probe.cancel(reason)
 	batch_finished.emit([{"status": "cancelled", "reason": reason}])
 
 
@@ -165,6 +182,13 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 			_emit_action_pair(action_type)
 		"interact":
 			_emit_action_pair(action["action"])
+		"probe_interaction":
+			if interaction_probe == null:
+				return {"status": "error", "error": "interaction probe is unavailable"}
+			return await interaction_probe.probe(
+				float(action["target_x"]),
+				float(action["target_y"]),
+			)
 		"enter_digits":
 			for digit: String in action["digits"]:
 				_emit_digit_pair(digit)

@@ -38,6 +38,33 @@ func _run_tests() -> void:
 		"type": "enter_digits",
 		"digits": "1234",
 	}, {"interface_open": false}, "digits with closed interface")
+	var probe_action := {
+		"type": "probe_interaction",
+		"target_x": 0.25,
+		"target_y": 0.75,
+	}
+	_assert(
+		executor.validate_batch([probe_action], {"interface_open": false}) == {"valid": true},
+		"accepts one normalized probe with closed interface",
+	)
+	_assert_invalid(executor, {
+		"type": "probe_interaction",
+		"target_x": -0.1,
+		"target_y": 0.5,
+	}, {"interface_open": false}, "probe coordinate outside image")
+	_assert_invalid(
+		executor,
+		probe_action,
+		{"interface_open": true},
+		"probe with open interface",
+	)
+	_assert(
+		not executor.validate_batch(
+			[probe_action, {"type": "wait", "duration_ms": 50}],
+			{"interface_open": false},
+		).get("valid", false),
+		"probe must be the only action",
+	)
 	_test_batch_validation(executor, recorder)
 	_test_terminal_stop(executor)
 	await _test_blocked_movement(executor, recorder)
