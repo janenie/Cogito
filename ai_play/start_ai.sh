@@ -8,4 +8,4 @@ if [ ! -x ".venv/bin/python" ]; then
 	exit 1
 fi
 
-PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.main "$@"
+PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.mcp_server "$@"

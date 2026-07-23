@@ -1,4 +1,8 @@
 import asyncio
+import os
+from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
@@ -211,3 +215,20 @@ def test_terminal_observe_returns_terminal_state_without_new_observation(monkeyp
             assert result.structuredContent["game_over"]["reason"] == "correct_password"
 
     asyncio.run(run())
+
+
+def test_module_reports_invalid_loopback_config_on_stderr_only():
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(Path("ai_play/src").resolve())
+    environment["AI_PLAY_WS_HOST"] = "localhost"
+    result = subprocess.run(
+        [sys.executable, "-m", "ai_play.mcp_server"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "AI_PLAY_WS_HOST" in result.stderr
