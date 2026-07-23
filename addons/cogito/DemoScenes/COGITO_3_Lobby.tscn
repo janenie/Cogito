@@ -22,13 +22,10 @@
 [ext_resource type="AudioStream" uid="uid://dmk55e0pfdovt" path="res://addons/cogito/Assets/Audio/Kenney/cardTakeOutPackage1.ogg" id="15_078vp"]
 [ext_resource type="AudioStream" uid="uid://ckxotbwm6qtui" path="res://addons/cogito/Assets/Audio/Kenney/cardTakeOutPackage2.ogg" id="16_py2k0"]
 [ext_resource type="PackedScene" uid="uid://btndiyu53mrlk" path="res://addons/cogito/DemoScenes/DemoPrefabs/windowed_door.tscn" id="17_2lcsn"]
-[ext_resource type="AudioStream" uid="uid://btoufmp0rtgi" path="res://addons/cogito/Assets/Audio/Kenney/beltHandle2.ogg" id="18_sk7n4"]
-[ext_resource type="Resource" uid="uid://d4gdqvqsiiqs5" path="res://addons/cogito/InventoryPD/Items/Cogito_Key.tres" id="19_vxibd"]
 [ext_resource type="PackedScene" uid="uid://bdf8go8xjwqqb" path="res://addons/cogito/DemoScenes/DemoPrefabs/lounge_chair.tscn" id="20_rf47m"]
 [ext_resource type="PackedScene" uid="uid://b8nhffak4g0c6" path="res://addons/cogito/DemoScenes/DemoPrefabs/chair_desk.tscn" id="21_o6psl"]
 [ext_resource type="PackedScene" uid="uid://bbt5twbnrlcfj" path="res://addons/cogito/Components/Interactions/LockInteraction.tscn" id="22_2fd6x"]
 [ext_resource type="Script" uid="uid://b5o53nkpyxn58" path="res://addons/cogito/CogitoObjects/cogito_turnwheel.gd" id="22_fgo21"]
-[ext_resource type="PackedScene" uid="uid://bqp8nl7x2c37m" path="res://addons/cogito/Components/Interactions/DualInteraction.tscn" id="23_mluj1"]
 [ext_resource type="AudioStream" uid="uid://ftl7je6blfwq" path="res://addons/cogito/Assets/Audio/Kenney/stoneDrag4.ogg" id="23_q1spm"]
 [ext_resource type="PackedScene" uid="uid://poem1yjtmt3n" path="res://addons/cogito/Components/Interactions/HoldInteraction.tscn" id="24_7t6yl"]
 [ext_resource type="PackedScene" uid="uid://dkundghktg5ol" path="res://addons/cogito/DemoScenes/DemoPrefabs/lamp_round_floor.tscn" id="25_ohpwf"]
@@ -6324,23 +6321,10 @@ shape = SubResource("BoxShape3D_ecok4")
 [node name="WindowedDoor" parent="UPPER_OFFICE_CEO" unique_id=436149883 instance=ExtResource("17_2lcsn")]
 
 [node name="FrontDoor" parent="UPPER_OFFICE_CEO/WindowedDoor" index="0"]
-unlock_sound = ExtResource("18_sk7n4")
-lock_sound = ExtResource("18_sk7n4")
-is_locked = true
-key = ExtResource("19_vxibd")
-key_hint = "Key not found!"
+is_locked = false
 
 [node name="BasicInteraction" parent="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor" index="2"]
-is_disabled = true
-
-[node name="LockInteraction" parent="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor" index="4" unique_id=871306812 instance=ExtResource("22_2fd6x")]
-interaction_text = "DOOR_Unlock"
-is_disabled = true
-
-[node name="DualInteraction" parent="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor" index="5" unique_id=184607455 node_paths=PackedStringArray("hold_node") instance=ExtResource("23_mluj1")]
-hold_node = NodePath("../LockInteraction")
-hold_time = 1.0
-input_map_action = "interact"
+is_disabled = false
 
 [node name="SecretAreaDoor" type="Node3D" parent="UPPER_OFFICE_CEO" unique_id=1274402792]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 1, 0.029, -4.15)
