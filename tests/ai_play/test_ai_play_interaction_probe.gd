@@ -8,16 +8,20 @@ var _failures: Array[String] = []
 class FakePlayer extends Node:
 	var MOUSE_SENS: float = 0.25
 	var INVERT_Y_AXIS: bool = true
+	var is_free_looking: bool = false
 	var body: Node3D
+	var neck: Node3D
 	var head: Node3D
 	var camera: Camera3D
 
 	func _init() -> void:
 		body = Node3D.new()
+		neck = Node3D.new()
 		head = Node3D.new()
 		camera = Camera3D.new()
 		add_child(body)
-		body.add_child(head)
+		body.add_child(neck)
+		neck.add_child(head)
 		head.add_child(camera)
 
 	func _ready() -> void:
@@ -29,7 +33,8 @@ class FakePlayer extends Node:
 		var motion := event as InputEventMouseMotion
 		if motion.device != AIPlayInteractionProbe.SYNTHETIC_DEVICE_ID:
 			return
-		body.rotate_y(deg_to_rad(-motion.relative.x * MOUSE_SENS))
+		var yaw_node: Node3D = neck if is_free_looking else body
+		yaw_node.rotate_y(deg_to_rad(-motion.relative.x * MOUSE_SENS))
 		if INVERT_Y_AXIS:
 			head.rotate_x(deg_to_rad(motion.relative.y * MOUSE_SENS))
 		else:
@@ -75,6 +80,25 @@ func _run_tests() -> void:
 	probe.input_sender = event_sink.send
 	await process_frame
 
+	var unavailable_probe: Node = AIPlayInteractionProbe.new()
+	root.add_child(unavailable_probe)
+	_assert(
+		await unavailable_probe.probe(0.5, 0.5)
+			== {"status": "error", "error": "interaction probe is unavailable"},
+		"missing player returns a bounded error",
+	)
+	unavailable_probe.player = player
+	unavailable_probe.interaction_provider = func() -> Array: return []
+	var original_sensitivity: float = player.MOUSE_SENS
+	player.MOUSE_SENS = 0.0
+	_assert(
+		await unavailable_probe.probe(0.5, 0.5)
+			== {"status": "error", "error": "interaction probe is unavailable"},
+		"zero sensitivity returns a bounded error",
+	)
+	player.MOUSE_SENS = original_sensitivity
+	unavailable_probe.queue_free()
+
 	var centered: Vector2 = probe.target_rotation_degrees(0.5, 0.5, 75.0, 16.0 / 9.0)
 	_assert(centered.is_zero_approx(), "center target has zero rotation")
 	var left: Vector2 = probe.target_rotation_degrees(0.25, 0.5, 75.0, 16.0 / 9.0)
@@ -111,7 +135,8 @@ func _run_tests() -> void:
 	var missing_provider := InteractionProvider.new()
 	probe.interaction_provider = missing_provider.get_interactions
 	event_sink.events.clear()
-	var starting_yaw: float = player.body.global_rotation_degrees.y
+	player.is_free_looking = true
+	var starting_yaw: float = player.camera.global_rotation_degrees.y
 	var starting_pitch: float = player.head.rotation_degrees.x
 	var missing_result: Dictionary = await probe.probe(0.5, 0.5)
 	_assert(
@@ -134,10 +159,11 @@ func _run_tests() -> void:
 		"final mouse event restores the starting orientation",
 	)
 	_assert(
-		is_equal_approx(player.body.global_rotation_degrees.y, starting_yaw)
+		is_equal_approx(player.camera.global_rotation_degrees.y, starting_yaw)
 		and is_equal_approx(player.head.rotation_degrees.x, starting_pitch),
-		"not found restoration returns the player to the starting orientation",
+		"not found restoration returns a free-look camera to the starting orientation",
 	)
+	player.is_free_looking = false
 	_assert(_contains_no_interaction_actions(event_sink.events), "not found probe never emits interaction actions")
 
 	var cancelled_provider := InteractionProvider.new()

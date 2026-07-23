@@ -22,14 +22,17 @@ var _cancel_reason: String = "cancelled"
 
 
 func probe(target_x: float, target_y: float) -> Dictionary:
+	if not _is_available():
+		return {"status": "error", "error": "interaction probe is unavailable"}
 	_generation += 1
 	var generation: int = _generation
 	_cancel_reason = "cancelled"
 	var starting_orientation := _orientation_degrees()
+	var active_camera := _active_camera()
 	var target_rotation := target_rotation_degrees(
 		target_x,
 		target_y,
-		_active_camera().fov,
+		active_camera.fov,
 		_viewport_aspect_ratio(),
 	)
 	var previous_rotation := Vector2.ZERO
@@ -85,7 +88,37 @@ func _active_camera() -> Camera3D:
 	var active_camera: Camera3D = get_viewport().get_camera_3d()
 	if active_camera != null:
 		return active_camera
-	return player.get("camera") as Camera3D
+	if player != null and "camera" in player:
+		return player.get("camera") as Camera3D
+	return null
+
+
+func _is_available() -> bool:
+	if player == null or not is_instance_valid(player) or not interaction_provider.is_valid():
+		return false
+	for property_name: String in [
+		"body",
+		"head",
+		"camera",
+		"MOUSE_SENS",
+		"INVERT_Y_AXIS",
+	]:
+		if property_name not in player:
+			return false
+	if (
+		(player.get("body") as Node3D) == null
+		or (player.get("head") as Node3D) == null
+	):
+		return false
+	if _active_camera() == null:
+		return false
+	var sensitivity: Variant = player.get("MOUSE_SENS")
+	return (
+		typeof(sensitivity) in [TYPE_INT, TYPE_FLOAT]
+		and is_finite(float(sensitivity))
+		and float(sensitivity) > 0.0
+		and typeof(player.get("INVERT_Y_AXIS")) == TYPE_BOOL
+	)
 
 
 func _viewport_aspect_ratio() -> float:
@@ -96,9 +129,9 @@ func _viewport_aspect_ratio() -> float:
 
 
 func _orientation_degrees() -> Vector2:
-	var body: Node3D = player.get("body") as Node3D
+	var active_camera := _active_camera()
 	var head: Node3D = player.get("head") as Node3D
-	return Vector2(body.global_rotation_degrees.y, head.rotation_degrees.x)
+	return Vector2(active_camera.global_rotation_degrees.y, head.rotation_degrees.x)
 
 
 func _restore_orientation(starting_orientation: Vector2) -> void:
