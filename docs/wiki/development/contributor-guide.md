@@ -1,0 +1,79 @@
+> 摘要：本页维护 Cogito 的代码与资源约定、本地运行方式和验证流程。
+
+# 开发协作指南
+
+## 编码与资源约定
+
+- 遵循相邻代码的风格。新增 GDScript 使用制表符缩进、`snake_case` 成员和函数、`PascalCase` 的 `class_name` 声明；在合适时使用带类型的函数签名和导出属性。
+- Python 使用四空格缩进和 `snake_case`，标准库导入位于本地模块导入之前，并保持模块职责集中。仓库没有可安装的 Python 包元数据，因此运行时需要把 `ai_play/src` 加入 `PYTHONPATH`。
+- 优先使用小型组件和信号，不要向玩家或场景脚本添加无关职责。
+- 保留 Godot 资源路径、节点名、导出属性类型和 UID 引用。场景检查依赖有意设计的连线和部分精确值。
+- 可以使用 Godot 编辑器时，范围较大的 `.tscn` 或 `.tres` 改动应通过编辑器完成。手动编辑时保持差异最小，并运行编辑器导入和解析检查。
+- 不要手动编辑 `.godot/`、Python 缓存、运行时记忆和日志、`docs/_build/` 等生成缓存。没有资源相关理由时，不要删除或重新生成已跟踪的 `.uid` 和 `.import` 文件。
+
+## Python 边车环境与运行
+
+在 PowerShell 中配置 Python 边车：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r ai_play\requirements.txt
+$env:PYTHONPATH = "ai_play/src"
+```
+
+运行边车：
+
+```powershell
+.\.venv\Scripts\python.exe -m ai_play.main
+```
+
+边车开始监听后，需要显式启用 AI 的 Lobby 启动命令为：
+
+```text
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+```
+
+环境变量、恢复记忆、轨迹位置、隐私影响和模型提供方要求见 [`ai_play/README.md`](../../../ai_play/README.md)。
+
+## 验证
+
+先运行与改动最相关的最小测试，再运行受影响的完整测试套件。
+
+Python 边车：
+
+```powershell
+$env:PYTHONPATH = "ai_play/src"
+.\.venv\Scripts\python.exe -m pytest ai_play\tests -q
+```
+
+Godot AI 契约测试：
+
+```text
+godot --headless --path . --script tests/ai_play/test_ai_play_executor.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_observer.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
+godot --headless --path . --editor --quit
+```
+
+静态集成和密钥检查：
+
+```bash
+bash tests/check_ai_play_lobby.sh
+bash tests/check_ai_play_start_script.sh
+bash tests/check_friendly_human_npc.sh
+bash tests/check_lobby_friendly_npc.sh
+bash tests/test_ai_play_secret_scan.sh
+```
+
+修改 Sphinx 文档时：
+
+```bash
+python -m pip install -r docs/requirements.txt
+sphinx-build -b html docs docs/_build/html
+```
+
+最后始终运行 `git diff --check`。如果无法使用 Godot，应运行其余所有相关检查，并明确说明尚未执行的引擎验证。
+
+## 来源
+
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)。
