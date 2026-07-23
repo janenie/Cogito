@@ -3,7 +3,7 @@ extends Node
 
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
-const PROTOCOL_VERSION: int = 1
+const PROTOCOL_VERSION: int = 2
 const EXECUTOR_DEVICE_ID: int = AIPlayExecutor.SYNTHETIC_DEVICE_ID
 const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
@@ -23,8 +23,6 @@ var _last_results: Array = []
 var _reconnect_remaining: float = -1.0
 var _capture_generation: int = 0
 var _stop_delivery_pending: bool = false
-var _active_request_count: int = 0
-var _active_request_limit: int = 0
 var _game_finished: bool = false
 
 var _observer: Node
@@ -58,7 +56,7 @@ func _ready() -> void:
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
-	_bridge.game_over_received.connect(_on_remote_game_over)
+	_bridge.stop_request_received.connect(_on_stop_request_received)
 	_bridge.remote_error.connect(_on_remote_error)
 	_executor.batch_finished.connect(_on_batch_finished)
 	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
@@ -81,8 +79,6 @@ func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
 	_stop_delivery_pending = false
 	_game_finished = false
-	_active_request_count = 0
-	_active_request_limit = 0
 	_reconnect_remaining = -1.0
 	if _state != State.DISABLED:
 		_bridge.disconnect_from_server()
@@ -157,8 +153,6 @@ func _on_bridge_connected() -> void:
 	var hello: Dictionary = {
 		"type": "hello",
 		"protocol_version": PROTOCOL_VERSION,
-		"bindings": _observer.get_bindings(),
-		"data_dir": OS.get_user_data_dir(),
 	}
 	if _bridge.send_packet(hello) != OK:
 		_pause_for_error("hello_send_failed")
@@ -198,6 +192,16 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 			return
 		_pause_for_error("unexpected_action_batch")
 		return
+	if (
+		not _has_exact_keys(
+			batch,
+			["type", "protocol_version", "observation_id", "actions"],
+		)
+		or batch.get("type") != "action_batch"
+		or batch.get("protocol_version") != PROTOCOL_VERSION
+	):
+		_pause_for_error("invalid_action_batch")
+		return
 	print("AI_PLAY received action batch for observation=%s" % str(batch.get("observation_id")))
 	var observation_id: Dictionary = _parse_observation_id(batch.get("observation_id"))
 	if not observation_id["valid"] or observation_id["value"] != _pending_observation_id:
@@ -207,17 +211,6 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	if not actions is Array:
 		_pause_for_error("invalid_action_batch")
 		return
-	var request_count: Dictionary = _parse_positive_integer(batch.get("request_count"))
-	var request_limit: Dictionary = _parse_positive_integer(batch.get("request_limit"))
-	if (
-		not request_count["valid"]
-		or not request_limit["valid"]
-		or request_count["value"] > request_limit["value"]
-	):
-		_pause_for_error("invalid_request_metadata")
-		return
-	_active_request_count = request_count["value"]
-	_active_request_limit = request_limit["value"]
 	_executing_observation_id = observation_id["value"]
 	_pending_observation_id = -1
 	_state = State.EXECUTING
@@ -238,13 +231,6 @@ func _on_batch_finished(results: Array) -> void:
 		_pause_for_error("action_results_send_failed")
 		return
 	_last_results = results.duplicate(true)
-	if _active_request_count >= _active_request_limit:
-		_finish_game(
-			"failure",
-			"max_requests",
-			completed_observation_id,
-		)
-		return
 	if _contains_stopped_result(results):
 		_capture_generation += 1
 		_state = State.DISABLED
@@ -297,52 +283,48 @@ func _on_bridge_disconnected(reason: String) -> void:
 func _on_remote_error(error: Dictionary) -> void:
 	var code: String = str(error.get("code", "unknown"))
 	print("AI_PLAY remote error; code=%s" % code)
-	if code == "decision_failed" and _state == State.WAITING_FOR_DECISION:
-		_pending_observation_id = -1
-		_last_results = [{"status": "error", "error": "decision_failed"}]
-		_state = State.READY
-		_observation_timer.start(maxf(observation_interval, 1.0))
-		return
 	_pause_for_error("remote_error:%s" % code)
 
 
-func _on_remote_game_over(result: Dictionary) -> void:
-	if _state != State.WAITING_FOR_DECISION or _game_finished:
-		_pause_for_error("unexpected_game_over")
-		return
-	if result.keys().size() != 6:
-		_pause_for_error("invalid_game_over")
-		return
-	for field: String in [
-		"type",
-		"protocol_version",
-		"observation_id",
-		"outcome",
-		"reason",
-		"request_count",
-	]:
-		if not result.has(field):
-			_pause_for_error("invalid_game_over")
-			return
-	var observation_id: Dictionary = _parse_observation_id(result.get("observation_id"))
-	var request_count: Dictionary = _parse_positive_integer(result.get("request_count"))
+func _on_stop_request_received(request: Dictionary) -> void:
 	if (
-		not observation_id["valid"]
-		or observation_id["value"] != _pending_observation_id
-		or not request_count["valid"]
-		or result.get("outcome") != "failure"
-		or result.get("reason") != "max_requests"
+		not _has_exact_keys(
+			request,
+			["type", "protocol_version", "observation_id", "reason"],
+		)
+		or request.get("type") != "stop_request"
+		or request.get("protocol_version") != PROTOCOL_VERSION
+		or request.get("reason") != "mcp_stop"
 	):
-		_pause_for_error("invalid_game_over")
+		_pause_for_error("invalid_stop_request")
 		return
-	_game_finished = true
-	_active_request_count = request_count["value"]
-	print(
-		"AI_PLAY game over; outcome=failure reason=max_requests requests=%d"
-		% _active_request_count
-	)
-	disable_ai("game_over:max_requests")
-	_show_game_over_result("failure", "max_requests")
+	var parsed_id: Dictionary = _parse_observation_id(request.get("observation_id"))
+	var expected_id: int = _executing_observation_id
+	if expected_id < 0:
+		expected_id = _pending_observation_id
+	if expected_id >= 0:
+		if not parsed_id["valid"] or parsed_id["value"] != expected_id:
+			_pause_for_error("invalid_stop_request")
+			return
+	elif not parsed_id["valid"] and request.get("observation_id") != null:
+		_pause_for_error("invalid_stop_request")
+		return
+	_capture_generation += 1
+	_state = State.DISABLED
+	_pending_observation_id = -1
+	_executing_observation_id = -1
+	_observation_timer.stop()
+	_executor.cancel_all("mcp_stop")
+	_bridge.send_packet({
+		"type": "stop_ack",
+		"protocol_version": PROTOCOL_VERSION,
+		"observation_id": request.get("observation_id"),
+		"results": [{
+			"status": "cancelled",
+			"reason": "mcp_stop",
+		}],
+	})
+	_bridge.disconnect_from_server()
 
 
 func _pause_for_error(reason: String) -> void:
@@ -361,24 +343,25 @@ func _finish_game(outcome: String, reason: String, observation_id: int) -> void:
 		return
 	if (
 		outcome not in ["success", "failure"]
-		or reason not in ["correct_password", "wrong_password", "max_requests"]
+		or reason not in ["correct_password", "wrong_password"]
 	):
 		_pause_for_error("invalid_game_outcome")
 		return
 	_game_finished = true
-	print(
-		"AI_PLAY game over; outcome=%s reason=%s requests=%d"
-		% [outcome, reason, _active_request_count]
-	)
 	var send_error: Error = _bridge.send_packet({
 		"type": "game_over",
 		"protocol_version": PROTOCOL_VERSION,
 		"observation_id": observation_id,
 		"outcome": outcome,
 		"reason": reason,
-		"request_count": _active_request_count,
 	})
 	disable_ai("game_over:%s" % reason, send_error != OK)
+	_show_game_over_result(outcome, reason)
+
+
+func _show_game_over_result(outcome: String, reason: String) -> void:
+	if _terminal_monitor != null and _terminal_monitor.has_method("show_result"):
+		_terminal_monitor.show_result(outcome, reason)
 	_show_game_over_result(outcome, reason)
 
 
@@ -435,8 +418,10 @@ func _parse_observation_id(value: Variant) -> Dictionary:
 	return {"valid": false, "value": -1}
 
 
-func _parse_positive_integer(value: Variant) -> Dictionary:
-	var parsed: Dictionary = _parse_observation_id(value)
-	if not parsed["valid"] or parsed["value"] < 1:
-		return {"valid": false, "value": -1}
-	return parsed
+func _has_exact_keys(packet: Dictionary, expected: Array[String]) -> bool:
+	if packet.size() != expected.size():
+		return false
+	for key: String in expected:
+		if not packet.has(key):
+			return false
+	return true
