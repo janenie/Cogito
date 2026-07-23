@@ -1,6 +1,7 @@
 # Godot-specific ignores
 .import/
 .godot/
+.worktrees/
 export.cfg
 export_presets.cfg
 *.tmp
@@ -20,6 +21,7 @@ data_*/
 # AI Play local secrets and runtime data
 .venv/
 api_key.py
+new_ak.py
 ai_play/.env
 ai_play/runtime/
 ai_play/**/*.log
