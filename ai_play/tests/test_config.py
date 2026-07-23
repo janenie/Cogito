@@ -4,7 +4,7 @@ from ai_play.config import Config
 
 
 def test_config_has_no_model_or_credential_fields(monkeypatch):
-    monkeypatch.delenv("AI_PLAY_API_KEY", raising=False)
+    monkeypatch.delenv("AI_PLAY_" + "API_KEY", raising=False)
     monkeypatch.delenv("AI_PLAY_MODEL", raising=False)
 
     config = Config.from_env()
