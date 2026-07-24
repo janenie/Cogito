@@ -54,19 +54,23 @@ class RecordingLogger:
         self.fail_start = fail_start
         self.events = []
 
-    def start_attempt(self):
+    def start_attempt(self, scenario_id):
         if self.fail_start:
             raise LogPersistenceError("logging_failed")
-        self.events.append(("start", None))
+        self.events.append(("start", scenario_id))
 
-    def finish_attempt(self, status):
-        self.events.append(("finish", status))
+    def finish_attempt(self, status, terminal_reason):
+        self.events.append(("finish", status, terminal_reason))
 
     def close(self):
         self.events.append(("close", None))
 
 
-def make_session(max_act_requests=500, trajectory_logger=None):
+def make_session(
+    max_act_requests=500,
+    trajectory_logger=None,
+    scenario_id="find_contract",
+):
     sent = []
     session = GameSession(
         Config(
@@ -76,7 +80,10 @@ def make_session(max_act_requests=500, trajectory_logger=None):
         ),
         trajectory_logger=trajectory_logger,
     )
-    session.attach(lambda packet: sent.append(packet) or True)
+    session.attach(
+        lambda packet: sent.append(packet) or True,
+        scenario_id=scenario_id,
+    )
     return session, sent
 
 
@@ -246,13 +253,13 @@ def test_terminal_success_cannot_cross_scenarios():
         })
 
 
-def test_successful_attach_starts_log_attempt():
+def test_successful_attach_starts_log_for_selected_scenario():
     logger = RecordingLogger()
     session = GameSession(Config(), trajectory_logger=logger)
 
-    session.attach(lambda packet: True)
+    session.attach(lambda packet: True, "put_book")
 
-    assert logger.events == [("start", None)]
+    assert logger.events == [("start", "put_book")]
 
 
 def test_logging_failure_rejects_attach_without_controller():
@@ -260,26 +267,39 @@ def test_logging_failure_rejects_attach_without_controller():
     session = GameSession(Config(), trajectory_logger=logger)
 
     with pytest.raises(SessionError, match="logging_failed"):
-        session.attach(lambda packet: True)
+        session.attach(lambda packet: True, "find_key")
 
     assert session._send_packet is None
+    assert session._scenario_id is None
 
 
 @pytest.mark.parametrize(
-    ("outcome", "reason", "expected"),
+    ("scenario_id", "outcome", "reason", "expected"),
     [
-        ("success", "correct_password", "success"),
-        ("failure", "wrong_password", "failure"),
-        ("failure", "max_requests", "failure"),
+        ("find_contract", "success", "correct_password", "success"),
+        ("find_key", "success", "key_picked_up", "success"),
+        ("put_book", "success", "book_in_box", "success"),
+        (
+            "greet_npc_meeting",
+            "success",
+            "meeting_door_closed",
+            "success",
+        ),
+        ("find_contract", "failure", "wrong_password", "failure"),
+        ("find_key", "failure", "max_requests", "failure"),
     ],
 )
 def test_game_over_finishes_log_without_later_tool_call(
+    scenario_id,
     outcome,
     reason,
     expected,
 ):
     logger = RecordingLogger()
-    session, _ = make_session(trajectory_logger=logger)
+    session, _ = make_session(
+        trajectory_logger=logger,
+        scenario_id=scenario_id,
+    )
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
@@ -292,7 +312,10 @@ def test_game_over_finishes_log_without_later_tool_call(
     session.receive_game_over(terminal)
     session.receive_game_over(terminal)
 
-    assert logger.events == [("start", None), ("finish", expected)]
+    assert logger.events == [
+        ("start", scenario_id),
+        ("finish", expected, reason),
+    ]
 
 
 def test_disconnect_finishes_attempt_once():
@@ -302,7 +325,10 @@ def test_disconnect_finishes_attempt_once():
     session.detach("connection_closed")
     session.detach("connection_closed")
 
-    assert logger.events == [("start", None), ("finish", "stopped")]
+    assert logger.events == [
+        ("start", "find_contract"),
+        ("finish", "stopped", "bridge_disconnected"),
+    ]
 
 
 def test_mcp_shutdown_closes_log():
@@ -312,8 +338,8 @@ def test_mcp_shutdown_closes_log():
     session.detach("mcp_shutdown")
 
     assert logger.events == [
-        ("start", None),
-        ("finish", "stopped"),
+        ("start", "find_contract"),
+        ("finish", "stopped", "mcp_shutdown"),
         ("close", None),
     ]
 
@@ -331,7 +357,12 @@ def test_escape_stop_finishes_log_as_stopped():
         "results": [],
     })
 
-    assert logger.events == [("start", None), ("finish", "stopped")]
+    session.detach("connection_closed")
+
+    assert logger.events == [
+        ("start", "find_contract"),
+        ("finish", "stopped", "escape_stop"),
+    ]
 
 
 def test_mcp_stop_ack_finishes_log_as_stopped():
@@ -346,7 +377,12 @@ def test_mcp_stop_ack_finishes_log_as_stopped():
         "results": [],
     })
 
-    assert logger.events == [("start", None), ("finish", "stopped")]
+    session.detach("connection_closed")
+
+    assert logger.events == [
+        ("start", "find_contract"),
+        ("finish", "stopped", "mcp_stop"),
+    ]
 
 
 def wait_until(predicate, timeout=0.5):

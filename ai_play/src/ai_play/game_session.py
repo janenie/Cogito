@@ -83,8 +83,13 @@ class GameSession:
                 and self._scenario_id != scenario_id
             ):
                 raise SessionError("scenario_mismatch")
-            self._start_log_attempt_locked()
+            previous_scenario_id = self._scenario_id
             self._scenario_id = scenario_id
+            try:
+                self._start_log_attempt_locked(scenario_id)
+            except Exception:
+                self._scenario_id = previous_scenario_id
+                raise
             self._act_request_count = 0
             self._request_limit_pending = False
             self._end_game_sent = False
@@ -116,7 +121,15 @@ class GameSession:
                 self._state = "disconnected"
             else:
                 self._state = "game_over"
-            log_status = self._claim_log_finish_locked("stopped")
+            terminal_reason = (
+                "mcp_shutdown"
+                if reason == "mcp_shutdown"
+                else "bridge_disconnected"
+            )
+            log_status = self._claim_log_finish_locked(
+                "stopped",
+                terminal_reason,
+            )
             self._condition.notify_all()
         if log_status is not None:
             self._finish_log_attempt(log_status)
@@ -179,7 +192,10 @@ class GameSession:
                 raise SessionError("game_over_observation_mismatch")
             self._game_over = safe
             self._state = "game_over"
-            log_status = self._claim_log_finish_locked(safe["outcome"])
+            log_status = self._claim_log_finish_locked(
+                safe["outcome"],
+                safe["reason"],
+            )
             self._condition.notify_all()
         if log_status is not None:
             self._finish_log_attempt(log_status)
@@ -195,7 +211,10 @@ class GameSession:
             )
             self._stop_waiting = False
             self._state = "stopped"
-            log_status = self._claim_log_finish_locked("stopped")
+            log_status = self._claim_log_finish_locked(
+                "stopped",
+                "escape_stop",
+            )
             self._condition.notify_all()
         if log_status is not None:
             self._finish_log_attempt(log_status)
@@ -230,7 +249,10 @@ class GameSession:
             )
             self._stop_waiting = False
             self._state = "stopped"
-            log_status = self._claim_log_finish_locked("stopped")
+            log_status = self._claim_log_finish_locked(
+                "stopped",
+                "mcp_stop",
+            )
             self._condition.notify_all()
         if log_status is not None:
             self._finish_log_attempt(log_status)
@@ -534,24 +556,25 @@ class GameSession:
         self._pending_results = None
         self._pending_next_observation = None
 
-    def _start_log_attempt_locked(self):
+    def _start_log_attempt_locked(self, scenario_id):
         if self._trajectory_logger is None:
             return
         try:
-            self._trajectory_logger.start_attempt()
+            self._trajectory_logger.start_attempt(scenario_id)
         except LogPersistenceError as error:
             raise SessionError("logging_failed") from error
         self._log_attempt_active = True
 
-    def _claim_log_finish_locked(self, status):
+    def _claim_log_finish_locked(self, status, terminal_reason):
         if not self._log_attempt_active:
             return None
         self._log_attempt_active = False
-        return status
+        return status, terminal_reason
 
-    def _finish_log_attempt(self, status):
+    def _finish_log_attempt(self, terminal):
+        status, terminal_reason = terminal
         try:
-            self._trajectory_logger.finish_attempt(status)
+            self._trajectory_logger.finish_attempt(status, terminal_reason)
         except LogPersistenceError as error:
             raise SessionError("logging_failed") from error
 
