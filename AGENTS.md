@@ -7,7 +7,7 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
 `addons/cogito/DemoScenes/COGITO_0_MainMenu.tscn`。
 
 当前分支包含需要显式启用的 AI First Play MCP 游玩系统。外部 MCP 客户端通过 stdio
-调用 Python 服务，Godot 与 Python 桥默认通过 `127.0.0.1:8765` 通信，协议版本为 2。
+调用 Python 服务，Godot 与 Python 桥默认通过 `127.0.0.1:8765` 通信，协议版本为 3。
 
 ## 项目 Wiki
 

@@ -177,6 +177,11 @@ $env:PYTHONPATH = "ai_play/src"
 8. 收到 `game_over`、`stopped` 或 `disconnected` 后停止提交动作。
 9. 放弃本次游玩、无法安全继续或需要退出时调用 MCP 工具 `stop()`。
 
+每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
+不允许或已有动作在途；`briefing`、`observe`、`stop` 不计数。默认第 500 次调用会先按
+正常规则处理：密码正确或错误终局优先，否则游戏以 `failure/max_requests` 结束，并显示
+“达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
+
 最小的 `act` 参数示例：
 
 ```json
@@ -281,10 +286,11 @@ AI_PLAY_WS_HOST=127.0.0.1
 AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
+AI_PLAY_MAX_ACT_REQUESTS=500
 ```
 
 服务器只接受精确的数字回环地址 `127.0.0.1`，不要改成局域网地址、`0.0.0.0`
-或公网地址。
+或公网地址。请求上限只接受 `1..1000000` 的整数。
 
 ## 7. 安全与隐私
 

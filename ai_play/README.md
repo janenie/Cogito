@@ -49,6 +49,12 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 Python 会先校验批次，Godot 会再次校验。上下文变化动作必须是批次最后一个动作；非法批次不会产生 Godot 输入。
 
+每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
+上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`observe`、`stop` 不计数。
+默认第 500 次 `act` 仍会完成正常处理：如果它产生密码正确或错误终局，以密码结果为准；
+否则 Python 通过仅内部可见的桥消息请求 Godot 结束游戏，并返回
+`failure/max_requests`。模型不能直接调用这个内部终局操作。
+
 ## 结果与隐私边界
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。`briefing` 只公开 `ai_play.briefing` 中经过筛选的目标、规则和物体操作说明，并读取固定的 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`；它不会返回资产清单里的内部类名或文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
@@ -57,9 +63,10 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 
 ## 安全与桥协议
 
-- Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 2。
+- Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
-- Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `2` 的表示，并在桥内规范化为整数 `2`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
+- Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `3` 的表示，并在桥内规范化为整数 `3`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
+- 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 首版只支持 `find_contract` Lobby 的运行时终局事件和公开简报；不通过 MCP 提供场景源码、线索原文、密码或任务内部知识。
@@ -73,9 +80,11 @@ AI_PLAY_WS_HOST=127.0.0.1
 AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
+AI_PLAY_MAX_ACT_REQUESTS=500
 ```
 
-桥地址只能是 `127.0.0.1`。等待时间有界，配置错误会写入 stderr；MCP stdout 只由 MCP 协议使用。
+桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数；等待时间有界，
+配置错误会写入 stderr；MCP stdout 只由 MCP 协议使用。
 
 ## 测试
 

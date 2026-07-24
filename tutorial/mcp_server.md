@@ -28,7 +28,7 @@ MCP Host / MCP Client
 ai_play Python 进程
   │
   │ WebSocket：127.0.0.1:8765
-  │ Cogito 自定义桥协议，protocol_version = 2
+  │ Cogito 自定义桥协议，protocol_version = 3
   ▼
 Godot AIPlayController
   ├─ Observer：生成截图和公开状态
@@ -265,7 +265,7 @@ Client 首先发出 `initialize`：
 ```
 
 这里的 `protocolVersion` 是 MCP 版本。它是日期字符串，不是 Cogito WebSocket 桥的
-`protocol_version: 2`。
+`protocol_version: 3`。
 
 Server 返回双方将使用的版本、Server 能力和实现信息。字段细节可能随 SDK 版本和启用
 能力略有不同：
@@ -604,6 +604,7 @@ Python  ── action_batch ──> Godot
 Python  <── observation ─── Godot
 Python  <─ action_results ─ Godot
 Python  ── stop_request ──> Godot
+Python  ─── end_game ─────> Godot
 ```
 
 这里的 “WebSocket Server” 和 “WebSocket Client” 只表示连接如何建立：
@@ -621,7 +622,7 @@ Upgrade 握手；连接成功后，库会把数据组织成一条条文本或二
 ```json
 {
   "type": "action_batch",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 7,
   "actions": [
     {
@@ -651,7 +652,7 @@ Upgrade 握手；连接成功后，库会把数据组织成一条条文本或二
 | --- | --- | --- |
 | 连接对象 | MCP Host 与 Python 子进程 | Python 与独立运行的 Godot |
 | 怎样建立 | Host 启动子进程并连接标准流 | Python 监听端口，Godot 主动连接 |
-| 消息协议 | MCP，编码为 JSON-RPC | Cogito 自定义 JSON 协议 v2 |
+| 消息协议 | MCP，编码为 JSON-RPC | Cogito 自定义 JSON 协议 v3 |
 | 消息方向 | 双向 | 双向 |
 | 本项目用途 | 发现和调用 MCP 工具 | 交换观察、动作、停止和终局 |
 | 网络范围 | 本地进程管道，不使用端口 | 只允许 `127.0.0.1:8765` |
@@ -666,7 +667,7 @@ WebSocket 连接本身建立后，Cogito 还会进行一次应用层握手。God
 ```json
 {
   "type": "hello",
-  "protocol_version": 2
+  "protocol_version": 3
 }
 ```
 
@@ -675,14 +676,14 @@ Python 校验后返回：
 ```json
 {
   "type": "hello",
-  "protocol_version": 2
+  "protocol_version": 3
 }
 ```
 
 要区分这两个步骤：
 
 1. WebSocket Upgrade 握手确认“网络连接和 WebSocket 协议可用”；
-2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v2”。
+2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v3”。
 
 如果 `hello` 缺失、超时、字段多余或版本不匹配，Python 会拒绝把这个连接挂到
 `GameSession`。
@@ -693,8 +694,8 @@ Python 校验后返回：
 Python Bridge                     Godot
      │                              │
      │<── 建立 WebSocket 连接 ──────│
-     │<── hello, version 2 ─────────│
-     │─── hello, version 2 ────────>│
+     │<── hello, version 3 ─────────│
+     │─── hello, version 3 ────────>│
      │<── observation 7 ────────────│
      │─── action_batch for 7 ──────>│
      │<── action_results for 7 ─────│
@@ -719,6 +720,7 @@ Python Bridge                     Godot
 
 - `action_batch`
 - `stop_request`
+- `end_game`（只由请求上限逻辑生成，不是 MCP 工具）
 
 它还负责：
 
@@ -741,6 +743,8 @@ self._pending_results
 self._pending_next_observation
 self._game_over
 self._stopped_result
+self._act_request_count
+self._request_limit_pending
 self._state
 ```
 
@@ -768,6 +772,9 @@ disconnected / stopping / stopped / game_over
 它保证：
 
 - `act` 必须使用最新 `observation_id`；
+- 每个到达 `act()` 的调用先计数，因此过期观察、非法动作、上下文错误和并发请求也消耗
+  额度；`briefing`、`observe`、`stop` 不计数；
+- Godot 每次成功附加或重连时把计数清零；
 - 一次只能有一个动作批次在途；
 - 动作结果必须关联正在执行的观察；
 - 下一份观察不能仍使用旧 ID；
@@ -913,7 +920,7 @@ Godot 送来的内部桥消息类似：
 ```json
 {
   "type": "observation",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 7,
   "captured_at_ms": 123456,
   "image": {
@@ -967,7 +974,7 @@ stdio 上的 MCP 请求：
 
 ### 第二步：Python 校验当前回合
 
-`GameSession.act()` 检查：
+`GameSession.act()` 首先记录这次请求，然后检查：
 
 - 当前不是 stopped、game_over 或 disconnected；
 - 没有另一个动作批次在执行；
@@ -978,6 +985,7 @@ stdio 上的 MCP 请求：
 然后 `action_schema.py` 检查动作本身。
 
 如果 ID 已经过期，Python 返回 `stale_observation`，不会向 Godot 发送任何输入。
+虽然没有产生输入，这次调用仍然计入 `AI_PLAY_MAX_ACT_REQUESTS`。默认上限是 500。
 
 ### 第三步：Python 发送内部桥消息
 
@@ -986,7 +994,7 @@ stdio 上的 MCP 请求：
 ```json
 {
   "type": "action_batch",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 7,
   "actions": [
     {
@@ -1018,7 +1026,7 @@ Godot 的 `AIPlayController` 验证消息字段、协议版本和观察 ID。`AI
 ```json
 {
   "type": "action_results",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 7,
   "results": [
     {
@@ -1036,7 +1044,7 @@ Godot 的 `AIPlayController` 验证消息字段、协议版本和观察 ID。`AI
 ```json
 {
   "type": "observation",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 8,
   "...": "其余公开观察字段"
 }
@@ -1068,7 +1076,7 @@ MCP Client 调用 `stop` 后，Python 发给 Godot：
 ```json
 {
   "type": "stop_request",
-  "protocol_version": 2,
+  "protocol_version": 3,
   "observation_id": 7,
   "reason": "mcp_stop"
 }
@@ -1099,14 +1107,36 @@ WebSocket 断开时：
 
 ### 游戏终局
 
-Godot 只允许两组公开终局：
+密码交互可以产生两组终局：
 
 ```text
 success + correct_password
 failure + wrong_password
 ```
 
-终局消息必须关联当前观察或在途回合。进入 `game_over` 后不能再提交动作。
+此外，Python 会记录每个到达 `act()` 的请求。第 N 次请求仍先完成正常处理：
+
+- 如果它产生 `success/correct_password` 或 `failure/wrong_password`，密码结果优先；
+- 否则 Python 自动发送一次内部消息：
+
+```json
+{
+  "type": "end_game",
+  "protocol_version": 3,
+  "observation_id": 8,
+  "outcome": "failure",
+  "reason": "max_requests"
+}
+```
+
+这不是第五个 MCP 工具，模型不能主动调用它。Godot 严格验证字段、结果组合和观察 ID，
+然后复用原有终局路径：取消并释放输入、显示“达到最大步长”、暂停场景，再返回普通
+`game_over/failure/max_requests`。如果当前确实没有观察，`observation_id` 可以是
+`null`；否则必须匹配当前待决或在途观察。
+
+达到上限后，后续 `act()` 不能继续派发。Godot 成功重连会清零计数；重启 MCP Server 或
+重新进入 Lobby 也会建立新连接并清零。终局消息必须关联当前观察或在途回合，进入
+`game_over` 后不能再提交动作。
 
 ## 11. 启动过程
 
@@ -1187,7 +1217,7 @@ MCP stdio 的端口。
 不是：
 
 - MCP：`protocolVersion: "2025-11-25"`；
-- Cogito 内部桥：`protocol_version: 2`。
+- Cogito 内部桥：`protocol_version: 3`。
 
 它们属于不同协议层，不能互换。
 
