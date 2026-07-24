@@ -7,6 +7,19 @@ const PROTOCOL_VERSION: int = 3
 const EXECUTOR_DEVICE_ID: int = AIPlayExecutor.SYNTHETIC_DEVICE_ID
 const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
+const DEFAULT_SCENARIO_ID: String = "find_contract"
+const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
+const SCENARIO_TERMINAL_RESULTS := {
+	"find_contract": [
+		["success", "correct_password"],
+		["failure", "wrong_password"],
+		["failure", "max_requests"],
+	],
+	"find_key": [
+		["success", "key_picked_up"],
+		["failure", "max_requests"],
+	],
+}
 
 @export var player: CogitoPlayer
 @export var auto_start: bool = false
@@ -24,6 +37,7 @@ var _reconnect_remaining: float = -1.0
 var _capture_generation: int = 0
 var _stop_delivery_pending: bool = false
 var _game_finished: bool = false
+var _active_scenario_id: String = ""
 
 var _observer: Node
 var _executor: Node
@@ -34,10 +48,13 @@ var _observation_timer: Timer
 
 
 func _ready() -> void:
+	_active_scenario_id = get_requested_scenario_id(
+		OS.get_cmdline_user_args()
+	)
 	_observer = get_node("Observer")
 	_executor = get_node("Executor")
 	_interaction_probe = get_node("InteractionProbe")
-	_terminal_monitor = get_node_or_null("TerminalMonitor")
+	_terminal_monitor = _find_scenario_monitor(_active_scenario_id)
 	_bridge = get_node("Bridge")
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
@@ -63,13 +80,75 @@ func _ready() -> void:
 	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
 		_terminal_monitor.game_finished.connect(_on_game_finished)
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
-	print("AI_PLAY controller ready; user_args=%s auto_start=%s" % [OS.get_cmdline_user_args(), auto_start])
+	print(
+		"AI_PLAY controller ready; scenario=%s user_args=%s auto_start=%s"
+		% [_active_scenario_id, OS.get_cmdline_user_args(), auto_start]
+	)
+	if _active_scenario_id.is_empty():
+		push_error("AI_PLAY requested scenario is invalid or unavailable")
+		return
 	if auto_start or _should_enable_for_user_args(OS.get_cmdline_user_args()):
 		enable_ai()
 
 
 func _should_enable_for_user_args(user_args: Array) -> bool:
 	return "--ai-play" in user_args
+
+
+func get_requested_scenario_id(user_args: Array) -> String:
+	var scenario_id: String = DEFAULT_SCENARIO_ID
+	var scenario_arg_seen: bool = false
+	for value: Variant in user_args:
+		if not value is String:
+			continue
+		var argument := value as String
+		if not argument.begins_with(SCENARIO_ARG_PREFIX):
+			continue
+		if scenario_arg_seen:
+			return ""
+		scenario_arg_seen = true
+		scenario_id = argument.trim_prefix(SCENARIO_ARG_PREFIX)
+		if not _is_valid_scenario_id(scenario_id):
+			return ""
+	return scenario_id
+
+
+func is_requested_scenario(scenario_id: String) -> bool:
+	return get_requested_scenario_id(OS.get_cmdline_user_args()) == scenario_id
+
+
+func get_active_scenario_id() -> String:
+	return _active_scenario_id
+
+
+func _is_valid_scenario_id(scenario_id: String) -> bool:
+	if scenario_id.is_empty() or scenario_id.length() > 64:
+		return false
+	for index: int in range(scenario_id.length()):
+		var character: int = scenario_id.unicode_at(index)
+		if (
+			not (character >= 97 and character <= 122)
+			and not (character >= 48 and character <= 57)
+			and character != 95
+		):
+			return false
+	return true
+
+
+func _find_scenario_monitor(scenario_id: String) -> Node:
+	if scenario_id.is_empty():
+		return null
+	for child: Node in get_children():
+		if "scenario_id" in child and child.scenario_id == scenario_id:
+			return child
+	var legacy_monitor: Node = get_node_or_null("TerminalMonitor")
+	if (
+		scenario_id == DEFAULT_SCENARIO_ID
+		and legacy_monitor != null
+		and not "scenario_id" in legacy_monitor
+	):
+		return legacy_monitor
+	return null
 
 
 func get_state() -> State:
@@ -154,6 +233,7 @@ func _on_bridge_connected() -> void:
 	var hello: Dictionary = {
 		"type": "hello",
 		"protocol_version": PROTOCOL_VERSION,
+		"scenario_id": _active_scenario_id,
 	}
 	if _bridge.send_packet(hello) != OK:
 		_pause_for_error("hello_send_failed")
@@ -378,11 +458,8 @@ func _finish_game(outcome: String, reason: String, observation_id: Variant) -> v
 	if _game_finished:
 		return
 	var valid_outcome: bool = (
-		(outcome == "success" and reason == "correct_password")
-		or (
-			outcome == "failure"
-			and reason in ["wrong_password", "max_requests"]
-		)
+		[outcome, reason]
+		in SCENARIO_TERMINAL_RESULTS.get(_active_scenario_id, [])
 	)
 	if not valid_outcome:
 		_pause_for_error("invalid_game_outcome")

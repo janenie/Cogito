@@ -2,13 +2,16 @@ class_name AIPlayGameOverScreen
 extends CanvasLayer
 
 const OUTCOME_TEXT := {
-	"success": "解谜成功",
-	"failure": "解谜失败",
+	"correct_password": "解谜成功",
+	"wrong_password": "解谜失败",
+	"max_requests": "解谜失败",
+	"key_picked_up": "任务成功",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
 	"wrong_password": "密码错误",
 	"max_requests": "达到最大步长",
+	"key_picked_up": "已找到办公室钥匙",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome
@@ -21,7 +24,7 @@ func show_result(outcome: String, reason: String) -> void:
 	if _finished:
 		return
 	_finished = true
-	outcome_label.text = OUTCOME_TEXT.get(outcome, "解谜失败")
+	outcome_label.text = OUTCOME_TEXT.get(reason, "游戏结束")
 	reason_label.text = REASON_TEXT.get(reason, "游戏已终止")
 	outcome_label.modulate = (
 		Color("74d69b") if outcome == "success" else Color("ff8a70")

@@ -70,6 +70,7 @@ class FakeInteractionProbe extends Node:
 
 class FakeTerminalMonitor extends Node:
 	signal game_finished(outcome: String, reason: String)
+	var scenario_id: String = "find_contract"
 
 	var shown_results: Array[Dictionary] = []
 
@@ -125,6 +126,47 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 		_assert(controller._should_enable_for_user_args(["--ai-play"]), "exact user arg enables AI")
 		for args: Array in [["ai-play"], ["--ai-play=true"], ["--AI-PLAY"]]:
 			_assert(not controller._should_enable_for_user_args(args), "similar user arg does not enable AI")
+	_assert(
+		controller.get_requested_scenario_id([]) == "find_contract",
+		"default scenario is find_contract",
+	)
+	_assert(
+		controller.get_requested_scenario_id(
+			["--ai-play-scenario=find_contract"]
+		) == "find_contract",
+		"explicit allowlisted scenario id parses",
+	)
+	for args: Array in [
+		["--ai-play-scenario="],
+		["--ai-play-scenario=FindContract"],
+		["--ai-play-scenario=../secret"],
+		[
+			"--ai-play-scenario=find_contract",
+			"--ai-play-scenario=find_contract",
+		],
+	]:
+		_assert(
+			controller.get_requested_scenario_id(args).is_empty(),
+			"invalid scenario argument is rejected",
+		)
+	var find_contract_monitor := FakeTerminalMonitor.new()
+	var other_monitor := FakeTerminalMonitor.new()
+	other_monitor.scenario_id = "other_scenario"
+	controller.add_child(find_contract_monitor)
+	controller.add_child(other_monitor)
+	_assert(
+		controller._find_scenario_monitor("find_contract")
+			== find_contract_monitor,
+		"scenario registry selects the matching monitor",
+	)
+	_assert(
+		controller._find_scenario_monitor("other_scenario") == other_monitor,
+		"scenario registry supports another script in the same scene",
+	)
+	_assert(
+		controller._find_scenario_monitor("unknown") == null,
+		"unknown scenario has no active monitor",
+	)
 	controller.free()
 
 
@@ -310,7 +352,14 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 	if not bridge.sent_packets.is_empty():
 		var hello: Dictionary = bridge.sent_packets[0]
 		_assert(hello.get("type") == "hello", "first packet is hello")
-		_assert(hello == {"type": "hello", "protocol_version": 3}, "hello has exact MCP fields")
+		_assert(
+			hello == {
+				"type": "hello",
+				"protocol_version": 3,
+				"scenario_id": "find_contract",
+			},
+			"hello identifies the active scenario",
+		)
 	await _free_fixture(fixture)
 
 
@@ -426,15 +475,25 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	for terminal_case: Dictionary in [
 		{
+			"scenario": "find_contract",
 			"outcome": "success",
 			"reason": "correct_password",
 		},
 		{
+			"scenario": "find_contract",
 			"outcome": "failure",
 			"reason": "wrong_password",
 		},
+		{
+			"scenario": "find_key",
+			"outcome": "success",
+			"reason": "key_picked_up",
+		},
 	]:
-		var fixture: Dictionary = await _connected_fixture(controller_script)
+		var fixture: Dictionary = await _connected_fixture(
+			controller_script,
+			terminal_case.scenario,
+		)
 		fixture.bridge.action_batch_received.emit({
 			"type": "action_batch",
 			"protocol_version": 3,
@@ -481,6 +540,34 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"%s displays one terminal result" % terminal_case.reason,
 		)
 		await _free_fixture(fixture)
+
+	var contract_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_contract",
+	)
+	contract_fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"key_picked_up",
+	)
+	_assert(
+		"invalid_game_outcome" in contract_fixture.executor.cancel_reasons,
+		"find_contract rejects find-key success",
+	)
+	await _free_fixture(contract_fixture)
+
+	var find_key_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_key",
+	)
+	find_key_fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"correct_password",
+	)
+	_assert(
+		"invalid_game_outcome" in find_key_fixture.executor.cancel_reasons,
+		"find_key rejects password success",
+	)
+	await _free_fixture(find_key_fixture)
 
 
 func _test_remote_request_limit_terminal(controller_script: GDScript) -> void:
@@ -986,8 +1073,13 @@ func _make_fixture(controller_script: GDScript) -> Dictionary:
 	}
 
 
-func _connected_fixture(controller_script: GDScript) -> Dictionary:
+func _connected_fixture(
+	controller_script: GDScript,
+	scenario_id: String = "find_contract",
+) -> Dictionary:
 	var fixture: Dictionary = await _make_fixture(controller_script)
+	fixture.controller._active_scenario_id = scenario_id
+	fixture.terminal_monitor.scenario_id = scenario_id
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 	return fixture

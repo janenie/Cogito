@@ -25,6 +25,13 @@ func _run_tests() -> void:
 		"解谜失败",
 		"达到最大步长",
 	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"key_picked_up",
+		"任务成功",
+		"已找到办公室钥匙",
+	)
 	_finish()
 
 
