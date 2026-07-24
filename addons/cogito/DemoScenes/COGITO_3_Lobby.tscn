@@ -108,9 +108,10 @@
 [ext_resource type="PackedScene" uid="uid://cuwptpgheq4l5" path="res://addons/cogito/PackedScenes/inventory_bag.tscn" id="104_mm36t"]
 [ext_resource type="PackedScene" uid="uid://be30t42msjnp8" path="res://addons/cogito/DemoScenes/friendly_human_npc.tscn" id="108_human_npc"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
-[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_observer.gd" id="ai_play_find_contract_observer"]
-[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
+[ext_resource type="Script" uid="uid://u0a5wfav8vf" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd" id="ai_play_find_key_monitor"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="ripped_page_a_readable"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_wjbty"]
 panorama = ExtResource("2_a8imk")
@@ -3290,15 +3291,47 @@ step_height_camera_lerp = 1.5
 [node name="AIPlayController" parent="." unique_id=875272983 node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
 player = NodePath("../Player")
 
-[node name="Observer" parent="AIPlayController" index="0"]
-script = ExtResource("ai_play_find_contract_observer")
-
-[node name="TerminalMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("keypad", "game_over_screen")]
+[node name="TerminalMonitor" type="Node" parent="AIPlayController" unique_id=1307996892 node_paths=PackedStringArray("keypad", "game_over_screen", "player", "task_card", "clue_one", "clue_two", "ceo_file_clue", "break_room_file_clue", "cubicle_anchor", "meeting_anchor", "laboratory_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_contract_terminal")
+scenario_id = "find_contract"
 keypad = NodePath("../../ARCHIVE/Keypad")
 game_over_screen = NodePath("GameOverScreen")
+player = NodePath("../../Player")
+task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
+clue_one = NodePath("../../CUBICLE_AREA/FindContract_ComputerRecord/ReadableComponent")
+clue_two = NodePath("../../MEETING_ROOM/FindContract_AuditRecord/ReadableComponent")
+ceo_file_clue = NodePath("../../UPPER_OFFICE_CEO/ripped_page_a_pickup_ceo/ReadableComponent")
+break_room_file_clue = NodePath("../../BREAK_ROOM/cabinetTelevisionDoors/contractfile/ReadableComponent")
+cubicle_anchor = NodePath("../../CUBICLE_AREA/FindContractAnchor")
+meeting_anchor = NodePath("../../MEETING_ROOM/FindContractAnchor")
+laboratory_anchor = NodePath("../../MAIN_LOBBY/LAB_CONNECTOR/LaboratoryFindContractAnchor")
+entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
+entrance_task_card_anchor = NodePath("../../AIPlayRoundMarkers/EntranceTaskCard")
+lobby_spawn = NodePath("../../AIPlayRoundMarkers/LobbySpawn")
+lobby_task_card_anchor = NodePath("../../AIPlayRoundMarkers/LobbyTaskCard")
+archive_spawn = NodePath("../../AIPlayRoundMarkers/ArchiveSpawn")
+archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
-[node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" instance=ExtResource("ai_play_game_over_screen")]
+[node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" unique_id=921075935 instance=ExtResource("ai_play_game_over_screen")]
+
+[node name="FindKeyMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("game_over_screen", "player", "task_card", "key", "desktop_desk_anchor", "laptop_desk_anchor", "archive_sofa_anchor", "meeting_table_anchor", "tv_coffee_table_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
+script = ExtResource("ai_play_find_key_monitor")
+scenario_id = "find_key"
+game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
+player = NodePath("../../Player")
+task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
+key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
+desktop_desk_anchor = NodePath("../../FindKeyMarkers/DesktopDeskAnchor")
+laptop_desk_anchor = NodePath("../../FindKeyMarkers/LaptopDeskAnchor")
+archive_sofa_anchor = NodePath("../../FindKeyMarkers/ArchiveSofaAnchor")
+meeting_table_anchor = NodePath("../../FindKeyMarkers/MeetingTableAnchor")
+tv_coffee_table_anchor = NodePath("../../FindKeyMarkers/TvCoffeeTableAnchor")
+entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
+entrance_task_card_anchor = NodePath("../../AIPlayRoundMarkers/EntranceTaskCard")
+lobby_spawn = NodePath("../../AIPlayRoundMarkers/LobbySpawn")
+lobby_task_card_anchor = NodePath("../../AIPlayRoundMarkers/LobbyTaskCard")
+archive_spawn = NodePath("../../AIPlayRoundMarkers/ArchiveSpawn")
+archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="QUESTS" type="Node3D" parent="." unique_id=2115615126]
 
@@ -3333,6 +3366,12 @@ shape = SubResource("BoxShape3D_dtdhi")
 [node name="MAIN_LOBBY" type="Node3D" parent="." unique_id=1104438812]
 
 [node name="LAB_CONNECTOR" type="Node3D" parent="MAIN_LOBBY" unique_id=695740333]
+
+[node name="LaboratoryClueDesk" parent="MAIN_LOBBY/LAB_CONNECTOR" unique_id=516663295 instance=ExtResource("54_4vkak")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -10.3, 0, 0)
+
+[node name="LaboratoryFindContractAnchor" type="Marker3D" parent="MAIN_LOBBY/LAB_CONNECTOR" unique_id=180730425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.972, 1.0582216, 0.6247537)
 
 [node name="FloorUnit11" type="StaticBody3D" parent="MAIN_LOBBY/LAB_CONNECTOR" unique_id=1264282160]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -14, 0, 1)
@@ -6324,12 +6363,6 @@ shape = SubResource("BoxShape3D_ecok4")
 
 [node name="WindowedDoor" parent="UPPER_OFFICE_CEO" unique_id=436149883 instance=ExtResource("17_2lcsn")]
 
-[node name="FrontDoor" parent="UPPER_OFFICE_CEO/WindowedDoor" index="0"]
-is_locked = false
-
-[node name="BasicInteraction" parent="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor" index="2"]
-is_disabled = false
-
 [node name="SecretAreaDoor" type="Node3D" parent="UPPER_OFFICE_CEO" unique_id=1274402792]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 1, 0.029, -4.15)
 
@@ -6396,7 +6429,7 @@ shape = SubResource("BoxShape3D_ecok4")
 transform = Transform3D(-0.772999, 0, -0.634407, 0, 1, 0, 0.634407, 0, -0.772999, 4.83506, 0.03, -1.4792)
 
 [node name="chairDesk" parent="UPPER_OFFICE_CEO" unique_id=1080054523 instance=ExtResource("21_o6psl")]
-transform = Transform3D(0.718733, 0, 0.695286, 0, 1, 0, -0.695286, 0, 0.718733, 1.90557, 0.0788033, -1.5372)
+transform = Transform3D(0.718733, 0, 0.695286, 0, 1, 0, -0.695286, 0, 0.718733, 0.80902386, 0.0788033, -1.5372)
 
 [node name="bear" type="AnimatableBody3D" parent="UPPER_OFFICE_CEO" unique_id=36699224 node_paths=PackedStringArray("nodes_to_trigger")]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 0.100001, 1.56287, -2.09816)
@@ -6439,28 +6472,16 @@ horizontal_alignment = 0
 transform = Transform3D(0.0543052, 0, -0.998524, 0, 1, 0, 0.998524, 0, 0.0543052, 2.96413, 0.794343, -1.87712)
 cogito_name = ""
 
-[node name="FindContract_CeoContract" parent="UPPER_OFFICE_CEO" unique_id=1015770145 instance=ExtResource("62_y3og2")]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.45, 0.95, -1.12)
-
-[node name="ReadableComponent" parent="UPPER_OFFICE_CEO/FindContract_CeoContract" index="6"]
-readable_title = "LUMEN Renewal Contract"
-readable_content = "合同文件：LUMEN Renewal Contract
-
-供应方：Lumen Office Systems
-负责人：H. Voss
-签署日期：08/30
-版本号：01
-
-归档备注：
-该文件应回收至 ARCHIVE。"
-interaction_text = "Read contract"
+[node name="ripped_page_a_pickup_ceo" parent="UPPER_OFFICE_CEO" unique_id=1893876536 instance=ExtResource("ripped_page_a_readable")]
+transform = Transform3D(-2.63806e-09, 0.998177, -0.0603517, 4.36317e-08, 0.0603517, 0.998177, 1, 0, -4.37114e-08, 2.7433434, 0.8058231, -1.5066547)
+cogito_name = ""
 
 [node name="laptop_real" parent="UPPER_OFFICE_CEO" unique_id=843226851 instance=ExtResource("35_s7tgx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12195, 0.80538, -5.77168)
 cogito_name = ""
 
 [node name="Pickup_Key" parent="UPPER_OFFICE_CEO" unique_id=2063386269 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 3.02288, 0.84246, -0.4164)
+transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 1.9013276, 0.8424599, -0.73956776)
 
 [node name="sideTable" parent="UPPER_OFFICE_CEO" unique_id=1759822943 instance=ExtResource("37_ic45t")]
 
@@ -6738,15 +6759,6 @@ transform = Transform3D(-0.936685, 0, 0.350175, 0, 1, 0, -0.350175, 0, -0.936685
 [node name="FindContract_ArchiveDecoyBox" parent="ARCHIVE" unique_id=146937592 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.25, 0.9, -1.95)
 
-[node name="ReadableComponent" parent="ARCHIVE/FindContract_ArchiveDecoyBox" index="6"]
-readable_title = "旧包装箱"
-readable_content = "里面都是空文件夹和废弃包装。
-
-没有 LUMEN Renewal Contract。
-
-有人刚翻过这里，但真正的合同不在档案室门边。"
-interaction_text = "Inspect box"
-
 [node name="Keypad" parent="ARCHIVE" unique_id=339358418 node_paths=PackedStringArray("doors_to_unlock") instance=ExtResource("33_3mvl6")]
 transform = Transform3D(-4.37114e-08, -1, -4.37114e-08, 0, -4.37114e-08, 1, -1, 4.37114e-08, 1.91069e-15, -3.10724, 1.21361, -1.39617)
 passcode = "083001"
@@ -6846,21 +6858,6 @@ shape = SubResource("ConcavePolygonShape3D_4nw7u")
 [node name="FindContract_AuditRecord" parent="MEETING_ROOM" unique_id=743659445 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -3.25, 0.95, -23.55)
 
-[node name="ReadableComponent" parent="MEETING_ROOM/FindContract_AuditRecord" index="6"]
-readable_title = "LUMEN Renewal 审核会"
-readable_content = "结论：
-合同原件需要重新核对签署日期。
-
-门禁备注：
-临时档案室密码格式为 6 位：
-签署日期四位 + 合同版本两位
-
-例：MMDD + VV
-
-下一步：
-签署日期不在系统里。请询问 H. Voss，他最后接触过合同原件。"
-interaction_text = "Read audit note"
-
 [node name="chairModernFrameCushion5" parent="MEETING_ROOM" unique_id=354999562 instance=ExtResource("67_qkgep")]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, -3.06992, -4.84288e-08, -23.4374)
 
@@ -6889,6 +6886,9 @@ transform = Transform3D(0.0251824, 0, -0.999683, 0, 1, 0, 0.999683, 0, 0.0251824
 
 [node name="desk" parent="MEETING_ROOM" unique_id=446371222 instance=ExtResource("54_4vkak")]
 transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, -0.873387, -4.84288e-08, -23.6657)
+
+[node name="FindContractAnchor" type="Marker3D" parent="MEETING_ROOM" unique_id=483229422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.545387, 0.05, -23.8207)
 
 [node name="BoardroomWall" type="StaticBody3D" parent="MEETING_ROOM" unique_id=869712086]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.57037, 0, -20.8849)
@@ -7140,6 +7140,10 @@ shape = SubResource("ConcavePolygonShape3D_wnney")
 
 [node name="cabinetTelevisionDoors" parent="BREAK_ROOM" unique_id=1942747208 instance=ExtResource("39_tdvyy")]
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 5.59254, -4.84288e-08, -0.362242)
+
+[node name="contractfile" parent="BREAK_ROOM/cabinetTelevisionDoors" unique_id=1206693511 instance=ExtResource("ripped_page_a_readable")]
+transform = Transform3D(-2.63806e-09, 0.998177, -0.0603517, 4.36317e-08, 0.0603517, 0.998177, 1, 0, -4.37114e-08, 1.25, 0.635, -0.2)
+cogito_name = ""
 
 [node name="televisionModern" parent="BREAK_ROOM" unique_id=734355485 instance=ExtResource("40_oaaxs")]
 transform = Transform3D(0.994902, 0, -0.100848, 0, 1, 0, 0.100848, 0, 0.994902, 6.35337, 0.622476, -0.651471)
@@ -7449,20 +7453,6 @@ outline_size = 10
 [node name="FindContract_ComputerRecord" parent="CUBICLE_AREA" unique_id=89287231 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 5.95, 1.28, -0.2)
 
-[node name="ReadableComponent" parent="CUBICLE_AREA/FindContract_ComputerRecord" index="6"]
-readable_title = "合同检索系统"
-readable_content = "最近访问记录：
-
-文件名：LUMEN Renewal Contract
-负责人：H. Voss
-版本号：01
-状态：临时借出
-签署日期：被会议复核锁定
-审核地点：MEETING_ROOM
-
-备注：档案室访问码不只使用日期。请查看审核会记录中的门禁规则。"
-interaction_text = "Read terminal"
-
 [node name="computerMouse" parent="CUBICLE_AREA" unique_id=567346878 instance=ExtResource("53_7i3co")]
 
 [node name="computerKeyboard2" parent="CUBICLE_AREA" unique_id=1777441381 instance=ExtResource("51_ysw6n")]
@@ -7494,6 +7484,9 @@ transform = Transform3D(-0.984053, 0, 0.177875, 0, 1, 0, -0.177875, 0, -0.984053
 
 [node name="desk" parent="CUBICLE_AREA" unique_id=932485829 instance=ExtResource("54_4vkak")]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 7.46102, -4.84288e-08, -0.74617)
+
+[node name="FindContractAnchor" type="Marker3D" parent="CUBICLE_AREA" unique_id=1331940285]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1, -0.55)
 
 [node name="desk2" parent="CUBICLE_AREA" unique_id=1987636819 instance=ExtResource("54_4vkak")]
 transform = Transform3D(-0.999467, 0, -0.0326494, 0, 1, 0, 0.0326494, 0, -0.999467, 5.9367, -4.84288e-08, -0.74617)
@@ -7750,17 +7743,6 @@ surface_material_override/0 = SubResource("StandardMaterial3D_yhahm")
 [node name="Hint_01_Welcome" parent="DEMO_HINTS" unique_id=1567671524 instance=ExtResource("62_y3og2")]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 1.90368, 1.44587, -15.4)
 
-[node name="ReadableComponent" parent="DEMO_HINTS/Hint_01_Welcome" index="6"]
-readable_title = "档案室门禁任务"
-readable_content = "任务目标：
-找到 6 位密码，打开 ARCHIVE 的密码盘。
-
-第一步：
-从入口沿右侧办公桌区域前进，找到标着 CUBICLE AREA 的电脑工位。
-
-那台电脑里有合同检索记录，会给出第一段密码线索和下一步地点。"
-interaction_text = "Read task"
-
 [node name="Hint_02_LampSwitch" parent="DEMO_HINTS" unique_id=1452028984 instance=ExtResource("62_y3og2")]
 process_mode = 4
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 6.9916, 1.44587, -9.49445)
@@ -7962,6 +7944,43 @@ rich_text = true
 
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="DEMO_HINTS/Hint_11_Sittable_Vehicle" unique_id=1947762501]
 shape = SubResource("SphereShape3D_n25yf")
+
+[node name="AIPlayRoundMarkers" type="Node3D" parent="." unique_id=1883615525]
+
+[node name="EntranceSpawn" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=749547580]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3.03073, 0.905039, -17.9321)
+
+[node name="EntranceTaskCard" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=330035052]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.2, 1.2, -16.7)
+
+[node name="LobbySpawn" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=1558264114]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3, 0.905039, -12)
+
+[node name="LobbyTaskCard" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=1806716744]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2, 1.2, -11)
+
+[node name="ArchiveSpawn" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=191145293]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 2, 0.905039, 10.4)
+
+[node name="ArchiveTaskCard" type="Marker3D" parent="AIPlayRoundMarkers" unique_id=1868985070]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.7, 1.2, 10.4)
+
+[node name="FindKeyMarkers" type="Node3D" parent="."]
+
+[node name="DesktopDeskAnchor" type="Marker3D" parent="FindKeyMarkers"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1.5, -0.55)
+
+[node name="LaptopDeskAnchor" type="Marker3D" parent="FindKeyMarkers"]
+transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, -6.0986724, 3.49246, -10.639568)
+
+[node name="ArchiveSofaAnchor" type="Marker3D" parent="FindKeyMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.394, 0.55, 8.164)
+
+[node name="MeetingTableAnchor" type="Marker3D" parent="FindKeyMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9914124, 0.85, 14.54716)
+
+[node name="TvCoffeeTableAnchor" type="Marker3D" parent="FindKeyMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.93267, 3.15, -6.2181)
 
 [node name="Note_Welcome" parent="." unique_id=1095803990 instance=ExtResource("80_g3r0x")]
 
@@ -8265,8 +8284,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.9, 0.05, -10.9)
 [connection signal="body_entered" from="QUESTS/Archive_QuestStarter" to="QUESTS/Archive_QuestStarter" method="_on_body_entered"]
 [connection signal="body_entered" from="QUESTS/Laptop_QuestStarter" to="QUESTS/Laptop_QuestStarter" method="_on_body_entered"]
 [connection signal="body_entered" from="QUESTS/Archive_QuestEnder" to="QUESTS/Archive_QuestEnder" method="_on_body_entered"]
-[connection signal="on_hold_complete" from="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor/DualInteraction" to="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor/LockInteraction" method="interact"]
-[connection signal="on_quick_press" from="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor/DualInteraction" to="UPPER_OFFICE_CEO/WindowedDoor/FrontDoor/BasicInteraction" method="interact"]
 [connection signal="pressed" from="ARCHIVE/CameraButton" to="ARCHIVE/SecurityCamera" method="turn_off"]
 [connection signal="body_entered" from="CUBICLE_AREA/WaterFeature/WetZone" to="CUBICLE_AREA/WaterFeature/WetZone" method="_on_body_entered"]
 [connection signal="body_entered" from="CUBICLE_AREA/WaterFeature2/WetZone2" to="CUBICLE_AREA/WaterFeature2/WetZone2" method="_on_body_entered"]

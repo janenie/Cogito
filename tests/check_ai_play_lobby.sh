@@ -24,6 +24,59 @@ grep -q '^host = "127.0.0.1"$' addons/cogito/AIPlay/ai_play_controller.tscn
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn"' "$scene"
 grep -q 'name="GameOverScreen" parent="AIPlayController/TerminalMonitor"' "$scene"
 grep -q 'game_over_screen = NodePath("GameOverScreen")' "$scene"
+grep -q 'scenario_id = "find_contract"' "$scene"
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd"' "$scene"
+grep -q 'name="FindKeyMonitor" type="Node" parent="AIPlayController"' "$scene"
+grep -q '^scenario_id = "find_key"$' "$scene"
+test "$(grep -c 'name="Pickup_Key"' "$scene")" -eq 1
+for marker in \
+	DesktopDeskAnchor \
+	LaptopDeskAnchor \
+	ArchiveSofaAnchor \
+	MeetingTableAnchor \
+	TvCoffeeTableAnchor
+do
+	grep -q "name=\"$marker\" type=\"Marker3D\" parent=\"FindKeyMarkers\"" "$scene"
+done
+grep -q 'SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="' \
+	addons/cogito/AIPlay/ai_play_controller.gd
+grep -q 'player = NodePath("../../Player")' "$scene"
+grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
+grep -q 'ceo_file_clue = NodePath("../../UPPER_OFFICE_CEO/ripped_page_a_pickup_ceo/ReadableComponent")' "$scene"
+grep -q 'break_room_file_clue = NodePath("../../BREAK_ROOM/cabinetTelevisionDoors/contractfile/ReadableComponent")' "$scene"
+grep -q 'cubicle_anchor = NodePath("../../CUBICLE_AREA/FindContractAnchor")' "$scene"
+grep -q 'meeting_anchor = NodePath("../../MEETING_ROOM/FindContractAnchor")' "$scene"
+grep -q 'laboratory_anchor = NodePath("../../MAIN_LOBBY/LAB_CONNECTOR/LaboratoryFindContractAnchor")' "$scene"
+grep -q 'name="LaboratoryClueDesk" parent="MAIN_LOBBY/LAB_CONNECTOR"' "$scene"
+grep -q 'name="LaboratoryFindContractAnchor" type="Marker3D" parent="MAIN_LOBBY/LAB_CONNECTOR"' "$scene"
+grep -q 'name="FindContractAnchor" type="Marker3D" parent="MEETING_ROOM"' "$scene"
+grep -q 'name="FindContractAnchor" type="Marker3D" parent="CUBICLE_AREA"' "$scene"
+grep -A1 'name="FindContractAnchor" type="Marker3D" parent="CUBICLE_AREA"' "$scene" \
+	| grep -q 'transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1, -0.55)'
+if grep -q 'name="CEOContractFile"' "$scene"; then
+	echo "CEO office must use the ripped-page contract, not CEOContractFile" >&2
+	exit 1
+fi
+if grep -q 'name="FindContract_CeoContract"' "$scene"; then
+	echo "CEO office must use the physical contract file, not the old hint object" >&2
+	exit 1
+fi
+if grep -q 'name="BreakRoomContractFile"' "$scene"; then
+	echo "Break Room must use the RippedPageA contractfile" >&2
+	exit 1
+fi
+grep -q 'name="ripped_page_a_pickup_ceo" parent="UPPER_OFFICE_CEO".*instance=ExtResource("ripped_page_a_readable")' "$scene"
+grep -q 'name="contractfile" parent="BREAK_ROOM/cabinetTelevisionDoors".*instance=ExtResource("ripped_page_a_readable")' "$scene"
+grep -q 'name="ReadableComponent".*instance=ExtResource("2_readable")' \
+	addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn
+grep -q 'interaction_text = "Read contract"' \
+	addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn
+if grep -q 'PickupComponent' \
+	addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn
+then
+	echo "Readable ripped page must not include PickupComponent" >&2
+	exit 1
+fi
 
 node_block_by_name() {
 	local node_name="$1"
@@ -36,27 +89,10 @@ node_block_by_name() {
 	' "$scene"
 }
 
-readable_block_by_parent() {
-	local parent_path="$1"
-	awk -v parent_path="$parent_path" '
-		/^\[node / {
-			if (capture) exit
-			capture = ($0 ~ "^\\[node name=\"ReadableComponent\"" && $0 ~ ("parent=\"" parent_path "\""))
-		}
-		capture { print }
-	' "$scene"
-}
-
-assert_puzzle_hint() {
+assert_puzzle_object() {
 	local node_name="$1"
-	local parent_path="$2"
-	local title="$3"
-	local interaction_text="$4"
-	local content_probe="$5"
 	local root_block
-	local readable_block
 	root_block="$(node_block_by_name "$node_name")"
-	readable_block="$(readable_block_by_parent "$parent_path")"
 
 	if grep -Eq '^(process_mode = 4|visible = false|collision_layer = 0|collision_mask = 0)$' \
 		<<<"$root_block"
@@ -64,34 +100,27 @@ assert_puzzle_hint() {
 		echo "$node_name must remain visible and interactable" >&2
 		exit 1
 	fi
-	grep -Fq "readable_title = \"$title\"" <<<"$readable_block" || {
-		echo "$node_name is missing puzzle title: $title" >&2
-		exit 1
-	}
-	grep -Fq "interaction_text = \"$interaction_text\"" <<<"$readable_block" || {
-		echo "$node_name is missing interaction text: $interaction_text" >&2
-		exit 1
-	}
-	grep -Fq "$content_probe" <<<"$readable_block" || {
-		echo "$node_name is missing its historical puzzle content" >&2
-		exit 1
-	}
 }
 
-while IFS='|' read -r node_name parent_path title interaction_text content_probe; do
-	assert_puzzle_hint \
-		"$node_name" \
-		"$parent_path" \
-		"$title" \
-		"$interaction_text" \
-		"$content_probe"
-done <<'PUZZLE_HINTS'
-Hint_01_Welcome|DEMO_HINTS/Hint_01_Welcome|档案室门禁任务|Read task|找到 6 位密码，打开 ARCHIVE 的密码盘。
-FindContract_ComputerRecord|CUBICLE_AREA/FindContract_ComputerRecord|合同检索系统|Read terminal|备注：档案室访问码不只使用日期。
-FindContract_AuditRecord|MEETING_ROOM/FindContract_AuditRecord|LUMEN Renewal 审核会|Read audit note|签署日期四位 + 合同版本两位
-FindContract_CeoContract|UPPER_OFFICE_CEO/FindContract_CeoContract|LUMEN Renewal Contract|Read contract|签署日期：08/30
-FindContract_ArchiveDecoyBox|ARCHIVE/FindContract_ArchiveDecoyBox|旧包装箱|Inspect box|真正的合同不在档案室门边。
-PUZZLE_HINTS
+for puzzle_object in \
+	Hint_01_Welcome \
+	FindContract_ComputerRecord \
+	FindContract_AuditRecord \
+	FindContract_ArchiveDecoyBox
+do
+	assert_puzzle_object "$puzzle_object"
+done
+
+grep -Fq 'const DATE_CANDIDATES: Array[String]' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd
+grep -Fq 'const VERSION_CANDIDATES: Array[String]' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd
+grep -Fq 'const ROUTES: Array[Array]' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd
+test "$(grep -Ec '^[[:space:]]*"[0-9]{4}",$' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd)" -eq 8
+test "$(grep -Ec '^[[:space:]]*"[0-9]{2}",$' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd)" -eq 8
 
 for hint_name in \
 	Hint_02_LampSwitch \
