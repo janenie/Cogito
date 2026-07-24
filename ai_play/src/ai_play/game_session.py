@@ -17,6 +17,7 @@ from .scenarios import (
     is_allowed_game_over,
     scenario_act_request_limit,
 )
+from .trajectory_logger import LogPersistenceError
 
 
 PROTOCOL_VERSION = 3
@@ -36,8 +37,11 @@ class SessionResult:
 
 
 class GameSession:
-    def __init__(self, config):
+    def __init__(self, config, trajectory_logger=None):
         self.config = config
+        self._trajectory_logger = trajectory_logger
+        self._log_attempt_active = False
+        self._log_closed = False
         self._condition = Condition(Lock())
         self._send_packet = None
         self._latest_observation = None
@@ -79,6 +83,7 @@ class GameSession:
                 and self._scenario_id != scenario_id
             ):
                 raise SessionError("scenario_mismatch")
+            self._start_log_attempt_locked()
             self._scenario_id = scenario_id
             self._act_request_count = 0
             self._request_limit_pending = False
@@ -100,7 +105,7 @@ class GameSession:
             return self._scenario_id
 
     def detach(self, reason):
-        del reason
+        log_status = None
         with self._condition:
             self._send_packet = None
             self._clear_pending_locked()
@@ -111,7 +116,12 @@ class GameSession:
                 self._state = "disconnected"
             else:
                 self._state = "game_over"
+            log_status = self._claim_log_finish_locked("stopped")
             self._condition.notify_all()
+        if log_status is not None:
+            self._finish_log_attempt(log_status)
+        if reason == "mcp_shutdown":
+            self._close_log()
 
     def receive_observation(self, value):
         try:
@@ -153,6 +163,7 @@ class GameSession:
 
     def receive_game_over(self, packet):
         safe = _validate_game_over(packet, self._scenario_id)
+        log_status = None
         with self._condition:
             if self._game_over is not None:
                 if safe == self._game_over:
@@ -168,10 +179,14 @@ class GameSession:
                 raise SessionError("game_over_observation_mismatch")
             self._game_over = safe
             self._state = "game_over"
+            log_status = self._claim_log_finish_locked(safe["outcome"])
             self._condition.notify_all()
+        if log_status is not None:
+            self._finish_log_attempt(log_status)
 
     def receive_stop(self, packet):
         safe, results = _validate_stop(packet, expected_reason="escape_stop")
+        log_status = None
         with self._condition:
             self._clear_pending_locked()
             self._stopped_result = SessionResult(
@@ -180,7 +195,10 @@ class GameSession:
             )
             self._stop_waiting = False
             self._state = "stopped"
+            log_status = self._claim_log_finish_locked("stopped")
             self._condition.notify_all()
+        if log_status is not None:
+            self._finish_log_attempt(log_status)
         return self._copy_result(self._stopped_result)
 
     def receive_stop_ack(self, packet):
@@ -199,6 +217,7 @@ class GameSession:
         except ObservationValidationError as error:
             raise SessionError("invalid_stop_ack") from error
 
+        log_status = None
         with self._condition:
             if self._pending_observation_id is not None and (
                 observation_id != self._pending_observation_id
@@ -211,7 +230,10 @@ class GameSession:
             )
             self._stop_waiting = False
             self._state = "stopped"
+            log_status = self._claim_log_finish_locked("stopped")
             self._condition.notify_all()
+        if log_status is not None:
+            self._finish_log_attempt(log_status)
 
     def observe(self, timeout=None):
         deadline = _deadline(timeout or self.config.wait_timeout_seconds)
@@ -511,6 +533,36 @@ class GameSession:
         self._pending_observation_id = None
         self._pending_results = None
         self._pending_next_observation = None
+
+    def _start_log_attempt_locked(self):
+        if self._trajectory_logger is None:
+            return
+        try:
+            self._trajectory_logger.start_attempt()
+        except LogPersistenceError as error:
+            raise SessionError("logging_failed") from error
+        self._log_attempt_active = True
+
+    def _claim_log_finish_locked(self, status):
+        if not self._log_attempt_active:
+            return None
+        self._log_attempt_active = False
+        return status
+
+    def _finish_log_attempt(self, status):
+        try:
+            self._trajectory_logger.finish_attempt(status)
+        except LogPersistenceError as error:
+            raise SessionError("logging_failed") from error
+
+    def _close_log(self):
+        if self._trajectory_logger is None or self._log_closed:
+            return
+        self._log_closed = True
+        try:
+            self._trajectory_logger.close()
+        except LogPersistenceError as error:
+            raise SessionError("logging_failed") from error
 
     @staticmethod
     def _available_interactions(observation):

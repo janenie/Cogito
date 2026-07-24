@@ -6,6 +6,7 @@ import pytest
 
 from ai_play.config import Config
 from ai_play.game_session import GameSession, SessionError, SessionResult
+from ai_play.trajectory_logger import LogPersistenceError
 
 
 def observation(observation_id):
@@ -48,14 +49,32 @@ def observation(observation_id):
     }
 
 
-def make_session(max_act_requests=500):
+class RecordingLogger:
+    def __init__(self, fail_start=False):
+        self.fail_start = fail_start
+        self.events = []
+
+    def start_attempt(self):
+        if self.fail_start:
+            raise LogPersistenceError("logging_failed")
+        self.events.append(("start", None))
+
+    def finish_attempt(self, status):
+        self.events.append(("finish", status))
+
+    def close(self):
+        self.events.append(("close", None))
+
+
+def make_session(max_act_requests=500, trajectory_logger=None):
     sent = []
     session = GameSession(
         Config(
             wait_timeout_seconds=0.2,
             stop_timeout_seconds=0.2,
             max_act_requests=max_act_requests,
-        )
+        ),
+        trajectory_logger=trajectory_logger,
     )
     session.attach(lambda packet: sent.append(packet) or True)
     return session, sent
@@ -225,6 +244,109 @@ def test_terminal_success_cannot_cross_scenarios():
             "outcome": "success",
             "reason": "book_in_box",
         })
+
+
+def test_successful_attach_starts_log_attempt():
+    logger = RecordingLogger()
+    session = GameSession(Config(), trajectory_logger=logger)
+
+    session.attach(lambda packet: True)
+
+    assert logger.events == [("start", None)]
+
+
+def test_logging_failure_rejects_attach_without_controller():
+    logger = RecordingLogger(fail_start=True)
+    session = GameSession(Config(), trajectory_logger=logger)
+
+    with pytest.raises(SessionError, match="logging_failed"):
+        session.attach(lambda packet: True)
+
+    assert session._send_packet is None
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason", "expected"),
+    [
+        ("success", "correct_password", "success"),
+        ("failure", "wrong_password", "failure"),
+        ("failure", "max_requests", "failure"),
+    ],
+)
+def test_game_over_finishes_log_without_later_tool_call(
+    outcome,
+    reason,
+    expected,
+):
+    logger = RecordingLogger()
+    session, _ = make_session(trajectory_logger=logger)
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": outcome,
+        "reason": reason,
+    }
+
+    session.receive_game_over(terminal)
+    session.receive_game_over(terminal)
+
+    assert logger.events == [("start", None), ("finish", expected)]
+
+
+def test_disconnect_finishes_attempt_once():
+    logger = RecordingLogger()
+    session, _ = make_session(trajectory_logger=logger)
+
+    session.detach("connection_closed")
+    session.detach("connection_closed")
+
+    assert logger.events == [("start", None), ("finish", "stopped")]
+
+
+def test_mcp_shutdown_closes_log():
+    logger = RecordingLogger()
+    session, _ = make_session(trajectory_logger=logger)
+
+    session.detach("mcp_shutdown")
+
+    assert logger.events == [
+        ("start", None),
+        ("finish", "stopped"),
+        ("close", None),
+    ]
+
+
+def test_escape_stop_finishes_log_as_stopped():
+    logger = RecordingLogger()
+    session, _ = make_session(trajectory_logger=logger)
+    session.receive_observation(observation(7))
+
+    session.receive_stop({
+        "type": "stop",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "reason": "escape_stop",
+        "results": [],
+    })
+
+    assert logger.events == [("start", None), ("finish", "stopped")]
+
+
+def test_mcp_stop_ack_finishes_log_as_stopped():
+    logger = RecordingLogger()
+    session, _ = make_session(trajectory_logger=logger)
+    session.receive_observation(observation(7))
+
+    session.receive_stop_ack({
+        "type": "stop_ack",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "results": [],
+    })
+
+    assert logger.events == [("start", None), ("finish", "stopped")]
 
 
 def wait_until(predicate, timeout=0.5):
