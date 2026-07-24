@@ -195,7 +195,7 @@ async def main() -> None:
                 "\n现在请启动 Godot Lobby：\n"
                 "godot --path . "
                 "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn "
-                "-- --ai-play\n",
+                "-- --ai-play --ai-play-scenario=find_contract\n",
                 flush=True,
             )
             prompt = "看到游戏窗口后按 Enter 开始 API Agent..."

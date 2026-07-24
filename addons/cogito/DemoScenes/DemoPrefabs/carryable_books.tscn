@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" uid="uid://dmeh01c5ccjqc" path="res://addons/cogito/CogitoObjects/cogito_object.gd" id="1_cogito"]
+[ext_resource type="PackedScene" uid="uid://cio4x05ipvslu" path="res://addons/cogito/Components/Interactions/CarryableComponent.tscn" id="2_carry"]
+
+[sub_resource type="StandardMaterial3D" id="BookBlue"]
+albedo_color = Color(0.2, 0.32, 0.76, 1)
+
+[sub_resource type="StandardMaterial3D" id="BookRed"]
+albedo_color = Color(0.72, 0.22, 0.18, 1)
+
+[sub_resource type="StandardMaterial3D" id="BookPages"]
+albedo_color = Color(0.92, 0.86, 0.68, 1)
+
+[sub_resource type="BoxMesh" id="BookMesh"]
+size = Vector3(0.32, 0.06, 0.24)
+
+[sub_resource type="BoxShape3D" id="BookShape"]
+size = Vector3(0.36, 0.2, 0.28)
+
+[node name="PutBook_CarryableBook" type="RigidBody3D"]
+collision_layer = 3
+collision_mask = 3
+contact_monitor = true
+max_contacts_reported = 4
+mass = 0.6
+freeze = true
+script = ExtResource("1_cogito")
+cogito_name = ""
+display_name = "Book"
+prompt_pos_mode = 2
+
+[node name="BookTop" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("BookMesh")
+surface_material_override/0 = SubResource("BookBlue")
+
+[node name="BookMiddle" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.996195, 0, -0.0871557, 0, 1, 0, 0.0871557, 0, 0.996195, 0.02, 0.02, -0.02)
+mesh = SubResource("BookMesh")
+surface_material_override/0 = SubResource("BookPages")
+
+[node name="BookBottom" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.984808, 0, 0.173648, 0, 1, 0, -0.173648, 0, 0.984808, -0.02, -0.04, 0.02)
+mesh = SubResource("BookMesh")
+surface_material_override/0 = SubResource("BookRed")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+shape = SubResource("BookShape")
+
+[node name="CarryableComponent" parent="." instance=ExtResource("2_carry")]
+carry_distance_offset = -0.75
+carrying_velocity_multiplier = 12.0
+drop_distance = 1.2

@@ -19,6 +19,14 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["success", "key_picked_up"],
 		["failure", "max_requests"],
 	],
+	"put_book": [
+		["success", "book_in_box"],
+		["failure", "max_requests"],
+	],
+	"greet_npc_meeting": [
+		["success", "meeting_door_closed"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: CogitoPlayer

@@ -21,6 +21,7 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   - `config.py` 和 `mcp_server.py`：配置、stdio MCP 工具和进程入口。
   - `bridge_server.py`：本机回环 WebSocket 协议和会话所有权。
   - `game_session.py`：串行化的观察、行动、停止和终局生命周期。
+  - `scenarios.py`：玩法 ID 到公开简报 loader 的显式白名单。
   - `briefing.py`：经过白名单筛选的公开任务简报和固定参考图入口。
   - `action_schema.py` 和 `observation_schema.py`：严格的传输数据验证。
 - `ai_play/assets/find_contract/`：公开简报使用的固定视觉参考资产；不包含谜题答案。

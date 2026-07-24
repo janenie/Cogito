@@ -7,10 +7,10 @@ import sys
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, ImageContent, TextContent
 
-from .briefing import load_public_briefing
 from .bridge_server import start
 from .config import Config
 from .game_session import GameSession, SessionError
+from .scenarios import load_scenario_briefing
 
 
 mcp = FastMCP("Cogito AI Play", json_response=True)
@@ -50,8 +50,16 @@ def _configured():
 @mcp.tool()
 async def briefing() -> CallToolResult:
     """Read the public game objective, rules, object guide, and reference atlas."""
+    if not _configured():
+        return _error("server_not_ready")
     try:
-        public_briefing, image_bytes = load_public_briefing()
+        scenario_id = await asyncio.to_thread(
+            game_session.wait_for_scenario,
+            config.wait_timeout_seconds,
+        )
+        public_briefing, image_bytes = load_scenario_briefing(scenario_id)
+    except SessionError as error:
+        return _error(str(error))
     except RuntimeError as error:
         return _error(str(error))
     return _result(

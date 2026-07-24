@@ -4,9 +4,10 @@ Cogito 是一个基于 Godot 4.7 的第一人称沉浸式模拟游戏模板。�
 AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游戏，Godot
 负责限制动作、执行输入、公开安全的运行时观察，并在异常时释放模拟输入。
 
-当前黑盒游玩流程只支持
-`addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` 中的 `find_contract`
-Demo。MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
+当前黑盒游玩流程支持
+`addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` 中的 `find_contract` 和
+`find_key`、`put_book`、`greet_npc_meeting`。MCP 服务不会启动 Godot、不会调用模型，
+也不需要 API Key。
 
 ## 1. 准备环境
 
@@ -41,7 +42,8 @@ MCP 协议独占该进程的标准输入和标准输出。
 
 服务只公开四个工具：
 
-- `briefing()`：取得公开任务目标、规则、物体操作说明和参考图；应在首次观察前调用一次。
+- `briefing()`：在 Godot 握手确认玩法后，取得该玩法的公开目标、规则、物体操作说明和
+  参考图；应在首次观察前调用一次。
 - `observe()`：取得最新的获准观察和截图。
 - `act(observation_id, actions)`：基于最新观察执行 1～3 个动作，并等待动作结果和下一次观察。
 - `stop()`：结束 MCP 控制会话并释放所有模拟输入；重复调用是安全的。
@@ -135,15 +137,50 @@ C:\ABSOLUTE\PATH\TO\Cogito\.venv\Scripts\python.exe
 先让 MCP Host 启动 `cogito-ai-play` 服务，再从仓库根目录单独启动 Godot Lobby：
 
 ```bash
-godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract
 ```
 
-最后一个参数必须精确写成 `-- --ai-play`：
+`find_key` 可以在普通模式下游玩，也可以接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=find_key
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_key
+```
+
+`put_book` 也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=put_book
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=put_book
+```
+
+`greet_npc_meeting` 也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=greet_npc_meeting
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=greet_npc_meeting
+```
+
+`--ai-play` 必须作为 Godot 用户参数精确传入：
 
 - 第一个 `--` 把后续内容作为 Godot 用户参数传入游戏。
 - `--ai-play` 显式启用 AI 控制。
+- `--ai-play-scenario=<id>` 选择同一 Lobby 中的玩法脚本；省略时默认使用
+  `find_contract`。ID 只允许小写 ASCII 字母、数字和下划线。
 
 普通 Lobby 启动保持 AI 控制关闭。MCP 服务也不会自动启动、重启或关闭 Godot。
+Godot 会在桥握手中上报实际玩法 ID，MCP 只接受 Python 白名单中注册的 ID，并据此
+选择 `briefing()`；未知玩法和同一命令中重复的玩法参数都会被拒绝。
 
 需要直接指定 Python 入口时，可以使用以下等价命令。
 
@@ -178,8 +215,15 @@ $env:PYTHONPATH = "ai_play/src"
 9. 放弃本次游玩、无法安全继续或需要退出时调用 MCP 工具 `stop()`。
 
 每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
-不允许或已有动作在途；`briefing`、`observe`、`stop` 不计数。默认第 500 次调用会先按
-正常规则处理：密码正确或错误终局优先，否则游戏以 `failure/max_requests` 结束，并显示
+不允许或已有动作在途；`briefing`、`observe`、`stop` 不计数。`find_contract` 的硬上限
+为 500 次，允许 `success/correct_password`、`failure/wrong_password` 和
+`failure/max_requests`；`find_key` 的硬上限为 200 次，允许
+`success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 50 次，允许
+`success/book_in_box` 和 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，
+允许 `success/meeting_door_closed` 和 `failure/max_requests`。`find_key`、`put_book`
+和 `greet_npc_meeting` 都没有答错失败。
+`AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
+若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
 
 最小的 `act` 参数示例：

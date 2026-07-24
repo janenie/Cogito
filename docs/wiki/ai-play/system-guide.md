@@ -8,6 +8,9 @@ AI First Play 是一套需要显式启用的自主游玩系统：
 - `ai_play/` 下的 Python 进程是 stdio MCP Server，负责暴露 `briefing`、`observe`、`act`、`stop` 工具、验证 DTO，并通过本机回环 WebSocket 桥与 Godot 串行交换观察和动作结果。
 - 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码、不保存截图或游玩轨迹。
 - Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
+- 同一 Lobby 可用 `--ai-play-scenario=<id>` 选择玩法脚本；省略时默认
+  `find_contract`。Controller 只激活直属子节点中 `scenario_id` 匹配的终局监视器。
+  Godot 在 `hello` 中上报所选 ID，Python 使用独立白名单选择公开简报。
 
 只有模型 API 时，可使用 [`tutorial/ai_play_api_host.py`](../../../tutorial/ai_play_api_host.py)
 作为最小 Host 参考实现。该教学代码在客户端侧连接本地 stdio MCP、把工具定义映射为
@@ -20,7 +23,9 @@ Godot 桥的安全边界。
 - Escape 是物理紧急停止键。断开连接、无效数据、API 失败和节点销毁都必须释放所有模拟输入。
 - Godot 到 Python 的服务器必须使用精确的数字回环地址 `127.0.0.1`，不得扩大到局域网或公网接口。
 - 绝不能提交 API 密钥，也不能把密钥复制到源代码、测试、文档、测试夹具、命令参数或日志。MCP Server 本身不需要 API Key；外部 MCP 客户端的凭据不进入本仓库或 Godot/Python 桥协议。
-- 外部 AI 只能通过 MCP 工具接收 `ai_play.briefing` 白名单允许的公开简报和参考图，以及文档规定的相机图像、可见交互文本、获准公开的玩家状态、动作结果和运行时按键绑定。
+- 外部 AI 只能通过 MCP 工具接收 `ai_play.scenarios` 注册并由对应 loader 筛选的公开
+  简报和参考图，以及文档规定的相机图像、可见交互文本、获准公开的玩家状态、动作结果
+  和运行时按键绑定。
 - 绝不能把场景源码、节点路径、隐藏状态、仓库文件、谜题答案，或来自 `game_script/`、`code_read/`、测试、规格和计划的事实加入提示词、种子记忆、API 载荷或黑盒验收提示。
 - 除非用户明确要求，并且了解截图、令牌、费用和本地轨迹持久化的影响，否则不要运行真实外部 MCP/模型验收。自动化测试必须不依赖真实凭据。
 
@@ -30,11 +35,137 @@ Godot 桥的安全边界。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
-- `AI_PLAY_MAX_ACT_REQUESTS` 默认是 `500`。所有到达 Python `act()` 的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他三个工具不计数。第 N 次请求先按正常规则处理，密码终局优先，否则返回 `failure/max_requests`。Godot 成功附加或重连时计数清零。
+- `find_contract` 的请求硬上限是 500，终局只允许 `success/correct_password`、
+  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 的请求硬上限是 200，
+  终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
+  是 50，终局只允许 `success/book_in_box` 和 `failure/max_requests`；
+  `greet_npc_meeting` 的请求硬上限是 100，终局只允许
+  `success/meeting_door_closed` 和 `failure/max_requests`。`find_key`、`put_book` 和
+  `greet_npc_meeting` 没有答错失败。
+  `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
+  的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
+  三个工具不计数。第 N 次请求先按正常规则处理，合法玩法终局优先，否则返回
+  `failure/max_requests`。Godot 成功附加或重连时计数清零。
 - Godot 执行器必须使用 COGITO 的常规输入、用专用设备 ID 标记合成事件，并在所有退出路径中释放持续按下的移动输入。
 - `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；结构化结果不得重复 Base64 图片，也不得包含隐藏状态。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
+- `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
+  `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
 - 修改公开协议、环境变量、控制方式或隐私行为时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
+
+## 增加同一 Lobby 的新玩法
+
+不要复制完整的 `COGITO_3_Lobby.tscn`。新玩法应作为 `AIPlayController` 的直属子节点
+加入同一场景，并遵守以下最小契约：
+
+1. 节点导出唯一的 `scenario_id`，只使用小写 ASCII 字母、数字和下划线。
+2. 玩法脚本在 `_ready()` 中调用父 Controller 的 `is_requested_scenario()`，未被选择时
+   不得修改场景、连接谜题信号或生成隐藏状态。
+3. 被选择的脚本负责本玩法初始化，并提供现有 Controller 使用的 `game_finished` 信号。
+4. 在 `ai_play.scenarios` 中用同一个 ID 显式注册公开 briefing loader；不要根据用户输入
+   拼接模块名、文件名或资源路径。
+5. 为玩法选择、握手、公开简报和终局补充两端测试。未知 ID 必须在启用控制前或桥握手时
+   被拒绝。
+
+只有静态地图结构确实不同，才应创建另一个完整世界场景；共享地图上的任务、线索、出生点
+和胜负条件变化应留在小型玩法脚本或玩法子场景中。
+
+## find_contract 回合规则
+
+- 随机谜题是 Lobby 自身的游戏规则，不依赖 AI Play。普通启动和 `-- --ai-play` 启动
+  都会生成随机回合；后者只额外启用本地 MCP 控制。
+- 每次载入 Lobby 时，Godot 从 8 个四位日期和 8 个两位版本号候选中各选一个，并随机
+  决定密码采用 `MMDD + VV` 还是 `VV + MMDD`。同一随机源还选择三地点路线和出生点。
+- 出生点只从入口、大厅、ARCHIVE 门外三个安全位置中选择；任务卡与所选出生点保持
+  1～2 米距离。第三条路线中的 `LABORATORY` 指 Lobby 内、实验室入口标识后的连接区，不触发
+  跨场景切换。
+- 合法流程固定为：读取任务卡，从卡上唯一公开的第一处地点开始，按每份记录给出的下一处
+  地点继续调查，读完三份合同记录后再使用密码盘。任务卡说明密码为六位，并说明记录可能
+  是圆形 COGITO Hint、实体文件或书本，但不会提前公开后两处地点。CEO OFFICE 使用桌面
+  上的 RippedPageA 外观可读文件，BREAK ROOM 使用电视柜顶面的 RippedPageA 外观可读文件。
+  这两个地点不移动悬浮 Hint，也不改变电脑或柜门交互。三份记录依次提供日期、版本号和
+  拼接顺序。任务卡和所有本局记录均可随时重复读取；提前读到后续记录不会推进进度，
+  玩家仍需按任务卡、第一份、第二份、第三份的顺序完成调查。
+- 密码盘在第三份记录被读取前使用非数字哨兵值保持锁定；此时输入数字不会成功，也
+  不会触发“密码错误”终局。流程完成后才装载本局六位密码，之后正确输入成功、错误
+  输入失败。
+- 可通过场景导出的非零 `round_seed` 做本地确定性测试；默认值 `0` 使用运行时随机种子。
+  种子、候选选择、当前进度和答案属于隐藏状态，不得进入公开观察、MCP 结果或日志。
+
+## find_key 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=find_key
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_key
+```
+
+- 每局只存在一张任务卡和一把目标钥匙。钥匙在五类办公家具位置中随机选择一处，任务卡
+  用环境特征描述目标位置，不公开内部节点或坐标。
+- 游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择与钥匙世界坐标
+  直线距离最远的出生点；任务卡与出生点保持 1～2 米距离。
+- 只有成功执行 Pickup 才产生 `success/key_picked_up`；仅看到钥匙不算成功，本玩法没有
+  wrong-answer 失败。
+- 非零 `round_seed` 仅供本地确定性测试。候选坐标、所选位置、出生点计算和种子都属于
+  隐藏初始化状态，不得进入公开简报、观察或桥协议。
+
+## put_book 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=put_book
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=put_book
+```
+
+- 玩家固定从档案室门口开始，档案室门在本玩法中已打开，任务卡位于出生点附近。
+- 每局从档案室初始可见的书中随机选择一本，其他书隐藏；目标书以可搬运物体形式放在
+  选中书的位置。
+- 目标纸箱以 50% 概率放在档案室地上靠近门口或远离门口的位置。
+- 只有目标书进入目标纸箱检测区才产生 `success/book_in_box`；仅看到书、拿起书或靠近
+  纸箱不算成功。
+- 非零 `round_seed` 仅供本地确定性测试。候选书、目标箱选择和种子都属于隐藏初始化
+  状态，不得进入公开简报、观察或桥协议。
+
+## greet_npc_meeting 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=greet_npc_meeting
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=greet_npc_meeting
+```
+
+- 玩家固定从入口开始，任务卡位于出生点附近。
+- NPC 沿会议室到休息室方向的既有路线循环移动；每局随机选择路线起点和方向。
+- 每局从 `你好`、`要去开会了么？`、`hi` 中随机选择一种问候语作为 NPC 交互提示。
+- 只有玩家在 1 米以内和 NPC 成功交互后，才记录为已打招呼。
+- 会议室门在本玩法开始时打开并解锁；未打招呼前，进入会议室或关门不会成功。
+- 已打招呼后，玩家在会议室内关上会议室门产生 `success/meeting_door_closed`。
+- 路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，不得进入公开简报、
+  观察或桥协议。
 
 ## 来源
 

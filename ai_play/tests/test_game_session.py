@@ -107,6 +107,36 @@ def test_global_limit_can_tighten_find_key_cap():
     assert session.act_request_limit == 75
 
 
+def test_put_book_uses_50_request_hard_cap():
+    session, _ = make_scenario_session("put_book", configured_limit=500)
+
+    assert session.act_request_limit == 50
+
+
+def test_greet_npc_meeting_uses_100_request_hard_cap():
+    session, _ = make_scenario_session(
+        "greet_npc_meeting",
+        configured_limit=500,
+    )
+
+    assert session.act_request_limit == 100
+
+
+def test_global_limit_can_tighten_put_book_cap():
+    session, _ = make_scenario_session("put_book", configured_limit=35)
+
+    assert session.act_request_limit == 35
+
+
+def test_global_limit_can_tighten_greet_npc_meeting_cap():
+    session, _ = make_scenario_session(
+        "greet_npc_meeting",
+        configured_limit=75,
+    )
+
+    assert session.act_request_limit == 75
+
+
 def test_find_key_accepts_only_key_success_terminal():
     session, _ = make_scenario_session("find_key")
     session.receive_observation(observation(7))
@@ -120,6 +150,34 @@ def test_find_key_accepts_only_key_success_terminal():
 
     session.receive_game_over(terminal)
 
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_put_book_accepts_only_book_success_terminal():
+    session, _ = make_scenario_session("put_book")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "book_in_box",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_greet_npc_meeting_accepts_only_meeting_door_success_terminal():
+    session, _ = make_scenario_session("greet_npc_meeting")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "meeting_door_closed",
+    }
+    session.receive_game_over(terminal)
     assert session.observe(timeout=0.1).game_over == terminal
 
 
@@ -144,6 +202,28 @@ def test_terminal_success_cannot_cross_scenarios():
             "observation_id": 7,
             "outcome": "success",
             "reason": "correct_password",
+        })
+
+    put_book, _ = make_scenario_session("put_book")
+    put_book.receive_observation(observation(7))
+    with pytest.raises(SessionError, match="invalid_game_over"):
+        put_book.receive_game_over({
+            "type": "game_over",
+            "protocol_version": 3,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "key_picked_up",
+        })
+
+    greet_npc_meeting, _ = make_scenario_session("greet_npc_meeting")
+    greet_npc_meeting.receive_observation(observation(7))
+    with pytest.raises(SessionError, match="invalid_game_over"):
+        greet_npc_meeting.receive_game_over({
+            "type": "game_over",
+            "protocol_version": 3,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "book_in_box",
         })
 
 

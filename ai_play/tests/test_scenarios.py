@@ -12,9 +12,16 @@ from ai_play.scenarios import (
 
 def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert DEFAULT_SCENARIO_ID == "find_contract"
-    assert supported_scenario_ids() == ("find_contract", "find_key")
+    assert supported_scenario_ids() == (
+        "find_contract",
+        "find_key",
+        "put_book",
+        "greet_npc_meeting",
+    )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
+    assert is_supported_scenario("put_book")
+    assert is_supported_scenario("greet_npc_meeting")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -33,6 +40,10 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("find_contract", 120) == 120
     assert scenario_act_request_limit("find_key", 500) == 200
     assert scenario_act_request_limit("find_key", 80) == 80
+    assert scenario_act_request_limit("put_book", 500) == 50
+    assert scenario_act_request_limit("put_book", 35) == 35
+    assert scenario_act_request_limit("greet_npc_meeting", 500) == 100
+    assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
 
 
 def test_terminal_results_are_scenario_specific():
@@ -46,5 +57,24 @@ def test_terminal_results_are_scenario_specific():
     assert is_allowed_game_over("find_key", "success", "key_picked_up")
     assert not is_allowed_game_over("find_key", "success", "correct_password")
     assert not is_allowed_game_over("find_key", "failure", "wrong_password")
+    assert is_allowed_game_over("put_book", "success", "book_in_box")
+    assert not is_allowed_game_over("put_book", "success", "key_picked_up")
+    assert not is_allowed_game_over("put_book", "success", "correct_password")
+    assert is_allowed_game_over(
+        "greet_npc_meeting",
+        "success",
+        "meeting_door_closed",
+    )
+    assert not is_allowed_game_over(
+        "greet_npc_meeting",
+        "success",
+        "book_in_box",
+    )
     assert is_allowed_game_over("find_contract", "failure", "max_requests")
     assert is_allowed_game_over("find_key", "failure", "max_requests")
+    assert is_allowed_game_over("put_book", "failure", "max_requests")
+    assert is_allowed_game_over(
+        "greet_npc_meeting",
+        "failure",
+        "max_requests",
+    )

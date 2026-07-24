@@ -7,6 +7,7 @@ from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve as websocket_serve
 
 from .game_session import GameSession, SessionError
+from .scenarios import DEFAULT_SCENARIO_ID, is_supported_scenario
 
 
 PROTOCOL_VERSION = 3
@@ -102,13 +103,16 @@ def _handler(connection, config, session):
         return
 
     try:
-        session.attach(lambda packet: _safe_send(connection, packet))
+        session.attach(
+            lambda packet: _safe_send(connection, packet),
+            hello["scenario_id"],
+        )
     except SessionError as error:
         _safe_send(connection, _error(str(error)))
         return
 
     try:
-        _exclusive_handler(connection, session)
+        _exclusive_handler(connection, session, hello["scenario_id"])
     finally:
         session.detach("connection_closed")
 
@@ -134,16 +138,30 @@ def _receive_hello(connection):
     if packet.get("type") != "hello":
         _safe_send(connection, _error("hello_required"))
         return None
-    if set(packet) != {"type", "protocol_version"}:
+    if set(packet) not in (
+        {"type", "protocol_version"},
+        {"type", "protocol_version", "scenario_id"},
+    ):
         _safe_send(connection, _error("invalid_hello"))
         return None
+    scenario_id = packet.get("scenario_id", DEFAULT_SCENARIO_ID)
+    if not is_supported_scenario(scenario_id):
+        _safe_send(connection, _error("unsupported_scenario"))
+        return None
+    packet["scenario_id"] = scenario_id
     return packet
 
 
-def _exclusive_handler(connection, session):
+def _exclusive_handler(connection, session, scenario_id=None):
+    if scenario_id is None:
+        scenario_id = session.scenario_id or DEFAULT_SCENARIO_ID
     if not _safe_send(
         connection,
-        {"type": "hello", "protocol_version": PROTOCOL_VERSION},
+        {
+            "type": "hello",
+            "protocol_version": PROTOCOL_VERSION,
+            "scenario_id": scenario_id,
+        },
     ):
         return
 

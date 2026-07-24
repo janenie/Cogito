@@ -49,7 +49,8 @@ Server，而 `127.0.0.1:8765` 同一时间只能有一个监听者。
 看到 `MCP 已连接` 后，另开一个终端启动游戏：
 
 ```bash
-godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract
 ```
 
 看到游戏窗口后，回到 Host 终端按 Enter。Agent 会先调用 `briefing()`，再进入

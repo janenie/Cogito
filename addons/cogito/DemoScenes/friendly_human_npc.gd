@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name FriendlyHumanNPC
 
+signal greeted(phrase: String)
+
 @export var display_name: String = "Human NPC"
 
 enum PromptPositionMode {
@@ -34,6 +36,14 @@ enum PromptPositionMode {
 @export var allow_sitting: bool = false
 @export var sit_chair_parent_name: String = "MEETING_ROOM"
 @export var sit_route_point_names: Array[String] = ["HumanMeetingRoomStart"]
+
+@export_group("Greeting")
+@export var greeting_enabled: bool = false
+@export_multiline var default_dialogue_hint: String = "H. Voss: The LUMEN contract is in the CEO office drawer. The Archive boxes only have old packaging."
+@export var greeting_phrases: Array[String] = ["你好", "要去开会了么？", "hi"]
+@export var selected_greeting_phrase: String = "你好"
+@export var max_greeting_distance: float = 1.0
+@export var greeting_out_of_range_hint: String = "Need to get closer."
 
 @export_group("Movement")
 @export var walk_speed: float = 0.65
@@ -137,8 +147,44 @@ func _physics_process(delta: float) -> void:
 
 
 func interact(player_interaction_component: PlayerInteractionComponent) -> void:
-	if player_interaction_component:
-		player_interaction_component.send_hint(null, "H. Voss: The LUMEN contract is in the CEO office drawer. The Archive boxes only have old packaging.")
+	if player_interaction_component == null:
+		return
+	if not greeting_enabled:
+		player_interaction_component.send_hint(null, default_dialogue_hint)
+		return
+	var player_node := player_interaction_component.get_parent() as Node3D
+	if (
+		player_node != null
+		and max_greeting_distance > 0.0
+		and player_node.global_position.distance_to(global_position) > max_greeting_distance
+	):
+		player_interaction_component.send_hint(null, greeting_out_of_range_hint)
+		return
+	player_interaction_component.send_hint(null, selected_greeting_phrase)
+	greeted.emit(selected_greeting_phrase)
+
+
+func configure_route_loop(start_index: int, direction: int) -> void:
+	if _route_points.is_empty():
+		_collect_route_points()
+	if _route_points.is_empty():
+		return
+	loop_route = true
+	wait_at_route_points = false
+	_has_arrived = false
+	_is_waiting = false
+	_is_sitting = false
+	_route_index = clampi(start_index, 0, _route_points.size() - 1)
+	_route_direction = -1 if direction < 0 else 1
+	global_position = _route_points[_route_index].global_position
+	velocity = Vector3.ZERO
+	_advance_route()
+
+
+func route_point_count() -> int:
+	if _route_points.is_empty():
+		_collect_route_points()
+	return _route_points.size()
 
 
 func _advance_route() -> void:

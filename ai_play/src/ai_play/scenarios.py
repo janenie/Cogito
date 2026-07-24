@@ -7,6 +7,8 @@ from typing import Callable
 
 from .briefing import load_public_briefing
 from .find_key_briefing import load_find_key_briefing
+from .greet_npc_meeting_briefing import load_greet_npc_meeting_briefing
+from .put_book_briefing import load_put_book_briefing
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
@@ -34,6 +36,22 @@ _SCENARIOS = {
         max_act_requests=200,
         terminal_results=frozenset({
             ("success", "key_picked_up"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "put_book": ScenarioDefinition(
+        briefing_loader=load_put_book_briefing,
+        max_act_requests=50,
+        terminal_results=frozenset({
+            ("success", "book_in_box"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "greet_npc_meeting": ScenarioDefinition(
+        briefing_loader=load_greet_npc_meeting_briefing,
+        max_act_requests=100,
+        terminal_results=frozenset({
+            ("success", "meeting_door_closed"),
             ("failure", "max_requests"),
         }),
     ),

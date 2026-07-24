@@ -20,10 +20,70 @@ ai_play/start_ai.sh
 终端 2 单独启动 Godot Lobby：
 
 ```bash
-godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract
+```
+
+找钥匙玩法可普通启动，也可显式启用 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=find_key
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_key
+```
+
+放书玩法同样可普通启动，也可显式启用 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=put_book
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=put_book
+```
+
+先和 NPC 打招呼再进会议室的玩法同样可普通启动，也可显式启用 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=greet_npc_meeting
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=greet_npc_meeting
 ```
 
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
+`--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
+`find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
+`ai_play.scenarios` 白名单中的玩法，并使用同一 ID 选择公开简报。
+
+无论是否启用 AI，`find_contract` 每次载入 Lobby 都会生成一个新回合：从 8 个日期和 8 个版本号候选中
+各抽取一个值，随机选择 `MMDD + VV` 或 `VV + MMDD`，并从三条固定的三地点路线中
+选择一条。玩家会在入口、大厅或 ARCHIVE 门外开始，任务卡位于出生点 1～2 米内。
+任务卡只公开三个调查地点中的第一处，并说明密码为六位、记录可能是圆形 COGITO Hint、
+实体文件或书本；第一、第二份记录再依次公开下一处地点。三份记录分别公开日期、版本号
+和拼接顺序。CEO OFFICE 使用桌面上的 RippedPageA 外观可读文件；BREAK ROOM 使用电视柜
+顶面的 RippedPageA 外观可读文件。这两个地点都不使用或移动悬浮 Hint。第三份记录读完前，
+密码盘不会接受任何数字密码。任务卡和三份记录始终可以重复读取；提前发现后续记录不会
+推进谜题进度，仍需按任务卡、第一份、第二份、第三份的顺序完成调查。
+随机谜题属于游戏规则；`-- --ai-play` 只决定是否连接 MCP 和接受 AI 控制。回合随机
+种子和生成答案只存在于 Godot 运行时，不进入 MCP 简报、观察或桥协议。
+
+`find_key` 每局把场景中唯一的钥匙放到五类办公家具位置之一，任务卡只描述本局目标
+位置的环境特征。游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择
+与钥匙直线距离最远的出生点；任务卡仍位于出生点 1～2 米内。成功拾取钥匙产生
+`success/key_picked_up`，该玩法没有答错失败。
+
+`put_book` 每局从档案室初始可见的书中随机选择一本，将其他书隐藏，并把一个打开纸箱
+以 50% 概率放在档案室地上靠近门口或远离门口的位置。玩家从档案室门口开始，门已打开，
+任务卡位于出生点附近。成功把目标书放入目标纸箱产生 `success/book_in_box`。
+
+`greet_npc_meeting` 每局让 NPC 沿会议室到休息室方向的既有路线循环移动，并随机选择
+NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，任务卡位于出生点附近。玩家必须
+先在 1 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
+`success/meeting_door_closed`。
 
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
@@ -34,7 +94,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 服务只注册四个游玩工具：
 
-- `briefing()`：返回 `find_contract` 的公开目标、规则、物体操作说明和参考图谱。它不需要 Godot 连接，可在首个 `observe` 前调用一次。
+- `briefing()`：等待 Godot 握手确认玩法，再返回该玩法的公开目标、规则、物体操作说明
+  和参考图谱；应在首个 `observe` 前调用一次。
 - `observe()`：等待并返回最新获准观察。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
@@ -51,13 +112,24 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`observe`、`stop` 不计数。
-默认第 500 次 `act` 仍会完成正常处理：如果它产生密码正确或错误终局，以密码结果为准；
-否则 Python 通过仅内部可见的桥消息请求 Godot 结束游戏，并返回
-`failure/max_requests`。模型不能直接调用这个内部终局操作。
+`find_contract` 的硬上限为 500 次，终局为 `success/correct_password`、
+`failure/wrong_password` 或 `failure/max_requests`；`find_key` 的硬上限为 200 次，
+终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为 50 次，
+终局为 `success/book_in_box` 或 `failure/max_requests`；`greet_npc_meeting` 的硬上限
+为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`。环境变量
+`AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
+正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
+消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
 
 ## 结果与隐私边界
 
-工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。`briefing` 只公开 `ai_play.briefing` 中经过筛选的目标、规则和物体操作说明，并读取固定的 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`；它不会返回资产清单里的内部类名或文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
+工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
+截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+`briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
+说明和固定参考图；`find_contract` 当前读取
+`ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
+文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具
+都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 服务端不保存截图、令牌、提示词、模型上下文、记忆或游玩轨迹。MCP Host 是否保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，MCP 同步返回受限的终局状态。
 
@@ -69,7 +141,8 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
-- 首版只支持 `find_contract` Lobby 的运行时终局事件和公开简报；不通过 MCP 提供场景源码、线索原文、密码或任务内部知识。
+- 当前支持 `find_contract`、`find_key`、`put_book` 和 `greet_npc_meeting` 四种 Lobby
+  玩法的运行时终局事件和独立公开简报；不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、NPC 路线起点、NPC 路线方向、随机种子或任务内部知识。
 
 ## 配置
 
@@ -83,8 +156,9 @@ AI_PLAY_STOP_TIMEOUT_SECONDS=5
 AI_PLAY_MAX_ACT_REQUESTS=500
 ```
 
-桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数；等待时间有界，
-配置错误会写入 stderr；MCP stdout 只由 MCP 协议使用。
+桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
+自身的 500/200/50/100 次硬上限；等待时间有界，配置错误会写入 stderr；MCP stdout 只由 MCP
+协议使用。
 
 ## 测试
 

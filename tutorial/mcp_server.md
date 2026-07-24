@@ -667,7 +667,8 @@ WebSocket 连接本身建立后，Cogito 还会进行一次应用层握手。God
 ```json
 {
   "type": "hello",
-  "protocol_version": 3
+  "protocol_version": 3,
+  "scenario_id": "find_contract"
 }
 ```
 
@@ -676,17 +677,19 @@ Python 校验后返回：
 ```json
 {
   "type": "hello",
-  "protocol_version": 3
+  "protocol_version": 3,
+  "scenario_id": "find_contract"
 }
 ```
 
 要区分这两个步骤：
 
 1. WebSocket Upgrade 握手确认“网络连接和 WebSocket 协议可用”；
-2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v3”。
+2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v3，并声明当前玩法”。
 
-如果 `hello` 缺失、超时、字段多余或版本不匹配，Python 会拒绝把这个连接挂到
-`GameSession`。
+如果 `hello` 缺失、超时、字段多余、版本不匹配或 `scenario_id` 未进入公开玩法
+白名单，Python 会拒绝把这个连接挂到 `GameSession`。旧的 v3 客户端省略
+`scenario_id` 时兼容为 `find_contract`。
 
 连接正常时，一小段典型时序是：
 
@@ -694,8 +697,8 @@ Python 校验后返回：
 Python Bridge                     Godot
      │                              │
      │<── 建立 WebSocket 连接 ──────│
-     │<── hello, version 3 ─────────│
-     │─── hello, version 3 ────────>│
+     │<── hello, v3, scenario ──────│
+     │─── hello, v3, scenario ─────>│
      │<── observation 7 ────────────│
      │─── action_batch for 7 ──────>│
      │<── action_results for 7 ─────│
@@ -819,9 +822,10 @@ public_observation, image_bytes
 
 `mcp_server.py` 再把二者分别放进 `structuredContent` 和 `ImageContent`。
 
-### 6.6 `briefing.py`：固定公开简报
+### 6.6 `scenarios.py` 与 `briefing.py`：按白名单选择公开简报
 
-`briefing()` 不依赖 Godot 连接。`briefing.py` 返回经过人工筛选的：
+`briefing()` 先等待 Godot 握手确定 `scenario_id`，再由 `scenarios.py` 从明确白名单
+选择 loader。当前 `briefing.py` 返回 `find_contract` 经过人工筛选的：
 
 - 任务背景；
 - 目标和终局条件；
@@ -1157,14 +1161,15 @@ PYTHONPATH=ai_play/src .venv/bin/python -m ai_play.mcp_server
 6. 等待 Godot 连接 WebSocket Bridge
 ```
 
-第 5、6 步的先后不必完全固定。`briefing()` 不需要 Godot；`observe()` 会等待 Godot 的
-观察或返回相应连接状态。
+第 5、6 步的先后不必完全固定。`briefing()` 和 `observe()` 都会等待 Godot；前者等待
+握手中的玩法 ID，后者等待第一份公开观察。
 
 MCP Server 不会自动启动 Godot，也不会调用模型。通常应由 MCP Host 启动
 `ai_play/start_ai.sh`，然后单独使用精确参数启动 Lobby：
 
 ```bash
-godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract
 ```
 
 ## 12. 推荐的代码阅读顺序
@@ -1240,7 +1245,7 @@ MCP stdio 的端口。
 4. `GameSession` 为什么要保存最新 `observation_id`？
 5. `act()` 为什么使用 `asyncio.to_thread()`？
 6. 为什么 MCP 工具调用只有一组请求响应，内部却可以有多条 WebSocket 消息？
-7. 为什么 `briefing()` 可以在 Godot 尚未连接时调用？
+7. 为什么 `briefing()` 必须等待 Godot 上报 `scenario_id`？
 8. API Key 为什么应该在 Host，而不是 MCP Server 或 Godot 中？
 
 如果能不看代码回答这些问题，就已经掌握了这个 MCP Server 的主要实现。

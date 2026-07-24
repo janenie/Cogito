@@ -14,8 +14,14 @@ from ai_play import mcp_server
 
 
 class FakeReadySession:
-    def __init__(self):
+    def __init__(
+        self,
+        scenario_id="find_contract",
+        terminal_reason="correct_password",
+    ):
         self.mode = "ready"
+        self.scenario_id = scenario_id
+        self.terminal_reason = terminal_reason
 
     def observe(self, timeout):
         del timeout
@@ -27,10 +33,14 @@ class FakeReadySession:
                     "protocol_version": 3,
                     "observation_id": 7,
                     "outcome": "success",
-                    "reason": "correct_password",
+                    "reason": self.terminal_reason,
                 },
             )
         return SessionResult(status="ready", observation={"observation_id": 7})
+
+    def wait_for_scenario(self, timeout):
+        del timeout
+        return self.scenario_id
 
     def act(self, observation_id, actions, timeout):
         del timeout
@@ -47,7 +57,7 @@ class FakeReadySession:
                     "protocol_version": 3,
                     "observation_id": 7,
                     "outcome": "success",
-                    "reason": "correct_password",
+                    "reason": self.terminal_reason,
                 },
             )
         return SessionResult(
@@ -107,7 +117,9 @@ def test_mcp_exposes_only_game_tools():
     asyncio.run(run())
 
 
-def test_briefing_contains_public_context_and_reference_image():
+def test_briefing_contains_public_context_and_reference_image(monkeypatch):
+    configure_server(monkeypatch)
+
     async def run():
         async with create_connected_server_and_client_session(
             mcp_server.mcp,
@@ -137,6 +149,43 @@ def test_briefing_contains_public_context_and_reference_image():
             assert "黄色" not in serialized
             assert "1000" not in serialized
             assert any(isinstance(item, ImageContent) for item in result.content)
+
+    asyncio.run(run())
+
+
+def test_find_key_briefing_and_terminal_state_use_selected_scenario(monkeypatch):
+    session = FakeReadySession(
+        scenario_id="find_key",
+        terminal_reason="key_picked_up",
+    )
+    session.mode = "terminal"
+    configure_server(monkeypatch, session)
+
+    async def run():
+        async with create_connected_server_and_client_session(
+            mcp_server.mcp,
+            raise_exceptions=True,
+        ) as client:
+            briefing_result = await client.call_tool("briefing", {})
+            briefing = briefing_result.structuredContent["briefing"]
+            assert briefing["game_id"] == "find_key"
+            serialized = str(briefing)
+            assert "DesktopDeskAnchor" not in serialized
+            assert "round_seed" not in serialized
+            assert any(
+                isinstance(item, ImageContent)
+                for item in briefing_result.content
+            )
+
+            observe_result = await client.call_tool("observe", {})
+            assert observe_result.structuredContent["status"] == "game_over"
+            assert observe_result.structuredContent["game_over"] == {
+                "type": "game_over",
+                "protocol_version": 3,
+                "observation_id": 7,
+                "outcome": "success",
+                "reason": "key_picked_up",
+            }
 
     asyncio.run(run())
 

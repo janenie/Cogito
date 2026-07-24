@@ -6,12 +6,16 @@ const OUTCOME_TEXT := {
 	"wrong_password": "解谜失败",
 	"max_requests": "解谜失败",
 	"key_picked_up": "任务成功",
+	"book_in_box": "任务成功",
+	"meeting_door_closed": "任务成功",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
 	"wrong_password": "密码错误",
 	"max_requests": "达到最大步长",
 	"key_picked_up": "已找到办公室钥匙",
+	"book_in_box": "已整理档案室书籍",
+	"meeting_door_closed": "已打招呼并关上会议室门",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

@@ -23,12 +23,14 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
 ## 不可妥协的 AI 安全边界
 
 - AI 游玩必须保持显式启用。正常启动 Lobby 时 `auto_start = false`；精确的 Godot
-  用户参数是 `-- --ai-play`。Escape 必须始终作为物理紧急停止键。
+  启用参数是 `-- --ai-play`。可追加 `--ai-play-scenario=<id>` 选择同一 Lobby 中的
+  白名单玩法；省略时默认 `find_contract`。Escape 必须始终作为物理紧急停止键。
 - Godot 到 Python 的服务器只能绑定精确的数字回环地址 `127.0.0.1`。断开连接、无效
   数据、API 失败和节点销毁都必须释放所有模拟输入。
 - MCP Server 不需要 API Key；外部 MCP 客户端凭据不得进入仓库或 Godot/Python 桥协议。
 - 外部 MCP 工具只能接收获准公开的运行时观察和 `briefing` 白名单简报；简报只允许
-  `ai_play.briefing` 中经过筛选的目标、规则、物体操作说明和固定参考图。场景源码、
+  `ai_play.scenarios` 注册并由对应 loader 筛选的目标、规则、物体操作说明和固定参考图。
+  场景源码、
   节点路径、内部类名、隐藏状态、其他仓库文件、谜题答案，以及 `game_script/`、
   `code_read/`、测试、规格和计划中的事实不得进入工具结果或黑盒验收提示。
 - 未经用户明确要求并确认截图、令牌、费用和本地轨迹持久化影响，不得运行真实外部 MCP

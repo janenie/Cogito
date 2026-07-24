@@ -31,7 +31,8 @@ MCP Server 不需要 API Key 或模型配置；它只在 `127.0.0.1:8765` 等待
 Godot 桥连接。启动 MCP 进程后，Lobby 命令为：
 
 ```text
-godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn -- --ai-play
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract
 ```
 
 WebSocket 桥配置、MCP 客户端配置和隐私边界见 [`ai_play/README.md`](../../../ai_play/README.md)。

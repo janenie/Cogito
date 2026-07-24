@@ -29,8 +29,12 @@ def _send(connection, packet):
     return json.loads(connection.recv())
 
 
-def _hello():
-    return {"type": "hello", "protocol_version": 3}
+def _hello(scenario_id="find_contract"):
+    return {
+        "type": "hello",
+        "protocol_version": 3,
+        "scenario_id": scenario_id,
+    }
 
 
 def _observation(observation_id=7):
@@ -92,6 +96,7 @@ def test_bridge_accepts_exact_protocol_three_hello():
             assert _send(connection, _hello()) == {
                 "type": "hello",
                 "protocol_version": 3,
+                "scenario_id": "find_contract",
             }
     finally:
         handle.close()
@@ -223,6 +228,35 @@ def test_bridge_routes_game_over_to_session():
     assert result == SessionResult(status="game_over", game_over=terminal)
 
 
+def test_bridge_routes_find_key_success_to_session():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "key_picked_up",
+    }
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            assert _send(connection, _hello("find_key")) == {
+                "type": "hello",
+                "protocol_version": 3,
+                "scenario_id": "find_key",
+            }
+            connection.send(json.dumps(_observation()))
+            assert session.observe(timeout=0.5).status == "ready"
+            connection.send(json.dumps(terminal))
+            _wait_until(lambda: session._state == "game_over")
+            result = session.observe(timeout=0.5)
+    finally:
+        handle.close()
+
+    assert result == SessionResult(status="game_over", game_over=terminal)
+
+
 def test_bridge_rejects_exact_hello_extras_and_invalid_json():
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
@@ -241,6 +275,36 @@ def test_bridge_rejects_exact_hello_extras_and_invalid_json():
             assert result["code"] == "invalid_packet"
     finally:
         handle.close()
+
+
+def test_bridge_accepts_legacy_hello_as_default_scenario():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            result = _send(connection, {
+                "type": "hello",
+                "protocol_version": 3,
+            })
+    finally:
+        handle.close()
+
+    assert result["scenario_id"] == "find_contract"
+    assert session.scenario_id == "find_contract"
+
+
+def test_bridge_rejects_unknown_scenario():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            result = _send(connection, _hello("unknown_scenario"))
+    finally:
+        handle.close()
+
+    assert result["code"] == "unsupported_scenario"
 
 
 def test_bridge_rejects_non_loopback_configuration():

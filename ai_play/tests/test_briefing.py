@@ -34,3 +34,39 @@ def test_find_key_registry_loads_bounded_public_briefing():
         "round_seed",
     ]:
         assert forbidden not in serialized
+
+
+def test_put_book_registry_loads_bounded_public_briefing():
+    briefing, image_bytes = load_scenario_briefing("put_book")
+
+    assert briefing["game_id"] == "put_book"
+    assert briefing["success_condition"] == "目标书进入档案室地上的目标纸箱。"
+    assert "50" in briefing["failure_condition"]
+    assert image_bytes.startswith(b"\xff\xd8\xff")
+    serialized = repr(briefing)
+    for forbidden in [
+        "ArchiveDoor",
+        "PutBook",
+        "cardboardBoxOpen",
+        "books2",
+        "round_seed",
+    ]:
+        assert forbidden not in serialized
+
+
+def test_greet_npc_meeting_registry_loads_bounded_public_briefing():
+    briefing, image_bytes = load_scenario_briefing("greet_npc_meeting")
+
+    assert briefing["game_id"] == "greet_npc_meeting"
+    assert briefing["success_condition"] == "已经和 NPC 打招呼，并在会议室内关上会议室门。"
+    assert "100" in briefing["failure_condition"]
+    assert image_bytes.startswith(b"\xff\xd8\xff")
+    serialized = repr(briefing)
+    for forbidden in [
+        "FriendlyHumanNPCPath",
+        "HumanMeetingRoomStart",
+        "ConferenceDoor",
+        "round_seed",
+        "_route_index",
+    ]:
+        assert forbidden not in serialized
