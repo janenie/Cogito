@@ -23,7 +23,7 @@ func _run_tests() -> void:
 		"failure",
 		"max_requests",
 		"解谜失败",
-		"已达到最大决策次数",
+		"达到最大步长",
 	)
 	_finish()
 

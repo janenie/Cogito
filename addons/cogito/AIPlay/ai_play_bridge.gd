@@ -5,9 +5,10 @@ signal connected
 signal disconnected(reason: String)
 signal action_batch_received(batch: Dictionary)
 signal stop_request_received(request: Dictionary)
+signal end_game_received(request: Dictionary)
 signal remote_error(error: Dictionary)
 
-const PROTOCOL_VERSION: int = 2
+const PROTOCOL_VERSION: int = 3
 const MAX_PACKET_SIZE: int = 4 * 1024 * 1024
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
@@ -86,8 +87,8 @@ func _handle_text_packet(raw_packet: String) -> void:
 		_protocol_error("invalid_packet", "packet must be valid JSON")
 		return
 	var packet: Dictionary = json.data
-	if not _is_protocol_version_two(packet.get("protocol_version")):
-		_protocol_error("unsupported_protocol", "protocol version must be 2")
+	if not _is_current_protocol_version(packet.get("protocol_version")):
+		_protocol_error("unsupported_protocol", "protocol version must be 3")
 		return
 	packet["protocol_version"] = PROTOCOL_VERSION
 	var normalized_observation_id: Dictionary = _normalize_observation_id(
@@ -108,6 +109,28 @@ func _handle_text_packet(raw_packet: String) -> void:
 				stop_request_received.emit(packet)
 			else:
 				_protocol_error("invalid_stop_request", "invalid stop request")
+		"end_game":
+			if (
+				_has_exact_keys(
+					packet,
+					[
+						"type",
+						"protocol_version",
+						"observation_id",
+						"outcome",
+						"reason",
+					],
+				)
+				and (
+					normalized_observation_id["valid"]
+					or packet["observation_id"] == null
+				)
+				and packet["outcome"] == "failure"
+				and packet["reason"] == "max_requests"
+			):
+				end_game_received.emit(packet)
+			else:
+				_protocol_error("invalid_end_game", "invalid end-game request")
 		"error":
 			remote_error.emit(packet)
 		_:
@@ -123,7 +146,7 @@ func _has_exact_keys(packet: Dictionary, expected: Array[String]) -> bool:
 	return true
 
 
-func _is_protocol_version_two(value: Variant) -> bool:
+func _is_current_protocol_version(value: Variant) -> bool:
 	return (
 		(typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT)
 		and value == PROTOCOL_VERSION

@@ -8,7 +8,7 @@ const OUTCOME_TEXT := {
 const REASON_TEXT := {
 	"correct_password": "密码正确",
 	"wrong_password": "密码错误",
-	"max_requests": "已达到最大决策次数",
+	"max_requests": "达到最大步长",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

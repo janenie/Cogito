@@ -29,6 +29,7 @@ class FakeBridge extends Node:
 	signal disconnected(reason: String)
 	signal action_batch_received(batch: Dictionary)
 	signal stop_request_received(request: Dictionary)
+	signal end_game_received(request: Dictionary)
 	signal remote_error(error: Dictionary)
 
 	var connect_calls: Array[Dictionary] = []
@@ -88,7 +89,8 @@ func _run_tests() -> void:
 		return
 
 	_test_bridge_raw_json_packets()
-	_test_bridge_accepts_protocol_two_and_emits_stop_request()
+	_test_bridge_accepts_protocol_three_and_emits_stop_request()
+	_test_bridge_emits_only_exact_request_limit_terminal()
 	_test_user_arg_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
@@ -96,6 +98,9 @@ func _run_tests() -> void:
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
 	await _test_terminal_outcomes(controller_script)
+	await _test_remote_request_limit_terminal(controller_script)
+	await _test_remote_request_limit_terminal_without_observation(controller_script)
+	await _test_invalid_remote_request_limit_terminal(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
@@ -142,17 +147,17 @@ func _test_bridge_raw_json_packets() -> void:
 	var errors: Array[Dictionary] = []
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
-	bridge._handle_text_packet('{"type":"hello","protocol_version":2}')
-	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version two")
-	bridge._handle_text_packet('{"type":"hello","protocol_version":2.0}')
-	_assert(errors.is_empty(), "raw JSON hello accepts normalized numeric protocol version two")
+	bridge._handle_text_packet('{"type":"hello","protocol_version":3}')
+	_assert(errors.is_empty(), "raw JSON hello accepts numeric protocol version three")
+	bridge._handle_text_packet('{"type":"hello","protocol_version":3.0}')
+	_assert(errors.is_empty(), "raw JSON hello accepts normalized numeric protocol version three")
 	bridge._handle_text_packet(
-		'{"type":"action_batch","protocol_version":2,"observation_id":7,"actions":[]}'
+		'{"type":"action_batch","protocol_version":3,"observation_id":7,"actions":[]}'
 	)
 	_assert(batches.size() == 1, "raw JSON action batch emits through bridge")
 	for invalid_packet: String in [
 		'{"type":"hello","protocol_version":true}',
-		'{"type":"hello","protocol_version":"2"}',
+		'{"type":"hello","protocol_version":"3"}',
 		'{"type":"hello","protocol_version":2.5}',
 		'{"type":"hello","protocol_version":1}',
 		'{"type":"hello","protocol_version":NaN}',
@@ -163,7 +168,7 @@ func _test_bridge_raw_json_packets() -> void:
 	bridge.free()
 
 
-func _test_bridge_accepts_protocol_two_and_emits_stop_request() -> void:
+func _test_bridge_accepts_protocol_three_and_emits_stop_request() -> void:
 	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
 	var bridge: Node = bridge_script.new()
 	var requests: Array[Dictionary] = []
@@ -176,14 +181,14 @@ func _test_bridge_accepts_protocol_two_and_emits_stop_request() -> void:
 	)
 	bridge._handle_text_packet(JSON.stringify({
 		"type": "stop_request",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 9,
 		"reason": "mcp_stop",
 	}))
 
 	_assert(requests == [{
 		"type": "stop_request",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 9,
 		"reason": "mcp_stop",
 	}], "bridge emits validated MCP stop request")
@@ -196,25 +201,87 @@ func _test_bridge_accepts_protocol_two_and_emits_stop_request() -> void:
 		},
 		{
 			"type": "stop_request",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 9,
 			"reason": "mcp_stop",
 			"extra": true,
 		},
 		{
 			"type": "stop_request",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 9,
 			"reason": "escape_stop",
 		},
 		{
 			"type": "unknown",
-			"protocol_version": 2,
+			"protocol_version": 3,
 		},
 	]:
 		var previous_errors: int = errors.size()
 		bridge._handle_text_packet(JSON.stringify(invalid_packet))
 		_assert(errors.size() == previous_errors + 1, "bridge rejects invalid incoming packet")
+	bridge.free()
+
+
+func _test_bridge_emits_only_exact_request_limit_terminal() -> void:
+	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
+	var bridge: Node = bridge_script.new()
+	var requests: Array[Dictionary] = []
+	var errors: Array[Dictionary] = []
+	bridge.end_game_received.connect(
+		func(request: Dictionary) -> void: requests.append(request)
+	)
+	bridge.remote_error.connect(
+		func(error: Dictionary) -> void: errors.append(error)
+	)
+	var valid_request: Dictionary = {
+		"type": "end_game",
+		"protocol_version": 3,
+		"observation_id": 9,
+		"outcome": "failure",
+		"reason": "max_requests",
+	}
+	bridge._handle_text_packet(JSON.stringify(valid_request))
+	_assert(requests == [valid_request], "bridge emits exact request-limit terminal")
+
+	for invalid_packet: Dictionary in [
+		{
+			"type": "end_game",
+			"protocol_version": 2,
+			"observation_id": 9,
+			"outcome": "failure",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 9.5,
+			"outcome": "failure",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 9,
+			"outcome": "success",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 9,
+			"outcome": "failure",
+			"reason": "max_requests",
+			"extra": true,
+		},
+	]:
+		var previous_errors: int = errors.size()
+		bridge._handle_text_packet(JSON.stringify(invalid_packet))
+		_assert(
+			errors.size() == previous_errors + 1,
+			"bridge rejects invalid request-limit terminal",
+		)
+	_assert(requests == [valid_request], "invalid terminal packets are never emitted")
 	bridge.free()
 
 
@@ -243,7 +310,7 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 	if not bridge.sent_packets.is_empty():
 		var hello: Dictionary = bridge.sent_packets[0]
 		_assert(hello.get("type") == "hello", "first packet is hello")
-		_assert(hello == {"type": "hello", "protocol_version": 2}, "hello has exact MCP fields")
+		_assert(hello == {"type": "hello", "protocol_version": 3}, "hello has exact MCP fields")
 	await _free_fixture(fixture)
 
 
@@ -252,7 +319,7 @@ func _test_remote_stop_releases_and_acknowledges(controller_script: GDScript) ->
 	fixture.controller._state = fixture.controller.State.EXECUTING
 	fixture.bridge.stop_request_received.emit({
 		"type": "stop_request",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17,
 		"reason": "mcp_stop",
 	})
@@ -269,7 +336,7 @@ func _test_remote_stop_releases_and_acknowledges(controller_script: GDScript) ->
 	_assert(
 		fixture.bridge.sent_packets[-1] == {
 			"type": "stop_ack",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"results": [{
 				"status": "cancelled",
@@ -286,7 +353,7 @@ func _test_action_batch_requires_exact_mcp_fields(controller_script: GDScript) -
 		var fixture: Dictionary = await _connected_fixture(controller_script)
 		var batch: Dictionary = {
 			"type": "action_batch",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"actions": [{"type": "wait", "duration_ms": 50}],
 		}
@@ -309,7 +376,7 @@ func _test_stopped_batch_disables_without_recapture(controller_script: GDScript)
 	var initial_disconnect_count: int = fixture.bridge.disconnect_calls
 	fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17,
 		"actions": [{"type": "stop"}],
 	})
@@ -336,7 +403,7 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
 	fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17,
 		"actions": [{"type": "wait", "duration_ms": 50}],
 	})
@@ -349,7 +416,7 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	if result_packets.size() == 1:
 		_assert(result_packets[0] == {
 			"type": "action_results",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"results": results,
 		}, "action-results packet preserves observation correlation and results")
@@ -370,7 +437,7 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		var fixture: Dictionary = await _connected_fixture(controller_script)
 		fixture.bridge.action_batch_received.emit({
 			"type": "action_batch",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"actions": [{"type": "wait", "duration_ms": 50}],
 		})
@@ -389,7 +456,7 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		if packets.size() == 1:
 			_assert(packets[0] == {
 				"type": "game_over",
-				"protocol_version": 2,
+				"protocol_version": 3,
 				"observation_id": 17,
 				"outcome": terminal_case.outcome,
 				"reason": terminal_case.reason,
@@ -415,12 +482,133 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		)
 		await _free_fixture(fixture)
 
+
+func _test_remote_request_limit_terminal(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var request: Dictionary = {
+		"type": "end_game",
+		"protocol_version": 3,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "max_requests",
+	}
+	fixture.bridge.end_game_received.emit(request)
+	fixture.bridge.end_game_received.emit(request)
+	fixture.terminal_monitor.game_finished.emit("success", "correct_password")
+	var packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+
+	_assert(packets == [{
+		"type": "game_over",
+		"protocol_version": 3,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "max_requests",
+	}], "request limit sends one exact terminal acknowledgement")
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.DISABLED,
+		"request limit disables AI",
+	)
+	_assert(
+		fixture.executor.cancel_reasons == ["game_over:max_requests"],
+		"request limit cancels and releases executor input once",
+	)
+	_assert(
+		fixture.terminal_monitor.shown_results == [{
+			"outcome": "failure",
+			"reason": "max_requests",
+		}],
+		"request limit displays one failure result",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_remote_request_limit_terminal_without_observation(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	fixture.controller._state = fixture.controller.State.READY
+	fixture.controller._pending_observation_id = -1
+	fixture.bridge.end_game_received.emit({
+		"type": "end_game",
+		"protocol_version": 3,
+		"observation_id": null,
+		"outcome": "failure",
+		"reason": "max_requests",
+	})
+	var packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+
+	_assert(packets == [{
+		"type": "game_over",
+		"protocol_version": 3,
+		"observation_id": null,
+		"outcome": "failure",
+		"reason": "max_requests",
+	}], "request limit preserves a null observation ID when none exists")
+	await _free_fixture(fixture)
+
+
+func _test_invalid_remote_request_limit_terminal(controller_script: GDScript) -> void:
+	for invalid_request: Dictionary in [
+		{
+			"type": "end_game",
+			"protocol_version": 2,
+			"observation_id": 17,
+			"outcome": "failure",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 16,
+			"outcome": "failure",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 17,
+			"outcome": "success",
+			"reason": "max_requests",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 17,
+			"outcome": "failure",
+			"reason": "wrong_password",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 3,
+			"observation_id": 17,
+			"outcome": "failure",
+			"reason": "max_requests",
+			"extra": true,
+		},
+	]:
+		var fixture: Dictionary = await _connected_fixture(controller_script)
+		fixture.bridge.end_game_received.emit(invalid_request)
+		var packets: Array = fixture.bridge.sent_packets.filter(
+			func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+		)
+		_assert(packets.is_empty(), "invalid request-limit terminal is not acknowledged")
+		_assert(
+			"invalid_end_game" in fixture.executor.cancel_reasons,
+			"invalid request-limit terminal releases input",
+		)
+		await _free_fixture(fixture)
+
+
 func _test_blocked_batch_recaptures_immediately(controller_script: GDScript) -> void:
 	var fixture: Dictionary = await _connected_fixture(controller_script)
 	var initial_capture_count: int = fixture.observer.capture_count
 	fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17,
 		"actions": [{
 			"type": "move",
@@ -453,7 +641,7 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 		var initial_capture_count: int = fixture.observer.capture_count
 		fixture.bridge.action_batch_received.emit({
 			"type": "action_batch",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"actions": [{"type": action_type}],
 		})
@@ -477,7 +665,7 @@ func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
 		var initial_capture_count: int = fixture.observer.capture_count
 		fixture.bridge.action_batch_received.emit({
 			"type": "action_batch",
-			"protocol_version": 2,
+			"protocol_version": 3,
 			"observation_id": 17,
 			"actions": [{
 				"type": "probe_interaction",
@@ -506,7 +694,7 @@ func _test_deferred_recapture_is_cancelled_by_teardown(controller_script: GDScri
 	var sent_packets: Array = fixture.bridge.sent_packets
 	fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17,
 		"actions": [{"type": "interact"}],
 	})
@@ -541,7 +729,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	var executor: FakeExecutor = fixture.executor
 	bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 17.0,
 		"actions": [{"type": "wait", "duration_ms": 50}],
 	})
@@ -551,7 +739,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	fixture.timer.emit_signal("timeout")
 	bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 18.5,
 		"actions": [{"type": "stop"}],
 	})
@@ -562,7 +750,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	var boolean_fixture: Dictionary = await _connected_fixture(controller_script)
 	boolean_fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": true,
 		"actions": [],
 	})
@@ -573,7 +761,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	var stale_fixture: Dictionary = await _connected_fixture(controller_script)
 	stale_fixture.bridge.action_batch_received.emit({
 		"type": "action_batch",
-		"protocol_version": 2,
+		"protocol_version": 3,
 		"observation_id": 16.0,
 		"actions": [],
 	})

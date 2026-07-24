@@ -3,7 +3,7 @@ extends Node
 
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
-const PROTOCOL_VERSION: int = 2
+const PROTOCOL_VERSION: int = 3
 const EXECUTOR_DEVICE_ID: int = AIPlayExecutor.SYNTHETIC_DEVICE_ID
 const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
@@ -57,6 +57,7 @@ func _ready() -> void:
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
 	_bridge.stop_request_received.connect(_on_stop_request_received)
+	_bridge.end_game_received.connect(_on_end_game_received)
 	_bridge.remote_error.connect(_on_remote_error)
 	_executor.batch_finished.connect(_on_batch_finished)
 	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
@@ -327,6 +328,41 @@ func _on_stop_request_received(request: Dictionary) -> void:
 	_bridge.disconnect_from_server()
 
 
+func _on_end_game_received(request: Dictionary) -> void:
+	if _game_finished:
+		return
+	if (
+		not _has_exact_keys(
+			request,
+			[
+				"type",
+				"protocol_version",
+				"observation_id",
+				"outcome",
+				"reason",
+			],
+		)
+		or request.get("type") != "end_game"
+		or request.get("protocol_version") != PROTOCOL_VERSION
+		or request.get("outcome") != "failure"
+		or request.get("reason") != "max_requests"
+	):
+		_pause_for_error("invalid_end_game")
+		return
+	var parsed_id: Dictionary = _parse_observation_id(request.get("observation_id"))
+	var expected_id: int = _executing_observation_id
+	if expected_id < 0:
+		expected_id = _pending_observation_id
+	if expected_id >= 0:
+		if not parsed_id["valid"] or parsed_id["value"] != expected_id:
+			_pause_for_error("invalid_end_game")
+			return
+	elif not parsed_id["valid"] and request.get("observation_id") != null:
+		_pause_for_error("invalid_end_game")
+		return
+	_finish_game("failure", "max_requests", request.get("observation_id"))
+
+
 func _pause_for_error(reason: String) -> void:
 	disable_ai(reason)
 
@@ -338,13 +374,17 @@ func _on_game_finished(outcome: String, reason: String) -> void:
 	_finish_game(outcome, reason, observation_id)
 
 
-func _finish_game(outcome: String, reason: String, observation_id: int) -> void:
+func _finish_game(outcome: String, reason: String, observation_id: Variant) -> void:
 	if _game_finished:
 		return
-	if (
-		outcome not in ["success", "failure"]
-		or reason not in ["correct_password", "wrong_password"]
-	):
+	var valid_outcome: bool = (
+		(outcome == "success" and reason == "correct_password")
+		or (
+			outcome == "failure"
+			and reason in ["wrong_password", "max_requests"]
+		)
+	)
+	if not valid_outcome:
 		_pause_for_error("invalid_game_outcome")
 		return
 	_game_finished = true

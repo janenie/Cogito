@@ -508,7 +508,6 @@ def _validate_game_over(packet):
         raise SessionError("invalid_game_over")
     if packet["type"] != "game_over" or packet["protocol_version"] != PROTOCOL_VERSION:
         raise SessionError("invalid_game_over")
-    observation_id = _require_observation_id(packet["observation_id"])
     allowed = {
         ("success", "correct_password"),
         ("failure", "wrong_password"),
@@ -516,6 +515,10 @@ def _validate_game_over(packet):
     }
     if (packet["outcome"], packet["reason"]) not in allowed:
         raise SessionError("invalid_game_over")
+    observation_id = _require_observation_id(
+        packet["observation_id"],
+        optional=packet["reason"] == "max_requests",
+    )
     return {
         "type": "game_over",
         "protocol_version": PROTOCOL_VERSION,

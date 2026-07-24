@@ -520,6 +520,24 @@ def test_game_over_rejects_invalid_max_requests_pair():
         })
 
 
+def test_max_requests_game_over_allows_null_id_without_an_observation():
+    session, _ = make_session()
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": None,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }
+
+    session.receive_game_over(terminal)
+
+    assert session.observe(timeout=0.1) == SessionResult(
+        status="game_over",
+        game_over=terminal,
+    )
+
+
 def test_detach_wakes_pending_action_without_fabricating_success():
     session, sent = make_session()
     session.receive_observation(observation(7))
