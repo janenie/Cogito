@@ -10,6 +10,7 @@ from mcp.types import ImageContent
 
 from ai_play.config import Config
 from ai_play.game_session import SessionError, SessionResult
+from ai_play.trajectory_logger import LogPersistenceError, ToolCallToken
 from ai_play import mcp_server
 
 
@@ -22,6 +23,7 @@ class FakeReadySession:
         self.mode = "ready"
         self.scenario_id = scenario_id
         self.terminal_reason = terminal_reason
+        self.act_calls = []
 
     def observe(self, timeout):
         del timeout
@@ -44,6 +46,7 @@ class FakeReadySession:
 
     def act(self, observation_id, actions, timeout):
         del timeout
+        self.act_calls.append((observation_id, actions))
         if observation_id != 7:
             raise SessionError("stale_observation")
         if not isinstance(actions, list) or not actions:
@@ -95,9 +98,54 @@ def fake_ready_session():
     return FakeReadySession()
 
 
-def configure_server(monkeypatch, session=None):
+class RecordingTrajectoryLogger:
+    def __init__(self, fail_begin=False, fail_complete=False):
+        self.fail_begin = fail_begin
+        self.fail_complete = fail_complete
+        self.begun = []
+        self.completed = []
+
+    def begin_tool_call(self, tool, request):
+        if self.fail_begin:
+            raise LogPersistenceError("logging_failed")
+        token = ToolCallToken(1, 1, len(self.begun) + 1)
+        self.begun.append((tool, request))
+        return token
+
+    def complete_tool_call(
+        self,
+        token,
+        is_error,
+        structured_content,
+        image_bytes=None,
+    ):
+        if self.fail_complete:
+            raise LogPersistenceError("logging_failed")
+        self.completed.append(
+            (token, is_error, structured_content, image_bytes)
+        )
+
+
+def configure_server(monkeypatch, session=None, logger=None):
     monkeypatch.setattr(mcp_server, "game_session", session or fake_ready_session())
     monkeypatch.setattr(mcp_server, "config", Config())
+    monkeypatch.setattr(
+        mcp_server,
+        "trajectory_logger",
+        logger or RecordingTrajectoryLogger(),
+        raising=False,
+    )
+
+
+def call_tool(name, arguments):
+    async def run():
+        async with create_connected_server_and_client_session(
+            mcp_server.mcp,
+            raise_exceptions=True,
+        ) as client:
+            return await client.call_tool(name, arguments)
+
+    return asyncio.run(run())
 
 
 def test_mcp_exposes_only_game_tools():
@@ -207,6 +255,86 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
             assert any(isinstance(item, ImageContent) for item in result.content)
 
     asyncio.run(run())
+
+
+def test_observe_logs_request_result_and_exact_image(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+
+    result = call_tool("observe", {})
+
+    assert logger.begun == [("observe", {})]
+    assert logger.completed[0][1] is False
+    assert logger.completed[0][2] == result.structuredContent
+    assert logger.completed[0][3] == b"\xff\xd8\xffmcp-image\xff\xd9"
+
+
+def test_act_error_is_logged(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+    arguments = {
+        "observation_id": 6,
+        "actions": [{"type": "wait", "duration_ms": 50}],
+    }
+
+    result = call_tool("act", arguments)
+
+    assert logger.begun == [("act", arguments)]
+    assert logger.completed[0][1] is True
+    assert logger.completed[0][2] == {
+        "status": "error",
+        "code": "stale_observation",
+    }
+    assert result.isError is True
+
+
+def test_stop_is_logged_without_image(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+
+    call_tool("stop", {})
+
+    assert logger.begun == [("stop", {})]
+    assert logger.completed[0][3] is None
+
+
+def test_briefing_is_not_logged(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+
+    call_tool("briefing", {})
+
+    assert logger.begun == []
+    assert logger.completed == []
+
+
+def test_logging_begin_failure_prevents_session_call(monkeypatch):
+    session = fake_ready_session()
+    logger = RecordingTrajectoryLogger(fail_begin=True)
+    configure_server(monkeypatch, session=session, logger=logger)
+
+    result = call_tool("act", {
+        "observation_id": 7,
+        "actions": [{"type": "wait", "duration_ms": 50}],
+    })
+
+    assert result.structuredContent == {
+        "status": "error",
+        "code": "logging_failed",
+    }
+    assert session.act_calls == []
+
+
+def test_logging_completion_failure_returns_stable_error(monkeypatch):
+    logger = RecordingTrajectoryLogger(fail_complete=True)
+    configure_server(monkeypatch, logger=logger)
+
+    result = call_tool("observe", {})
+
+    assert result.structuredContent == {
+        "status": "error",
+        "code": "logging_failed",
+    }
 
 
 @pytest.mark.parametrize(
