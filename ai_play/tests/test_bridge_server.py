@@ -30,7 +30,7 @@ def _send(connection, packet):
 
 
 def _hello():
-    return {"type": "hello", "protocol_version": 2}
+    return {"type": "hello", "protocol_version": 3}
 
 
 def _observation(observation_id=7):
@@ -49,7 +49,7 @@ def _observation(observation_id=7):
     }
     return {
         "type": "observation",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": observation_id,
         "captured_at_ms": 123,
         "image": {
@@ -83,7 +83,7 @@ def _wait_until(predicate, timeout=1.0):
         time.sleep(0.005)
 
 
-def test_bridge_accepts_exact_protocol_two_hello():
+def test_bridge_accepts_exact_protocol_three_hello():
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
 
@@ -91,14 +91,14 @@ def test_bridge_accepts_exact_protocol_two_hello():
         with connect(uri, proxy=None) as connection:
             assert _send(connection, _hello()) == {
                 "type": "hello",
-                "protocol_version": 2,
+                "protocol_version": 3,
             }
     finally:
         handle.close()
 
 
-@pytest.mark.parametrize("version", [1, 3, True, 2.0, "2"])
-def test_bridge_rejects_non_integer_protocol_two(version):
+@pytest.mark.parametrize("version", [1, 2, 4, True, 3.0, "3"])
+def test_bridge_rejects_non_integer_protocol_three(version):
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
 
@@ -152,7 +152,7 @@ def test_invalid_connection_does_not_consume_later_valid_connection():
         with connect(uri, proxy=None) as invalid:
             assert _send(invalid, {
                 "type": "observation",
-                "protocol_version": 2,
+                "protocol_version": 3,
             })["code"] == "hello_required"
         with connect(uri, proxy=None) as valid:
             assert _send(valid, _hello())["type"] == "hello"
@@ -178,13 +178,13 @@ def test_bridge_routes_stop_ack_to_session():
             request = json.loads(connection.recv())
             assert request == {
                 "type": "stop_request",
-                "protocol_version": 2,
+                "protocol_version": 3,
                 "observation_id": 7,
                 "reason": "mcp_stop",
             }
             connection.send(json.dumps({
                 "type": "stop_ack",
-                "protocol_version": 2,
+                "protocol_version": 3,
                 "observation_id": 7,
                 "results": [{"status": "cancelled", "reason": "mcp_stop"}],
             }))
@@ -203,7 +203,7 @@ def test_bridge_routes_game_over_to_session():
     uri, handle = start_test_bridge(session)
     terminal = {
         "type": "game_over",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": 7,
         "outcome": "failure",
         "reason": "wrong_password",
@@ -231,7 +231,7 @@ def test_bridge_rejects_exact_hello_extras_and_invalid_json():
         with connect(uri, proxy=None) as connection:
             result = _send(connection, {
                 "type": "hello",
-                "protocol_version": 2,
+                "protocol_version": 3,
                 "extra": True,
             })
             assert result["code"] == "invalid_hello"

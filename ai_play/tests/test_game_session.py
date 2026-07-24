@@ -179,7 +179,7 @@ def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
 
     assert sent == [{
         "type": "action_batch",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": 7,
         "actions": actions,
     }]
@@ -231,7 +231,7 @@ def test_act_returns_game_over_when_terminal_packet_precedes_next_observation():
     results = wait_action_results()
     terminal = {
         "type": "game_over",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": 7,
         "outcome": "success",
         "reason": "correct_password",
@@ -282,14 +282,14 @@ def test_stop_sends_mcp_stop_and_acknowledges_cancellation():
 
     assert sent == [{
         "type": "stop_request",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": 7,
         "reason": "mcp_stop",
     }]
     results = [{"status": "cancelled", "reason": "mcp_stop"}]
     session.receive_stop_ack({
         "type": "stop_ack",
-        "protocol_version": 2,
+        "protocol_version": 3,
         "observation_id": 7,
         "results": results,
     })
@@ -308,6 +308,216 @@ def test_act_times_out_and_does_not_leave_an_in_flight_batch():
         session.act(7, [{"type": "wait", "duration_ms": 50}], timeout=0.01)
 
     assert len(sent) == 1
+
+
+def test_threshold_act_finishes_then_requests_max_requests_game_over():
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(
+                session.act,
+                7,
+                [{"type": "wait", "duration_ms": 50}],
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+    session.receive_action_results(7, wait_action_results())
+    session.receive_observation(observation(8))
+    wait_until(lambda: len(sent) == 2)
+
+    assert sent[1] == {
+        "type": "end_game",
+        "protocol_version": 3,
+        "observation_id": 8,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 8,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }
+    session.receive_game_over(terminal)
+    thread.join()
+
+    assert result_holder == [SessionResult(
+        status="game_over",
+        action_results=wait_action_results(),
+        game_over=terminal,
+    )]
+
+
+def test_invalid_threshold_act_error_is_superseded_by_terminal_result():
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(
+                session.act,
+                6,
+                [{"type": "wait", "duration_ms": 50}],
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+
+    assert sent == [{
+        "type": "end_game",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }]
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }
+    session.receive_game_over(terminal)
+    thread.join()
+
+    assert result_holder == [SessionResult(
+        status="game_over",
+        action_results=[],
+        game_over=terminal,
+    )]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [
+        ("success", "correct_password"),
+        ("failure", "wrong_password"),
+    ],
+)
+def test_password_terminal_on_threshold_act_takes_priority(outcome, reason):
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(
+                session.act,
+                7,
+                [{"type": "wait", "duration_ms": 50}],
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+    session.receive_action_results(7, wait_action_results())
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": outcome,
+        "reason": reason,
+    }
+    session.receive_game_over(terminal)
+    thread.join()
+
+    assert result_holder[0].game_over == terminal
+    assert len(sent) == 1
+
+
+def test_request_after_threshold_is_rejected_while_terminal_is_pending():
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(
+                session.act,
+                6,
+                [{"type": "wait", "duration_ms": 50}],
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+
+    with pytest.raises(SessionError, match="request_limit_reached"):
+        session.act(
+            7,
+            [{"type": "wait", "duration_ms": 50}],
+            timeout=0.1,
+        )
+
+    session.receive_game_over({
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "max_requests",
+    })
+    thread.join()
+    assert len(sent) == 1
+
+
+def test_threshold_terminal_wait_wakes_on_disconnect():
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(
+                session.act,
+                6,
+                [{"type": "wait", "duration_ms": 50}],
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+    session.detach("connection_closed")
+    thread.join()
+
+    assert isinstance(result_holder[0], SessionError)
+    assert str(result_holder[0]) == "disconnected"
+
+
+def test_threshold_terminal_timeout_keeps_later_actions_blocked():
+    session, sent = make_session(max_act_requests=1)
+    session.receive_observation(observation(7))
+
+    with pytest.raises(SessionError, match="action_timeout"):
+        session.act(
+            6,
+            [{"type": "wait", "duration_ms": 50}],
+            timeout=0.01,
+        )
+    with pytest.raises(SessionError, match="request_limit_reached"):
+        session.act(
+            7,
+            [{"type": "wait", "duration_ms": 50}],
+            timeout=0.01,
+        )
+
+    assert len(sent) == 1
+
+
+def test_game_over_rejects_invalid_max_requests_pair():
+    session, _ = make_session()
+    session.receive_observation(observation(7))
+
+    with pytest.raises(SessionError, match="invalid_game_over"):
+        session.receive_game_over({
+            "type": "game_over",
+            "protocol_version": 3,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "max_requests",
+        })
 
 
 def test_detach_wakes_pending_action_without_fabricating_success():

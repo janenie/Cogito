@@ -9,7 +9,7 @@ from websockets.sync.server import serve as websocket_serve
 from .game_session import GameSession, SessionError
 
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 MAX_PACKET_SIZE = 4 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
 OBSERVATION_FIELDS = {

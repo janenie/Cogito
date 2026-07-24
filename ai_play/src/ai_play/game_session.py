@@ -14,7 +14,7 @@ from .observation_schema import (
 )
 
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 SAFE_INTEGER_MAX = 9_007_199_254_740_991
 
 
@@ -45,6 +45,7 @@ class GameSession:
         self._state = "waiting_for_game"
         self._act_request_count = 0
         self._request_limit_pending = False
+        self._end_game_sent = False
 
     @property
     def act_request_count(self):
@@ -59,6 +60,7 @@ class GameSession:
                 raise SessionError(self._state)
             self._act_request_count = 0
             self._request_limit_pending = False
+            self._end_game_sent = False
             self._send_packet = send_packet
             self._state = (
                 "ready" if self._latest_observation is not None else "waiting_for_observation"
@@ -120,6 +122,10 @@ class GameSession:
     def receive_game_over(self, packet):
         safe = _validate_game_over(packet)
         with self._condition:
+            if self._game_over is not None:
+                if safe == self._game_over:
+                    return
+                raise SessionError("duplicate_game_over")
             if self._pending_observation_id is not None:
                 if safe["observation_id"] != self._pending_observation_id:
                     raise SessionError("game_over_observation_mismatch")
@@ -190,7 +196,7 @@ class GameSession:
                     return SessionResult(status="disconnected")
                 if (
                     self._latest_observation is not None
-                    and self._state not in {"executing", "stopping"}
+                    and self._state not in {"executing", "stopping", "ending"}
                 ):
                     return SessionResult(
                         status="ready",
@@ -202,8 +208,28 @@ class GameSession:
                 self._condition.wait(timeout=remaining)
 
     def act(self, observation_id, actions, timeout=None):
+        deadline = _deadline(timeout or self.config.wait_timeout_seconds)
         with self._condition:
-            self._record_act_request_locked()
+            request_number = self._record_act_request_locked()
+
+        try:
+            result = self._execute_act(observation_id, actions, deadline)
+        except SessionError:
+            if request_number < self.config.max_act_requests:
+                raise
+            return self._request_limit_result(deadline, [])
+        if (
+            request_number < self.config.max_act_requests
+            or result.status == "game_over"
+        ):
+            return result
+        return self._request_limit_result(
+            deadline,
+            result.action_results or [],
+        )
+
+    def _execute_act(self, observation_id, actions, deadline):
+        with self._condition:
             observation_id = _require_observation_id(observation_id)
             self._require_ready_action_state_locked(observation_id)
             try:
@@ -243,7 +269,6 @@ class GameSession:
                 self._state = "disconnected"
                 raise SessionError("transport_unavailable")
 
-            deadline = _deadline(timeout or self.config.wait_timeout_seconds)
             while True:
                 if self._pending_next_observation is not None:
                     return self._complete_turn_locked()
@@ -255,6 +280,62 @@ class GameSession:
                 if remaining <= 0:
                     self._clear_pending_locked()
                     self._state = "ready" if self._send_packet is not None else "disconnected"
+                    raise SessionError("action_timeout")
+                self._condition.wait(timeout=remaining)
+
+    def _request_limit_result(self, deadline, action_results):
+        with self._condition:
+            if self._game_over is not None:
+                return SessionResult(
+                    status="game_over",
+                    action_results=deepcopy(action_results),
+                    game_over=deepcopy(self._game_over),
+                )
+
+            observation_id = self._pending_observation_id
+            if observation_id is None and self._latest_observation is not None:
+                observation_id = self._latest_observation["observation_id"]
+            if not self._end_game_sent:
+                packet = {
+                    "type": "end_game",
+                    "protocol_version": PROTOCOL_VERSION,
+                    "observation_id": observation_id,
+                    "outcome": "failure",
+                    "reason": "max_requests",
+                }
+                sender = self._send_packet
+                if sender is None:
+                    self._state = "disconnected"
+                    raise SessionError("disconnected")
+                self._end_game_sent = True
+                self._state = "ending"
+                try:
+                    sent = sender(packet)
+                except Exception as error:
+                    self._send_packet = None
+                    self._state = "disconnected"
+                    self._condition.notify_all()
+                    raise SessionError("transport_unavailable") from error
+                if sent is not True:
+                    self._send_packet = None
+                    self._state = "disconnected"
+                    self._condition.notify_all()
+                    raise SessionError("transport_unavailable")
+
+            while True:
+                if self._game_over is not None:
+                    results = action_results
+                    if not results and self._pending_results is not None:
+                        results = self._pending_results
+                    return SessionResult(
+                        status="game_over",
+                        action_results=deepcopy(results),
+                        game_over=deepcopy(self._game_over),
+                    )
+                if self._state in {"stopped", "disconnected"}:
+                    raise SessionError(self._state)
+                remaining = _remaining(deadline)
+                if remaining <= 0:
                     raise SessionError("action_timeout")
                 self._condition.wait(timeout=remaining)
 
@@ -431,6 +512,7 @@ def _validate_game_over(packet):
     allowed = {
         ("success", "correct_password"),
         ("failure", "wrong_password"),
+        ("failure", "max_requests"),
     }
     if (packet["outcome"], packet["reason"]) not in allowed:
         raise SessionError("invalid_game_over")

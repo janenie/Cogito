@@ -24,7 +24,7 @@ class FakeReadySession:
                 status="game_over",
                 game_over={
                     "type": "game_over",
-                    "protocol_version": 2,
+                    "protocol_version": 3,
                     "observation_id": 7,
                     "outcome": "success",
                     "reason": "correct_password",
@@ -44,7 +44,7 @@ class FakeReadySession:
                 action_results=[{"status": "completed", "type": "wait"}],
                 game_over={
                     "type": "game_over",
-                    "protocol_version": 2,
+                    "protocol_version": 3,
                     "observation_id": 7,
                     "outcome": "success",
                     "reason": "correct_password",
