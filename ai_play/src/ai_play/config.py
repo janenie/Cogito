@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import os
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -12,6 +13,7 @@ class Config:
     wait_timeout_seconds: float = 30.0
     stop_timeout_seconds: float = 5.0
     max_act_requests: int = 500
+    log_root: Path = Path("~/workspace/cogito_logs/mcplogs").expanduser()
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -30,6 +32,7 @@ class Config:
                 "AI_PLAY_MAX_ACT_REQUESTS",
                 cls.max_act_requests,
             ),
+            log_root=_read_path("AI_PLAY_LOG_ROOT", cls.log_root),
         )
         config.validate()
         return config
@@ -84,3 +87,12 @@ def _read_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError as error:
         raise ValueError(f"{name} must be a number") from error
+
+
+def _read_path(name: str, default: Path) -> Path:
+    raw = os.environ.get(name)
+    if raw is None:
+        return Path(default).expanduser()
+    if not raw.strip():
+        raise ValueError(f"{name} must not be empty")
+    return Path(raw).expanduser()

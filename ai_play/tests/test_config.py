@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from ai_play.config import Config
 
@@ -41,6 +42,31 @@ def test_config_reads_max_act_requests(monkeypatch):
     config = Config.from_env()
 
     assert config.max_act_requests == 7
+
+
+def test_config_defaults_log_root_under_workspace(monkeypatch):
+    monkeypatch.delenv("AI_PLAY_LOG_ROOT", raising=False)
+
+    config = Config.from_env()
+
+    assert config.log_root == (
+        Path("~/workspace/cogito_logs/mcplogs").expanduser()
+    )
+
+
+def test_config_expands_log_root_override(monkeypatch):
+    monkeypatch.setenv("AI_PLAY_LOG_ROOT", "~/custom-cogito-logs")
+
+    config = Config.from_env()
+
+    assert config.log_root == Path("~/custom-cogito-logs").expanduser()
+
+
+def test_config_rejects_empty_log_root(monkeypatch):
+    monkeypatch.setenv("AI_PLAY_LOG_ROOT", "   ")
+
+    with pytest.raises(ValueError, match="AI_PLAY_LOG_ROOT"):
+        Config.from_env()
 
 
 @pytest.mark.parametrize(
