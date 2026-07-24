@@ -12,6 +12,11 @@ from .observation_schema import (
     validate_action_results,
     validate_observation,
 )
+from .scenarios import (
+    DEFAULT_SCENARIO_ID,
+    is_allowed_game_over,
+    scenario_act_request_limit,
+)
 
 
 PROTOCOL_VERSION = 3
@@ -46,18 +51,35 @@ class GameSession:
         self._act_request_count = 0
         self._request_limit_pending = False
         self._end_game_sent = False
+        self._scenario_id = None
 
     @property
     def act_request_count(self):
         with self._condition:
             return self._act_request_count
 
-    def attach(self, send_packet):
+    @property
+    def scenario_id(self):
+        with self._condition:
+            return self._scenario_id
+
+    @property
+    def act_request_limit(self):
+        with self._condition:
+            return self._act_request_limit_locked()
+
+    def attach(self, send_packet, scenario_id=DEFAULT_SCENARIO_ID):
         with self._condition:
             if self._send_packet is not None:
                 raise SessionError("controller_busy")
             if self._state in {"stopped", "game_over"}:
                 raise SessionError(self._state)
+            if (
+                self._scenario_id is not None
+                and self._scenario_id != scenario_id
+            ):
+                raise SessionError("scenario_mismatch")
+            self._scenario_id = scenario_id
             self._act_request_count = 0
             self._request_limit_pending = False
             self._end_game_sent = False
@@ -66,6 +88,16 @@ class GameSession:
                 "ready" if self._latest_observation is not None else "waiting_for_observation"
             )
             self._condition.notify_all()
+
+    def wait_for_scenario(self, timeout=None):
+        deadline = _deadline(timeout or self.config.wait_timeout_seconds)
+        with self._condition:
+            while self._scenario_id is None:
+                remaining = _remaining(deadline)
+                if remaining <= 0:
+                    raise SessionError("game_not_connected")
+                self._condition.wait(timeout=remaining)
+            return self._scenario_id
 
     def detach(self, reason):
         del reason
@@ -120,7 +152,7 @@ class GameSession:
             self._condition.notify_all()
 
     def receive_game_over(self, packet):
-        safe = _validate_game_over(packet)
+        safe = _validate_game_over(packet, self._scenario_id)
         with self._condition:
             if self._game_over is not None:
                 if safe == self._game_over:
@@ -215,11 +247,11 @@ class GameSession:
         try:
             result = self._execute_act(observation_id, actions, deadline)
         except SessionError:
-            if request_number < self.config.max_act_requests:
+            if request_number < self._act_request_limit():
                 raise
             return self._request_limit_result(deadline, [])
         if (
-            request_number < self.config.max_act_requests
+            request_number < self._act_request_limit()
             or result.status == "game_over"
         ):
             return result
@@ -345,9 +377,21 @@ class GameSession:
         if self._request_limit_pending:
             raise SessionError("request_limit_reached")
         self._act_request_count += 1
-        if self._act_request_count >= self.config.max_act_requests:
+        if self._act_request_count >= self._act_request_limit_locked():
             self._request_limit_pending = True
         return self._act_request_count
+
+    def _act_request_limit(self):
+        with self._condition:
+            return self._act_request_limit_locked()
+
+    def _act_request_limit_locked(self):
+        if self._scenario_id is None:
+            return self.config.max_act_requests
+        return scenario_act_request_limit(
+            self._scenario_id,
+            self.config.max_act_requests,
+        )
 
     def stop(self, timeout=None):
         deadline = _deadline(timeout or self.config.stop_timeout_seconds)
@@ -502,18 +546,17 @@ def _require_observation_id(value, optional=False):
     return value
 
 
-def _validate_game_over(packet):
+def _validate_game_over(packet, scenario_id):
     fields = {"type", "protocol_version", "observation_id", "outcome", "reason"}
     if not isinstance(packet, dict) or set(packet) != fields:
         raise SessionError("invalid_game_over")
     if packet["type"] != "game_over" or packet["protocol_version"] != PROTOCOL_VERSION:
         raise SessionError("invalid_game_over")
-    allowed = {
-        ("success", "correct_password"),
-        ("failure", "wrong_password"),
-        ("failure", "max_requests"),
-    }
-    if (packet["outcome"], packet["reason"]) not in allowed:
+    if not is_allowed_game_over(
+        scenario_id,
+        packet["outcome"],
+        packet["reason"],
+    ):
         raise SessionError("invalid_game_over")
     observation_id = _require_observation_id(
         packet["observation_id"],

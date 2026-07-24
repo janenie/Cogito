@@ -61,6 +61,92 @@ def make_session(max_act_requests=500):
     return session, sent
 
 
+def make_scenario_session(scenario_id, configured_limit=500):
+    sent = []
+    session = GameSession(
+        Config(
+            wait_timeout_seconds=0.2,
+            stop_timeout_seconds=0.2,
+            max_act_requests=configured_limit,
+        )
+    )
+    session.attach(
+        lambda packet: sent.append(packet) or True,
+        scenario_id=scenario_id,
+    )
+    return session, sent
+
+
+def test_session_records_scenario_and_rejects_mismatched_reconnect():
+    session = GameSession(Config())
+    session.attach(lambda packet: True, "find_contract")
+
+    assert session.wait_for_scenario(timeout=0.1) == "find_contract"
+
+    session.detach("test")
+    with pytest.raises(SessionError, match="scenario_mismatch"):
+        session.attach(lambda packet: True, "other_scenario")
+
+
+def test_wait_for_scenario_times_out_before_game_connects():
+    session = GameSession(Config(wait_timeout_seconds=0.1))
+
+    with pytest.raises(SessionError, match="game_not_connected"):
+        session.wait_for_scenario(timeout=0.01)
+
+
+def test_find_key_uses_200_request_hard_cap():
+    session, _ = make_scenario_session("find_key", configured_limit=500)
+
+    assert session.act_request_limit == 200
+
+
+def test_global_limit_can_tighten_find_key_cap():
+    session, _ = make_scenario_session("find_key", configured_limit=75)
+
+    assert session.act_request_limit == 75
+
+
+def test_find_key_accepts_only_key_success_terminal():
+    session, _ = make_scenario_session("find_key")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "key_picked_up",
+    }
+
+    session.receive_game_over(terminal)
+
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_terminal_success_cannot_cross_scenarios():
+    contract, _ = make_scenario_session("find_contract")
+    contract.receive_observation(observation(7))
+    with pytest.raises(SessionError, match="invalid_game_over"):
+        contract.receive_game_over({
+            "type": "game_over",
+            "protocol_version": 3,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "key_picked_up",
+        })
+
+    find_key, _ = make_scenario_session("find_key")
+    find_key.receive_observation(observation(7))
+    with pytest.raises(SessionError, match="invalid_game_over"):
+        find_key.receive_game_over({
+            "type": "game_over",
+            "protocol_version": 3,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "correct_password",
+        })
+
+
 def wait_until(predicate, timeout=0.5):
     deadline = time.monotonic() + timeout
     while not predicate():

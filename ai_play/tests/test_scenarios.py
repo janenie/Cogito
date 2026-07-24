@@ -1,0 +1,50 @@
+import pytest
+
+from ai_play.scenarios import (
+    DEFAULT_SCENARIO_ID,
+    is_allowed_game_over,
+    is_supported_scenario,
+    load_scenario_briefing,
+    scenario_act_request_limit,
+    supported_scenario_ids,
+)
+
+
+def test_scenario_registry_exposes_only_allowlisted_scenarios():
+    assert DEFAULT_SCENARIO_ID == "find_contract"
+    assert supported_scenario_ids() == ("find_contract", "find_key")
+    assert is_supported_scenario("find_contract")
+    assert is_supported_scenario("find_key")
+    assert not is_supported_scenario("unknown")
+    assert not is_supported_scenario(True)
+
+
+def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
+    briefing, image_bytes = load_scenario_briefing("find_contract")
+
+    assert briefing["game_id"] == "find_contract"
+    assert image_bytes.startswith(b"\xff\xd8\xff")
+    with pytest.raises(RuntimeError, match="unsupported_scenario"):
+        load_scenario_briefing("unknown")
+
+
+def test_scenario_request_limits_are_hard_caps():
+    assert scenario_act_request_limit("find_contract", 500) == 500
+    assert scenario_act_request_limit("find_contract", 120) == 120
+    assert scenario_act_request_limit("find_key", 500) == 200
+    assert scenario_act_request_limit("find_key", 80) == 80
+
+
+def test_terminal_results_are_scenario_specific():
+    assert is_allowed_game_over("find_contract", "success", "correct_password")
+    assert is_allowed_game_over("find_contract", "failure", "wrong_password")
+    assert not is_allowed_game_over(
+        "find_contract",
+        "success",
+        "key_picked_up",
+    )
+    assert is_allowed_game_over("find_key", "success", "key_picked_up")
+    assert not is_allowed_game_over("find_key", "success", "correct_password")
+    assert not is_allowed_game_over("find_key", "failure", "wrong_password")
+    assert is_allowed_game_over("find_contract", "failure", "max_requests")
+    assert is_allowed_game_over("find_key", "failure", "max_requests")
