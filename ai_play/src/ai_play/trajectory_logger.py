@@ -6,8 +6,12 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from threading import Lock
+
+
+SCENARIO_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]*\Z")
 
 
 class LogPersistenceError(RuntimeError):
@@ -51,16 +55,22 @@ class TrajectoryLogger:
                 return None
             return self._current_attempt[1]
 
-    def start_attempt(self):
+    def start_attempt(self, scenario_id):
+        scenario_id = _validate_scenario_id(scenario_id)
         with self._lock:
             self._require_available_locked()
+            if (
+                self._run is not None
+                and self._run["scenario_id"] != scenario_id
+            ):
+                raise ValueError("scenario_mismatch")
             try:
                 if (
                     self._run is None
                     or self._run["status"] != "in_progress"
                     or len(self._run["attempts"]) >= self.MAX_ATTEMPTS
                 ):
-                    self._create_run_locked()
+                    self._create_run_locked(scenario_id)
 
                 attempt_number = len(self._run["attempts"]) + 1
                 attempt_dir = self._run_dir / f"attempt-{attempt_number:02d}"
@@ -80,6 +90,7 @@ class TrajectoryLogger:
                     "attempt": attempt_number,
                     "status": "in_progress",
                     "total_steps": 0,
+                    "terminal_reason": None,
                 })
                 self._write_attempt_locked(self._attempt_states[key])
                 self._write_run_locked()
@@ -174,9 +185,11 @@ class TrajectoryLogger:
             except Exception as error:
                 self._fail_locked(error)
 
-    def finish_attempt(self, status):
+    def finish_attempt(self, status, terminal_reason):
         if status not in self.TERMINAL_STATUSES:
             raise ValueError("invalid trajectory status")
+        if type(terminal_reason) is not str or not terminal_reason:
+            raise ValueError("invalid terminal reason")
         with self._lock:
             self._require_available_locked()
             if self._current_attempt is None:
@@ -187,6 +200,9 @@ class TrajectoryLogger:
             try:
                 state.data["result"]["status"] = status
                 self._sync_attempt_summary_locked(state)
+                self._current_attempt_summary_locked()["terminal_reason"] = (
+                    terminal_reason
+                )
                 self._refresh_run_status_locked()
                 self._write_attempt_locked(state)
                 self._write_run_locked()
@@ -204,6 +220,9 @@ class TrajectoryLogger:
                     if state.data["result"]["status"] == "in_progress":
                         state.data["result"]["status"] = "stopped"
                         self._sync_attempt_summary_locked(state)
+                        self._current_attempt_summary_locked()[
+                            "terminal_reason"
+                        ] = "mcp_shutdown"
                         self._write_attempt_locked(state)
                 if self._run is not None and self._run["status"] == "in_progress":
                     self._run["status"] = "stopped"
@@ -213,24 +232,28 @@ class TrajectoryLogger:
             except Exception as error:
                 self._fail_locked(error)
 
-    def _create_run_locked(self):
+    def _create_run_locked(self, scenario_id):
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
         os.chmod(self.root, 0o700)
+        scenario_root = self.root / scenario_id
+        scenario_root.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(scenario_root, 0o700)
         started_at = self._now()
         base_name = started_at.strftime("%Y%m%d-%H-%M")
-        candidate = self.root / base_name
+        candidate = scenario_root / base_name
         suffix = 2
         while True:
             try:
                 candidate.mkdir(mode=0o700)
                 break
             except FileExistsError:
-                candidate = self.root / f"{base_name}-{suffix:02d}"
+                candidate = scenario_root / f"{base_name}-{suffix:02d}"
                 suffix += 1
 
         self._run_sequence += 1
         self._run_dir = candidate
         self._run = {
+            "scenario_id": scenario_id,
             "started_at": started_at.isoformat(),
             "max_attempts": self.MAX_ATTEMPTS,
             "completed_attempts": 0,
@@ -246,6 +269,9 @@ class TrajectoryLogger:
         summary["status"] = state.data["result"]["status"]
         summary["total_steps"] = state.data["result"]["total_steps"]
         self._refresh_completed_attempts_locked()
+
+    def _current_attempt_summary_locked(self):
+        return self._run["attempts"][self._current_attempt[1] - 1]
 
     def _refresh_completed_attempts_locked(self):
         self._run["completed_attempts"] = sum(
@@ -332,3 +358,9 @@ class TrajectoryLogger:
             except FileNotFoundError:
                 pass
             raise
+
+
+def _validate_scenario_id(value):
+    if type(value) is not str or SCENARIO_ID_PATTERN.fullmatch(value) is None:
+        raise ValueError("invalid scenario_id")
+    return value
