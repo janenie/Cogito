@@ -43,6 +43,13 @@ class GameSession:
         self._stopped_result = None
         self._stop_waiting = False
         self._state = "waiting_for_game"
+        self._act_request_count = 0
+        self._request_limit_pending = False
+
+    @property
+    def act_request_count(self):
+        with self._condition:
+            return self._act_request_count
 
     def attach(self, send_packet):
         with self._condition:
@@ -50,6 +57,8 @@ class GameSession:
                 raise SessionError("controller_busy")
             if self._state in {"stopped", "game_over"}:
                 raise SessionError(self._state)
+            self._act_request_count = 0
+            self._request_limit_pending = False
             self._send_packet = send_packet
             self._state = (
                 "ready" if self._latest_observation is not None else "waiting_for_observation"
@@ -193,8 +202,9 @@ class GameSession:
                 self._condition.wait(timeout=remaining)
 
     def act(self, observation_id, actions, timeout=None):
-        observation_id = _require_observation_id(observation_id)
         with self._condition:
+            self._record_act_request_locked()
+            observation_id = _require_observation_id(observation_id)
             self._require_ready_action_state_locked(observation_id)
             try:
                 validate_action_batch(
@@ -247,6 +257,16 @@ class GameSession:
                     self._state = "ready" if self._send_packet is not None else "disconnected"
                     raise SessionError("action_timeout")
                 self._condition.wait(timeout=remaining)
+
+    def _record_act_request_locked(self):
+        if self._state in {"stopped", "game_over"}:
+            raise SessionError(self._state)
+        if self._request_limit_pending:
+            raise SessionError("request_limit_reached")
+        self._act_request_count += 1
+        if self._act_request_count >= self.config.max_act_requests:
+            self._request_limit_pending = True
+        return self._act_request_count
 
     def stop(self, timeout=None):
         deadline = _deadline(timeout or self.config.stop_timeout_seconds)

@@ -11,6 +11,7 @@ class Config:
     ws_port: int = 8765
     wait_timeout_seconds: float = 30.0
     stop_timeout_seconds: float = 5.0
+    max_act_requests: int = 500
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -25,6 +26,10 @@ class Config:
                 "AI_PLAY_STOP_TIMEOUT_SECONDS",
                 cls.stop_timeout_seconds,
             ),
+            max_act_requests=_read_int(
+                "AI_PLAY_MAX_ACT_REQUESTS",
+                cls.max_act_requests,
+            ),
         )
         config.validate()
         return config
@@ -34,6 +39,13 @@ class Config:
             raise ValueError("AI_PLAY_WS_HOST must be 127.0.0.1")
         if type(self.ws_port) is not int or not 1 <= self.ws_port <= 65535:
             raise ValueError("AI_PLAY_WS_PORT must be between 1 and 65535")
+        if (
+            type(self.max_act_requests) is not int
+            or not 1 <= self.max_act_requests <= 1_000_000
+        ):
+            raise ValueError(
+                "AI_PLAY_MAX_ACT_REQUESTS must be between 1 and 1000000"
+            )
         for name, value, lower, upper in [
             (
                 "AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS",

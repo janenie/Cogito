@@ -48,10 +48,14 @@ def observation(observation_id):
     }
 
 
-def make_session():
+def make_session(max_act_requests=500):
     sent = []
     session = GameSession(
-        Config(wait_timeout_seconds=0.2, stop_timeout_seconds=0.2)
+        Config(
+            wait_timeout_seconds=0.2,
+            stop_timeout_seconds=0.2,
+            max_act_requests=max_act_requests,
+        )
     )
     session.attach(lambda packet: sent.append(packet) or True)
     return session, sent
@@ -99,6 +103,66 @@ def test_act_rejects_stale_observation_without_sending_to_godot():
         )
 
     assert sent == []
+
+
+def test_invalid_act_requests_are_counted_before_validation():
+    session, sent = make_session(max_act_requests=10)
+    session.receive_observation(observation(7))
+
+    with pytest.raises(SessionError, match="stale_observation"):
+        session.act(
+            6,
+            [{"type": "wait", "duration_ms": 50}],
+            timeout=0.1,
+        )
+    with pytest.raises(SessionError, match="action type is not allowed"):
+        session.act(
+            7,
+            [{"type": "not_an_action"}],
+            timeout=0.1,
+        )
+
+    assert session.act_request_count == 2
+    assert sent == []
+
+
+def test_concurrent_act_request_is_counted_before_in_flight_validation():
+    session, sent = make_session(max_act_requests=10)
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            session.act(7, [{"type": "wait", "duration_ms": 50}], timeout=0.5)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+
+    with pytest.raises(SessionError, match="action_in_flight"):
+        session.act(7, [{"type": "wait", "duration_ms": 50}], timeout=0.1)
+
+    assert session.act_request_count == 2
+    session.receive_action_results(7, wait_action_results())
+    session.receive_observation(observation(8))
+    thread.join()
+    assert result_holder[0].status == "ready"
+
+
+def test_successful_attach_resets_act_request_count():
+    session, sent = make_session(max_act_requests=10)
+    session.receive_observation(observation(7))
+    with pytest.raises(SessionError, match="stale_observation"):
+        session.act(
+            6,
+            [{"type": "wait", "duration_ms": 50}],
+            timeout=0.1,
+        )
+    assert session.act_request_count == 1
+
+    session.detach("connection_closed")
+    session.attach(lambda packet: sent.append(packet) or True)
+
+    assert session.act_request_count == 0
 
 
 def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
