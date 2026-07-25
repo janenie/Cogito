@@ -19,6 +19,7 @@ OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
     "bindings", "last_action_results",
 }
+OPTIONAL_OBSERVATION_FIELDS = {"routine"}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
@@ -118,7 +119,12 @@ def validate_action_results(results):
 
 def validate_observation(value):
     """Return a fresh safe observation DTO or raise before any model call."""
-    _exact(value, OBSERVATION_FIELDS, "observation")
+    if (
+        not isinstance(value, dict)
+        or not OBSERVATION_FIELDS.issubset(value)
+        or not set(value).issubset(OBSERVATION_FIELDS | OPTIONAL_OBSERVATION_FIELDS)
+    ):
+        raise ObservationValidationError("observation has invalid fields")
 
     image = value["image"]
     _exact(image, {"mime_type", "base64", "width", "height"}, "image")
@@ -190,8 +196,29 @@ def validate_observation(value):
         })
 
     safe_results = validate_action_results(value["last_action_results"])
+    safe_routine = None
+    if "routine" in value:
+        routine = value["routine"]
+        _exact(
+            routine,
+            {
+                "objective", "trash_collected", "trash_required", "held_item",
+                "completed", "failed",
+            },
+            "routine",
+        )
+        if type(routine["completed"]) is not bool or type(routine["failed"]) is not bool:
+            raise ObservationValidationError("routine booleans are invalid")
+        safe_routine = {
+            "objective": _text(routine["objective"], "routine objective", 500),
+            "trash_collected": _integer(routine["trash_collected"], "trash_collected"),
+            "trash_required": _integer(routine["trash_required"], "trash_required"),
+            "held_item": _text(routine["held_item"], "held item", 100),
+            "completed": routine["completed"],
+            "failed": routine["failed"],
+        }
 
-    return {
+    safe = {
         "observation_id": _integer(value["observation_id"], "observation_id"),
         "captured_at_ms": _integer(value["captured_at_ms"], "captured_at_ms"),
         "image": {
@@ -215,6 +242,9 @@ def validate_observation(value):
         "bindings": safe_bindings,
         "last_action_results": safe_results,
     }
+    if safe_routine is not None:
+        safe["routine"] = safe_routine
+    return safe
 
 
 def prepare_mcp_observation(value):

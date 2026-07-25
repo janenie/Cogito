@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .briefing import load_public_briefing
+from .daily_routine_cleanup_briefing import load_daily_routine_cleanup_briefing
 from .find_key_briefing import load_find_key_briefing
 from .greet_npc_meeting_briefing import load_greet_npc_meeting_briefing
 from .put_book_briefing import load_put_book_briefing
@@ -52,6 +53,15 @@ _SCENARIOS = {
         max_act_requests=100,
         terminal_results=frozenset({
             ("success", "meeting_door_closed"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "daily_routine_cleanup": ScenarioDefinition(
+        briefing_loader=load_daily_routine_cleanup_briefing,
+        max_act_requests=150,
+        terminal_results=frozenset({
+            ("success", "cleanup_complete"),
+            ("failure", "cleanup_incomplete"),
             ("failure", "max_requests"),
         }),
     ),

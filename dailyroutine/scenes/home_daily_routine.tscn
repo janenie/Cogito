@@ -1,0 +1,720 @@
+[gd_scene format=3 uid="uid://cmwbx6sgjlq6n"]
+
+[ext_resource type="Script" path="res://dailyroutine/scripts/home_routine_time_system.gd" id="1_time"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/daily_routine_manager.gd" id="2_manager"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/home_routine_hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/home_robot_player.gd" id="4_player"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/paper_trash.gd" id="7_paper"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/kitchen_trash_bin.gd" id="8_bin"]
+[ext_resource type="PackedScene" uid="uid://pqmtcggfaek7" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/loungeSofa.glb" id="11_sofa"]
+[ext_resource type="PackedScene" uid="uid://dauk7v1bhbxsc" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/tableCoffeeSquare.glb" id="12_table"]
+[ext_resource type="PackedScene" uid="uid://ba3fh1y300wcs" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/rugRectangle.glb" id="13_rug"]
+[ext_resource type="PackedScene" uid="uid://dx8hujikcfept" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenSink.glb" id="14_sink"]
+[ext_resource type="PackedScene" uid="uid://dj3jy1cbtxh8m" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenCabinet.glb" id="15_cabinet"]
+[ext_resource type="PackedScene" uid="uid://efrg1qdo4o5g" path="res://addons/cogito/DemoScenes/DemoPrefabs/kitchen_fridge_container.tscn" id="16_fridge"]
+[ext_resource type="PackedScene" uid="uid://be4gg66larcny" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/trashcan.glb" id="17_trashcan"]
+[ext_resource type="PackedScene" uid="uid://22781tjv8gx8" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/bedSingle.glb" id="18_bed"]
+[ext_resource type="PackedScene" uid="uid://bs4ix3qwtgkvj" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/cabinetBedDrawer.glb" id="19_bedcabinet"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/fridge_milk.gd" id="21_milk"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/routine_trash_randomizer.gd" id="22_trash_randomizer"]
+[ext_resource type="Texture2D" uid="uid://b66g1sdiunpqk" path="res://addons/cogito/Assets/Graphics/Crosshair_Kenney/crosshair001.png" id="23_crosshair"]
+[ext_resource type="Texture2D" uid="uid://cx60vx3hb42h" path="res://addons/cogito/Assets/Graphics/Crosshair_Kenney/crosshair026.png" id="24_interact_crosshair"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/addon_fridge_interaction.gd" id="27_fridge_interaction"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/completion_button.gd" id="29_finish_button"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_home_controller.tscn" id="ai_play_home_controller"]
+[ext_resource type="Script" path="res://dailyroutine/scripts/ai_play_daily_routine_monitor.gd" id="ai_play_daily_routine_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(14, 0.1, 10)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.62, 0.58, 0.5, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(14, 0.1, 10)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall_long"]
+size = Vector3(14, 2.4, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.82, 0.78, 0.69, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_long"]
+size = Vector3(14, 2.4, 0.18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall_short"]
+size = Vector3(0.18, 2.4, 10)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_short"]
+size = Vector3(0.18, 2.4, 10)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_horizontal"]
+size = Vector3(4.2, 1.9875733, 0.12)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_horizontal"]
+size = Vector3(4.2, 2.046289, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_v_full"]
+size = Vector3(0.12, 2.2, 5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_v_full"]
+size = Vector3(0.12, 2.2, 5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_h_short"]
+size = Vector3(3.3174407, 1.9843261, 0.12)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_h_short"]
+size = Vector3(3.3174407, 2.2, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_h_right"]
+size = Vector3(4.8120604, 1.941919, 0.12)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_h_right"]
+size = Vector3(4.8120604, 2.2, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_v_short"]
+size = Vector3(0.12, 1.9472535, 0.8925781)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_v_short"]
+size = Vector3(0.12, 2.2, 0.8925781)
+
+[sub_resource type="BoxMesh" id="BoxMesh_partition_vertical"]
+size = Vector3(0.12, 1.9219482, 3.3983886)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_partition_vertical"]
+size = Vector3(0.12, 2.2, 3.3983886)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_sofa"]
+size = Vector3(3.0, 1.0, 1.15)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_low_table"]
+size = Vector3(1.45, 0.45, 1.25)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_counter"]
+size = Vector3(1.15, 1.1, 0.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_fridge"]
+size = Vector3(1.05, 2.0, 0.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_bed"]
+size = Vector3(1.65, 0.75, 3.0)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_furniture_bed_cabinet"]
+size = Vector3(0.8, 0.8, 0.65)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_bag"]
+height = 1.2
+radius = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_trash_lid"]
+size = Vector3(0.4078247, 0.08, 0.50039065)
+
+[sub_resource type="StandardMaterial3D" id="Mat_trash_lid"]
+albedo_color = Color(0.14, 0.17, 0.16, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_panel"]
+size = Vector3(1.2, 0.08, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="Mat_hint"]
+albedo_color = Color(1, 0.84, 0.28, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_panel"]
+size = Vector3(1.2, 0.08, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_milk_carton_body"]
+size = Vector3(0.28, 0.55, 0.22)
+
+[sub_resource type="StandardMaterial3D" id="Mat_milk_white"]
+albedo_color = Color(0.96, 0.96, 0.9, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_milk_blue"]
+albedo_color = Color(0.18, 0.45, 0.9, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_milk_carton_cap"]
+size = Vector3(0.18, 0.08, 0.18)
+
+[sub_resource type="SphereMesh" id="SphereMesh_paper"]
+radius = 0.36
+height = 0.48
+
+[sub_resource type="StandardMaterial3D" id="Mat_paper"]
+albedo_color = Color(0.94, 0.94, 0.9, 1)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_paper"]
+radius = 0.38
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.3
+height = 1.7
+
+[node name="HomeDailyRoutine" type="Node3D" unique_id=1038083126]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=892217225]
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1798580982]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 6, 0)
+light_energy = 1.2
+
+[node name="Ground" type="StaticBody3D" parent="." unique_id=1786151867]
+
+[node name="Floor" type="MeshInstance3D" parent="Ground" unique_id=154364406]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.005573511, -0.012571335, 0.06687951)
+mesh = SubResource("BoxMesh_floor")
+surface_material_override/0 = SubResource("Mat_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground" unique_id=929954211]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Walls" type="Node3D" parent="." unique_id=1704565455]
+
+[node name="NorthWall" type="StaticBody3D" parent="Walls" unique_id=636038244]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -5)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/NorthWall" unique_id=1320105525]
+mesh = SubResource("BoxMesh_wall_long")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/NorthWall" unique_id=1898661776]
+shape = SubResource("BoxShape3D_wall_long")
+
+[node name="SouthWall" type="StaticBody3D" parent="Walls" unique_id=977401620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 5)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/SouthWall" unique_id=404864096]
+mesh = SubResource("BoxMesh_wall_long")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/SouthWall" unique_id=166528713]
+shape = SubResource("BoxShape3D_wall_long")
+
+[node name="WestWall" type="StaticBody3D" parent="Walls" unique_id=178435834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 1.2, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/WestWall" unique_id=623781174]
+mesh = SubResource("BoxMesh_wall_short")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/WestWall" unique_id=1851510630]
+shape = SubResource("BoxShape3D_wall_short")
+
+[node name="EastWall" type="StaticBody3D" parent="Walls" unique_id=2062182375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 1.2, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/EastWall" unique_id=749661834]
+mesh = SubResource("BoxMesh_wall_short")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/EastWall" unique_id=1403933571]
+shape = SubResource("BoxShape3D_wall_short")
+
+[node name="MiddleWall" type="StaticBody3D" parent="Walls" unique_id=162858871]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.9, 1.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/MiddleWall" unique_id=1371846724]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.10621339, 0)
+mesh = SubResource("BoxMesh_partition_horizontal")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/MiddleWall" unique_id=1615214027]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.07685554, 0)
+shape = SubResource("BoxShape3D_partition_horizontal")
+
+[node name="RoomSplitWall" type="StaticBody3D" parent="Walls" unique_id=652303662]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 1.1, -2.5)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/RoomSplitWall" unique_id=2071130272]
+mesh = SubResource("BoxMesh_partition_v_full")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/RoomSplitWall" unique_id=690215514]
+shape = SubResource("BoxShape3D_partition_v_full")
+
+[node name="CenterMiddleWall" type="StaticBody3D" parent="Walls" unique_id=1978610652]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/CenterMiddleWall" unique_id=1331399309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3414595, -0.10783696, 0)
+mesh = SubResource("BoxMesh_partition_h_short")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/CenterMiddleWall" unique_id=2106720072]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3414595, -0.10783696, 0)
+shape = SubResource("BoxShape3D_partition_h_short")
+
+[node name="RightMiddleWall" type="StaticBody3D" parent="Walls" unique_id=1819627345]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.2, 1.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/RightMiddleWall" unique_id=327803644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.60603046, -0.12904054, 0)
+mesh = SubResource("BoxMesh_partition_h_right")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/RightMiddleWall" unique_id=1600001885]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.60603046, -0.12904054, 0)
+shape = SubResource("BoxShape3D_partition_h_right")
+
+[node name="EntrySplitWallFront" type="StaticBody3D" parent="Walls" unique_id=2058875224]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8, 1.1, 0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/EntrySplitWallFront" unique_id=161294769]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12637329, 0.053710938)
+mesh = SubResource("BoxMesh_partition_v_short")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/EntrySplitWallFront" unique_id=534902386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12637329, 0.053710938)
+shape = SubResource("BoxShape3D_partition_v_short")
+
+[node name="EntrySplitWallBack" type="StaticBody3D" parent="Walls" unique_id=1030044496]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8, 1.1, 3.45)
+
+[node name="Mesh" type="MeshInstance3D" parent="Walls/EntrySplitWallBack" unique_id=1698020900]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.13902593, -0.09919429)
+mesh = SubResource("BoxMesh_partition_vertical")
+surface_material_override/0 = SubResource("Mat_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/EntrySplitWallBack" unique_id=2009488764]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.13902593, -0.09919429)
+shape = SubResource("BoxShape3D_partition_vertical")
+
+[node name="Entryway" type="Node3D" parent="." unique_id=574418230]
+
+[node name="RoomLabel" type="Label3D" parent="Entryway" unique_id=989395573]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 4.75, 1.9, 1.05)
+billboard = 1
+text = "Entryway"
+font_size = 34
+
+[node name="LivingRoom" type="Node3D" parent="." unique_id=1826979293]
+
+[node name="RoomLabel" type="Label3D" parent="LivingRoom" unique_id=351986297]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, -3.95, 1.9, 0.8)
+billboard = 1
+text = "Living Room"
+font_size = 34
+
+[node name="Sofa" parent="LivingRoom" unique_id=1978522663 instance=ExtResource("11_sofa")]
+transform = Transform3D(-1.39965, 0, 0.03131312, 0, 1.4, 0, -0.03131312, 0, -1.39965, -0.16357923, 0, 3.0491128)
+
+[node name="SofaCollision" type="StaticBody3D" parent="LivingRoom"]
+transform = Transform3D(0.99974984, 0, -0.02236655, 0, 1, 0, 0.02236655, 0, 0.99974984, -0.16357923, 0.5, 3.0491128)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/SofaCollision"]
+shape = SubResource("BoxShape3D_furniture_sofa")
+
+[node name="LowTable" parent="LivingRoom" unique_id=1496826278 instance=ExtResource("12_table")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, -0.862323, 0.13572311, 2.2472274)
+
+[node name="LowTableCollision" type="StaticBody3D" parent="LivingRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.862323, 0.35, 2.2472274)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/LowTableCollision"]
+shape = SubResource("BoxShape3D_furniture_low_table")
+
+[node name="Rug" parent="LivingRoom" unique_id=486420157 instance=ExtResource("13_rug")]
+transform = Transform3D(2.5, 0, 0, 0, 1, 0, 0, 0, 1.8, -5.85542, 0.110998645, 3.4705837)
+
+[node name="LivingRoomTrashBin" type="StaticBody3D" parent="LivingRoom" unique_id=957368806]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8, 0.45, 3.6)
+collision_layer = 2
+script = ExtResource("8_bin")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "living_room"
+
+[node name="Model" parent="LivingRoom/LivingRoomTrashBin" unique_id=171011920 instance=ExtResource("17_trashcan")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, -0.32946557, -1.110569)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/LivingRoomTrashBin" unique_id=401697907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4499998, 0, -1.24017)
+shape = SubResource("CylinderShape3D_bag")
+
+[node name="Lid" type="MeshInstance3D" parent="LivingRoom/LivingRoomTrashBin" unique_id=367269789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.47235328, -1.0908451)
+visible = false
+mesh = SubResource("BoxMesh_trash_lid")
+surface_material_override/0 = SubResource("Mat_trash_lid")
+
+[node name="FinishButton" type="StaticBody3D" parent="LivingRoom" unique_id=2103047834]
+transform = Transform3D(0.75, 0, 0, 0, 0.18, 0, 0, 0, 0.75, -4.8, 0.35, 3.6)
+collision_layer = 2
+script = ExtResource("29_finish_button")
+manager_path = NodePath("../../DailyRoutineManager")
+
+[node name="Mesh" type="MeshInstance3D" parent="LivingRoom/FinishButton" unique_id=1157032203]
+transform = Transform3D(0.86499995, 0, 0, 0, 3.5859997, 0, 0, 0, 0.86499995, 0, 6.206713, 0.336936)
+mesh = SubResource("BoxMesh_panel")
+surface_material_override/0 = SubResource("Mat_hint")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/FinishButton" unique_id=1861835995]
+transform = Transform3D(0.865, 0, 0, 0, 3.586, 0, 0, 0, 0.865, 0, 6.9671693, 0.336936)
+shape = SubResource("BoxShape3D_panel")
+
+[node name="Label" type="Label3D" parent="LivingRoom/FinishButton" unique_id=786916069]
+transform = Transform3D(0.865, 0, 0, 0, 3.586, 0, 0, 0, 0.865, 0, 7.12717, 0.336936)
+billboard = 1
+text = "完成任务"
+font_size = 50
+
+[node name="Kitchen" type="Node3D" parent="." unique_id=1833747911]
+
+[node name="RoomLabel" type="Label3D" parent="Kitchen" unique_id=898422310]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 4.45, 2.2160268, -2.1)
+billboard = 1
+text = "Kitchen"
+font_size = 34
+
+[node name="CabinetA" parent="Kitchen" unique_id=1831375390 instance=ExtResource("15_cabinet")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 2.2, 0, -3.613105)
+
+[node name="CabinetACollision" type="StaticBody3D" parent="Kitchen"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 0.55, -3.613105)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/CabinetACollision"]
+shape = SubResource("BoxShape3D_furniture_counter")
+
+[node name="Sink" parent="Kitchen" unique_id=2857262 instance=ExtResource("14_sink")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 3.4, 0, -3.619054)
+
+[node name="SinkCollision" type="StaticBody3D" parent="Kitchen"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4, 0.55, -3.619054)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/SinkCollision"]
+shape = SubResource("BoxShape3D_furniture_counter")
+
+[node name="Fridge" parent="Kitchen" unique_id=1937204520 instance=ExtResource("16_fridge")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 5.5, 0, -3.8)
+script = ExtResource("27_fridge_interaction")
+open_angle_radians = 1.5707963267948966
+fridge_node_path = NodePath("")
+milk_node_path = NodePath("../FridgeMilk")
+
+[node name="FridgeCollision" type="StaticBody3D" parent="Kitchen"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 1, -3.8)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/FridgeCollision"]
+shape = SubResource("BoxShape3D_furniture_fridge")
+
+[node name="BasicInteraction" parent="Kitchen/Fridge"]
+script = null
+
+[node name="InventoryCheckerWIN" parent="Kitchen/Fridge"]
+script = null
+
+[node name="InventoryCheckerFAIL" parent="Kitchen/Fridge"]
+script = null
+
+[node name="QuestUpdaterWIN" parent="Kitchen/Fridge"]
+script = null
+
+[node name="QuestUpdaterFAIL" parent="Kitchen/Fridge"]
+script = null
+
+[node name="FridgeMilk" type="StaticBody3D" parent="Kitchen" unique_id=1747907658]
+transform = Transform3D(0.45961937, 0, -0.45961937, 0, 0.455, 0, 0.45961937, 0, 0.45961937, 5.78, 1.32, -3.42)
+collision_layer = 2
+script = ExtResource("21_milk")
+manager_path = NodePath("../../DailyRoutineManager")
+fridge_door_path = NodePath("../Fridge")
+
+[node name="Mesh" type="MeshInstance3D" parent="Kitchen/FridgeMilk" unique_id=1856970912]
+transform = Transform3D(0.9986336, -0.05224003, -0.0013663769, 0.05224003, 0.9972669, 0.05224003, -0.0013663769, -0.05224003, 0.9986336, 0.31345475, -1.2903869, 0.31345463)
+visible = false
+mesh = SubResource("BoxMesh_panel")
+surface_material_override/0 = SubResource("Mat_hint")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/FridgeMilk" unique_id=6927931]
+shape = SubResource("BoxShape3D_panel")
+
+[node name="MilkCarton" type="Node3D" parent="Kitchen/FridgeMilk" unique_id=537638956]
+
+[node name="Body" type="MeshInstance3D" parent="Kitchen/FridgeMilk/MilkCarton" unique_id=2089849348]
+transform = Transform3D(1, 0, 0, 0, 0.99999976, 0, 0, 0, 1, -0.6411588, -2.017041, -0.64115906)
+mesh = SubResource("BoxMesh_milk_carton_body")
+surface_material_override/0 = SubResource("Mat_milk_white")
+
+[node name="BlueBand" type="MeshInstance3D" parent="Kitchen/FridgeMilk/MilkCarton" unique_id=1828118787]
+transform = Transform3D(1.02, 0, 0, 0, 0.2, 0, 0, 0, 1.02, -0.6411588, -1.937041, -0.6531582)
+mesh = SubResource("BoxMesh_milk_carton_body")
+surface_material_override/0 = SubResource("Mat_milk_blue")
+
+[node name="Cap" type="MeshInstance3D" parent="Kitchen/FridgeMilk/MilkCarton" unique_id=1244021304]
+transform = Transform3D(1, 0, 0, 0, 0.99999976, 0, 0, 0, 1, -0.6411588, -1.6970408, -0.64115906)
+mesh = SubResource("BoxMesh_milk_carton_cap")
+surface_material_override/0 = SubResource("Mat_milk_blue")
+
+[node name="PaperTrashA" type="StaticBody3D" parent="Kitchen" unique_id=1178160317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.85, 0.38, -0.85)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+
+[node name="Mesh" type="MeshInstance3D" parent="Kitchen/PaperTrashA" unique_id=523230236]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashA" unique_id=1683576605]
+shape = SubResource("SphereShape3D_paper")
+
+[node name="PaperTrashB" type="StaticBody3D" parent="Kitchen" unique_id=1792680267]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.25, 0.38, -1.15)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+
+[node name="Mesh" type="MeshInstance3D" parent="Kitchen/PaperTrashB" unique_id=250856961]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashB" unique_id=1207709501]
+shape = SubResource("SphereShape3D_paper")
+
+[node name="Bedroom" type="Node3D" parent="." unique_id=71429479]
+
+[node name="RoomLabel" type="Label3D" parent="Bedroom" unique_id=1509108558]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, -4.45, 1.9, -2.15)
+billboard = 1
+text = "Bedroom"
+font_size = 34
+
+[node name="Bed" parent="Bedroom" unique_id=1758769351 instance=ExtResource("18_bed")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, -6.9085946, 0, -1.3937969)
+
+[node name="BedCollision" type="StaticBody3D" parent="Bedroom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 0.375, -1.3937969)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/BedCollision"]
+shape = SubResource("BoxShape3D_furniture_bed")
+
+[node name="BedCabinet" parent="Bedroom" unique_id=633541564 instance=ExtResource("19_bedcabinet")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -3.4, 0, -4)
+
+[node name="BedCabinetCollision" type="StaticBody3D" parent="Bedroom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, 0.4, -4)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/BedCabinetCollision"]
+shape = SubResource("BoxShape3D_furniture_bed_cabinet")
+
+[node name="PaperTrashBedroomA" type="StaticBody3D" parent="Bedroom" unique_id=1429678441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.45, 0.38, -2.35)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "bedroom"
+
+[node name="Mesh" type="MeshInstance3D" parent="Bedroom/PaperTrashBedroomA" unique_id=70280421]
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomA" unique_id=691063474]
+shape = SubResource("SphereShape3D_paper")
+
+[node name="PaperTrashBedroomB" type="StaticBody3D" parent="Bedroom" unique_id=376614346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0.38, -1.25)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "bedroom"
+
+[node name="Mesh" type="MeshInstance3D" parent="Bedroom/PaperTrashBedroomB" unique_id=501349951]
+transform = Transform3D(0.61, 0, 0, 0, 0.61, 0, 0, 0, 0.61, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomB" unique_id=70133987]
+shape = SubResource("SphereShape3D_paper")
+
+[node name="CogitoPlayer" type="CharacterBody3D" parent="." unique_id=1696268016]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -3.35, 1.05, 2.35)
+script = ExtResource("4_player")
+prompt_label_path = NodePath("../HUD/InteractionPrompt/PromptLabel")
+hint_label_path = NodePath("../HUD/HintPanel/HintLabel")
+crosshair_texture_path = NodePath("../HUD/Crosshair/CrosshairTexture")
+manager_path = NodePath("../DailyRoutineManager")
+default_crosshair = ExtResource("23_crosshair")
+interaction_crosshair = ExtResource("24_interact_crosshair")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CogitoPlayer" unique_id=1409814163]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Camera3D" type="Camera3D" parent="CogitoPlayer" unique_id=2025012381]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0.65, 0)
+current = true
+
+[node name="InteractionRay" type="RayCast3D" parent="CogitoPlayer/Camera3D" unique_id=967536651]
+target_position = Vector3(0, 0, -2.6)
+collision_mask = 2
+
+[node name="HomeRoutineTimeSystem" type="Node" parent="." unique_id=1652931649]
+script = ExtResource("1_time")
+
+[node name="DailyRoutineManager" type="Node" parent="." unique_id=511480139]
+script = ExtResource("2_manager")
+time_system_path = NodePath("../HomeRoutineTimeSystem")
+
+[node name="TrashRandomizer" type="Node" parent="." unique_id=1805241874]
+script = ExtResource("22_trash_randomizer")
+manager_path = NodePath("../DailyRoutineManager")
+trash_paths = Array[NodePath]([NodePath("../Kitchen/PaperTrashA"), NodePath("../Kitchen/PaperTrashB"), NodePath("../Bedroom/PaperTrashBedroomA"), NodePath("../Bedroom/PaperTrashBedroomB")])
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=385618428]
+script = ExtResource("3_hud")
+time_system_path = NodePath("../HomeRoutineTimeSystem")
+manager_path = NodePath("../DailyRoutineManager")
+
+[node name="Crosshair" type="CenterContainer" parent="HUD" unique_id=1441721720]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CrosshairTexture" type="TextureRect" parent="HUD/Crosshair" unique_id=1842291617]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+texture = ExtResource("23_crosshair")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="InteractionPrompt" type="PanelContainer" parent="HUD" unique_id=1009363879]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -110.0
+offset_top = 34.0
+offset_right = 110.0
+offset_bottom = 76.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PromptLabel" type="Label" parent="HUD/InteractionPrompt" unique_id=1868881352]
+layout_mode = 2
+text = "E: Interact"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HintPanel" type="PanelContainer" parent="HUD" unique_id=311135789]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -150.0
+offset_right = 260.0
+offset_bottom = -104.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="HintLabel" type="Label" parent="HUD/HintPanel" unique_id=820474931]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Panel" type="PanelContainer" parent="HUD" unique_id=342965078]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 168.0
+grow_horizontal = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/Panel" unique_id=407637838]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Panel/MarginContainer" unique_id=1299931349]
+layout_mode = 2
+
+[node name="ClockLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=253439929]
+unique_name_in_owner = true
+layout_mode = 2
+text = "07:00"
+
+[node name="ObjectiveLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=285250662]
+unique_name_in_owner = true
+layout_mode = 2
+text = "把全部垃圾扔进客厅垃圾桶。"
+
+[node name="RulesLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1969375385]
+unique_name_in_owner = true
+layout_mode = 2
+text = "规则：冰箱里有一盒过期牛奶。整个房间有 1-2 个垃圾。看左上方提示确认总数。一次只能拿一个物品。把需要清理的东西都扔进客厅垃圾桶，清理完点击垃圾桶旁边的完成任务按钮。"
+autowrap_mode = 3
+
+[node name="TrashLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1663053136]
+unique_name_in_owner = true
+layout_mode = 2
+text = "总垃圾：3，已扔：0"
+
+[node name="HoldingLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=458533820]
+unique_name_in_owner = true
+layout_mode = 2
+text = "手上：空"
+
+[node name="FailurePanel" type="PanelContainer" parent="HUD" unique_id=304322668]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -48.0
+offset_right = 180.0
+offset_bottom = 48.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FailureReason" type="Label" parent="HUD/FailurePanel" unique_id=227861011]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Routine failed."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SuccessPanel" type="PanelContainer" parent="HUD" unique_id=269834900]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = 60.0
+offset_right = 180.0
+offset_bottom = 132.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SuccessLabel" type="Label" parent="HUD/SuccessPanel" unique_id=880934102]
+layout_mode = 2
+text = "任务成功。"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="AIPlayController" parent="." node_paths=PackedStringArray("player") instance=ExtResource("ai_play_home_controller")]
+player = NodePath("../CogitoPlayer")
+auto_start = false
+host = "127.0.0.1"
+
+[node name="DailyRoutineMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("manager", "game_over_screen")]
+script = ExtResource("ai_play_daily_routine_monitor")
+scenario_id = "daily_routine_cleanup"
+manager = NodePath("../../DailyRoutineManager")
+game_over_screen = NodePath("GameOverScreen")
+
+[node name="GameOverScreen" parent="AIPlayController/DailyRoutineMonitor" instance=ExtResource("ai_play_game_over_screen")]

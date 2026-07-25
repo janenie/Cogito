@@ -3,6 +3,8 @@
 from copy import deepcopy
 from pathlib import Path
 
+from .common_briefing_rules import COMMON_CONTROL_RULES
+
 
 MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
 REFERENCE_IMAGE_PATH = (
@@ -26,7 +28,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "成功拾取办公室中唯一的目标钥匙。",
     "failure_condition": "最多允许 200 次 act 请求；达到上限仍未拾取钥匙则失败。",
-    "rules": [
+    "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容和动作结果寻找钥匙。",
         "任务卡位于出生点附近并可重复读取。",
         "任务卡描述的是环境特征；需要主动探索并理解家具与房间的空间关系。",

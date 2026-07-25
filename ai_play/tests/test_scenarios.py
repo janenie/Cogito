@@ -17,11 +17,13 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "find_key",
         "put_book",
         "greet_npc_meeting",
+        "daily_routine_cleanup",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
     assert is_supported_scenario("put_book")
     assert is_supported_scenario("greet_npc_meeting")
+    assert is_supported_scenario("daily_routine_cleanup")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -44,6 +46,8 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("put_book", 35) == 35
     assert scenario_act_request_limit("greet_npc_meeting", 500) == 100
     assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
+    assert scenario_act_request_limit("daily_routine_cleanup", 500) == 150
+    assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
 
 
 def test_terminal_results_are_scenario_specific():
@@ -65,6 +69,16 @@ def test_terminal_results_are_scenario_specific():
         "success",
         "meeting_door_closed",
     )
+    assert is_allowed_game_over(
+        "daily_routine_cleanup",
+        "success",
+        "cleanup_complete",
+    )
+    assert is_allowed_game_over(
+        "daily_routine_cleanup",
+        "failure",
+        "cleanup_incomplete",
+    )
     assert not is_allowed_game_over(
         "greet_npc_meeting",
         "success",
@@ -77,4 +91,14 @@ def test_terminal_results_are_scenario_specific():
         "greet_npc_meeting",
         "failure",
         "max_requests",
+    )
+    assert is_allowed_game_over(
+        "daily_routine_cleanup",
+        "failure",
+        "max_requests",
+    )
+    assert not is_allowed_game_over(
+        "daily_routine_cleanup",
+        "success",
+        "meeting_door_closed",
     )

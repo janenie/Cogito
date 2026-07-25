@@ -156,7 +156,11 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"look":
 			var motion := InputEventMouseMotion.new()
 			motion.device = SYNTHETIC_DEVICE_ID
-			motion.relative = Vector2(float(action["yaw"]), float(action["pitch"]))
+			motion.relative = _look_degrees_to_mouse_relative(
+				float(action["yaw"]),
+				float(action["pitch"])
+			)
+			motion.screen_relative = motion.relative
 			Input.parse_input_event(motion)
 		"move", "sprint":
 			var movement_requested: bool = (
@@ -204,6 +208,22 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
+
+
+func _look_degrees_to_mouse_relative(yaw_degrees: float, pitch_degrees: float) -> Vector2:
+	if player != null:
+		var home_sensitivity_value: Variant = player.get("mouse_sensitivity")
+		if typeof(home_sensitivity_value) in [TYPE_INT, TYPE_FLOAT]:
+			var home_sensitivity := maxf(float(home_sensitivity_value), 0.0001)
+			return Vector2(
+				deg_to_rad(yaw_degrees) / home_sensitivity,
+				deg_to_rad(pitch_degrees) / home_sensitivity
+			)
+		var cogito_sensitivity_value: Variant = player.get("MOUSE_SENS")
+		if typeof(cogito_sensitivity_value) in [TYPE_INT, TYPE_FLOAT]:
+			var cogito_sensitivity := maxf(float(cogito_sensitivity_value), 0.0001)
+			return Vector2(yaw_degrees / cogito_sensitivity, pitch_degrees / cogito_sensitivity)
+	return Vector2(yaw_degrees, pitch_degrees)
 
 
 func _effective_blocked_distance_threshold() -> float:

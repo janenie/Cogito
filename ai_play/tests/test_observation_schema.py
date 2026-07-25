@@ -103,3 +103,19 @@ def test_prepare_mcp_observation_validates_before_projection():
 
     with pytest.raises(ObservationValidationError, match="base64"):
         prepare_mcp_observation(observation)
+
+
+def test_home_routine_observation_fields_are_public_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["routine"] = {
+        "objective": "把全部垃圾扔进客厅垃圾桶。",
+        "trash_collected": 1,
+        "trash_required": 3,
+        "held_item": "无",
+        "completed": False,
+        "failed": False,
+    }
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert public["routine"] == observation["routine"]

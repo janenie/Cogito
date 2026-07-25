@@ -8,6 +8,8 @@ const OUTCOME_TEXT := {
 	"key_picked_up": "任务成功",
 	"book_in_box": "任务成功",
 	"meeting_door_closed": "任务成功",
+	"cleanup_complete": "任务成功",
+	"cleanup_incomplete": "任务失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -16,6 +18,8 @@ const REASON_TEXT := {
 	"key_picked_up": "已找到办公室钥匙",
 	"book_in_box": "已整理档案室书籍",
 	"meeting_door_closed": "已打招呼并关上会议室门",
+	"cleanup_complete": "所有垃圾已清理",
+	"cleanup_incomplete": "还有垃圾没有处理",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

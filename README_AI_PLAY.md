@@ -6,8 +6,9 @@ AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游�
 
 当前黑盒游玩流程支持
 `addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` 中的 `find_contract` 和
-`find_key`、`put_book`、`greet_npc_meeting`。MCP 服务不会启动 Godot、不会调用模型，
-也不需要 API Key。
+`find_key`、`put_book`、`greet_npc_meeting`，以及导入到当前仓库的
+`dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup`。
+MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
 
 ## 1. 准备环境
 
@@ -132,6 +133,10 @@ C:\ABSOLUTE\PATH\TO\Cogito\.venv\Scripts\python.exe
 [`tutorial/ai_play_api_host.py`](tutorial/ai_play_api_host.py)，使用说明见
 [`tutorial/README.md`](tutorial/README.md)。
 
+如果要让同一任务最多重玩 3 局，并在失败后重启 Godot、总结流程级错误、把改进策略带入
+下一局，可使用 [`ai_host/`](ai_host/README.md)。`ai_host` 是外层 supervisor，
+复用同一套 MCP server 和 Godot AI Play 桥，不把多局自进化逻辑放进 MCP server。
+
 ## 3. 启动游戏
 
 先让 MCP Host 启动 `cogito-ai-play` 服务，再从仓库根目录单独启动 Godot Lobby：
@@ -169,6 +174,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 
 godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=greet_npc_meeting
+```
+
+`daily_routine_cleanup` 位于导入的日常清理场景，也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play-scenario=daily_routine_cleanup
+
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play --ai-play-scenario=daily_routine_cleanup
 ```
 
 `--ai-play` 必须作为 Godot 用户参数精确传入：
@@ -220,8 +235,9 @@ $env:PYTHONPATH = "ai_play/src"
 `failure/max_requests`；`find_key` 的硬上限为 200 次，允许
 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 50 次，允许
 `success/book_in_box` 和 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，
-允许 `success/meeting_door_closed` 和 `failure/max_requests`。`find_key`、`put_book`
-和 `greet_npc_meeting` 都没有答错失败。
+允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
+的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
+和 `failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
@@ -331,10 +347,18 @@ AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
 AI_PLAY_MAX_ACT_REQUESTS=500
+AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 服务器只接受精确的数字回环地址 `127.0.0.1`，不要改成局域网地址、`0.0.0.0`
-或公网地址。请求上限只接受 `1..1000000` 的整数。
+或公网地址。请求上限只接受 `1..1000000` 的整数。日志根目录支持 `~` 展开且不能为空。
+
+Godot 成功连接后，MCP Server 会在日志根目录的
+`<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行目录，并在 `attempt-01` 至
+`attempt-03` 中保存 `trajectory.json` 和 `imgs/`。同一运行只包含一个任务；
+`run.json` 保存任务 ID、尝试状态、步数和终局原因。轨迹只包含 `observe`、`act`、
+`stop` 的获准公开请求与结果；图片以 JPEG 文件保存，JSON 不包含 Base64。运行日志
+只负责记录，不会自动重启游戏或让模型复盘。
 
 ## 7. 安全与隐私
 
@@ -345,8 +369,9 @@ AI_PLAY_MAX_ACT_REQUESTS=500
   密码或正确解谜顺序；其他仓库文件和隐藏状态不能进入 MCP 结果或 agent 提示。
 - `game_script/`、`code_read/`、测试、规格和计划是开发资料，绝不能成为游玩 agent
   的输入。
-- MCP 服务端不保存截图、提示词、令牌、模型上下文、记忆或游玩轨迹；MCP Host
-  可能有自己的持久化策略。
+- MCP 服务端会把获准公开的工具轨迹和截图保存到 `AI_PLAY_LOG_ROOT`；它不保存
+  `briefing`、提示词、令牌、模型上下文、隐藏状态或仓库文件。MCP Host 仍可能有自己
+  的持久化策略。
 - 未经操作者明确确认截图、令牌、费用和本地轨迹影响，不要运行真实外部模型验收。
 
 ## 8. 开发与验证

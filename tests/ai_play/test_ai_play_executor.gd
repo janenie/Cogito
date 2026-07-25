@@ -1,6 +1,7 @@
 extends SceneTree
 
 const AIPlayExecutor = preload("res://addons/cogito/AIPlay/ai_play_executor.gd")
+const HomeRobotPlayerScript = preload("res://dailyroutine/scripts/home_robot_player.gd")
 
 var _failures: Array[String] = []
 
@@ -10,6 +11,10 @@ class InputRecorder extends Node:
 
 	func _input(event: InputEvent) -> void:
 		events.append(event)
+
+
+class FakeCogitoPlayer extends Node3D:
+	var MOUSE_SENS := 0.25
 
 
 func _initialize() -> void:
@@ -68,6 +73,8 @@ func _run_tests() -> void:
 	_test_batch_validation(executor, recorder)
 	_test_terminal_stop(executor)
 	await _test_blocked_movement(executor, recorder)
+	await _test_look_angles_scale_for_home_player(executor, recorder)
+	await _test_look_angles_scale_for_cogito_player(executor)
 	await _test_teardown_releases_without_signal()
 
 	for action_name: String in ["forward", "back", "left", "right", "sprint"]:
@@ -272,6 +279,45 @@ func _test_blocked_movement(executor: Node, recorder: InputRecorder) -> void:
 	executor.batch_finished.disconnect(collect_null)
 
 
+func _test_look_angles_scale_for_home_player(executor: Node, recorder: InputRecorder) -> void:
+	var home_player := HomeRobotPlayerScript.new()
+	home_player.mouse_sensitivity = 0.0025
+	root.add_child(home_player)
+	executor.player = home_player
+	var relative: Vector2 = executor._look_degrees_to_mouse_relative(45.0, -30.0)
+	_assert(
+		is_equal_approx(relative.x, deg_to_rad(45.0) / 0.0025),
+		"home player look yaw is converted from degrees through mouse_sensitivity",
+	)
+	_assert(
+		is_equal_approx(relative.y, deg_to_rad(-30.0) / 0.0025),
+		"home player look pitch is converted from degrees through mouse_sensitivity",
+	)
+
+	executor.player = null
+	home_player.queue_free()
+	await process_frame
+
+
+func _test_look_angles_scale_for_cogito_player(executor: Node) -> void:
+	var cogito_player := FakeCogitoPlayer.new()
+	cogito_player.MOUSE_SENS = 0.25
+	executor.player = cogito_player
+
+	var relative: Vector2 = executor._look_degrees_to_mouse_relative(45.0, -30.0)
+	_assert(
+		is_equal_approx(relative.x, 45.0 / 0.25),
+		"cogito player look yaw is converted from degrees through MOUSE_SENS",
+	)
+	_assert(
+		is_equal_approx(relative.y, -30.0 / 0.25),
+		"cogito player look pitch is converted from degrees through MOUSE_SENS",
+	)
+
+	executor.player = null
+	cogito_player.free()
+
+
 func _test_teardown_releases_without_signal() -> void:
 	var executor := AIPlayExecutor.new()
 	root.add_child(executor)
@@ -307,6 +353,13 @@ func _all_events_of_type_use_device(
 			if event.device != expected_device:
 				return false
 	return found
+
+
+func _first_mouse_motion(events: Array[InputEvent]) -> InputEventMouseMotion:
+	for event: InputEvent in events:
+		if event is InputEventMouseMotion:
+			return event
+	return null
 
 
 func _assert(condition: bool, label: String) -> void:

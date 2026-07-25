@@ -3,6 +3,8 @@
 from copy import deepcopy
 from pathlib import Path
 
+from .common_briefing_rules import COMMON_CONTROL_RULES
+
 
 MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
 REFERENCE_IMAGE_PATH = (
@@ -26,7 +28,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "已经和 NPC 打招呼，并在会议室内关上会议室门。",
     "failure_condition": "最多允许 100 次 act 请求；达到上限仍未完成则失败。",
-    "rules": [
+    "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容、可见 NPC 和动作结果完成任务。",
         "任务卡位于出生点附近并可重复读取。",
         "NPC 会移动；需要主动观察和寻找，不能假设 NPC 固定在某处。",

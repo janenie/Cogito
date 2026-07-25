@@ -6,7 +6,7 @@ AI First Play 是一套需要显式启用的自主游玩系统：
 
 - `addons/cogito/AIPlay/` 下的 Godot 代码捕获获准公开的观察数据，并执行有严格限制的输入动作。
 - `ai_play/` 下的 Python 进程是 stdio MCP Server，负责暴露 `briefing`、`observe`、`act`、`stop` 工具、验证 DTO，并通过本机回环 WebSocket 桥与 Godot 串行交换观察和动作结果。
-- 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码、不保存截图或游玩轨迹。
+- 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码，只把获准公开的 MCP 游玩轨迹和截图保存到操作者配置的本地日志目录。
 - Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
 - 同一 Lobby 可用 `--ai-play-scenario=<id>` 选择玩法脚本；省略时默认
   `find_contract`。Controller 只激活直属子节点中 `scenario_id` 匹配的终局监视器。
@@ -40,7 +40,9 @@ Godot 桥的安全边界。
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
   是 50，终局只允许 `success/book_in_box` 和 `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
-  `success/meeting_door_closed` 和 `failure/max_requests`。`find_key`、`put_book` 和
+  `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
+  的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
+  `failure/cleanup_incomplete` 和 `failure/max_requests`。`find_key`、`put_book` 和
   `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
@@ -51,7 +53,13 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
-- 修改公开协议、环境变量、控制方式或隐私行为时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
+- `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
+  `<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行/尝试目录；一个运行最多分组同一任务的
+  三次连接，不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
+  `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
+  bridge 断开和 MCP shutdown。
+- 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和 JPEG 相对路径，绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
+- 修改公开协议、环境变量、控制方式、隐私行为或日志布局时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
 
 ## 增加同一 Lobby 的新玩法
 
@@ -166,6 +174,31 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 - 已打招呼后，玩家在会议室内关上会议室门产生 `success/meeting_door_closed`。
 - 路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，不得进入公开简报、
   观察或桥协议。
+
+## daily_routine_cleanup 回合规则
+
+普通游玩：
+
+```bash
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play-scenario=daily_routine_cleanup
+```
+
+AI 游玩：
+
+```bash
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play --ai-play-scenario=daily_routine_cleanup
+```
+
+- 该玩法来自导入到当前仓库的 `dailyroutine/` 家庭日常清理场景，复用同一套
+  stdio MCP Server、WebSocket 桥、动作执行器和终局上限机制。
+- 玩家根据 HUD 目标、画面观察和可见交互提示，把场景中的散落垃圾和过期牛奶放进客厅
+  垃圾桶，然后点击完成按钮。
+- 完成按钮在所有目标垃圾已进入客厅垃圾桶后产生 `success/cleanup_complete`；如果仍有
+  垃圾未清理就点击完成按钮，产生 `failure/cleanup_incomplete`。
+- 公开观察只包含相机图像、玩家基础状态、可见交互提示、HUD 级别的清理进度和持有物
+  标签；不公开内部节点路径、脚本类名或候选物体源码。
 
 ## 来源
 

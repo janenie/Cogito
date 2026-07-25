@@ -3,6 +3,8 @@
 from copy import deepcopy
 from pathlib import Path
 
+from .common_briefing_rules import COMMON_CONTROL_RULES
+
 
 MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
 REFERENCE_IMAGE_PATH = (
@@ -26,7 +28,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "目标书进入档案室地上的目标纸箱。",
     "failure_condition": "最多允许 50 次 act 请求；达到上限仍未放好书则失败。",
-    "rules": [
+    "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容和动作结果完成任务。",
         "任务卡位于出生点附近并可重复读取。",
         "目标书可能在高处或低处；必要时使用 jump 或 crouch 调整可达性。",

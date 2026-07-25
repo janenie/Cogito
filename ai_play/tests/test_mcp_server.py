@@ -8,6 +8,7 @@ import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 from mcp.types import ImageContent
 
+from ai_play.common_briefing_rules import COMMON_CONTROL_RULES
 from ai_play.config import Config
 from ai_play.game_session import SessionError, SessionResult
 from ai_play.trajectory_logger import LogPersistenceError, ToolCallToken
@@ -195,7 +196,15 @@ def test_briefing_contains_public_context_and_reference_image(monkeypatch):
             assert "system_name" not in serialized
             assert "ArchiveDoor/FrontDoor" not in serialized
             assert "黄色" not in serialized
-            assert "1000" not in serialized
+            scenario_rules = [
+                rule
+                for rule in briefing["rules"]
+                if rule not in COMMON_CONTROL_RULES
+            ]
+            assert "1000" not in str({
+                **briefing,
+                "rules": scenario_rules,
+            })
             assert any(isinstance(item, ImageContent) for item in result.content)
 
     asyncio.run(run())

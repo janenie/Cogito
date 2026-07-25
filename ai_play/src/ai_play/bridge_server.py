@@ -22,6 +22,7 @@ OBSERVATION_FIELDS = {
     "bindings",
     "last_action_results",
 }
+OPTIONAL_OBSERVATION_FIELDS = {"routine"}
 
 
 class BridgeHandle:
@@ -188,10 +189,13 @@ def _exclusive_handler(connection, session, scenario_id=None):
             packet_type = packet.get("type")
             try:
                 if packet_type == "observation":
-                    if set(packet) != OBSERVATION_FIELDS | {
-                        "type",
-                        "protocol_version",
-                    }:
+                    observation_fields = set(packet) - {"type", "protocol_version"}
+                    if (
+                        not OBSERVATION_FIELDS.issubset(observation_fields)
+                        or not observation_fields.issubset(
+                            OBSERVATION_FIELDS | OPTIONAL_OBSERVATION_FIELDS
+                        )
+                    ):
                         raise SessionError("invalid_observation")
                     session.receive_observation({
                         key: value

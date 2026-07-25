@@ -29,3 +29,6 @@ ai_play/runtime/
 ai_play/**/*.log
 ai_play/**/__pycache__/
 ai_play/.pytest_cache/
+ai_host/runs/
+ai_host/**/__pycache__/
+ai_host/.pytest_cache/

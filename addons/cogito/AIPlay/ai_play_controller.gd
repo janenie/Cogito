@@ -27,9 +27,14 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["success", "meeting_door_closed"],
 		["failure", "max_requests"],
 	],
+	"daily_routine_cleanup": [
+		["success", "cleanup_complete"],
+		["failure", "cleanup_incomplete"],
+		["failure", "max_requests"],
+	],
 }
 
-@export var player: CogitoPlayer
+@export var player: Node3D
 @export var auto_start: bool = false
 @export var host: String = "127.0.0.1"
 @export_range(1, 65535, 1) var port: int = 8765
@@ -67,6 +72,8 @@ func _ready() -> void:
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
 		_observer.player = player
+	if "manager" in _observer:
+		_observer.manager = get_node_or_null("../DailyRoutineManager")
 	if "player" in _executor:
 		_executor.player = player
 	if "player" in _interaction_probe:
@@ -253,7 +260,7 @@ func _on_bridge_connected() -> void:
 func _capture_observation(results: Array) -> void:
 	if is_queued_for_deletion() or not is_inside_tree() or _state != State.READY:
 		return
-	if player == null and _observer is AIPlayObserver:
+	if player == null and _observer != null and "player" in _observer:
 		_pause_for_error("player_not_configured")
 		return
 	var observation: Dictionary = _observer.capture_observation(results)

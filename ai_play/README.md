@@ -54,6 +54,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=greet_npc_meeting
 ```
 
+日常清理玩法位于导入的 home daily routine 场景，也可普通启动或接入 AI：
+
+```bash
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play-scenario=daily_routine_cleanup
+
+godot --path . dailyroutine/scenes/home_daily_routine.tscn \
+  -- --ai-play --ai-play-scenario=daily_routine_cleanup
+```
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -84,6 +94,10 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，任务卡位于出生点附近。玩家必须
 先在 1 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
 `success/meeting_door_closed`。
+
+`daily_routine_cleanup` 是家庭日常清理任务。玩家根据 HUD 目标和可见交互提示，把散落垃圾
+和冰箱里的过期牛奶扔进客厅垃圾桶，然后点击垃圾桶旁边的完成按钮。成功产生
+`success/cleanup_complete`；垃圾未清完时提交会产生 `failure/cleanup_incomplete`。
 
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
@@ -116,7 +130,9 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 `failure/wrong_password` 或 `failure/max_requests`；`find_key` 的硬上限为 200 次，
 终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为 50 次，
 终局为 `success/book_in_box` 或 `failure/max_requests`；`greet_npc_meeting` 的硬上限
-为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`。环境变量
+为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`；
+`daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
+`failure/cleanup_incomplete` 或 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -131,7 +147,43 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具
 都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
-服务端不保存截图、令牌、提示词、模型上下文、记忆或游玩轨迹。MCP Host 是否保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，MCP 同步返回受限的终局状态。
+启用 AI Play 后，MCP Server 会在 Godot 成功连接时开始保存本地游玩轨迹。日志只记录
+`observe`、`act`、`stop` 的请求、获准公开的结构化结果和工具返回的 JPEG；不记录
+`briefing`、图片 Base64、提示词、令牌、模型上下文、隐藏状态或仓库文件。MCP Host
+是否另行保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，
+MCP 同步返回受限的终局状态。
+
+## 本地轨迹日志
+
+默认日志根目录是 `~/workspace/cogito_logs/mcplogs`。第一个 Godot 控制器成功连接时
+在对应任务的 `scenario_id` 目录下创建 `YYYYMMDD-HH-MM` 运行目录；同一任务的同名
+目录使用 `-02`、`-03` 等后缀，不会覆盖。一个运行目录最多分组同一任务的三次连接：
+
+```text
+mcplogs/
+└── daily_routine_cleanup/
+    └── 20260725-14-45/
+        ├── run.json
+        ├── attempt-01/
+        │   ├── trajectory.json
+        │   └── imgs/
+        ├── attempt-02/
+        └── attempt-03/
+```
+
+`run.json` 顶层重复保存经过验证的 `scenario_id`，每次尝试摘要包含 `status`、
+`total_steps` 和 `terminal_reason`。任务终局保留公开的具体原因，例如
+`cleanup_complete`、`cleanup_incomplete` 或 `max_requests`；停止路径使用
+`mcp_stop`、`escape_stop`、`bridge_disconnected` 或 `mcp_shutdown`。
+
+`trajectory.json` 顶层固定包含 `trajectory` 和 `result`。`result.total_steps` 统计终局前
+所有到达 Python `act()` 函数的请求，包括随后被校验拒绝的请求；触发终局的请求计入，
+终局后的请求不计入也不追加。`result.status` 是 `in_progress`、`success`、`failure`
+或 `stopped`；`result` 不增加任务或终局原因字段。图片按事件序号、工具名和观察 ID
+存在 `imgs/`，JSON 只保存相对路径。
+
+日志器只负责记录和分组，不会自动重启 Godot、调用模型或生成复盘。把持久化截图再次
+发送给真实模型会产生额外令牌、费用和隐私影响，仍需操作者单独确认。
 
 ## 安全与桥协议
 
@@ -141,8 +193,8 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
-- 当前支持 `find_contract`、`find_key`、`put_book` 和 `greet_npc_meeting` 四种 Lobby
-  玩法的运行时终局事件和独立公开简报；不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、NPC 路线起点、NPC 路线方向、随机种子或任务内部知识。
+- 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting` 和
+  `daily_routine_cleanup` 的运行时终局事件和独立公开简报；不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、NPC 路线起点、NPC 路线方向、daily routine 内部节点路径、随机种子或任务内部知识。
 
 ## 配置
 
@@ -154,10 +206,12 @@ AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
 AI_PLAY_MAX_ACT_REQUESTS=500
+AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 500/200/50/100 次硬上限；等待时间有界，配置错误会写入 stderr；MCP stdout 只由 MCP
+自身的 500/200/50/100/150 次硬上限；等待时间有界，日志根目录支持 `~` 展开且不能为空。
+配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。
 
 ## 测试

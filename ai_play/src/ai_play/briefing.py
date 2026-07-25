@@ -3,6 +3,8 @@
 from copy import deepcopy
 from pathlib import Path
 
+from .common_briefing_rules import COMMON_CONTROL_RULES
+
 
 MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
 REFERENCE_IMAGE_PATH = (
@@ -27,7 +29,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "正确输入本局密码并解锁 ARCHIVE 档案室。",
     "failure_condition": "完成规定调查流程后提交错误密码会立即结束本局。",
-    "rules": [
+    "rules": COMMON_CONTROL_RULES + [
         "只能依据当前游戏画面、可阅读内容、NPC 对话和动作结果推导密码。",
         "每局的出生点、任务卡位置、调查路线、日期、版本号和密码拼接顺序都可能变化。",
         "任务卡位于出生点附近；它只给出第一处地点，后续地点由当前合同记录逐步公开。",

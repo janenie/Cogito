@@ -1,4 +1,5 @@
 from ai_play.briefing import load_public_briefing
+from ai_play.common_briefing_rules import COMMON_CONTROL_RULES
 from ai_play.scenarios import load_scenario_briefing
 
 
@@ -70,3 +71,34 @@ def test_greet_npc_meeting_registry_loads_bounded_public_briefing():
         "_route_index",
     ]:
         assert forbidden not in serialized
+
+
+def test_daily_routine_cleanup_briefing_is_public_and_bounded():
+    briefing, image_bytes = load_scenario_briefing("daily_routine_cleanup")
+
+    assert image_bytes is None
+    assert briefing["game_id"] == "daily_routine_cleanup"
+    assert "客厅垃圾桶" in briefing["objective"]
+    assert briefing["success_condition"] == "所有目标垃圾都已扔进客厅垃圾桶，并点击完成按钮。"
+    serialized = repr(briefing)
+    for forbidden in [
+        "DailyRoutineManager",
+        "TrashRandomizer",
+        "routine_completed",
+        "dailyroutine/scripts",
+        "home_daily_routine.tscn",
+    ]:
+        assert forbidden not in serialized
+
+
+def test_all_scenario_briefings_include_shared_control_rules():
+    for scenario_id in [
+        "find_contract",
+        "find_key",
+        "put_book",
+        "greet_npc_meeting",
+        "daily_routine_cleanup",
+    ]:
+        briefing, _image_bytes = load_scenario_briefing(scenario_id)
+        for rule in COMMON_CONTROL_RULES:
+            assert rule in briefing["rules"]
