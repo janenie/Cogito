@@ -1,6 +1,6 @@
 # AI First Play MCP
 
-AI First Play 现在是一个本地 stdio MCP 服务：外部 AI 客户端负责观察和决策，Python 提供经过白名单筛选的公开游玩简报，并把回合工具调用转发给已显式启用的 Godot Lobby。Godot 仍是动作校验、输入执行、运行时观察公开范围和安全停止的最终权威。
+AI First Play 提供本地 stdio MCP 入口：外部 AI 客户端负责观察和决策，Python 提供经过白名单筛选的公开游玩简报，并把回合工具调用转发给已显式启用的 Godot Lobby。黑盒 Codex 启动器则在可信侧启动同一服务的仅回环 Streamable HTTP 边车。Godot 仍是动作校验、输入执行、运行时观察公开范围和安全停止的最终权威。
 
 ## 快速启动
 
@@ -79,66 +79,61 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
 `ai_play.scenarios` 白名单中的玩法，并使用同一 ID 选择公开简报。
 
-## 隔离 Codex 玩家连续 3 局
+## 黑盒 Codex 玩家连续 3 局
 
-如果要让隔离的 Codex 玩家连续玩 `find_contract` 三次并基于公开经验自我调整，推荐把
-职责拆开：
+`tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
+由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
+`cogito_ai_play` 的 `briefing`、`observe`、`act`、`stop`。游戏目标、规则和物体操作说明只从
+`briefing` 返回，初始提示词、工作区、环境和临时配置均不包含玩法 ID、源码、日志或仓库路径。
 
-- 玩家 Codex 只接入 `cogito_ai_play` MCP 的 `briefing`、`observe`、`act`、`stop`。
-- 外部 supervisor 只负责启动、监听和重启 Godot。
-- supervisor 不读取轨迹、截图、源码、日志目录或模型上下文，也不修改玩家提示词。
-- 玩家 Codex 可以读取本次 `AI_PLAY_LOG_ROOT` 下的轨迹、摘要和截图，把它们作为自己游玩
-  过程的记忆来总结经验；仍不得读取仓库源码、测试、spec、`game_script/`、`code_read/`、
-  其他运行目录或凭据。
-
-一键托管玩家 Codex 和 Godot supervisor：
-
-```bash
-python3 tools/ai_play_codex_orchestrator.py --runs 3 --scenario find_contract
-```
-
-首次使用前需要让专用 Codex home 完成登录：
+首次使用前，在**专用认证目录**登录：
 
 ```bash
 CODEX_HOME=~/.codex-cogito-player codex login
 ```
 
-orchestrator 默认使用 `~/.codex-cogito-player`。如果该目录还没有 `config.toml`，它会写入
-只包含 `cogito_ai_play` MCP Server 的最小配置；如果已经存在配置文件但缺少
-`cogito_ai_play` MCP Server 配置，它会追加该配置而不覆盖其他设置。
+每次启动都必须显式指定模型与思考强度：
 
-默认每次运行都会在 `~/workspace/cogito_ai_player_runs/` 下创建全新的目录：
+```bash
+python3 tools/ai_play_codex_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model gpt-5.6 \
+  --reasoning-effort high \
+  --codex-auth-home ~/.codex-cogito-player
+```
+
+`--model` 与 `--reasoning-effort` 没有默认值；空白或控制字符会在启动子进程前被拒绝。
+`--codex-auth-home` 默认是 `~/.codex-cogito-player`，只作为 `auth.json` 的来源：启动器既不
+读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
+仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
+
+该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许四个
+游玩工具；它关闭 Web 搜索、子代理、记忆、登录 shell 和模型生成命令的网络访问。不要传递旧的
+`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host` 或 `--ws-port`：它们不是此启动器
+接受的参数。在 Windows 上，该配置请求 Codex 的原生 `elevated` sandbox；无法建立该沙箱时应
+修复本机 Codex/权限环境，而不是改用宽松配置。权限 profile 还显式拒绝模型生成命令读取本局
+临时 `CODEX_HOME`。CLI 和 MCP OAuth 凭据存储均固定为 `file`，不会回退读取系统凭据库。
+
+运行目录位于隔离的 `--session-root` 下。Windows 默认使用当前仓库所在驱动器根目录的
+`cogito_ai_player_runs/`，非 Windows 默认使用 `/tmp/cogito_ai_player_runs/`；自定义根及其祖先
+不得位于当前仓库内，也不得含 `.git`、`AGENTS.md` 或 `.codex/config.toml`。每局的布局为：
 
 ```text
-cogito_ai_player_runs/
+<isolated-session-root>/
 └── 20260726-170000/
-    ├── player_workspace/
-    │   ├── ai_play_run_config.json
-    │   └── mcplogs/
+    ├── player_workspace/   # 创建时为空；orchestrator 不写入游戏产物
+    └── trusted_mcplogs/    # 仅可信 MCP 侧可见
 ```
 
-`player_workspace/ai_play_run_config.json` 会记录本次 `AI_PLAY_LOG_ROOT`，同一个路径也会
-作为环境变量传给玩家 Codex 及其启动的 MCP Server。可以用 `--session-root` 指定这个
-大目录：
+`127.0.0.1:8765` 是 Godot 固定桥端口；`--mcp-port` 默认是独立的 `8766`，且不能使用 8765。
+启动器会先检查两个端口空闲，启动可信 MCP 边车并等待 HTTP 与桥监听就绪，再启动 Codex，最后
+启动 supervisor；任一进程异常、中断或退出都会终止其余进程。`--mcp-port` 可用于改变 HTTP
+边车端口，但 Godot bridge 不能通过该启动器改端口。
 
-```bash
-python3 tools/ai_play_codex_orchestrator.py \
-  --runs 3 \
-  --scenario find_contract \
-  --session-root ~/workspace/cogito_ai_player_runs
-```
-
-orchestrator 默认要求 `127.0.0.1:8765` 在启动前空闲，并会等待玩家 Codex 启动的
-`cogito_ai_play` MCP Server 监听该地址后才启动 Godot。若该端口已被旧 MCP/Codex 进程
-占用，程序会直接退出，避免 Godot 连接到错误的玩家进程。需要改端口时，同时传入：
-
-```bash
-python3 tools/ai_play_codex_orchestrator.py \
-  --runs 3 \
-  --scenario find_contract \
-  --ws-host 127.0.0.1 \
-  --ws-port 8766
-```
+这是本机 Codex 权限 profile 的硬化边界，不是容器、VM 或独立 Windows 用户级别的隔离，不能
+抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收会产生截图、令牌、费用和
+本地轨迹持久化影响，必须另行得到用户确认；自动化测试不执行该验收。
 
 如果只想手动启动玩家 Codex，再让程序管理 Godot，仍可直接运行 supervisor：
 
@@ -336,4 +331,4 @@ bash tests/check_ai_play_start_script.sh
 bash tests/check_ai_play_mcp_only.sh
 ```
 
-Godot headless 回归命令见 [`docs/wiki/development/contributor-guide.md`](../docs/wiki/development/contributor-guide.md)。架构、协议和验收边界见 [已批准 Spec](../docs/scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md) 与 [AI First Play 系统指南](../docs/wiki/ai-play/system-guide.md)。
+Godot headless 回归命令见 [`docs/wiki/development/contributor-guide.md`](../docs/wiki/development/contributor-guide.md)。架构、协议和验收边界见 [AI Play MCP spec](../docs/scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、[黑盒 Codex 玩家 spec](../docs/scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md) 与 [AI First Play 系统指南](../docs/wiki/ai-play/system-guide.md)。

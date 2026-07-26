@@ -72,38 +72,56 @@ Godot 桥的安全边界。
 
 ## Codex orchestrator 多局验收
 
-一键托管隔离玩家 Codex 和 Godot supervisor：
+### 当前黑盒玩家边界
 
-```bash
-python3 tools/ai_play_codex_orchestrator.py --runs 3 --scenario find_contract
-```
+> 状态：已于 2026-07-26 实施；设计来源见 [黑盒 Codex 玩家 spec](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)。
 
-首次使用前需要对专用 Codex home 完成登录：
+orchestrator 把可信游戏侧和受限 Codex 会话拆开：它在仓库侧启动仅绑定 `127.0.0.1` 的
+Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；Codex 只配置该边车的
+`briefing`、`observe`、`act`、`stop` 四个工具。玩家提示词、环境、工作区和临时配置不含
+仓库路径、启动脚本路径、玩法 ID、日志位置或关卡信息；游戏目标只由 `briefing` 的既有白名单
+结果提供。
+
+每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
+`~/.codex-cogito-player`，只作为 `auth.json` 的来源；不会读取、合并或保留其 `config.toml`、
+MCP、插件、技能、记忆或会话。临时凭据副本和配置会在所有退出路径删除。工作区根及祖先不能
+位于当前仓库内，也不能含 `.git`、`AGENTS.md` 或 `.codex/config.toml`；日志、截图、轨迹和
+运行配置都不放入或传入玩家侧。
+
+启动命令必须显式提供 `--model`、`--reasoning-effort` 和（需要覆盖默认值时）
+`--codex-auth-home`。临时配置固定模型、思考强度、唯一 MCP URL、四工具白名单和自定义最小
+权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的网络访问。旧的
+`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 都不被接受，不能
+用来放宽此边界。Windows 配置还请求 Codex 原生 `elevated` sandbox；建立失败时应修复本机
+权限环境，而不是降级该 profile。该 profile 对本局临时 `CODEX_HOME` 加显式 deny，禁止模型
+生成的命令读取认证副本或临时配置；CLI 与 MCP OAuth 凭据存储固定为 `file`，不回退读取
+系统凭据库。
 
 ```bash
 CODEX_HOME=~/.codex-cogito-player codex login
+
+python3 tools/ai_play_codex_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model gpt-5.6 \
+  --reasoning-effort high \
+  --codex-auth-home ~/.codex-cogito-player
 ```
 
-orchestrator 默认使用 `~/.codex-cogito-player`。如果该目录没有 `config.toml`，它会创建
-只包含 `cogito_ai_play` MCP Server 的最小配置，并为 `briefing`、`observe`、`act`、`stop`
-四个工具各写入一个 `approval_mode = "approve"` 的专用配置段。如果配置已存在，它会保留
-原有内容，只追加缺少的 MCP Server 段或单个工具审批段，不覆盖已有的 Server 命令或其他设置。
+默认运行根在 Windows 是当前仓库所在驱动器根目录的 `cogito_ai_player_runs/`，非 Windows 是
+`/tmp/cogito_ai_player_runs/`；`--session-root` 必须同样通过隔离祖先检查。每局的
+`trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
+游戏产物。
 
-orchestrator 每次运行会在 `--session-root` 指定的大目录下创建全新的运行目录，默认是
-`~/workspace/cogito_ai_player_runs/<YYYYMMDD-HHMMSS>/`。其中
-`player_workspace/` 是玩家 Codex 的启动目录，`player_workspace/mcplogs/` 是本次
-`AI_PLAY_LOG_ROOT`。`player_workspace/ai_play_run_config.json` 会记录该日志根目录，
-且同一路径会作为环境变量传给玩家 Codex 及其启动的 MCP Server。玩家 Codex 可以读取
-本次 `AI_PLAY_LOG_ROOT` 下的轨迹、摘要和截图，把它们作为自己游玩过程的记忆来总结
-经验；仍不得读取仓库源码、测试、spec、`game_script/`、`code_read/`、其他运行目录或凭据。
+Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
+`http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查
+两个端口空闲，按 MCP 边车、Codex、supervisor 的顺序启动，并在启动 Codex 前等待 HTTP 和桥
+监听就绪。任一子进程退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
+输入释放路径。
 
-orchestrator 默认使用 `127.0.0.1:8765` 作为 Godot 到 MCP Server 的桥地址。启动玩家
-Codex 前它会确认该端口空闲；端口已被旧 MCP/Codex 进程占用时直接退出。启动玩家
-Codex 后，它会等待 `cogito_ai_play` MCP Server 监听该地址，再启动 Godot supervisor，
-避免 Godot 误连到其他进程。需要并行运行时可用 `--ws-host` 和 `--ws-port` 改桥地址。
-
-orchestrator 不读取轨迹、截图、源码或模型上下文；它只负责同时启动玩家 Codex 和
-supervisor，并在任一子进程异常退出时终止另一侧。
+该本机方案限制 Codex 会话通过配置工具读取文件和使用网络的范围，但不是容器、VM 或独立 OS
+用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
+会涉及截图、令牌、费用和本地轨迹持久化，仍须用户单独确认。
 
 ## 外部 supervisor 多局验收
 
@@ -133,8 +151,8 @@ supervisor 将该标识作为本局完成依据。没有该标识的提前退出
 Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 `AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
 `failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
-玩家 Codex 提示词，也不访问仓库内部知识；日志读取授权只给隔离玩家 Codex，且仅限本次
-`AI_PLAY_LOG_ROOT`。
+玩家 Codex 提示词，也不访问仓库内部知识；本次 `AI_PLAY_LOG_ROOT` 只属于可信 MCP
+边车，绝不授权给隔离玩家 Codex。
 
 ## 增加同一 Lobby 的新玩法
 
@@ -305,4 +323,4 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
