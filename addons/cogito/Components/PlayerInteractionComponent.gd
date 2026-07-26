@@ -117,6 +117,8 @@ func _input(event: InputEvent) -> void:
 func _handle_interaction(action: String) -> void:
 	# if carrying an object, drop it.
 	if is_carrying:
+		if _try_priority_carry_interaction(action):
+			return
 		if is_instance_valid(carried_object):
 			if carried_object.input_map_action == action:
 				_drop_carried_object()
@@ -409,6 +411,11 @@ func _set_interactable(new_interactable) -> void:
 	interactable = new_interactable
 	# Ensure the drop prompt isn't cleared.
 	if is_carrying:
+		var carry_interactions := _priority_carry_interactions()
+		if carry_interactions.is_empty():
+			started_carrying.emit(carried_object)
+		else:
+			interactive_object_detected.emit(carry_interactions)
 		return
 	if interactable == null:
 		nothing_detected.emit()
@@ -425,10 +432,39 @@ func _set_carried_object(new_carried_object) -> void:
 func _rebuild_interaction_prompts() -> void:
 	# Ensure the drop prompt isn't cleared.
 	if is_carrying:
+		var carry_interactions := _priority_carry_interactions()
+		if carry_interactions.is_empty():
+			started_carrying.emit(carried_object)
+		else:
+			interactive_object_detected.emit(carry_interactions)
 		return
 	nothing_detected.emit() # Clears the prompts
 	if interactable != null:
 		interactive_object_detected.emit(interactable.interaction_nodes) # Builds the prompts
+
+
+func _priority_carry_interactions() -> Array[Node]:
+	var result: Array[Node] = []
+	if interactable == null or interactable.get("interaction_nodes") == null:
+		return result
+	for node: Node in interactable.interaction_nodes:
+		if node.get("prefer_while_carrying") == true:
+			result.append(node)
+	return result
+
+
+func _try_priority_carry_interaction(action: String) -> bool:
+	for node: Node in _priority_carry_interactions():
+		if node.input_map_action != action or node.is_disabled:
+			continue
+		if node.has_method("set_disabled") and node.set_disabled(player):
+			continue
+		if not node.ignore_open_gui and get_parent().is_showing_ui:
+			return false
+		node.interact(self)
+		_rebuild_interaction_prompts()
+		return true
+	return false
 
 
 func _attempt_throw() -> void:
