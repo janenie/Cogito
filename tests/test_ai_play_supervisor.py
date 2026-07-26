@@ -40,6 +40,14 @@ def test_parse_game_over_marker_rejects_unrelated_output():
     )
 
 
+def test_parse_game_over_marker_treats_mcp_stop_as_failed_attempt():
+    supervisor = load_supervisor()
+
+    marker = supervisor.parse_game_over_marker("AI_PLAY disabled; reason=mcp_stop")
+
+    assert marker == ("failure", "stopped")
+
+
 def test_supervisor_retries_abnormal_exit_until_terminal_attempt_completes(tmp_path):
     supervisor = load_supervisor()
     script = tmp_path / "fake_godot.py"
@@ -75,6 +83,34 @@ def test_supervisor_retries_abnormal_exit_until_terminal_attempt_completes(tmp_p
     assert result.reason == "wrong_password"
     assert result.retries == 1
     assert result.exit_code == 1
+
+
+def test_supervisor_finishes_stopped_attempt_without_waiting_for_timeout(tmp_path):
+    supervisor = load_supervisor()
+    script = tmp_path / "stopped_godot.py"
+    script.write_text(
+        "\n".join(
+            [
+                "import time",
+                "print('AI_PLAY disabled; reason=mcp_stop', flush=True)",
+                "time.sleep(5)",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = supervisor.run_supervised_attempt(
+        command=[sys.executable, str(script)],
+        cwd=tmp_path,
+        attempt_number=1,
+        max_retries=0,
+        timeout_seconds=5.0,
+        game_over_exit_timeout_seconds=0.1,
+    )
+
+    assert result.status == "failure"
+    assert result.reason == "stopped"
+    assert result.retries == 0
 
 
 def test_supervisor_reports_timeout_after_retries_are_exhausted(tmp_path):

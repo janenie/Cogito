@@ -158,8 +158,10 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将带有该标识的进程退出计为一局完成；未看到标识的提前退出、超时或连接异常
-按异常局处理并有限重试。跨局“自进化”只能发生在隔离玩家 Codex 基于公开 MCP 结果做出的
-策略总结中。
+按异常局处理并有限重试。若玩家 Codex 或人工 Escape 通过 MCP/Godot 停止控制，Godot
+输出 `AI_PLAY disabled; reason=mcp_stop` 或 `AI_PLAY disabled; reason=escape_stop` 时，
+supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“自进化”只能发生在隔离
+玩家 Codex 基于公开 MCP 结果做出的策略总结中。
 
 无论是否启用 AI，`find_contract` 每次载入 Lobby 都会生成一个新回合：从 8 个日期和 8 个版本号候选中
 各抽取一个值，随机选择 `MMDD + VV` 或 `VV + MMDD`，并从三条固定的三地点路线中

@@ -20,6 +20,11 @@ DEFAULT_SCENE = "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
 GAME_OVER_RE = re.compile(
     r"^AI_PLAY_GAME_OVER outcome=(success|failure) reason=([a-z0-9_]+)$"
 )
+AI_PLAY_DISABLED_RE = re.compile(r"^AI_PLAY disabled; reason=([a-z0-9_:]+)$")
+STOPPED_REASONS = frozenset({
+    "mcp_stop",
+    "escape_stop",
+})
 
 
 @dataclass(frozen=True)
@@ -33,9 +38,14 @@ class AttemptResult:
 
 def parse_game_over_marker(line: str) -> tuple[str, str] | None:
     match = GAME_OVER_RE.match(line.strip())
+    if match is not None:
+        return match.group(1), match.group(2)
+    match = AI_PLAY_DISABLED_RE.match(line.strip())
     if match is None:
         return None
-    return match.group(1), match.group(2)
+    if match.group(1) in STOPPED_REASONS:
+        return "failure", "stopped"
+    return None
 
 
 def build_godot_command(

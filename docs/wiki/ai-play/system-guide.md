@@ -127,8 +127,11 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
-处理并有限重试；Escape 或人工中断停止整轮验收。supervisor 不读取本地轨迹日志，不
-复盘截图，不修改玩家 Codex 提示词，也不访问仓库内部知识。
+处理并有限重试。若玩家 Codex 调用 MCP `stop` 或人工 Escape 触发 Godot 停止控制，
+Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
+`AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
+`failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
+玩家 Codex 提示词，也不访问仓库内部知识。
 
 ## 增加同一 Lobby 的新玩法
 
