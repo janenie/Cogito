@@ -7,7 +7,11 @@ from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve as websocket_serve
 
 from .game_session import GameSession, SessionError
-from .scenarios import DEFAULT_SCENARIO_ID, is_supported_scenario
+from .scenarios import (
+    DEFAULT_SCENARIO_ID,
+    is_supported_scenario,
+    scenario_round_act_request_limit,
+)
 
 
 PROTOCOL_VERSION = 3
@@ -107,6 +111,7 @@ def _handler(connection, config, session):
         session.attach(
             lambda packet: _safe_send(connection, packet),
             hello["scenario_id"],
+            act_request_limit=hello.get("act_request_limit"),
         )
     except SessionError as error:
         _safe_send(connection, _error(str(error)))
@@ -142,6 +147,12 @@ def _receive_hello(connection):
     if set(packet) not in (
         {"type", "protocol_version"},
         {"type", "protocol_version", "scenario_id"},
+        {
+            "type",
+            "protocol_version",
+            "scenario_id",
+            "act_request_limit",
+        },
     ):
         _safe_send(connection, _error("invalid_hello"))
         return None
@@ -149,6 +160,15 @@ def _receive_hello(connection):
     if not is_supported_scenario(scenario_id):
         _safe_send(connection, _error("unsupported_scenario"))
         return None
+    if "act_request_limit" in packet:
+        try:
+            scenario_round_act_request_limit(
+                scenario_id,
+                packet["act_request_limit"],
+            )
+        except RuntimeError:
+            _safe_send(connection, _error("invalid_act_request_limit"))
+            return None
     packet["scenario_id"] = scenario_id
     return packet
 

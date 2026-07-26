@@ -286,6 +286,21 @@ billboard = 1
 text = "Entryway"
 font_size = 34
 
+[node name="PaperTrashEntry" type="StaticBody3D" parent="Entryway"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.85, 0.38, 2.9)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "entry"
+
+[node name="Mesh" type="MeshInstance3D" parent="Entryway/PaperTrashEntry"]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Entryway/PaperTrashEntry"]
+shape = SubResource("SphereShape3D_paper")
+
 [node name="LivingRoom" type="Node3D" parent="." unique_id=1826979293]
 
 [node name="RoomLabel" type="Label3D" parent="LivingRoom" unique_id=351986297]
@@ -314,6 +329,21 @@ shape = SubResource("BoxShape3D_furniture_low_table")
 
 [node name="Rug" parent="LivingRoom" unique_id=486420157 instance=ExtResource("13_rug")]
 transform = Transform3D(2.5, 0, 0, 0, 1, 0, 0, 0, 1.8, -5.85542, 0.110998645, 3.4705837)
+
+[node name="PaperTrashLivingRoom" type="StaticBody3D" parent="LivingRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.35, 0.38, 2.35)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "living_room"
+
+[node name="Mesh" type="MeshInstance3D" parent="LivingRoom/PaperTrashLivingRoom"]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/PaperTrashLivingRoom"]
+shape = SubResource("SphereShape3D_paper")
 
 [node name="LivingRoomTrashBin" type="StaticBody3D" parent="LivingRoom" unique_id=957368806]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8, 0.45, 3.6)
@@ -448,6 +478,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.85, 0.38, -0.85)
 collision_layer = 2
 script = ExtResource("7_paper")
 manager_path = NodePath("../../DailyRoutineManager")
+room_id = "kitchen"
 
 [node name="Mesh" type="MeshInstance3D" parent="Kitchen/PaperTrashA" unique_id=523230236]
 transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
@@ -455,20 +486,6 @@ mesh = SubResource("SphereMesh_paper")
 surface_material_override/0 = SubResource("Mat_paper")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashA" unique_id=1683576605]
-shape = SubResource("SphereShape3D_paper")
-
-[node name="PaperTrashB" type="StaticBody3D" parent="Kitchen" unique_id=1792680267]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.25, 0.38, -1.15)
-collision_layer = 2
-script = ExtResource("7_paper")
-manager_path = NodePath("../../DailyRoutineManager")
-
-[node name="Mesh" type="MeshInstance3D" parent="Kitchen/PaperTrashB" unique_id=250856961]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = SubResource("SphereMesh_paper")
-surface_material_override/0 = SubResource("Mat_paper")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashB" unique_id=1207709501]
 shape = SubResource("SphereShape3D_paper")
 
 [node name="Bedroom" type="Node3D" parent="." unique_id=71429479]
@@ -498,7 +515,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, 0.4, -4)
 shape = SubResource("BoxShape3D_furniture_bed_cabinet")
 
 [node name="PaperTrashBedroomA" type="StaticBody3D" parent="Bedroom" unique_id=1429678441]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.45, 0.38, -2.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.45, 0.38, -3.55)
 collision_layer = 2
 script = ExtResource("7_paper")
 manager_path = NodePath("../../DailyRoutineManager")
@@ -509,21 +526,6 @@ mesh = SubResource("SphereMesh_paper")
 surface_material_override/0 = SubResource("Mat_paper")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomA" unique_id=691063474]
-shape = SubResource("SphereShape3D_paper")
-
-[node name="PaperTrashBedroomB" type="StaticBody3D" parent="Bedroom" unique_id=376614346]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0.38, -1.25)
-collision_layer = 2
-script = ExtResource("7_paper")
-manager_path = NodePath("../../DailyRoutineManager")
-room_id = "bedroom"
-
-[node name="Mesh" type="MeshInstance3D" parent="Bedroom/PaperTrashBedroomB" unique_id=501349951]
-transform = Transform3D(0.61, 0, 0, 0, 0.61, 0, 0, 0, 0.61, 0, 0, 0)
-mesh = SubResource("SphereMesh_paper")
-surface_material_override/0 = SubResource("Mat_paper")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomB" unique_id=70133987]
 shape = SubResource("SphereShape3D_paper")
 
 [node name="CogitoPlayer" type="CharacterBody3D" parent="." unique_id=1696268016]
@@ -553,11 +555,17 @@ script = ExtResource("1_time")
 [node name="DailyRoutineManager" type="Node" parent="." unique_id=511480139]
 script = ExtResource("2_manager")
 time_system_path = NodePath("../HomeRoutineTimeSystem")
+fridge_path = NodePath("../Kitchen/Fridge")
+required_trash_count = 5
+loose_trash_min = 4
+loose_trash_max = 4
 
 [node name="TrashRandomizer" type="Node" parent="." unique_id=1805241874]
 script = ExtResource("22_trash_randomizer")
 manager_path = NodePath("../DailyRoutineManager")
-trash_paths = Array[NodePath]([NodePath("../Kitchen/PaperTrashA"), NodePath("../Kitchen/PaperTrashB"), NodePath("../Bedroom/PaperTrashBedroomA"), NodePath("../Bedroom/PaperTrashBedroomB")])
+min_active_trash = 4
+max_active_trash = 4
+trash_paths = Array[NodePath]([NodePath("../Entryway/PaperTrashEntry"), NodePath("../LivingRoom/PaperTrashLivingRoom"), NodePath("../Bedroom/PaperTrashBedroomA"), NodePath("../Kitchen/PaperTrashA")])
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=385618428]
 script = ExtResource("3_hud")
@@ -650,13 +658,13 @@ text = "把全部垃圾扔进客厅垃圾桶。"
 [node name="RulesLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1969375385]
 unique_name_in_owner = true
 layout_mode = 2
-text = "规则：冰箱里有一盒过期牛奶。整个房间有 1-2 个垃圾。看左上方提示确认总数。一次只能拿一个物品。把需要清理的东西都扔进客厅垃圾桶，清理完点击垃圾桶旁边的完成任务按钮。"
+text = "规则：冰箱里有一盒过期牛奶。屋内有 4 个散落垃圾。一次只能拿一个物品。把需要清理的东西都扔进客厅垃圾桶，确认冰箱关闭后点击垃圾桶旁边的完成任务按钮。"
 autowrap_mode = 3
 
 [node name="TrashLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1663053136]
 unique_name_in_owner = true
 layout_mode = 2
-text = "总垃圾：3，已扔：0"
+text = "总垃圾：5，已扔：0"
 
 [node name="HoldingLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=458533820]
 unique_name_in_owner = true

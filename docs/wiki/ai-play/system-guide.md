@@ -36,7 +36,8 @@ Godot 桥的安全边界。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
 - `find_contract` 的请求硬上限是 500，终局只允许 `success/correct_password`、
-  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 的请求硬上限是 200，
+  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
+  50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
   是 50，终局只允许 `success/book_in_box` 和 `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
@@ -53,6 +54,9 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
+- `find_key` 的版本 3 `hello` 可额外携带 `act_request_limit`，只允许整数 50 或 100；
+  省略时默认 100，其他玩法携带、非法类型和值都必须拒绝。首次握手后重连上限必须一致。
+  该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
   `<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行/尝试目录；一个运行最多分组同一任务的
   三次连接，不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
@@ -122,6 +126,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   直线距离最远的出生点；任务卡与出生点保持 1～2 米距离。
 - 只有成功执行 Pickup 才产生 `success/key_picked_up`；仅看到钥匙不算成功，本玩法没有
   wrong-answer 失败。
+- 台式电脑桌、电视茶几和档案室沙发位置使用 50 次请求硬上限；笔记本电脑桌和会议长桌
+  位置使用 100 次请求硬上限。Godot 只向内部桥发送 50/100 上限，不发送位置 ID。
 - 非零 `round_seed` 仅供本地确定性测试。候选坐标、所选位置、出生点计算和种子都属于
   隐藏初始化状态，不得进入公开简报、观察或桥协议。
 
@@ -193,10 +199,11 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
 
 - 该玩法来自导入到当前仓库的 `dailyroutine/` 家庭日常清理场景，复用同一套
   stdio MCP Server、WebSocket 桥、动作执行器和终局上限机制。
-- 玩家根据 HUD 目标、画面观察和可见交互提示，把场景中的散落垃圾和过期牛奶放进客厅
-  垃圾桶，然后点击完成按钮。
-- 完成按钮在所有目标垃圾已进入客厅垃圾桶后产生 `success/cleanup_complete`；如果仍有
-  垃圾未清理就点击完成按钮，产生 `failure/cleanup_incomplete`。
+- 玩家根据 HUD 目标、画面观察和可见交互提示，把 4 个散落垃圾和过期牛奶放进客厅
+  垃圾桶，确认冰箱关闭后点击完成按钮。
+- 完成按钮在所有目标垃圾已进入客厅垃圾桶且冰箱关闭后产生
+  `success/cleanup_complete`；任一完成条件未满足就点击完成按钮，产生
+  `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
 - 公开观察只包含相机图像、玩家基础状态、可见交互提示、HUD 级别的清理进度和持有物
   标签；不公开内部节点路径、脚本类名或候选物体源码。
 

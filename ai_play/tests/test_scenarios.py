@@ -1,5 +1,6 @@
 import pytest
 
+import ai_play.scenarios as scenario_registry
 from ai_play.scenarios import (
     DEFAULT_SCENARIO_ID,
     is_allowed_game_over,
@@ -40,7 +41,7 @@ def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
 def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("find_contract", 500) == 500
     assert scenario_act_request_limit("find_contract", 120) == 120
-    assert scenario_act_request_limit("find_key", 500) == 200
+    assert scenario_act_request_limit("find_key", 500) == 100
     assert scenario_act_request_limit("find_key", 80) == 80
     assert scenario_act_request_limit("put_book", 500) == 50
     assert scenario_act_request_limit("put_book", 35) == 35
@@ -48,6 +49,46 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
     assert scenario_act_request_limit("daily_routine_cleanup", 500) == 150
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
+
+
+def test_find_key_round_request_limits_are_allowlisted():
+    scenario_round_act_request_limit = getattr(
+        scenario_registry,
+        "scenario_round_act_request_limit",
+        None,
+    )
+    assert callable(scenario_round_act_request_limit)
+    assert scenario_round_act_request_limit("find_key") == 100
+    assert scenario_round_act_request_limit("find_key", 50) == 50
+    assert scenario_round_act_request_limit("find_key", 100) == 100
+    assert scenario_act_request_limit("find_key", 500, 50) == 50
+    assert scenario_act_request_limit("find_key", 40, 50) == 40
+
+
+@pytest.mark.parametrize(
+    ("scenario_id", "requested_limit"),
+    [
+        ("find_key", True),
+        ("find_key", 50.0),
+        ("find_key", "50"),
+        ("find_key", 49),
+        ("find_key", 51),
+        ("find_key", 101),
+        ("find_contract", 50),
+    ],
+)
+def test_round_request_limit_rejects_unapproved_values(
+    scenario_id,
+    requested_limit,
+):
+    scenario_round_act_request_limit = getattr(
+        scenario_registry,
+        "scenario_round_act_request_limit",
+        None,
+    )
+    assert callable(scenario_round_act_request_limit)
+    with pytest.raises(RuntimeError, match="invalid_act_request_limit"):
+        scenario_round_act_request_limit(scenario_id, requested_limit)
 
 
 def test_terminal_results_are_scenario_specific():

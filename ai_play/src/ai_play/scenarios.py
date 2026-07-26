@@ -13,6 +13,7 @@ from .put_book_briefing import load_put_book_briefing
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
+FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100})
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ _SCENARIOS = {
     ),
     "find_key": ScenarioDefinition(
         briefing_loader=load_find_key_briefing,
-        max_act_requests=200,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "key_picked_up"),
             ("failure", "max_requests"),
@@ -83,12 +84,31 @@ def load_scenario_briefing(scenario_id: str):
 def scenario_act_request_limit(
     scenario_id: str,
     configured_limit: int,
+    round_limit: object = None,
+) -> int:
+    return min(
+        scenario_round_act_request_limit(scenario_id, round_limit),
+        configured_limit,
+    )
+
+
+def scenario_round_act_request_limit(
+    scenario_id: str,
+    requested_limit: object = None,
 ) -> int:
     try:
-        scenario_limit = _SCENARIOS[scenario_id].max_act_requests
+        default_limit = _SCENARIOS[scenario_id].max_act_requests
     except (KeyError, TypeError) as error:
         raise RuntimeError("unsupported_scenario") from error
-    return min(scenario_limit, configured_limit)
+    if requested_limit is None:
+        return default_limit
+    if (
+        scenario_id != "find_key"
+        or type(requested_limit) is not int
+        or requested_limit not in FIND_KEY_ROUND_ACT_REQUEST_LIMITS
+    ):
+        raise RuntimeError("invalid_act_request_limit")
+    return requested_limit
 
 
 def is_allowed_game_over(

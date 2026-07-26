@@ -286,6 +286,56 @@ def test_bridge_routes_find_key_success_to_session():
     assert result == SessionResult(status="game_over", game_over=terminal)
 
 
+def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+    hello = _hello("find_key")
+    hello["act_request_limit"] = 50
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            result = _send(connection, hello)
+    finally:
+        handle.close()
+
+    assert result == {
+        "type": "hello",
+        "protocol_version": 3,
+        "scenario_id": "find_key",
+    }
+    assert session.act_request_limit == 50
+
+
+@pytest.mark.parametrize(
+    ("scenario_id", "act_request_limit"),
+    [
+        ("find_key", True),
+        ("find_key", 50.0),
+        ("find_key", "50"),
+        ("find_key", 49),
+        ("find_key", 51),
+        ("find_key", 101),
+        ("find_contract", 50),
+    ],
+)
+def test_bridge_rejects_invalid_round_request_limit(
+    scenario_id,
+    act_request_limit,
+):
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+    hello = _hello(scenario_id)
+    hello["act_request_limit"] = act_request_limit
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            result = _send(connection, hello)
+    finally:
+        handle.close()
+
+    assert result["code"] == "invalid_act_request_limit"
+
+
 def test_bridge_rejects_exact_hello_extras_and_invalid_json():
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
@@ -321,6 +371,20 @@ def test_bridge_accepts_legacy_hello_as_default_scenario():
 
     assert result["scenario_id"] == "find_contract"
     assert session.scenario_id == "find_contract"
+
+
+def test_bridge_accepts_legacy_find_key_hello_with_default_limit():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            result = _send(connection, _hello("find_key"))
+    finally:
+        handle.close()
+
+    assert result["scenario_id"] == "find_key"
+    assert session.act_request_limit == 100
 
 
 def test_bridge_rejects_unknown_scenario():

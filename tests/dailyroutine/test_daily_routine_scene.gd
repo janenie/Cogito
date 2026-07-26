@@ -44,6 +44,8 @@ func _test_home_scene_structure() -> void:
 	_assert(scene.get_node_or_null("Entryway/DoorToLivingRoom") == null, "entryway no longer has a living room door")
 	_assert(scene.get_node_or_null("LivingRoom/DoorToKitchen") == null, "living room no longer has a kitchen door")
 	_assert(scene.get_node_or_null("LivingRoom/DoorToBedroom") == null, "living room no longer has a bedroom door")
+	_assert(scene.get_node_or_null("Entryway/PaperTrashEntry") != null, "entryway has a loose trash candidate")
+	_assert(scene.get_node_or_null("LivingRoom/PaperTrashLivingRoom") != null, "living room has a loose trash candidate")
 	_assert(scene.get_node_or_null("Kitchen/FridgeMilk") != null, "kitchen has milk interaction")
 	_assert(scene.get_node_or_null("Kitchen/FridgeMilk/MilkCarton") != null, "milk is represented by a carton")
 	_assert(_fridge_uses_addon_container(scene), "kitchen uses addon fridge container with animated doors")
@@ -57,7 +59,7 @@ func _test_home_scene_structure() -> void:
 	_assert(scene.get_node_or_null("Bedroom/BedroomTrashBin") == null, "bedroom no longer has trash bin")
 	_assert(scene.get_node_or_null("TrashRandomizer") != null, "scene has random trash selector")
 	_assert(scene.get_node_or_null("LivingRoom/FinishButton") != null, "living room has finish button beside trash bin")
-	_assert(_active_trash_count(scene) >= 1 and _active_trash_count(scene) <= 2, "home has one or two active loose trash items")
+	_assert(_active_trash_count(scene) == 4, "home has four active loose trash items")
 	_assert(_loose_trash_is_visible_enough(scene), "loose trash is large and raised enough to see on the floor")
 	_assert(_loose_trash_is_in_open_floor_positions(scene), "loose trash candidates are placed in open floor positions")
 	_assert(scene.get_node_or_null("HomeRoutineTimeSystem") != null, "scene has time system")
@@ -161,10 +163,10 @@ func _active_trash_count(scene: Node) -> int:
 		return int(randomizer.get("active_trash_count"))
 	var count := 0
 	var trash_paths := [
+		"Entryway/PaperTrashEntry",
+		"LivingRoom/PaperTrashLivingRoom",
 		"Kitchen/PaperTrashA",
-		"Kitchen/PaperTrashB",
 		"Bedroom/PaperTrashBedroomA",
-		"Bedroom/PaperTrashBedroomB",
 	]
 	for trash_path in trash_paths:
 		var trash := scene.get_node_or_null(trash_path)
@@ -174,10 +176,10 @@ func _active_trash_count(scene: Node) -> int:
 
 func _loose_trash_is_visible_enough(scene: Node) -> bool:
 	var trash_paths := [
+		"Entryway/PaperTrashEntry",
+		"LivingRoom/PaperTrashLivingRoom",
 		"Kitchen/PaperTrashA",
-		"Kitchen/PaperTrashB",
 		"Bedroom/PaperTrashBedroomA",
-		"Bedroom/PaperTrashBedroomB",
 	]
 	for trash_path in trash_paths:
 		var trash := scene.get_node_or_null(trash_path) as Node3D
@@ -192,18 +194,19 @@ func _loose_trash_is_visible_enough(scene: Node) -> bool:
 	return true
 
 func _loose_trash_is_in_open_floor_positions(scene: Node) -> bool:
+	var entry := scene.get_node_or_null("Entryway/PaperTrashEntry") as Node3D
+	var living := scene.get_node_or_null("LivingRoom/PaperTrashLivingRoom") as Node3D
 	var kitchen_a := scene.get_node_or_null("Kitchen/PaperTrashA") as Node3D
-	var kitchen_b := scene.get_node_or_null("Kitchen/PaperTrashB") as Node3D
 	var bedroom_a := scene.get_node_or_null("Bedroom/PaperTrashBedroomA") as Node3D
-	var bedroom_b := scene.get_node_or_null("Bedroom/PaperTrashBedroomB") as Node3D
-	if kitchen_a == null or kitchen_b == null or bedroom_a == null or bedroom_b == null:
+	if entry == null or living == null or kitchen_a == null or bedroom_a == null:
 		return false
-	return kitchen_a.position.z > -1.8 \
-		and kitchen_b.position.z > -1.8 \
-		and bedroom_a.position.x > -5.4 \
-		and bedroom_b.position.x > -5.4 \
-		and bedroom_a.position.z > -2.8 \
-		and bedroom_b.position.z > -2.8
+	return entry.position.x > 4.1 \
+		and entry.position.z > 2.4 \
+		and living.position.x < -4.4 \
+		and living.position.z > 2.0 \
+		and kitchen_a.position.z > -1.8 \
+		and bedroom_a.position.x < -6.0 \
+		and bedroom_a.position.z < -3.0
 
 func _label_text(scene: Node, path: String) -> String:
 	var label := scene.get_node_or_null(path) as Label3D
@@ -219,9 +222,9 @@ func _hud_explains_rules(scene: Node) -> bool:
 		and content.contains("过期") \
 		and not content.contains("牛奶，它现在是垃圾") \
 		and not content.contains("把过期牛奶") \
-		and content.contains("总数") \
 		and content.contains("客厅垃圾桶") \
-		and content.contains("1-2") \
+		and content.contains("4 个散落垃圾") \
+		and content.contains("冰箱关闭") \
 		and content.contains("完成任务")
 
 func _furniture_blockers_are_configured(scene: Node) -> bool:

@@ -7,7 +7,8 @@ Godot。它负责：
 - 通过现有 `ai_play/start_ai.sh` 启动 stdio MCP server；
 - 让 agent 玩到成功、失败、停止或超出 MCP 交互上限；
 - 失败后关闭 Godot，生成流程级复盘；
-- 下一局重新启动 Godot，让随机种子和 MCP act 计数自然清零；
+- 下一局重新启动 Godot，并传入新的 `--ai-play-seed=<N>`，让场景随机内容和 MCP act
+  计数都按新局重置；
 - 最多运行 3 局，成功则提前停止。
 
 ## 直接 OpenAI API 模式
@@ -44,6 +45,13 @@ host 会把本局判为失败：
 
 如果还有剩余局数，host 会关闭当前 Godot 进程并重新开一局。`--max-agent-turns` 仍然保留
 为底层保护，表示最多请求模型多少次；一般使用时优先配置 `--max-mcp-interactions`。
+
+## 每局随机种子
+
+`ai_host` 每次启动 Godot 时都会追加 `--ai-play-seed=<N>` 用户参数。第 1 局默认使用
+`1001`，第 2 局使用 `1002`，依此类推。这个 seed 只作为 Godot 运行时输入；当前
+`daily_routine_cleanup` 使用固定的 4 个散落垃圾点，其他带随机规则的玩法可复用该
+per-attempt seed。
 
 ## 外部 Agent / Codex 模式
 

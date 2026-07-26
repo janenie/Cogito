@@ -33,6 +33,8 @@ var _hint_timer := 0.0
 func _ready() -> void:
 	if routine_manager == null:
 		routine_manager = get_node_or_null("../DailyRoutineManager")
+	if camera != null:
+		_pitch = camera.rotation.x
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_update_interaction_ui(null)
 	if hint_label != null:
@@ -142,6 +144,14 @@ func ai_play_orientation_degrees() -> Vector2:
 	if camera != null:
 		pitch = camera.rotation_degrees.x
 	return Vector2(yaw, pitch)
+
+
+func ai_play_look_degrees(yaw_degrees: float, pitch_degrees: float) -> void:
+	rotate_y(-deg_to_rad(yaw_degrees))
+	_pitch = clampf(_pitch - deg_to_rad(pitch_degrees), -1.35, 1.35)
+	if camera != null:
+		camera.rotation.x = _pitch
+	_update_interaction_target()
 
 func _update_interaction_target() -> void:
 	if interaction_ray == null:

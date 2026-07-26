@@ -192,6 +192,8 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
 - `--ai-play` 显式启用 AI 控制。
 - `--ai-play-scenario=<id>` 选择同一 Lobby 中的玩法脚本；省略时默认使用
   `find_contract`。ID 只允许小写 ASCII 字母、数字和下划线。
+- `--ai-play-seed=<N>` 可选；外层 `ai_host` 多局运行时会自动为每局传入不同 seed。
+  该 seed 只影响 Godot 运行时随机内容，不会进入 MCP 简报、观察或桥协议结果。
 
 普通 Lobby 启动保持 AI 控制关闭。MCP 服务也不会自动启动、重启或关闭 Godot。
 Godot 会在桥握手中上报实际玩法 ID，MCP 只接受 Python 白名单中注册的 ID，并据此
@@ -232,7 +234,8 @@ $env:PYTHONPATH = "ai_play/src"
 每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
 不允许或已有动作在途；`briefing`、`observe`、`stop` 不计数。`find_contract` 的硬上限
 为 500 次，允许 `success/correct_password`、`failure/wrong_password` 和
-`failure/max_requests`；`find_key` 的硬上限为 200 次，允许
+`failure/max_requests`；`find_key` 根据本局位置使用 50 或 100 次硬上限，公开
+briefing 只说明最大值 100 次，允许
 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 50 次，允许
 `success/book_in_box` 和 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，
 允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
@@ -241,6 +244,8 @@ $env:PYTHONPATH = "ai_play/src"
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
+`find_key` 只在内部版本 3 握手中发送经过验证的 50/100 上限，不发送所选位置；该上限
+不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时必须保持一致。
 
 最小的 `act` 参数示例：
 

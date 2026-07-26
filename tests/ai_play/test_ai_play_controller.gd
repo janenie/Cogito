@@ -71,8 +71,12 @@ class FakeInteractionProbe extends Node:
 class FakeTerminalMonitor extends Node:
 	signal game_finished(outcome: String, reason: String)
 	var scenario_id: String = "find_contract"
+	var act_request_limit: int = 100
 
 	var shown_results: Array[Dictionary] = []
+
+	func get_act_request_limit() -> int:
+		return act_request_limit
 
 	func show_result(outcome: String, reason: String) -> void:
 		shown_results.append({"outcome": outcome, "reason": reason})
@@ -95,6 +99,12 @@ func _run_tests() -> void:
 	_test_user_arg_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
+	await _test_find_key_hello_includes_round_request_limit(
+		controller_script
+	)
+	await _test_find_key_hello_rejects_invalid_round_request_limit(
+		controller_script
+	)
 	await _test_action_batch_requires_exact_mcp_fields(controller_script)
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
@@ -360,6 +370,56 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 			},
 			"hello identifies the active scenario",
 		)
+	await _free_fixture(fixture)
+
+
+func _test_find_key_hello_includes_round_request_limit(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _make_fixture(controller_script)
+	fixture.controller._active_scenario_id = "find_key"
+	fixture.terminal_monitor.scenario_id = "find_key"
+	fixture.terminal_monitor.act_request_limit = 50
+	fixture.controller.enable_ai()
+	fixture.bridge.connected.emit()
+
+	_assert(
+		not fixture.bridge.sent_packets.is_empty(),
+		"find_key connection sends hello",
+	)
+	if fixture.bridge.sent_packets.is_empty():
+		await _free_fixture(fixture)
+		return
+	_assert(
+		fixture.bridge.sent_packets[0] == {
+			"type": "hello",
+			"protocol_version": 3,
+			"scenario_id": "find_key",
+			"act_request_limit": 50,
+		},
+		"find_key hello includes the allowlisted round request limit",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_find_key_hello_rejects_invalid_round_request_limit(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _make_fixture(controller_script)
+	fixture.controller._active_scenario_id = "find_key"
+	fixture.terminal_monitor.scenario_id = "find_key"
+	fixture.terminal_monitor.act_request_limit = 75
+	fixture.controller.enable_ai()
+	fixture.bridge.connected.emit()
+
+	_assert(
+		fixture.bridge.sent_packets.is_empty(),
+		"invalid find_key round request limit is not sent",
+	)
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.DISABLED,
+		"invalid find_key round request limit disables AI",
+	)
 	await _free_fixture(fixture)
 
 

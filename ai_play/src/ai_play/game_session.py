@@ -15,7 +15,7 @@ from .observation_schema import (
 from .scenarios import (
     DEFAULT_SCENARIO_ID,
     is_allowed_game_over,
-    scenario_act_request_limit,
+    scenario_round_act_request_limit,
 )
 from .trajectory_logger import LogPersistenceError
 
@@ -56,6 +56,7 @@ class GameSession:
         self._request_limit_pending = False
         self._end_game_sent = False
         self._scenario_id = None
+        self._round_act_request_limit = None
 
     @property
     def act_request_count(self):
@@ -72,7 +73,12 @@ class GameSession:
         with self._condition:
             return self._act_request_limit_locked()
 
-    def attach(self, send_packet, scenario_id=DEFAULT_SCENARIO_ID):
+    def attach(
+        self,
+        send_packet,
+        scenario_id=DEFAULT_SCENARIO_ID,
+        act_request_limit=None,
+    ):
         with self._condition:
             if self._send_packet is not None:
                 raise SessionError("controller_busy")
@@ -83,12 +89,27 @@ class GameSession:
                 and self._scenario_id != scenario_id
             ):
                 raise SessionError("scenario_mismatch")
+            try:
+                round_act_request_limit = scenario_round_act_request_limit(
+                    scenario_id,
+                    act_request_limit,
+                )
+            except RuntimeError as error:
+                raise SessionError(str(error)) from error
+            if (
+                self._round_act_request_limit is not None
+                and self._round_act_request_limit != round_act_request_limit
+            ):
+                raise SessionError("scenario_mismatch")
             previous_scenario_id = self._scenario_id
+            previous_round_act_request_limit = self._round_act_request_limit
             self._scenario_id = scenario_id
+            self._round_act_request_limit = round_act_request_limit
             try:
                 self._start_log_attempt_locked(scenario_id)
             except Exception:
                 self._scenario_id = previous_scenario_id
+                self._round_act_request_limit = previous_round_act_request_limit
                 raise
             self._act_request_count = 0
             self._request_limit_pending = False
@@ -432,8 +453,8 @@ class GameSession:
     def _act_request_limit_locked(self):
         if self._scenario_id is None:
             return self.config.max_act_requests
-        return scenario_act_request_limit(
-            self._scenario_id,
+        return min(
+            self._round_act_request_limit,
             self.config.max_act_requests,
         )
 

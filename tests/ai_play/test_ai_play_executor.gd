@@ -74,6 +74,7 @@ func _run_tests() -> void:
 	_test_terminal_stop(executor)
 	await _test_blocked_movement(executor, recorder)
 	await _test_look_angles_scale_for_home_player(executor, recorder)
+	await _test_home_player_look_is_applied_directly(executor, recorder)
 	await _test_look_angles_scale_for_cogito_player(executor)
 	await _test_teardown_releases_without_signal()
 
@@ -294,6 +295,43 @@ func _test_look_angles_scale_for_home_player(executor: Node, recorder: InputReco
 		"home player look pitch is converted from degrees through mouse_sensitivity",
 	)
 
+	executor.player = null
+	home_player.queue_free()
+	await process_frame
+
+
+func _test_home_player_look_is_applied_directly(executor: Node, recorder: InputRecorder) -> void:
+	var home_player := HomeRobotPlayerScript.new()
+	var camera := Camera3D.new()
+	camera.name = "Camera3D"
+	camera.rotation_degrees.x = -15.0
+	home_player.add_child(camera)
+	root.add_child(home_player)
+	await process_frame
+
+	executor.player = home_player
+	recorder.events.clear()
+	var emitted: Array = []
+	var collect := func(results: Array) -> void: emitted.append(results.duplicate(true))
+	executor.batch_finished.connect(collect)
+	executor.execute_batch([{"type": "look", "yaw": 45.0, "pitch": 0.0}], {})
+	await process_frame
+	_assert(
+		emitted == [[{"status": "completed", "type": "look"}]],
+		"home player direct look reports completion",
+	)
+	_assert(
+		is_equal_approx(home_player.global_rotation_degrees.y, -45.0),
+		"home player direct look changes yaw by the requested degrees",
+	)
+	_assert(
+		is_equal_approx(camera.rotation_degrees.x, -15.0),
+		"home player direct look preserves pitch when pitch delta is zero",
+	)
+	for event: InputEvent in recorder.events:
+		_assert(not event is InputEventMouseMotion, "home player direct look does not rely on mouse event dispatch")
+
+	executor.batch_finished.disconnect(collect)
 	executor.player = null
 	home_player.queue_free()
 	await process_frame

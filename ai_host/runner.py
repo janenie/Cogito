@@ -32,7 +32,10 @@ async def run_host(
     reflection = ReflectionMemory()
 
     for attempt_id in range(1, config.max_attempts + 1):
-        godot = godot_factory(config)
+        try:
+            godot = godot_factory(config, attempt_id=attempt_id)
+        except TypeError:
+            godot = godot_factory(config)
         if mcp_client_factory is not None:
             mcp_client = mcp_client_factory(config)
         elif config.adapter == "openai":

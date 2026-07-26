@@ -23,7 +23,7 @@ def test_find_key_registry_loads_bounded_public_briefing():
 
     assert briefing["game_id"] == "find_key"
     assert briefing["success_condition"] == "成功拾取办公室中唯一的目标钥匙。"
-    assert "200" in briefing["failure_condition"]
+    assert "100" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for forbidden in [
@@ -79,7 +79,8 @@ def test_daily_routine_cleanup_briefing_is_public_and_bounded():
     assert image_bytes is None
     assert briefing["game_id"] == "daily_routine_cleanup"
     assert "客厅垃圾桶" in briefing["objective"]
-    assert briefing["success_condition"] == "所有目标垃圾都已扔进客厅垃圾桶，并点击完成按钮。"
+    assert "冰箱处于关闭状态" in briefing["success_condition"]
+    assert "4 个散落垃圾" in briefing["objective"]
     serialized = repr(briefing)
     for forbidden in [
         "DailyRoutineManager",

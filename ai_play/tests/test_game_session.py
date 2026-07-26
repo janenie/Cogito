@@ -121,10 +121,49 @@ def test_wait_for_scenario_times_out_before_game_connects():
         session.wait_for_scenario(timeout=0.01)
 
 
-def test_find_key_uses_200_request_hard_cap():
+def test_find_key_uses_100_request_hard_cap():
     session, _ = make_scenario_session("find_key", configured_limit=500)
 
-    assert session.act_request_limit == 200
+    assert session.act_request_limit == 100
+
+
+def test_find_key_round_request_limit_is_locked_across_reconnect():
+    session = GameSession(Config(max_act_requests=500))
+    session.attach(
+        lambda packet: True,
+        "find_key",
+        act_request_limit=50,
+    )
+
+    assert session.act_request_limit == 50
+
+    session.detach("test")
+    session.attach(
+        lambda packet: True,
+        "find_key",
+        act_request_limit=50,
+    )
+
+    assert session.act_request_limit == 50
+
+    session.detach("test")
+    with pytest.raises(SessionError, match="scenario_mismatch"):
+        session.attach(
+            lambda packet: True,
+            "find_key",
+            act_request_limit=100,
+        )
+
+
+def test_global_limit_can_tighten_find_key_round_cap():
+    session = GameSession(Config(max_act_requests=40))
+    session.attach(
+        lambda packet: True,
+        "find_key",
+        act_request_limit=50,
+    )
+
+    assert session.act_request_limit == 40
 
 
 def test_global_limit_can_tighten_find_key_cap():

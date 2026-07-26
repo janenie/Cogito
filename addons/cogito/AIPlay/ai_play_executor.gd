@@ -154,14 +154,17 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 	var action_type: String = action["type"]
 	match action_type:
 		"look":
-			var motion := InputEventMouseMotion.new()
-			motion.device = SYNTHETIC_DEVICE_ID
-			motion.relative = _look_degrees_to_mouse_relative(
-				float(action["yaw"]),
-				float(action["pitch"])
-			)
-			motion.screen_relative = motion.relative
-			Input.parse_input_event(motion)
+			if player != null and player.has_method("ai_play_look_degrees"):
+				player.ai_play_look_degrees(float(action["yaw"]), float(action["pitch"]))
+			else:
+				var motion := InputEventMouseMotion.new()
+				motion.device = SYNTHETIC_DEVICE_ID
+				motion.relative = _look_degrees_to_mouse_relative(
+					float(action["yaw"]),
+					float(action["pitch"])
+				)
+				motion.screen_relative = motion.relative
+				Input.parse_input_event(motion)
 		"move", "sprint":
 			var movement_requested: bool = (
 				not is_zero_approx(float(action["forward"]))

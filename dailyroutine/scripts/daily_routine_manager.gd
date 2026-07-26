@@ -22,13 +22,15 @@ const STATE_COMPLETE := "COMPLETE"
 const STATE_FAILED := "FAILED"
 
 @export var time_system_path: NodePath
-@export var required_trash_count := 3
-@export var loose_trash_min := 1
-@export var loose_trash_max := 2
+@export var fridge_path: NodePath
+@export var required_trash_count := 5
+@export var loose_trash_min := 4
+@export var loose_trash_max := 4
 @export var required_trash_bag_count := 0
 @export var clear_bag_distance := 1.6
 
 var time_system: Node
+var fridge: Node
 var current_state := STATE_START
 var current_objective := ""
 var collected_trash_count := 0
@@ -50,6 +52,8 @@ var failure_reason := ""
 func _ready() -> void:
 	if time_system == null:
 		time_system = get_node_or_null(time_system_path)
+	if fridge == null:
+		fridge = get_node_or_null(fridge_path)
 	_connect_time_system()
 	start_routine()
 
@@ -201,7 +205,7 @@ func submit_cleanup() -> bool:
 	if _ready_to_complete():
 		_complete_routine()
 		return true
-	fail_routine("任务失败：还有垃圾没有扔进客厅垃圾桶。")
+	fail_routine("任务失败。")
 	return false
 
 func place_trash_at_door() -> bool:
@@ -290,7 +294,15 @@ func _complete_routine() -> void:
 	routine_completed.emit()
 
 func _ready_to_complete() -> bool:
-	return milk_drunk and collected_trash_count >= required_trash_count
+	return milk_drunk and collected_trash_count >= required_trash_count and _fridge_is_closed()
+
+func _fridge_is_closed() -> bool:
+	if fridge == null:
+		fridge = get_node_or_null(fridge_path)
+	if fridge == null:
+		return true
+	var is_open_value: Variant = fridge.get("is_open")
+	return not (is_open_value is bool and is_open_value)
 
 func _filled_bin_count() -> int:
 	var count := 0

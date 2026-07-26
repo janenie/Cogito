@@ -9,6 +9,7 @@ const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
+const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
 		["success", "correct_password"],
@@ -250,6 +251,25 @@ func _on_bridge_connected() -> void:
 		"protocol_version": PROTOCOL_VERSION,
 		"scenario_id": _active_scenario_id,
 	}
+	if _active_scenario_id == "find_key":
+		if (
+			_terminal_monitor == null
+			or not _terminal_monitor.has_method(
+				"get_act_request_limit"
+			)
+		):
+			_pause_for_error("invalid_act_request_limit")
+			return
+		var request_limit: Variant = (
+			_terminal_monitor.get_act_request_limit()
+		)
+		if (
+			not request_limit is int
+			or request_limit not in FIND_KEY_ACT_REQUEST_LIMITS
+		):
+			_pause_for_error("invalid_act_request_limit")
+			return
+		hello["act_request_limit"] = request_limit
 	if _bridge.send_packet(hello) != OK:
 		_pause_for_error("hello_send_failed")
 		return
