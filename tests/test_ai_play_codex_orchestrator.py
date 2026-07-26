@@ -119,6 +119,11 @@ def test_ensure_player_codex_config_writes_minimal_mcp_config(tmp_path):
     assert config_path == codex_home / "config.toml"
     assert '[mcp_servers.cogito_ai_play]' in text
     assert f'command = "{mcp_command}"' in text
+    assert '[mcp_servers.cogito_ai_play.tools.briefing]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.observe]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.act]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.stop]' in text
+    assert text.count('approval_mode = "approve"') == 4
 
 
 def test_ensure_player_codex_config_preserves_existing_file_and_adds_mcp(tmp_path):
@@ -137,3 +142,37 @@ def test_ensure_player_codex_config_preserves_existing_file_and_adds_mcp(tmp_pat
     text = config_path.read_text(encoding="utf-8")
     assert 'model = "custom"' in text
     assert '[mcp_servers.cogito_ai_play]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.briefing]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.observe]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.act]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.stop]' in text
+
+
+def test_ensure_player_codex_config_adds_missing_tool_approvals(tmp_path):
+    orchestrator = load_orchestrator()
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    config_path = codex_home / "config.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[mcp_servers.cogito_ai_play]",
+                'command = "/existing/start_ai.sh"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    orchestrator.ensure_player_codex_config(
+        codex_home,
+        tmp_path / "start_ai.sh",
+    )
+
+    text = config_path.read_text(encoding="utf-8")
+    assert 'command = "/existing/start_ai.sh"' in text
+    assert '[mcp_servers.cogito_ai_play.tools.briefing]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.observe]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.act]' in text
+    assert '[mcp_servers.cogito_ai_play.tools.stop]' in text
+    assert text.count('approval_mode = "approve"') == 4

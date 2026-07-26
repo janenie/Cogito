@@ -100,22 +100,69 @@ def ensure_player_codex_config(codex_home: Path, mcp_command: Path) -> Path:
     home = codex_home.expanduser()
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     config_path = home / "config.toml"
-    mcp_block = "\n".join(
+    mcp_block = _build_cogito_mcp_config_block(mcp_command)
+    if config_path.exists():
+        text = config_path.read_text(encoding="utf-8")
+        missing_blocks = _missing_cogito_mcp_config_blocks(text, mcp_command)
+        if not missing_blocks:
+            return config_path
+        separator = "" if text.endswith("\n") else "\n"
+        config_path.write_text(
+            text + separator + "\n" + "\n".join(missing_blocks),
+            encoding="utf-8",
+        )
+        return config_path
+    config_path.write_text(mcp_block, encoding="utf-8")
+    return config_path
+
+
+def _build_cogito_mcp_config_block(mcp_command: Path) -> str:
+    return "\n".join(
         [
             '[mcp_servers.cogito_ai_play]',
             f'command = "{mcp_command}"',
             "",
+            '[mcp_servers.cogito_ai_play.tools.briefing]',
+            'approval_mode = "approve"',
+            "",
+            '[mcp_servers.cogito_ai_play.tools.observe]',
+            'approval_mode = "approve"',
+            "",
+            '[mcp_servers.cogito_ai_play.tools.act]',
+            'approval_mode = "approve"',
+            "",
+            '[mcp_servers.cogito_ai_play.tools.stop]',
+            'approval_mode = "approve"',
+            "",
         ]
     )
-    if config_path.exists():
-        text = config_path.read_text(encoding="utf-8")
-        if "[mcp_servers.cogito_ai_play]" in text:
-            return config_path
-        separator = "" if text.endswith("\n") else "\n"
-        config_path.write_text(text + separator + "\n" + mcp_block, encoding="utf-8")
-        return config_path
-    config_path.write_text(mcp_block, encoding="utf-8")
-    return config_path
+
+
+def _missing_cogito_mcp_config_blocks(text: str, mcp_command: Path) -> list[str]:
+    blocks: list[str] = []
+    if "[mcp_servers.cogito_ai_play]" not in text:
+        blocks.append(
+            "\n".join(
+                [
+                    '[mcp_servers.cogito_ai_play]',
+                    f'command = "{mcp_command}"',
+                    "",
+                ]
+            )
+        )
+    for tool_name in ["briefing", "observe", "act", "stop"]:
+        section = f"[mcp_servers.cogito_ai_play.tools.{tool_name}]"
+        if section not in text:
+            blocks.append(
+                "\n".join(
+                    [
+                        section,
+                        'approval_mode = "approve"',
+                        "",
+                    ]
+                )
+            )
+    return blocks
 
 
 def build_codex_command(
