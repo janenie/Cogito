@@ -85,9 +85,11 @@ python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 
 orchestrator 每次在 `--session-root` 下创建新的玩家启动目录和 `AI_PLAY_LOG_ROOT`。
 supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>`
-终局标识、可出现的 `AI_PLAY disabled` 停止标识和进程状态；当前 controller 只有 Escape
-停止会发出该标识并按 `failure/stopped` 计入该局。MCP `stop` 不是监督回合终局，应等待合法
-终局或由异常/超时路径处理。两者都不得扩展为读取轨迹、截图、源码或模型上下文。
+终局标识、`AI_PLAY disabled; reason=mcp_stop|escape_stop` 停止标识和进程状态；
+MCP/Godot 停止标识按 `failure/stopped` 计入该局并继续后续局数。两者都不得扩展为读取
+轨迹、截图、源码或模型上下文。隔离玩家 Codex 可以读取本次 `AI_PLAY_LOG_ROOT` 下的
+轨迹、摘要和截图来复盘，但不得读取仓库源码、测试、spec、`game_script/`、`code_read/`、
+其他运行目录或凭据。
 
 桥协议变更还必须覆盖 Godot JSON 数值规范化：协议版本只接受非布尔且数值精确等于 `3`
 的表示，安全整数 `observation_id` 必须在回调、`stop_ack` 和终局确认中保持整数语义。

@@ -100,6 +100,10 @@ def test_garden_watering_briefing_is_public_and_bounded():
     assert "向日葵房" in briefing["objective"]
     assert "绣球花房" in briefing["objective"]
     assert "兰花房" in briefing["objective"]
+    assert any(
+        "三个房子" in rule and "公共水池" in rule and "不要越界" in rule
+        for rule in briefing["rules"]
+    )
     serialized = repr(briefing)
     for forbidden in [
         "GardenWateringState",

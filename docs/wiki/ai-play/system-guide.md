@@ -93,8 +93,9 @@ orchestrator 每次运行会在 `--session-root` 指定的大目录下创建全�
 `~/workspace/cogito_ai_player_runs/<YYYYMMDD-HHMMSS>/`。其中
 `player_workspace/` 是玩家 Codex 的启动目录，`player_workspace/mcplogs/` 是本次
 `AI_PLAY_LOG_ROOT`。`player_workspace/ai_play_run_config.json` 会记录该日志根目录，
-且同一路径会作为环境变量传给玩家 Codex 及其启动的 MCP Server。该配置是运行超参数，
-不授权玩家读取日志来帮助当前游玩。
+且同一路径会作为环境变量传给玩家 Codex 及其启动的 MCP Server。玩家 Codex 可以读取
+本次 `AI_PLAY_LOG_ROOT` 下的轨迹、摘要和截图，把它们作为自己游玩过程的记忆来总结
+经验；仍不得读取仓库源码、测试、spec、`game_script/`、`code_read/`、其他运行目录或凭据。
 
 orchestrator 默认使用 `127.0.0.1:8765` 作为 Godot 到 MCP Server 的桥地址。启动玩家
 Codex 前它会确认该端口空闲；端口已被旧 MCP/Codex 进程占用时直接退出。启动玩家
@@ -128,12 +129,12 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
-处理并有限重试。它会把输出的 `AI_PLAY disabled; reason=escape_stop` 记为
-`failure/stopped` 并继续后续局数。解析器同样识别 `mcp_stop` 标识，但当前
-`AIPlayController` 的 MCP `stop` 路径只返回 `stop_ack`、释放模拟输入并断开控制会话，
-不会输出该标识或触发 `--ai-play-exit-on-game-over`；因此 MCP `stop` 不能作为监督回合的
-终局，除非另有合法终局发生。supervisor 不读取本地轨迹日志，不复盘截图，不修改玩家
-Codex 提示词，也不访问仓库内部知识。
+处理并有限重试。若玩家 Codex 调用 MCP `stop` 或人工 Escape 触发 Godot 停止控制，
+Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
+`AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
+`failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
+玩家 Codex 提示词，也不访问仓库内部知识；日志读取授权只给隔离玩家 Codex，且仅限本次
+`AI_PLAY_LOG_ROOT`。
 
 ## 增加同一 Lobby 的新玩法
 

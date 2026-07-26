@@ -436,12 +436,6 @@ func _on_stop_request_received(request: Dictionary) -> void:
 	elif not parsed_id["valid"] and request.get("observation_id") != null:
 		_pause_for_error("invalid_stop_request")
 		return
-	_capture_generation += 1
-	_state = State.DISABLED
-	_pending_observation_id = -1
-	_executing_observation_id = -1
-	_observation_timer.stop()
-	_executor.cancel_all("mcp_stop")
 	_bridge.send_packet({
 		"type": "stop_ack",
 		"protocol_version": PROTOCOL_VERSION,
@@ -451,7 +445,7 @@ func _on_stop_request_received(request: Dictionary) -> void:
 			"reason": "mcp_stop",
 		}],
 	})
-	_bridge.disconnect_from_server()
+	disable_ai("mcp_stop")
 
 
 func _on_end_game_received(request: Dictionary) -> void:

@@ -82,8 +82,6 @@ class GameSession:
         with self._condition:
             if self._send_packet is not None:
                 raise SessionError("controller_busy")
-            if self._state in {"stopped", "game_over"}:
-                raise SessionError(self._state)
             if (
                 self._scenario_id is not None
                 and self._scenario_id != scenario_id
@@ -111,6 +109,8 @@ class GameSession:
                 self._scenario_id = previous_scenario_id
                 self._round_act_request_limit = previous_round_act_request_limit
                 raise
+            if self._state in {"stopped", "game_over"}:
+                self._clear_terminal_attempt_locked()
             self._act_request_count = 0
             self._request_limit_pending = False
             self._end_game_sent = False
@@ -119,6 +119,15 @@ class GameSession:
                 "ready" if self._latest_observation is not None else "waiting_for_observation"
             )
             self._condition.notify_all()
+
+    def _clear_terminal_attempt_locked(self):
+        self._latest_observation = None
+        self._pending_observation_id = None
+        self._pending_results = None
+        self._pending_next_observation = None
+        self._game_over = None
+        self._stopped_result = None
+        self._stop_waiting = False
 
     def wait_for_scenario(self, timeout=None):
         deadline = _deadline(timeout or self.config.wait_timeout_seconds)

@@ -87,6 +87,9 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 - 玩家 Codex 只接入 `cogito_ai_play` MCP 的 `briefing`、`observe`、`act`、`stop`。
 - 外部 supervisor 只负责启动、监听和重启 Godot。
 - supervisor 不读取轨迹、截图、源码、日志目录或模型上下文，也不修改玩家提示词。
+- 玩家 Codex 可以读取本次 `AI_PLAY_LOG_ROOT` 下的轨迹、摘要和截图，把它们作为自己游玩
+  过程的记忆来总结经验；仍不得读取仓库源码、测试、spec、`game_script/`、`code_read/`、
+  其他运行目录或凭据。
 
 一键托管玩家 Codex 和 Godot supervisor：
 

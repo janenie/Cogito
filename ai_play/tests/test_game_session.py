@@ -689,6 +689,46 @@ def test_stop_sends_mcp_stop_and_acknowledges_cancellation():
     assert len(sent) == 1
 
 
+def test_attach_after_mcp_stop_starts_next_attempt():
+    session, sent = make_session()
+    session.receive_observation(observation(7))
+    results = [{"status": "cancelled", "reason": "mcp_stop"}]
+    session.receive_stop_ack({
+        "type": "stop_ack",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "results": results,
+    })
+    session.detach("bridge_closed")
+
+    session.attach(lambda packet: sent.append(packet) or True)
+    session.receive_observation(observation(1))
+
+    result = session.observe(timeout=0.1)
+    assert result.status == "ready"
+    assert result.observation["observation_id"] == 1
+
+
+def test_attach_after_game_over_starts_next_attempt():
+    session, sent = make_session()
+    session.receive_observation(observation(7))
+    session.receive_game_over({
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "correct_password",
+    })
+    session.detach("bridge_closed")
+
+    session.attach(lambda packet: sent.append(packet) or True)
+    session.receive_observation(observation(1))
+
+    result = session.observe(timeout=0.1)
+    assert result.status == "ready"
+    assert result.observation["observation_id"] == 1
+
+
 def test_act_times_out_and_does_not_leave_an_in_flight_batch():
     session, sent = make_session()
     session.receive_observation(observation(7))

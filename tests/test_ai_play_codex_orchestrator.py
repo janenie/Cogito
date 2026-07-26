@@ -108,6 +108,54 @@ def test_build_child_env_sets_bridge_address(tmp_path):
     assert env["AI_PLAY_WS_PORT"] == "8765"
 
 
+def test_build_player_prompt_requires_waiting_for_all_runs(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="garden_watering",
+        run_config=tmp_path / "ai_play_run_config.json",
+    )
+
+    assert "不要输出最终回答" in prompt
+    assert "3 次" in prompt
+    assert "stopped 或 disconnected" in prompt
+    assert "继续调用 observe" in prompt
+
+
+def test_build_player_prompt_requires_human_like_play_and_valid_interactions(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="garden_watering",
+        run_config=tmp_path / "ai_play_run_config.json",
+    )
+
+    assert "像人一样玩" in prompt
+    assert '{"type":"interact","action":"interact"}' in prompt
+    assert "available_interactions" in prompt
+    assert "act failed" in prompt
+    assert "不要连续重试同一种 act" in prompt
+
+
+def test_build_player_prompt_allows_current_run_log_review(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="garden_watering",
+        run_config=tmp_path / "ai_play_run_config.json",
+    )
+
+    assert "可以边思考边玩" in prompt
+    assert "AI_PLAY_LOG_ROOT" in prompt
+    assert "可以读取本次 AI_PLAY_LOG_ROOT 下的所有日志内容" in prompt
+    assert "trajectory.json" in prompt
+    assert "run.json" in prompt
+    assert "不要读取仓库源码" in prompt
+
+
 def test_ensure_player_codex_config_writes_minimal_mcp_config(tmp_path):
     orchestrator = load_orchestrator()
     codex_home = tmp_path / "codex-home"

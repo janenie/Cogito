@@ -229,16 +229,41 @@ def build_player_prompt(
 Godot；你不要启动、关闭或管理 Godot 进程。
 
 严格限制：
-1. 只使用 cogito_ai_play 的 briefing、observe、act、stop 工具。
-2. 不要使用 shell、文件读取、搜索、浏览器、GitHub、仓库源码或任何其他工具来获取游戏信息。
+1. 主要使用 cogito_ai_play 的 briefing、observe、act、stop 工具游玩。
+2. 不要使用搜索、浏览器、GitHub、仓库源码或任何其他工具来获取游戏规则和隐藏信息。
 3. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、spec、game_script、code_read 或仓库文件信息。
 4. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
 5. 密码证据不足时继续探索，不能盲猜。
 6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；每次 act 后重新观察和规划。
 7. 收到 success、failure、stopped 或 disconnected 后，停止本局动作，等待下一局连接。
+8. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
+9. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
+   等待下一局；observe 仍返回 stopped/disconnected 时等待后再 observe，直到出现新的可玩观察。
+
+像人一样玩：
+1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
+2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
+3. 靠近目标时使用短距离 move，不要长时间 sprint；转向后重新 observe，确认准星没有偏离目标。
+4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
+   交互动作格式必须精确写成 {{"type":"interact","action":"interact"}} 或
+   {{"type":"interact","action":"interact2"}}，不要把提示文字、物体名或绑定键写进 action。
+5. 如果没有交互提示但画面中疑似有水壶、草坪或门铃，先靠近并单独调用 probe_interaction；
+   probe_interaction 必须是单动作批次。
+6. 如果一次 act failed，说明动作没有通过校验；立即 observe，改变站位、准星或动作类型。
+   不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
+7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
+   的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
+
+经验总结：
+1. 可以边思考边玩，在自己的上下文中记录简短经验，例如安全路线、房屋相对方位、边界位置、
+   哪些动作会导致越界或 act failed。
+2. 可以读取本次 AI_PLAY_LOG_ROOT 下的所有日志内容来总结经验，包括 JPEG 截图、
+   trajectory.json、run.json 和公开 MCP 结构化结果。
+3. 不要读取仓库源码、测试、spec、game_script、code_read、其他项目文件、其他运行目录或凭据；
+   只把本次运行日志当作自己游玩过程的记忆，不要从仓库文件推断隐藏状态。
 
 本次运行配置写在你的启动目录 `{run_config.name}`，其中包含本次 AI_PLAY_LOG_ROOT。该路径
-只是运行超参数和审计位置；不要读取日志来帮助当前游玩。
+用于定位本次运行日志目录；可以读取该目录内日志来帮助当前游玩和复盘。
 
 现在开始第 1 局。先调用 briefing，然后 observe。
 """.strip()
