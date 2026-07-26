@@ -549,6 +549,16 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"outcome": "success",
 			"reason": "key_picked_up",
 		},
+		{
+			"scenario": "garden_watering",
+			"outcome": "success",
+			"reason": "garden_tasks_complete",
+		},
+		{
+			"scenario": "garden_watering",
+			"outcome": "failure",
+			"reason": "garden_task_failed",
+		},
 	]:
 		var fixture: Dictionary = await _connected_fixture(
 			controller_script,

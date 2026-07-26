@@ -1,0 +1,2 @@
+class_name GardenRouteMarker
+extends Marker3D

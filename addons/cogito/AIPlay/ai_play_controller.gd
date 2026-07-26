@@ -33,6 +33,11 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "cleanup_incomplete"],
 		["failure", "max_requests"],
 	],
+	"garden_watering": [
+		["success", "garden_tasks_complete"],
+		["failure", "garden_task_failed"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D

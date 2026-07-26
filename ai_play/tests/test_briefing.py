@@ -92,6 +92,26 @@ def test_daily_routine_cleanup_briefing_is_public_and_bounded():
         assert forbidden not in serialized
 
 
+def test_garden_watering_briefing_is_public_and_bounded():
+    briefing, image_bytes = load_scenario_briefing("garden_watering")
+
+    assert image_bytes is None
+    assert briefing["game_id"] == "garden_watering"
+    assert "向日葵房" in briefing["objective"]
+    assert "绣球花房" in briefing["objective"]
+    assert "兰花房" in briefing["objective"]
+    serialized = repr(briefing)
+    for forbidden in [
+        "GardenWateringState",
+        "GardenGame1Rules",
+        "rain_start_minute",
+        "run_seed",
+        "garden_vertical_slice.tscn",
+        "watering_target_paths",
+    ]:
+        assert forbidden not in serialized
+
+
 def test_all_scenario_briefings_include_shared_control_rules():
     for scenario_id in [
         "find_contract",
@@ -99,6 +119,7 @@ def test_all_scenario_briefings_include_shared_control_rules():
         "put_book",
         "greet_npc_meeting",
         "daily_routine_cleanup",
+        "garden_watering",
     ]:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:

@@ -26,7 +26,11 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   - `action_schema.py` 和 `observation_schema.py`：严格的传输数据验证。
 - `ai_play/assets/find_contract/`：公开简报使用的固定视觉参考资产；不包含谜题答案。
 - `ai_play/tests/`：pytest 单元测试和本机回环集成测试。
+- `dailyroutine/`：独立的家庭日常清理场景及脚本，对应
+  `daily_routine_cleanup` AI Play 任务。
+- `garden/`：独立的社区花园场景及脚本，对应 `garden_watering` AI Play 任务。
 - `tests/ai_play/`：Godot 无界面契约测试。
+- `tests/garden/`：花园玩法和 AI Play 接线的 Godot 无界面测试。
 - `tests/*.sh`：场景、启动、NPC 和凭据的静态检查。
 - `docs/`：Sphinx 源文件和项目文档。`docs/_build/` 是生成输出，应编辑 `.rst` 源文件。
 - `docs/superpowers/specs/` 和 `docs/superpowers/plans/`：当前分支工作的带日期设计与实施记录。

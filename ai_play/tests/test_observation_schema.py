@@ -119,3 +119,53 @@ def test_home_routine_observation_fields_are_public_and_bounded():
     public, _image_bytes = prepare_mcp_observation(observation)
 
     assert public["routine"] == observation["routine"]
+
+
+def test_garden_observation_fields_are_public_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["garden"] = {
+        "objective": "给目标花园浇水，并在下雨时按警报。",
+        "time": "09:42",
+        "weather": "rain",
+        "has_watering_can": True,
+        "can_has_water": True,
+        "watered_lawns": 2,
+        "required_lawns": 4,
+        "rain_alarm_pressed": False,
+        "completed": False,
+        "failed": False,
+    }
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert public["garden"] == observation["garden"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("time", "9:42"),
+        ("time", "24:00"),
+        ("weather", "cloudy"),
+        ("watered_lawns", -1),
+        ("completed", 0),
+    ],
+)
+def test_garden_observation_rejects_invalid_public_state(field, value):
+    observation = valid_observation_with_jpeg_base64()
+    observation["garden"] = {
+        "objective": "给目标花园浇水。",
+        "time": "09:42",
+        "weather": "sunny",
+        "has_watering_can": False,
+        "can_has_water": True,
+        "watered_lawns": 0,
+        "required_lawns": 4,
+        "rain_alarm_pressed": False,
+        "completed": False,
+        "failed": False,
+    }
+    observation["garden"][field] = value
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)

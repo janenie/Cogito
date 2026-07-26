@@ -1,0 +1,1717 @@
+[gd_scene format=3 uid="uid://cmne6h3uvaa8d"]
+
+[ext_resource type="Script" uid="uid://d16dmf2ft6q6b" path="res://garden/scripts/garden_simple_player.gd" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://bkhs7htjuyx5p" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/plantSmall1.glb" id="2_plant_small_1"]
+[ext_resource type="PackedScene" uid="uid://disahmp56dyyy" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/plantSmall2.glb" id="3_plant_small_2"]
+[ext_resource type="PackedScene" uid="uid://bwfhf0w622g0l" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/plantSmall3.glb" id="4_plant_small_3"]
+[ext_resource type="PackedScene" uid="uid://b63bkw182ngm6" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/pottedPlant.glb" id="5_potted_plant"]
+[ext_resource type="PackedScene" uid="uid://bewcj3dx0hhnb" path="res://addons/cogito/Assets/Models/Kenney/SpaceInterior/GLTF format/KSI_pipe.glb" id="6_pipe"]
+[ext_resource type="PackedScene" uid="uid://cova6nycfcob2" path="res://addons/cogito/Assets/Models/Kenney/SpaceInterior/GLTF format/KSI_pipe_corner.glb" id="7_pipe_corner"]
+[ext_resource type="Script" uid="uid://c1aha7fl6hao4" path="res://garden/scripts/garden_watering_state.gd" id="8_watering_state"]
+[ext_resource type="Texture2D" uid="uid://sdcljx8f5dhj" path="res://addons/cogito/Assets/hdris/kloofendal_48d_partly_cloudy_puresky_2k.hdr" id="9_sky"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_garden_controller.tscn" id="10_ai_play_controller"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_garden_monitor.gd" id="11_ai_play_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="12_game_over_screen"]
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_garden_block"]
+panorama = ExtResource("9_sky")
+
+[sub_resource type="Sky" id="Sky_garden_block"]
+sky_material = SubResource("PanoramaSkyMaterial_garden_block")
+
+[sub_resource type="Environment" id="Environment_garden_block"]
+background_mode = 2
+background_energy_multiplier = 0.95
+sky = SubResource("Sky_garden_block")
+ambient_light_sky_contribution = 0.35
+ambient_light_energy = 0.72
+tonemap_mode = 3
+
+[sub_resource type="BoxMesh" id="mesh_ground"]
+size = Vector3(86, 0.2, 66)
+
+[sub_resource type="StandardMaterial3D" id="mat_grass"]
+albedo_color = Color(0.22, 0.58, 0.24, 1)
+roughness = 0.9
+
+[sub_resource type="BoxShape3D" id="shape_ground"]
+size = Vector3(86, 0.2, 66)
+
+[sub_resource type="BoxShape3D" id="shape_house_collision"]
+size = Vector3(13, 5, 10)
+
+[sub_resource type="BoxShape3D" id="shape_fence_long_collision"]
+size = Vector3(18, 1.2, 0.45)
+
+[sub_resource type="BoxShape3D" id="shape_fence_gate_side_collision"]
+size = Vector3(6.5, 1.2, 0.45)
+
+[sub_resource type="BoxShape3D" id="shape_fence_short_collision"]
+size = Vector3(0.45, 1.2, 12)
+
+[sub_resource type="BoxShape3D" id="shape_pool_back_collision"]
+size = Vector3(14.5, 2.2, 0.55)
+
+[sub_resource type="BoxShape3D" id="shape_pool_side_collision"]
+size = Vector3(0.55, 0.8, 3.8)
+
+[sub_resource type="BoxShape3D" id="shape_pool_front_collision"]
+size = Vector3(13.5, 0.55, 0.45)
+
+[sub_resource type="BoxMesh" id="mesh_main_road"]
+size = Vector3(86, 0.08, 9)
+
+[sub_resource type="StandardMaterial3D" id="mat_road"]
+albedo_color = Color(0.27, 0.28, 0.28, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="mesh_north_road"]
+size = Vector3(76, 0.08, 6)
+
+[sub_resource type="BoxMesh" id="mesh_path_long"]
+size = Vector3(4, 0.06, 26)
+
+[sub_resource type="StandardMaterial3D" id="mat_path"]
+albedo_color = Color(0.72, 0.61, 0.42, 1)
+roughness = 0.92
+
+[sub_resource type="BoxMesh" id="mesh_path_short"]
+size = Vector3(18, 0.06, 3)
+
+[sub_resource type="BoxMesh" id="mesh_front_sidewalk"]
+size = Vector3(76, 0.08, 4)
+
+[sub_resource type="BoxMesh" id="mesh_block_lane"]
+size = Vector3(8, 0.09, 46)
+
+[sub_resource type="CylinderMesh" id="mesh_tap"]
+top_radius = 0.12
+bottom_radius = 0.14
+height = 1.4
+radial_segments = 12
+
+[sub_resource type="StandardMaterial3D" id="mat_water"]
+albedo_color = Color(0.18, 0.58, 0.94, 1)
+roughness = 0.25
+
+[sub_resource type="BoxMesh" id="mesh_pool_platform"]
+size = Vector3(19, 0.12, 9)
+
+[sub_resource type="StandardMaterial3D" id="mat_stone"]
+albedo_color = Color(0.62, 0.62, 0.58, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="mesh_pool_wall"]
+size = Vector3(14, 3.2, 0.65)
+
+[sub_resource type="StandardMaterial3D" id="mat_pool_stone"]
+albedo_color = Color(0.64, 0.61, 0.55, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="mesh_pool_basin"]
+size = Vector3(14, 0.9, 2.2)
+
+[sub_resource type="BoxMesh" id="mesh_pool_side"]
+size = Vector3(0.65, 2.4, 2.4)
+
+[sub_resource type="BoxMesh" id="mesh_water_surface"]
+size = Vector3(12.2, 0.04, 1.25)
+
+[sub_resource type="StandardMaterial3D" id="mat_water_surface"]
+transparency = 1
+albedo_color = Color(0.42, 0.78, 1, 0.72)
+roughness = 0.18
+
+[sub_resource type="BoxMesh" id="mesh_clear_pool_floor"]
+size = Vector3(13.5, 0.28, 3.8)
+
+[sub_resource type="BoxMesh" id="mesh_clear_pool_water"]
+size = Vector3(12.4, 0.08, 2.8)
+
+[sub_resource type="BoxMesh" id="mesh_clear_pool_back"]
+size = Vector3(14.5, 2.2, 0.45)
+
+[sub_resource type="BoxMesh" id="mesh_clear_pool_side"]
+size = Vector3(0.45, 0.65, 3.8)
+
+[sub_resource type="BoxMesh" id="mesh_clear_pool_front_lip"]
+size = Vector3(13.5, 0.45, 0.35)
+
+[sub_resource type="CylinderMesh" id="mesh_faucet_pipe"]
+top_radius = 0.055
+bottom_radius = 0.055
+height = 1.0
+radial_segments = 10
+
+[sub_resource type="BoxMesh" id="mesh_faucet_handle"]
+size = Vector3(0.31163573, 0.18892577, 0.21968749)
+
+[sub_resource type="SphereMesh" id="mesh_farm_can_body"]
+radius = 0.48
+height = 0.85
+radial_segments = 18
+rings = 8
+
+[sub_resource type="StandardMaterial3D" id="mat_red_can"]
+albedo_color = Color(0.9, 0.18, 0.12, 1)
+roughness = 0.48
+
+[sub_resource type="CylinderMesh" id="mesh_farm_can_neck"]
+top_radius = 0.16
+bottom_radius = 0.24
+height = 0.28
+radial_segments = 14
+
+[sub_resource type="TorusMesh" id="mesh_farm_can_handle"]
+inner_radius = 0.19
+outer_radius = 0.28
+rings = 10
+ring_segments = 18
+
+[sub_resource type="CylinderMesh" id="mesh_farm_can_spout"]
+top_radius = 0.035175778
+bottom_radius = 0.07517578
+height = 1.3453614
+radial_segments = 12
+
+[sub_resource type="CylinderMesh" id="mesh_farm_can_rose"]
+top_radius = 0.14814453
+bottom_radius = 0.048144534
+height = 0.2
+radial_segments = 14
+
+[sub_resource type="BoxMesh" id="mesh_farm_can_feet"]
+size = Vector3(0.78, 0.1, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="mat_blue_can"]
+albedo_color = Color(0.16, 0.38, 0.9, 1)
+roughness = 0.48
+
+[sub_resource type="StandardMaterial3D" id="mat_green_can"]
+albedo_color = Color(0.16, 0.56, 0.22, 1)
+roughness = 0.48
+
+[sub_resource type="StandardMaterial3D" id="mat_yellow_can"]
+albedo_color = Color(0.96, 0.78, 0.16, 1)
+roughness = 0.48
+
+[sub_resource type="BoxMesh" id="mesh_house"]
+size = Vector3(13, 5, 10)
+
+[sub_resource type="StandardMaterial3D" id="mat_house_a"]
+albedo_color = Color(0.84, 0.34, 0.25, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="mesh_roof"]
+size = Vector3(14.5, 1.1, 11.5)
+
+[sub_resource type="StandardMaterial3D" id="mat_roof"]
+albedo_color = Color(0.17, 0.2, 0.24, 1)
+roughness = 0.82
+
+[sub_resource type="BoxMesh" id="mesh_door"]
+size = Vector3(1.6, 2.6, 0.16)
+
+[sub_resource type="StandardMaterial3D" id="mat_door"]
+albedo_color = Color(0.55, 0.34, 0.18, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="mesh_window"]
+size = Vector3(2, 1.6, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="mat_window"]
+albedo_color = Color(0.68, 0.9, 1, 1)
+roughness = 0.18
+
+[sub_resource type="BoxMesh" id="mesh_garden_plot"]
+size = Vector3(15.5, 0.08, 10)
+
+[sub_resource type="BoxMesh" id="mesh_side_lawn"]
+size = Vector3(6.4, 0.32, 8)
+
+[sub_resource type="BoxMesh" id="mesh_side_bed"]
+size = Vector3(6.4, 0.42, 8)
+
+[sub_resource type="BoxMesh" id="mesh_front_walk"]
+size = Vector3(2.6, 0.12, 12)
+
+[sub_resource type="BoxMesh" id="mesh_door_patio"]
+size = Vector3(4.2, 0.14, 2)
+
+[sub_resource type="BoxMesh" id="mesh_step"]
+size = Vector3(3, 0.18, 1)
+
+[sub_resource type="BoxMesh" id="mesh_fence_long"]
+size = Vector3(18, 1.1, 0.3)
+
+[sub_resource type="StandardMaterial3D" id="mat_fence"]
+albedo_color = Color(0.84, 0.76, 0.62, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="mesh_fence_gate_side"]
+size = Vector3(6.5, 1.1, 0.3)
+
+[sub_resource type="BoxMesh" id="mesh_fence_short"]
+size = Vector3(0.3, 1.1, 12)
+
+[sub_resource type="StandardMaterial3D" id="mat_marker"]
+albedo_color = Color(0.95, 0.95, 0.82, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="mat_orchid"]
+albedo_color = Color(0.92, 0.42, 0.78, 1)
+roughness = 0.72
+
+[sub_resource type="SphereMesh" id="mesh_grass_clump"]
+radius = 0.38
+height = 0.16
+radial_segments = 10
+rings = 4
+
+[sub_resource type="CylinderMesh" id="mesh_soil"]
+top_radius = 0.48
+bottom_radius = 0.52
+height = 0.12
+radial_segments = 16
+
+[sub_resource type="StandardMaterial3D" id="mat_soil"]
+albedo_color = Color(0.22, 0.13, 0.07, 1)
+
+[sub_resource type="CylinderMesh" id="mesh_stem"]
+top_radius = 0.035
+bottom_radius = 0.045
+height = 0.8
+radial_segments = 10
+
+[sub_resource type="StandardMaterial3D" id="mat_stem"]
+albedo_color = Color(0.08, 0.4, 0.13, 1)
+roughness = 0.85
+
+[sub_resource type="SphereMesh" id="mesh_flower_head"]
+radius = 0.24
+height = 0.28
+radial_segments = 16
+rings = 8
+
+[sub_resource type="StandardMaterial3D" id="mat_sunflower"]
+albedo_color = Color(1, 0.78, 0.08, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="mat_house_b"]
+albedo_color = Color(0.25, 0.48, 0.82, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="mat_hydrangea"]
+albedo_color = Color(0.38, 0.58, 1, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="mat_house_c"]
+albedo_color = Color(0.58, 0.44, 0.78, 1)
+roughness = 0.8
+
+[sub_resource type="CapsuleShape3D" id="shape_player"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_garden_hud_panel"]
+bg_color = Color(0, 0, 0, 0.56)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="GardenVerticalSlice" type="Node3D" unique_id=2102266269]
+script = ExtResource("8_watering_state")
+player_path = NodePath("CogitoPlayer")
+refill_station_path = NodePath("NeighborhoodPlaza/RedrawnWaterPool/PoolWater")
+watering_cans_path = NodePath("NeighborhoodPlaza/WateringCans")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1867372052]
+environment = SubResource("Environment_garden_block")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1531675036]
+transform = Transform3D(0.819152, -0.286788, 0.496732, 0, 0.866025, 0.5, -0.573576, -0.409576, 0.709406, 0, 14, 0)
+light_color = Color(1, 0.92, 0.78, 1)
+light_energy = 2.25
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="." unique_id=586323573]
+
+[node name="Grass" type="MeshInstance3D" parent="Ground" unique_id=1874355721]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+mesh = SubResource("mesh_ground")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground" unique_id=288913242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("shape_ground")
+
+[node name="CollisionBounds" type="Node3D" parent="." unique_id=910947293]
+
+[node name="House1BodyCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1353731011]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 2.5, -28)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1BodyCollision" unique_id=1219286623]
+shape = SubResource("shape_house_collision")
+
+[node name="House2BodyCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1025496154]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -28)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2BodyCollision" unique_id=720513649]
+shape = SubResource("shape_house_collision")
+
+[node name="House3BodyCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=456498560]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 2.5, -28)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3BodyCollision" unique_id=1936134042]
+shape = SubResource("shape_house_collision")
+
+[node name="House1BackFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=2045455375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.55, -23)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1BackFenceCollision" unique_id=983515004]
+shape = SubResource("shape_fence_long_collision")
+
+[node name="House1FrontFenceLeftCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1642831922]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.7, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1FrontFenceLeftCollision" unique_id=445331268]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House1FrontFenceRightCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1213590151]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.3, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1FrontFenceRightCollision" unique_id=1698143387]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House1LeftFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1671675448]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1LeftFenceCollision" unique_id=468668792]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="House1RightFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1849984996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House1RightFenceCollision" unique_id=1414343782]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="House2BackFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=2088478029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -23)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2BackFenceCollision" unique_id=1239574029]
+shape = SubResource("shape_fence_long_collision")
+
+[node name="House2FrontFenceLeftCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1600920561]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2FrontFenceLeftCollision" unique_id=357797181]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House2FrontFenceRightCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1841284910]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.7, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2FrontFenceRightCollision" unique_id=2060345898]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House2LeftFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=2131780003]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2LeftFenceCollision" unique_id=1259508432]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="House2RightFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=641237289]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House2RightFenceCollision" unique_id=1630856159]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="House3BackFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=348771880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.55, -23)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3BackFenceCollision" unique_id=291986422]
+shape = SubResource("shape_fence_long_collision")
+
+[node name="House3FrontFenceLeftCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1207596135]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.3, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3FrontFenceLeftCollision" unique_id=446965210]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House3FrontFenceRightCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1751711965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.7, 0.55, -11)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3FrontFenceRightCollision" unique_id=644530880]
+shape = SubResource("shape_fence_gate_side_collision")
+
+[node name="House3LeftFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=706620637]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3LeftFenceCollision" unique_id=1031981672]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="House3RightFenceCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=1846474027]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 0.55, -17)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/House3RightFenceCollision" unique_id=48476490]
+shape = SubResource("shape_fence_short_collision")
+
+[node name="PoolBackCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=245042387]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -2.15)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/PoolBackCollision" unique_id=235964175]
+shape = SubResource("shape_pool_back_collision")
+
+[node name="PoolLeftCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=241750603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.62, -4.2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/PoolLeftCollision" unique_id=1298381548]
+shape = SubResource("shape_pool_side_collision")
+
+[node name="PoolRightCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=736402200]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.62, -4.2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/PoolRightCollision" unique_id=1167014771]
+shape = SubResource("shape_pool_side_collision")
+
+[node name="PoolFrontCollision" type="StaticBody3D" parent="CollisionBounds" unique_id=997037079]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -6.2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBounds/PoolFrontCollision" unique_id=1128660168]
+shape = SubResource("shape_pool_front_collision")
+
+[node name="Roads" type="Node3D" parent="." unique_id=624288961]
+
+[node name="MainStreet" type="MeshInstance3D" parent="Roads" unique_id=62071096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 18)
+mesh = SubResource("mesh_main_road")
+surface_material_override/0 = SubResource("mat_road")
+
+[node name="NorthResidentialStreet" type="MeshInstance3D" parent="Roads" unique_id=227169367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.035, -23)
+mesh = SubResource("mesh_north_road")
+surface_material_override/0 = SubResource("mat_road")
+
+[node name="CenterPath" type="MeshInstance3D" parent="Roads" unique_id=1026020814]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, -2)
+mesh = SubResource("mesh_path_long")
+surface_material_override/0 = SubResource("mat_path")
+
+[node name="GardenWalk" type="MeshInstance3D" parent="Roads" unique_id=1693669891]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, -12)
+mesh = SubResource("mesh_path_short")
+surface_material_override/0 = SubResource("mat_path")
+
+[node name="FrontSidewalk" type="MeshInstance3D" parent="Roads" unique_id=830472333]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.085, -10.8)
+mesh = SubResource("mesh_front_sidewalk")
+surface_material_override/0 = SubResource("mat_path")
+
+[node name="LaneBetweenHouse1And2" type="MeshInstance3D" parent="Roads" unique_id=327842470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0.075, -2)
+mesh = SubResource("mesh_block_lane")
+surface_material_override/0 = SubResource("mat_road")
+
+[node name="LaneBetweenHouse2And3" type="MeshInstance3D" parent="Roads" unique_id=514127828]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.075, -2)
+mesh = SubResource("mesh_block_lane")
+surface_material_override/0 = SubResource("mat_road")
+
+[node name="NeighborhoodPlaza" type="Node3D" parent="." unique_id=1151598700]
+
+[node name="SharedTap" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=1040632343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, -4)
+visible = false
+mesh = SubResource("mesh_tap")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="TapLabel" type="Label3D" parent="NeighborhoodPlaza" unique_id=1838498179]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 3.5, -1.1)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "公共水站"
+font_size = 48
+outline_size = 10
+
+[node name="WaterStationPlatform" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=371862676]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.01414609, 0.081592396, -5.000167)
+mesh = SubResource("mesh_pool_platform")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="BackWall" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=991527793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, -2)
+visible = false
+mesh = SubResource("mesh_pool_wall")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="Basin" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=1545442391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -4.1)
+visible = false
+mesh = SubResource("mesh_pool_basin")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="LeftSideBlock" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=2054396177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.35, 1.55, -3.2)
+visible = false
+mesh = SubResource("mesh_pool_side")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="RightSideBlock" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=370683391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.35, 1.55, -3.2)
+visible = false
+mesh = SubResource("mesh_pool_side")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="WaterSurface" type="MeshInstance3D" parent="NeighborhoodPlaza" unique_id=544286184]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, -4.45)
+visible = false
+mesh = SubResource("mesh_water_surface")
+surface_material_override/0 = SubResource("mat_water_surface")
+
+[node name="RedrawnWaterPool" type="Node3D" parent="NeighborhoodPlaza" unique_id=1275227586]
+
+[node name="PoolFloor" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=1867223298]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, -4.2)
+mesh = SubResource("mesh_clear_pool_floor")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="PoolWater" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=684618461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, -4.45)
+mesh = SubResource("mesh_clear_pool_water")
+surface_material_override/0 = SubResource("mat_water_surface")
+
+[node name="PoolBackWall" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=445855833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -2.15)
+mesh = SubResource("mesh_clear_pool_back")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="PoolLeftWall" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=1136061280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.62, -4.2)
+mesh = SubResource("mesh_clear_pool_side")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="PoolRightWall" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=1730388589]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.62, -4.2)
+mesh = SubResource("mesh_clear_pool_side")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="PoolFrontLip" type="MeshInstance3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=408689976]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -6.2)
+mesh = SubResource("mesh_clear_pool_front_lip")
+surface_material_override/0 = SubResource("mat_pool_stone")
+
+[node name="PipeFaucet" type="Node3D" parent="NeighborhoodPlaza/RedrawnWaterPool" unique_id=1464917336]
+
+[node name="WallPipe" parent="NeighborhoodPlaza/RedrawnWaterPool/PipeFaucet" unique_id=1190962401 instance=ExtResource("6_pipe")]
+transform = Transform3D(0, 0, -0.85, 0, 0.85, 0, 0.85, 0, 0, 0, 1.55, -2.55)
+
+[node name="PipeElbow" parent="NeighborhoodPlaza/RedrawnWaterPool/PipeFaucet" unique_id=245896929 instance=ExtResource("7_pipe_corner")]
+transform = Transform3D(0.85, 0, 0, 0, 0, -0.85, 0, 0.85, 0, 0, 1.55, -3.25)
+
+[node name="DownPipe" parent="NeighborhoodPlaza/RedrawnWaterPool/PipeFaucet" unique_id=768701352 instance=ExtResource("6_pipe")]
+transform = Transform3D(0.85, 0, 0, 0, 0, -0.85, 0, 0.85, 0, 0, 1.1, -3.25)
+
+[node name="Faucets" type="Node3D" parent="NeighborhoodPlaza" unique_id=833393810]
+visible = false
+
+[node name="FaucetA" type="Node3D" parent="NeighborhoodPlaza/Faucets" unique_id=1802706350]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -4.8, 2, -7.55)
+
+[node name="Pipe" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetA" unique_id=2053769191]
+mesh = SubResource("mesh_faucet_pipe")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="Handle" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetA" unique_id=153100412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="FaucetB" type="Node3D" parent="NeighborhoodPlaza/Faucets" unique_id=1557460996]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -1.6, 2, -7.55)
+
+[node name="Pipe" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetB" unique_id=779466152]
+mesh = SubResource("mesh_faucet_pipe")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="Handle" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetB" unique_id=1283823608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="FaucetC" type="Node3D" parent="NeighborhoodPlaza/Faucets" unique_id=1129120810]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 1.6, 2, -7.55)
+
+[node name="Pipe" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetC" unique_id=2132494827]
+mesh = SubResource("mesh_faucet_pipe")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="Handle" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetC" unique_id=451183137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="FaucetD" type="Node3D" parent="NeighborhoodPlaza/Faucets" unique_id=1749750514]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 4.8, 2, -7.55)
+
+[node name="Pipe" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetD" unique_id=629788052]
+mesh = SubResource("mesh_faucet_pipe")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="Handle" type="MeshInstance3D" parent="NeighborhoodPlaza/Faucets/FaucetD" unique_id=280292342]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_water")
+
+[node name="WateringCans" type="Node3D" parent="NeighborhoodPlaza" unique_id=1693253471]
+
+[node name="FarmWateringCanA" type="Node3D" parent="NeighborhoodPlaza/WateringCans" unique_id=513394684]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -2.4, 0.35, -6.9)
+
+[node name="Body" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=1280460648]
+transform = Transform3D(0.9500008, 0, 1.4901161e-08, 0, 0.317, 0, 1.4901161e-07, 0, 0.5450007, 0.059743047, 0.46959916, 0.91115713)
+mesh = SubResource("mesh_farm_can_body")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="Neck" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=2064093436]
+transform = Transform3D(0.950001, 0, 1.4901161e-08, 0, 0.317, 0, 2.0861626e-07, 0, 0.5450007, 0.109743595, 0.6415639, 0.9111562)
+mesh = SubResource("mesh_farm_can_neck")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="TopHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=242822141]
+transform = Transform3D(0.7700009, 0, -5.9604645e-08, 0, 0.257, 0, -1.1920929e-07, 0, 0.4420005, 0.11449838, 0.6688038, 0.92292595)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="SideHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=44659944]
+transform = Transform3D(0.68000066, 2.2351742e-08, 2.220446e-15, 0, -9.922485e-09, 0.391, 8.940697e-08, -0.22700006, -1.7091153e-08, -0.37975013, 0.5443896, 0.94608974)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="Spout" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=820202949]
+transform = Transform3D(-0.14266871, -0.24483165, 0.33637628, 0.9061361, -0.08794636, -0.06271983, 0.24710928, 0.18114097, 0.4241976, 0.37486684, 0.5364325, 0.722589)
+mesh = SubResource("mesh_farm_can_spout")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="Rose" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA/Spout" unique_id=1290937003]
+transform = Transform3D(0.95000017, -1.322478e-07, 3.7252903e-09, 1.1920929e-07, 0.1106134, 0.5107447, 2.9802322e-08, -0.29707533, 0.19017085, 0.018178582, 0.6041546, -0.003824234)
+mesh = SubResource("mesh_farm_can_rose")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="Feet" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanA" unique_id=1142614344]
+transform = Transform3D(0.95000035, 0, 0, 0, 0.317, 0, 8.940697e-08, 0, 0.5450004, -0.2900176, -0.42380157, -0.14016247)
+mesh = SubResource("mesh_farm_can_feet")
+surface_material_override/0 = SubResource("mat_red_can")
+
+[node name="FarmWateringCanB" type="Node3D" parent="NeighborhoodPlaza/WateringCans" unique_id=854366604]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -0.8, 0.35, -6.9)
+
+[node name="Body" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=690612350]
+transform = Transform3D(0.9500008, 0, 1.4901161e-08, 0, 0.317, 0, 1.4901161e-07, 0, 0.5450007, 0.059743047, 0.46959916, 0.91115713)
+mesh = SubResource("mesh_farm_can_body")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="Neck" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=685033483]
+transform = Transform3D(0.950001, 0, 1.4901161e-08, 0, 0.317, 0, 2.0861626e-07, 0, 0.5450007, 0.109743595, 0.6415639, 0.9111562)
+mesh = SubResource("mesh_farm_can_neck")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="TopHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=1465034057]
+transform = Transform3D(0.7700009, 0, -5.9604645e-08, 0, 0.257, 0, -1.1920929e-07, 0, 0.4420005, 0.11449838, 0.6688038, 0.92292595)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="SideHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=1484528976]
+transform = Transform3D(0.68000066, 2.2351742e-08, 2.220446e-15, 0, -9.922485e-09, 0.391, 8.940697e-08, -0.22700006, -1.7091153e-08, -0.37975013, 0.5443896, 0.94608974)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="Spout" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=924644225]
+transform = Transform3D(-0.14266871, -0.24483165, 0.33637628, 0.9061361, -0.08794636, -0.06271983, 0.24710928, 0.18114097, 0.4241976, 0.37486684, 0.5364325, 0.722589)
+mesh = SubResource("mesh_farm_can_spout")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="Rose" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB/Spout" unique_id=1584332087]
+transform = Transform3D(0.95000017, -1.322478e-07, 3.7252903e-09, 1.1920929e-07, 0.1106134, 0.5107447, 2.9802322e-08, -0.29707533, 0.19017085, 0.018178582, 0.6041546, -0.003824234)
+mesh = SubResource("mesh_farm_can_rose")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="Feet" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanB" unique_id=1853869926]
+transform = Transform3D(0.95000035, 0, 0, 0, 0.317, 0, 8.940697e-08, 0, 0.5450004, -0.2900176, -0.42380157, -0.14016247)
+mesh = SubResource("mesh_farm_can_feet")
+surface_material_override/0 = SubResource("mat_blue_can")
+
+[node name="FarmWateringCanC" type="Node3D" parent="NeighborhoodPlaza/WateringCans" unique_id=650948621]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 0.8, 0.35, -6.9)
+
+[node name="Body" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=1530807685]
+transform = Transform3D(0.9500008, 0, 1.4901161e-08, 0, 0.317, 0, 1.4901161e-07, 0, 0.5450007, 0.059743047, 0.46959916, 0.91115713)
+mesh = SubResource("mesh_farm_can_body")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="Neck" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=38850654]
+transform = Transform3D(0.950001, 0, 1.4901161e-08, 0, 0.317, 0, 2.0861626e-07, 0, 0.5450007, 0.109743595, 0.6415639, 0.9111562)
+mesh = SubResource("mesh_farm_can_neck")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="TopHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=230803372]
+transform = Transform3D(0.7700009, 0, -5.9604645e-08, 0, 0.257, 0, -1.1920929e-07, 0, 0.4420005, 0.11449838, 0.6688038, 0.92292595)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="SideHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=959203238]
+transform = Transform3D(0.68000066, 2.2351742e-08, 2.220446e-15, 0, -9.922485e-09, 0.391, 8.940697e-08, -0.22700006, -1.7091153e-08, -0.37975013, 0.5443896, 0.94608974)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="Spout" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=764437522]
+transform = Transform3D(-0.14266871, -0.24483165, 0.33637628, 0.9061361, -0.08794636, -0.06271983, 0.24710928, 0.18114097, 0.4241976, 0.37486684, 0.5364325, 0.722589)
+mesh = SubResource("mesh_farm_can_spout")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="Rose" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC/Spout" unique_id=1223253218]
+transform = Transform3D(0.95000017, -1.322478e-07, 3.7252903e-09, 1.1920929e-07, 0.1106134, 0.5107447, 2.9802322e-08, -0.29707533, 0.19017085, 0.018178582, 0.6041546, -0.003824234)
+mesh = SubResource("mesh_farm_can_rose")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="Feet" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanC" unique_id=22520539]
+transform = Transform3D(0.95000035, 0, 0, 0, 0.317, 0, 8.940697e-08, 0, 0.5450004, -0.2900176, -0.42380157, -0.14016247)
+mesh = SubResource("mesh_farm_can_feet")
+surface_material_override/0 = SubResource("mat_green_can")
+
+[node name="FarmWateringCanD" type="Node3D" parent="NeighborhoodPlaza/WateringCans" unique_id=2099807852]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 2.4, 0.35, -6.9)
+
+[node name="Body" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=1169229684]
+transform = Transform3D(0.9500008, 0, 1.4901161e-08, 0, 0.317, 0, 1.4901161e-07, 0, 0.5450007, 0.059743047, 0.46959916, 0.91115713)
+mesh = SubResource("mesh_farm_can_body")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="Neck" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=1059246923]
+transform = Transform3D(0.950001, 0, 1.4901161e-08, 0, 0.317, 0, 2.0861626e-07, 0, 0.5450007, 0.109743595, 0.6415639, 0.9111562)
+mesh = SubResource("mesh_farm_can_neck")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="TopHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=1603977587]
+transform = Transform3D(0.7700009, 0, -5.9604645e-08, 0, 0.257, 0, -1.1920929e-07, 0, 0.4420005, 0.11449838, 0.6688038, 0.92292595)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="SideHandle" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=1018251880]
+transform = Transform3D(0.68000066, 2.2351742e-08, 2.220446e-15, 0, -9.922485e-09, 0.391, 8.940697e-08, -0.22700006, -1.7091153e-08, -0.37975013, 0.5443896, 0.94608974)
+mesh = SubResource("mesh_farm_can_handle")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="Spout" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=1924402809]
+transform = Transform3D(-0.14266871, -0.24483165, 0.33637628, 0.9061361, -0.08794636, -0.06271983, 0.24710928, 0.18114097, 0.4241976, 0.37486684, 0.5364325, 0.722589)
+mesh = SubResource("mesh_farm_can_spout")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="Rose" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD/Spout" unique_id=1550565068]
+transform = Transform3D(0.95000017, -1.322478e-07, 3.7252903e-09, 1.1920929e-07, 0.1106134, 0.5107447, 2.9802322e-08, -0.29707533, 0.19017085, 0.018178582, 0.6041546, -0.003824234)
+mesh = SubResource("mesh_farm_can_rose")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="Feet" type="MeshInstance3D" parent="NeighborhoodPlaza/WateringCans/FarmWateringCanD" unique_id=2027622147]
+transform = Transform3D(0.95000035, 0, 0, 0, 0.317, 0, 8.940697e-08, 0, 0.5450004, -0.2900176, -0.42380157, -0.14016247)
+mesh = SubResource("mesh_farm_can_feet")
+surface_material_override/0 = SubResource("mat_yellow_can")
+
+[node name="Houses" type="Node3D" parent="." unique_id=251988392]
+
+[node name="House1_Sunflowers" type="Node3D" parent="Houses" unique_id=1656267265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0, -22)
+
+[node name="HouseBody" type="MeshInstance3D" parent="Houses/House1_Sunflowers" unique_id=519399932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -6)
+mesh = SubResource("mesh_house")
+surface_material_override/0 = SubResource("mat_house_a")
+
+[node name="Roof" type="MeshInstance3D" parent="Houses/House1_Sunflowers" unique_id=112296026]
+transform = Transform3D(1, 0, 0, 0, 0.65, 0, 0, 0, 1, 0, 5.6, -6)
+mesh = SubResource("mesh_roof")
+surface_material_override/0 = SubResource("mat_roof")
+
+[node name="FrontDoor" type="MeshInstance3D" parent="Houses/House1_Sunflowers" unique_id=1510836176]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -0.9)
+mesh = SubResource("mesh_door")
+surface_material_override/0 = SubResource("mat_door")
+
+[node name="LeftWindow" type="MeshInstance3D" parent="Houses/House1_Sunflowers" unique_id=142709756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="RightWindow" type="MeshInstance3D" parent="Houses/House1_Sunflowers" unique_id=1085341394]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="Label" type="Label3D" parent="Houses/House1_Sunflowers" unique_id=1806341475]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 6.6, -1)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "房屋一"
+font_size = 96
+outline_size = 19
+
+[node name="Garden" type="Node3D" parent="Houses/House1_Sunflowers" unique_id=1423605427]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5)
+
+[node name="GardenPlot" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1097931495]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("mesh_garden_plot")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="LeftRaisedLawn" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1963021756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4, 0.2, 0.7)
+mesh = SubResource("mesh_side_lawn")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="RightFlowerBed" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1833775677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 0.25, 0.7)
+mesh = SubResource("mesh_side_bed")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="DoorWalkway" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=628035037]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+mesh = SubResource("mesh_front_walk")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorPatio" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=473699571]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.19, -4.8)
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorStep" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=2023271426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, -5.55)
+mesh = SubResource("mesh_step")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="BackFence" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=779204276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -6)
+mesh = SubResource("mesh_fence_long")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceLeft" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=138675281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceRight" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1549239486]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="LeftFence" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=930729340]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="RightFence" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1736137793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="EntranceLabel" type="Label3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1496387096]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 1.7, 6.9)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "花园入口"
+font_size = 48
+outline_size = 10
+
+[node name="FlowerLabel" type="Label3D" parent="Houses/House1_Sunflowers/Garden" unique_id=915696149]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 0, 1.35, -2.2)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "向日葵"
+font_size = 64
+outline_size = 13
+
+[node name="CanopySwitch" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=131030120]
+transform = Transform3D(0.72, 0, 0, 0, 0.72, 0, 0, 0, 0.72, -1.4424381, 1.9247336, -6.014473)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="ButtonMesh_off" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/CanopySwitch" unique_id=209121782]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, 0, 0, 0.08)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="DoorbellLabel" type="Label3D" parent="Houses/House1_Sunflowers/Garden/CanopySwitch"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+billboard = 1
+modulate = Color(1, 1, 1, 1)
+outline_modulate = Color(0, 0, 0, 0.86)
+outline_size = 9
+text = "门铃"
+font_size = 44
+
+[node name="OrchidCanopy" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1764021335]
+transform = Transform3D(4.2, 0, 0, 0, 0.42, 0, 0, 0, 2.8, 0, 2.45, 0.8)
+visible = false
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="GrassClumps" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=241722084]
+
+[node name="GrassA" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=1793314052]
+transform = Transform3D(1.4, 0, 0, 0, 0.28, 0, 0, 0, 0.9, -6.7, 0.14, 2.7)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassB" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=982491608]
+transform = Transform3D(1, 0, 0, 0, 0.24, 0, 0, 0, 1.2, 6.2, 0.12, 2.2)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassC" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=128443124]
+transform = Transform3D(1.1, 0, 0, 0, 0.24, 0, 0, 0, 0.9, -0.3, 0.12, 3.8)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassAssetA" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=1014902755 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, -7.2, 0.08, 4)
+
+[node name="GrassAssetB" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=217110744 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.45, 0, 0, 0, 0.45, 0, 0, 0, 0.45, 6.8, 0.08, 3.6)
+
+[node name="GrassAssetC" parent="Houses/House1_Sunflowers/Garden/GrassClumps" unique_id=2011948327 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 1.8, 0.08, 4.5)
+
+[node name="SunflowerA" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1118695553]
+transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 1, -5.5, 0, -2.5)
+
+[node name="Soil" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerA" unique_id=1935046359]
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_soil")
+
+[node name="Stem" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerA" unique_id=1215009784]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerA" unique_id=1077560361]
+transform = Transform3D(1.25, 0, 0, 0, 0.9, 0, 0, 0, 1.25, 0, 1, 0)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerB" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1032342753]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 0, -1.2)
+
+[node name="Soil" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerB" unique_id=1794415928]
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_soil")
+
+[node name="Stem" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerB" unique_id=258649126]
+transform = Transform3D(1, 0, 0, 0, 0.9, 0, 0, 0, 1, 0, 0.42, 0)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerB" unique_id=1481565139]
+transform = Transform3D(1.15, 0, 0, 0, 0.8, 0, 0, 0, 1.15, 0, 0.9, 0)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerC" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1066834020]
+transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 1, 1.4, 0, -2.2)
+
+[node name="Soil" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerC" unique_id=1566023184]
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_soil")
+
+[node name="Stem" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerC" unique_id=1283165301]
+transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 1, 0, 0.46, 0)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerC" unique_id=1359562676]
+transform = Transform3D(1.2, 0, 0, 0, 0.85, 0, 0, 0, 1.2, 0, 0.98, 0)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerD" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=751178340]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1, 5, 0, -0.9)
+
+[node name="Soil" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerD" unique_id=1857411544]
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_soil")
+
+[node name="Stem" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerD" unique_id=1010279244]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="Head" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerD" unique_id=278814269]
+transform = Transform3D(1.25, 0, 0, 0, 0.9, 0, 0, 0, 1.25, 0, 1.05, 0)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerAssets" type="Node3D" parent="Houses/House1_Sunflowers/Garden" unique_id=1960573177]
+
+[node name="PlantModelA" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=1939166713 instance=ExtResource("4_plant_small_3")]
+transform = Transform3D(1.7, 0, 0, 0, 1.7, 0, 0, 0, 1.7, -5.5, 0.38, -1.7)
+
+[node name="PlantModelB" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=265122616 instance=ExtResource("3_plant_small_2")]
+transform = Transform3D(1.55, 0, 0, 0, 1.55, 0, 0, 0, 1.55, -5, 0.38, 2)
+
+[node name="PlantModelC" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=1390751907 instance=ExtResource("4_plant_small_3")]
+transform = Transform3D(1.65, 0, 0, 0, 1.65, 0, 0, 0, 1.65, 4, 0.5, -1.5)
+
+[node name="PlantModelD" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=804153952 instance=ExtResource("3_plant_small_2")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 5.6, 0.5, 2.1)
+
+[node name="SunflowerBloomA" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=340308060]
+transform = Transform3D(1.45, 0, 0, 0, 1.1, 0, 0, 0, 1.45, -7.2, 0.92, -0.1)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomB" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=1842541002]
+transform = Transform3D(1.25, 0, 0, 0, 0.95, 0, 0, 0, 1.25, -6.8, 0.82, 1.7)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomC" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=1745168568]
+transform = Transform3D(1.35, 0, 0, 0, 1, 0, 0, 0, 1.35, -3.7, 0.9, 2.6)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomD" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=797707497]
+transform = Transform3D(1.2, 0, 0, 0, 0.9, 0, 0, 0, 1.2, -1.2, 0.82, 1.5)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomE" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=1393880104]
+transform = Transform3D(1.35, 0, 0, 0, 1, 0, 0, 0, 1.35, 1.8, 0.9, 2.2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomF" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=564598578]
+transform = Transform3D(1.25, 0, 0, 0, 0.95, 0, 0, 0, 1.25, 3.8, 0.84, 0.5)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomG" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=796208610]
+transform = Transform3D(1.5, 0, 0, 0, 1.12, 0, 0, 0, 1.5, 6.8, 0.94, -0.2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="SunflowerBloomH" type="MeshInstance3D" parent="Houses/House1_Sunflowers/Garden/SunflowerAssets" unique_id=876125066]
+transform = Transform3D(1.2, 0, 0, 0, 0.9, 0, 0, 0, 1.2, 7.1, 0.82, 2.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_sunflower")
+
+[node name="House2_Hydrangeas" type="Node3D" parent="Houses" unique_id=1210632668]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -22)
+
+[node name="HouseBody" type="MeshInstance3D" parent="Houses/House2_Hydrangeas" unique_id=1369560826]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -6)
+mesh = SubResource("mesh_house")
+surface_material_override/0 = SubResource("mat_house_b")
+
+[node name="Roof" type="MeshInstance3D" parent="Houses/House2_Hydrangeas" unique_id=533602247]
+transform = Transform3D(1, 0, 0, 0, 0.65, 0, 0, 0, 1, 0, 5.6, -6)
+mesh = SubResource("mesh_roof")
+surface_material_override/0 = SubResource("mat_roof")
+
+[node name="FrontDoor" type="MeshInstance3D" parent="Houses/House2_Hydrangeas" unique_id=523800068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -0.9)
+mesh = SubResource("mesh_door")
+surface_material_override/0 = SubResource("mat_door")
+
+[node name="LeftWindow" type="MeshInstance3D" parent="Houses/House2_Hydrangeas" unique_id=758633080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="RightWindow" type="MeshInstance3D" parent="Houses/House2_Hydrangeas" unique_id=1839048187]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="Label" type="Label3D" parent="Houses/House2_Hydrangeas" unique_id=1794132052]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 6.6, -1)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "房屋二"
+font_size = 96
+outline_size = 19
+
+[node name="HydrangeaGarden" type="Node3D" parent="Houses/House2_Hydrangeas" unique_id=187241103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5)
+
+[node name="GardenPlot" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1480648209]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("mesh_garden_plot")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="LeftRaisedLawn" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1394414474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4, 0.2, 0.7)
+mesh = SubResource("mesh_side_lawn")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="RightFlowerBed" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=344012310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 0.25, 0.7)
+mesh = SubResource("mesh_side_bed")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="DoorWalkway" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=841026668]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+visible = false
+mesh = SubResource("mesh_front_walk")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorPatio" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=595404944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.19, -4.8)
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorStep" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1845062252]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, -5.55)
+mesh = SubResource("mesh_step")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="BackFence" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=281506217]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -6)
+mesh = SubResource("mesh_fence_long")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceLeft" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=151733405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceRight" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=736086782]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="LeftFence" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1830061927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="RightFence" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=736924170]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="EntranceLabel" type="Label3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=932600666]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 1.7, 6.9)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "花园入口"
+font_size = 48
+outline_size = 10
+
+[node name="FlowerLabel" type="Label3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1829591229]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 0, 1.35, -2.2)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "绣球花"
+font_size = 64
+outline_size = 13
+
+[node name="CanopySwitch" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1572941426]
+transform = Transform3D(0.72, 0, 0, 0, 0.72, 0, 0, 0, 0.72, -1.2250111, 1.9838054, -5.933338)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="ButtonMesh_off" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden/CanopySwitch" unique_id=1797040304]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, 0, 0, 0.08)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="DoorbellLabel" type="Label3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden/CanopySwitch"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+billboard = 1
+modulate = Color(1, 1, 1, 1)
+outline_modulate = Color(0, 0, 0, 0.86)
+outline_size = 9
+text = "门铃"
+font_size = 44
+
+[node name="OrchidCanopy" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1753484522]
+transform = Transform3D(4.2, 0, 0, 0, 0.42, 0, 0, 0, 2.8, 0, 2.45, 0.8)
+visible = false
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="GrassClumps" type="Node3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1062477352]
+
+[node name="GrassA" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=906352492]
+transform = Transform3D(1.2, 0, 0, 0, 0.26, 0, 0, 0, 0.9, -6.2, 0.13, 2.7)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassB" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=1177539457]
+transform = Transform3D(0.9, 0, 0, 0, 0.24, 0, 0, 0, 1.4, 6.5, 0.12, 2.1)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassC" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=982917480]
+transform = Transform3D(1, 0, 0, 0, 0.22, 0, 0, 0, 1.1, -0.5, 0.11, 3.7)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassAssetA" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=660997478 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -6.7, 0.08, 4)
+
+[node name="GrassAssetB" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=853734174 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 6.8, 0.08, 3.8)
+
+[node name="GrassAssetC" parent="Houses/House2_Hydrangeas/HydrangeaGarden/GrassClumps" unique_id=812904209 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.52, 0, 0, 0, 0.52, 0, 0, 0, 0.52, 1.4, 0.08, 4.6)
+
+[node name="BedA" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=751652662]
+transform = Transform3D(1.6, 0, 0, 0, 0.55, 0, 0, 0, 1.6, -3.5, 0.38, -1.2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="BedB" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=656799608]
+transform = Transform3D(1.8, 0, 0, 0, 0.55, 0, 0, 0, 1.8, 0, 0.38, -2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="BedC" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1167477812]
+transform = Transform3D(1.5, 0, 0, 0, 0.55, 0, 0, 0, 1.5, 3.5, 0.38, -1)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomA" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1758726778]
+transform = Transform3D(1.25, 0, 0, 0, 1.05, 0, 0, 0, 1.25, -7.1, 1.12, 0.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomB" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1829008838]
+transform = Transform3D(1.45, 0, 0, 0, 1.12, 0, 0, 0, 1.45, -5.2, 1.18, 2.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomC" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1160868500]
+transform = Transform3D(1.15, 0, 0, 0, 1, 0, 0, 0, 1.15, -2.3, 1.08, 1.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomD" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1277088444]
+transform = Transform3D(1.35, 0, 0, 0, 1.08, 0, 0, 0, 1.35, 2.2, 1.15, 2.1)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomE" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=643033701]
+transform = Transform3D(1.25, 0, 0, 0, 1.04, 0, 0, 0, 1.25, 4.8, 1.11, 0.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaBloomF" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=431850578]
+transform = Transform3D(1.4, 0, 0, 0, 1.12, 0, 0, 0, 1.4, 6.9, 1.19, 2.8)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_hydrangea")
+
+[node name="HydrangeaStemA" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=128756298]
+transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 1, -7.1, 0.55, 0.4)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaStemB" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1918210190]
+transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 1, -5.2, 0.6, 2.4)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaStemC" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=1898951772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.52, 1.4)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaStemD" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=193623061]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1, 2.2, 0.57, 2.1)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaStemE" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=641382231]
+transform = Transform3D(1, 0, 0, 0, 1.05, 0, 0, 0, 1, 4.8, 0.55, 0.4)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaStemF" type="MeshInstance3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=304129586]
+transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 1, 6.9, 0.6, 2.8)
+mesh = SubResource("mesh_stem")
+surface_material_override/0 = SubResource("mat_stem")
+
+[node name="HydrangeaAssets" type="Node3D" parent="Houses/House2_Hydrangeas/HydrangeaGarden" unique_id=15261940]
+
+[node name="PlantModelA" parent="Houses/House2_Hydrangeas/HydrangeaGarden/HydrangeaAssets" unique_id=801135921 instance=ExtResource("3_plant_small_2")]
+transform = Transform3D(1.8, 0, 0, 0, 1.35, 0, 0, 0, 1.8, -5.2, 0.38, -1.4)
+
+[node name="PlantModelB" parent="Houses/House2_Hydrangeas/HydrangeaGarden/HydrangeaAssets" unique_id=1009229681 instance=ExtResource("3_plant_small_2")]
+transform = Transform3D(2, 0, 0, 0, 1.45, 0, 0, 0, 2, 4.2, 0.5, -1.5)
+
+[node name="PlantModelC" parent="Houses/House2_Hydrangeas/HydrangeaGarden/HydrangeaAssets" unique_id=877871701 instance=ExtResource("3_plant_small_2")]
+transform = Transform3D(1.75, 0, 0, 0, 1.3, 0, 0, 0, 1.75, 5.8, 0.5, 2.2)
+
+[node name="House3_Orchids" type="Node3D" parent="Houses" unique_id=1688292923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0, -22)
+
+[node name="HouseBody" type="MeshInstance3D" parent="Houses/House3_Orchids" unique_id=261533363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -6)
+mesh = SubResource("mesh_house")
+surface_material_override/0 = SubResource("mat_house_c")
+
+[node name="Roof" type="MeshInstance3D" parent="Houses/House3_Orchids" unique_id=1230894621]
+transform = Transform3D(1, 0, 0, 0, 0.65, 0, 0, 0, 1, 0, 5.6, -6)
+mesh = SubResource("mesh_roof")
+surface_material_override/0 = SubResource("mat_roof")
+
+[node name="FrontDoor" type="MeshInstance3D" parent="Houses/House3_Orchids" unique_id=1302702844]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -0.9)
+mesh = SubResource("mesh_door")
+surface_material_override/0 = SubResource("mat_door")
+
+[node name="LeftWindow" type="MeshInstance3D" parent="Houses/House3_Orchids" unique_id=84109625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="RightWindow" type="MeshInstance3D" parent="Houses/House3_Orchids" unique_id=1393499771]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.4, -0.92)
+mesh = SubResource("mesh_window")
+surface_material_override/0 = SubResource("mat_window")
+
+[node name="Label" type="Label3D" parent="Houses/House3_Orchids" unique_id=291466038]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 6.6, -1)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "房屋三"
+font_size = 96
+outline_size = 19
+
+[node name="OutdoorOrchids" type="Node3D" parent="Houses/House3_Orchids" unique_id=1862711386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5)
+
+[node name="GardenPlot" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1343633977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("mesh_garden_plot")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="LeftRaisedLawn" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=2133542864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4, 0.2, 0.7)
+mesh = SubResource("mesh_side_lawn")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="RightFlowerBed" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=363357987]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 0.25, 0.7)
+mesh = SubResource("mesh_side_bed")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="DoorWalkway" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1845291912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+mesh = SubResource("mesh_front_walk")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorPatio" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=2054119512]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.19, -4.8)
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="DoorStep" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1429371485]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, -5.55)
+mesh = SubResource("mesh_step")
+surface_material_override/0 = SubResource("mat_stone")
+
+[node name="BackFence" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=174431845]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -6)
+mesh = SubResource("mesh_fence_long")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceLeft" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=594010563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="FrontFenceRight" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=427096186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.7, 0.55, 6)
+mesh = SubResource("mesh_fence_gate_side")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="LeftFence" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1416646958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="RightFence" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1424669881]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.55, 0)
+mesh = SubResource("mesh_fence_short")
+surface_material_override/0 = SubResource("mat_fence")
+
+[node name="EntranceLabel" type="Label3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=495620894]
+transform = Transform3D(1, 0, 0, 0, 0.866025, -0.5, 0, 0.5, 0.866025, 0, 1.7, 6.9)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "花园入口"
+font_size = 48
+outline_size = 10
+
+[node name="FlowerLabel" type="Label3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=692708192]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 0, 1.35, -2.2)
+billboard = 1
+outline_modulate = Color(0, 0, 0, 0.86)
+text = "兰花"
+font_size = 64
+outline_size = 13
+
+[node name="CanopySwitch" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=748131897]
+transform = Transform3D(0.72, 0, 0, 0, 0.72, 0, 0, 0, 0.72, -1.9009647, 2.2214584, -5.812546)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="ButtonMesh_off" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids/CanopySwitch" unique_id=1114005547]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, 0, 0, 0.08)
+mesh = SubResource("mesh_faucet_handle")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="DoorbellLabel" type="Label3D" parent="Houses/House3_Orchids/OutdoorOrchids/CanopySwitch"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+billboard = 1
+modulate = Color(1, 1, 1, 1)
+outline_modulate = Color(0, 0, 0, 0.86)
+outline_size = 9
+text = "门铃"
+font_size = 44
+
+[node name="OrchidCanopy" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1072291095]
+transform = Transform3D(4.2, 0, 0, 0, 0.42, 0, 0, 0, 2.8, 0, 2.45, 0.8)
+visible = false
+mesh = SubResource("mesh_door_patio")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="GrassClumps" type="Node3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1292458812]
+
+[node name="GrassA" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=1772636538]
+transform = Transform3D(1.4, 0, 0, 0, 0.28, 0, 0, 0, 0.9, -6.4, 0.14, 2.8)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassB" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=539189597]
+transform = Transform3D(0.9, 0, 0, 0, 0.24, 0, 0, 0, 1.3, 6.4, 0.12, 2.2)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassC" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=96522275]
+transform = Transform3D(1, 0, 0, 0, 0.22, 0, 0, 0, 1.1, -0.2, 0.11, 3.6)
+mesh = SubResource("mesh_grass_clump")
+surface_material_override/0 = SubResource("mat_grass")
+
+[node name="GrassAssetA" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=1222355938 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.52, 0, 0, 0, 0.52, 0, 0, 0, 0.52, -6.7, 0.08, 4)
+
+[node name="GrassAssetB" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=1264697836 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, 6.8, 0.08, 3.8)
+
+[node name="GrassAssetC" parent="Houses/House3_Orchids/OutdoorOrchids/GrassClumps" unique_id=1122338624 instance=ExtResource("2_plant_small_1")]
+transform = Transform3D(0.52, 0, 0, 0, 0.52, 0, 0, 0, 0.52, 1.4, 0.08, 4.5)
+
+[node name="OrchidPotA" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1407447114]
+transform = Transform3D(1.1, 0, 0, 0, 0.7, 0, 0, 0, 1.1, -4, 0.45, -1.5)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidPotB" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=949122322]
+transform = Transform3D(1.1, 0, 0, 0, 0.7, 0, 0, 0, 1.1, 0, 0.45, -1.8)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidPotC" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=462163112]
+transform = Transform3D(1.1, 0, 0, 0, 0.7, 0, 0, 0, 1.1, 4, 0.45, -1.5)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomA" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=2052514374]
+transform = Transform3D(0.95, 0, 0, 0, 0.76, 0, 0, 0, 0.95, -7.2, 0.58, 0.6)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomB" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=474234388]
+transform = Transform3D(1.1, 0, 0, 0, 0.82, 0, 0, 0, 1.1, -5, 0.64, 2.2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomC" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=2042916177]
+transform = Transform3D(0.9, 0, 0, 0, 0.72, 0, 0, 0, 0.9, -2.8509655, 1.1314583, -9.762547)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomD" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=837978228]
+transform = Transform3D(1.05, 0, 0, 0, 0.8, 0, 0, 0, 1.05, 2.1, 0.61, 2)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomE" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=1044670807]
+transform = Transform3D(0.95, 0, 0, 0, 0.76, 0, 0, 0, 0.95, 4.8, 0.58, 0.4)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidBloomF" type="MeshInstance3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=834641717]
+transform = Transform3D(1.15, 0, 0, 0, 0.84, 0, 0, 0, 1.15, 6.8, 0.66, 2.7)
+mesh = SubResource("mesh_flower_head")
+surface_material_override/0 = SubResource("mat_orchid")
+
+[node name="OrchidAssets" type="Node3D" parent="Houses/House3_Orchids/OutdoorOrchids" unique_id=2002997135]
+
+[node name="PottedPlantA" parent="Houses/House3_Orchids/OutdoorOrchids/OrchidAssets" unique_id=2087759143 instance=ExtResource("5_potted_plant")]
+transform = Transform3D(1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45, -5.2, 0.38, -1.5)
+
+[node name="PottedPlantB" parent="Houses/House3_Orchids/OutdoorOrchids/OrchidAssets" unique_id=1428839798 instance=ExtResource("5_potted_plant")]
+transform = Transform3D(1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45, 4.1, 0.5, -1.8)
+
+[node name="PottedPlantC" parent="Houses/House3_Orchids/OutdoorOrchids/OrchidAssets" unique_id=1495530435 instance=ExtResource("5_potted_plant")]
+transform = Transform3D(1.45, 0, 0, 0, 1.45, 0, 0, 0, 1.45, 5.8, 0.5, 2.2)
+
+[node name="IndoorOrchidSpots" type="Node3D" parent="Houses/House3_Orchids" unique_id=188476913]
+
+[node name="IndoorSpotA" type="MeshInstance3D" parent="Houses/House3_Orchids/IndoorOrchidSpots" unique_id=75737182]
+transform = Transform3D(1.4, 0, 0, 0, 0.08, 0, 0, 0, 1.4, -3.6, 0.08, -6)
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="IndoorSpotB" type="MeshInstance3D" parent="Houses/House3_Orchids/IndoorOrchidSpots" unique_id=1753155624]
+transform = Transform3D(1.4, 0, 0, 0, 0.08, 0, 0, 0, 1.4, 0, 0.08, -6)
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="IndoorSpotC" type="MeshInstance3D" parent="Houses/House3_Orchids/IndoorOrchidSpots" unique_id=526277825]
+transform = Transform3D(1.4, 0, 0, 0, 0.08, 0, 0, 0, 1.4, 3.6, 0.08, -6)
+mesh = SubResource("mesh_soil")
+surface_material_override/0 = SubResource("mat_marker")
+
+[node name="CogitoPlayer" type="CharacterBody3D" parent="." unique_id=202557380]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 1.2, -10)
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CogitoPlayer" unique_id=1969978577]
+shape = SubResource("shape_player")
+
+[node name="Camera3D" type="Camera3D" parent="CogitoPlayer" unique_id=346589013]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0.75, 0)
+current = true
+
+[node name="GardenUI" type="CanvasLayer" parent="." unique_id=693109596]
+
+[node name="CenterCrosshair" type="Control" parent="GardenUI" unique_id=377459872]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -9.0
+offset_top = -9.0
+offset_right = 9.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Horizontal" type="ColorRect" parent="GardenUI/CenterCrosshair" unique_id=69812781]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 8.0
+offset_right = 16.0
+offset_bottom = 10.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.86)
+
+[node name="Vertical" type="ColorRect" parent="GardenUI/CenterCrosshair" unique_id=683611587]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 2.0
+offset_right = 10.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.86)
+
+[node name="ActionPrompt" type="Label" parent="GardenUI" unique_id=900152571]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = 22.0
+offset_right = 150.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.92)
+theme_override_constants/outline_size = 4
+text = "F  拿水壶"
+horizontal_alignment = 1
+
+[node name="Panel" type="PanelContainer" parent="GardenUI" unique_id=82515881]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 132.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_garden_hud_panel")
+
+[node name="Margin" type="MarginContainer" parent="GardenUI/Panel" unique_id=2026029224]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="Rows" type="VBoxContainer" parent="GardenUI/Panel/Margin" unique_id=1056245958]
+layout_mode = 2
+
+[node name="TimeLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1378655833]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "时间：08:29"
+
+[node name="WeatherLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1663836515]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "天气：晴天"
+
+[node name="CanopyLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=695902996]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "警报：等待中"
+
+[node name="StatusLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=723207793]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "水壶：未拿起"
+
+[node name="TaskLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1397968296]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "任务：看游戏时间，以游戏时间为准。08:29-17:00 内，除了兰花花园，其他两个花园都要浇水。"
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1859795511]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "F：拿水壶 / 浇草坪 / 按下雨警报"
+
+[node name="MessageLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1276292921]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "浇完花会显示水量充足。每个屋都有门铃；雨会不定时出现但会在15:00前下，雨停前给兰花房报警。"
+autowrap_mode = 3
+
+[node name="AIPlayController" parent="." node_paths=PackedStringArray("player") instance=ExtResource("10_ai_play_controller")]
+player = NodePath("../CogitoPlayer")
+auto_start = false
+host = "127.0.0.1"
+
+[node name="Observer" parent="AIPlayController" node_paths=PackedStringArray("watering_state")]
+watering_state = NodePath("../..")
+
+[node name="GardenMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("watering_state", "game_over_screen")]
+script = ExtResource("11_ai_play_monitor")
+scenario_id = "garden_watering"
+watering_state = NodePath("../..")
+game_over_screen = NodePath("GameOverScreen")
+
+[node name="GameOverScreen" parent="AIPlayController/GardenMonitor" instance=ExtResource("12_game_over_screen")]

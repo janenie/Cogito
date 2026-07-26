@@ -10,6 +10,8 @@ const OUTCOME_TEXT := {
 	"meeting_door_closed": "任务成功",
 	"cleanup_complete": "任务成功",
 	"cleanup_incomplete": "任务失败",
+	"garden_tasks_complete": "任务成功",
+	"garden_task_failed": "任务失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -20,6 +22,8 @@ const REASON_TEXT := {
 	"meeting_door_closed": "已打招呼并关上会议室门",
 	"cleanup_complete": "所有垃圾已清理",
 	"cleanup_incomplete": "还有垃圾没有处理",
+	"garden_tasks_complete": "浇水和下雨警报都已完成",
+	"garden_task_failed": "花园任务未完成",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

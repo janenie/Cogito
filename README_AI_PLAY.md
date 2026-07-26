@@ -7,7 +7,8 @@ AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游�
 当前黑盒游玩流程支持
 `addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` 中的 `find_contract` 和
 `find_key`、`put_book`、`greet_npc_meeting`，以及导入到当前仓库的
-`dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup`。
+`dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup` 和
+`garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，共 6 个任务。
 MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
 
 ## 1. 准备环境
@@ -186,6 +187,16 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
   -- --ai-play --ai-play-scenario=daily_routine_cleanup
 ```
 
+`garden_watering` 位于导入的花园场景，也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play-scenario=garden_watering
+
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play --ai-play-scenario=garden_watering
+```
+
 `--ai-play` 必须作为 Godot 用户参数精确传入：
 
 - 第一个 `--` 把后续内容作为 Godot 用户参数传入游戏。
@@ -240,7 +251,9 @@ briefing 只说明最大值 100 次，允许
 `success/book_in_box` 和 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，
 允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
 的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
-和 `failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
+和 `failure/max_requests`；`garden_watering` 的硬上限为 300 次，允许
+`success/garden_tasks_complete`、`failure/garden_task_failed` 和
+`failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。

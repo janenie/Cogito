@@ -202,6 +202,12 @@ def test_global_limit_can_tighten_greet_npc_meeting_cap():
     assert session.act_request_limit == 75
 
 
+def test_garden_watering_uses_scenario_request_cap():
+    session, _ = make_scenario_session("garden_watering")
+
+    assert session.act_request_limit == 300
+
+
 def test_find_key_accepts_only_key_success_terminal():
     session, _ = make_scenario_session("find_key")
     session.receive_observation(observation(7))
@@ -241,6 +247,20 @@ def test_greet_npc_meeting_accepts_only_meeting_door_success_terminal():
         "observation_id": 7,
         "outcome": "success",
         "reason": "meeting_door_closed",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_garden_watering_accepts_garden_success_terminal():
+    session, _ = make_scenario_session("garden_watering")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "garden_tasks_complete",
     }
     session.receive_game_over(terminal)
     assert session.observe(timeout=0.1).game_over == terminal
@@ -322,6 +342,12 @@ def test_logging_failure_rejects_attach_without_controller():
             "greet_npc_meeting",
             "success",
             "meeting_door_closed",
+            "success",
+        ),
+        (
+            "garden_watering",
+            "success",
+            "garden_tasks_complete",
             "success",
         ),
         ("find_contract", "failure", "wrong_password", "failure"),

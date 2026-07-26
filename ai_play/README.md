@@ -64,6 +64,16 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
   -- --ai-play --ai-play-scenario=daily_routine_cleanup
 ```
 
+花园玩法位于导入的 garden 场景，也可普通启动或接入 AI：
+
+```bash
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play-scenario=garden_watering
+
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play --ai-play-scenario=garden_watering
+```
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -101,6 +111,11 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 成功产生 `success/cleanup_complete`；任一完成条件未满足时提交会产生
 `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
 
+`garden_watering` 是社区花园任务。玩家用 4 个满水壶浇完向日葵房和绣球花房各 2 块
+草坪，并在 HUD 显示下雨期间按下兰花房门铃。成功产生
+`success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
+下雨警报会产生 `failure/garden_task_failed`。
+
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
 stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
@@ -135,7 +150,9 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 终局为 `success/book_in_box` 或 `failure/max_requests`；`greet_npc_meeting` 的硬上限
 为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`；
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
-`failure/cleanup_incomplete` 或 `failure/max_requests`。环境变量
+`failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
+为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
+或 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -199,8 +216,11 @@ mcplogs/
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
-- 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting` 和
-  `daily_routine_cleanup` 的运行时终局事件和独立公开简报；不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、NPC 路线起点、NPC 路线方向、daily routine 内部节点路径、随机种子或任务内部知识。
+- 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
+  `daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
+  不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
+  NPC 路线起点、NPC 路线方向、daily routine 或 garden 内部节点路径、随机下雨时间、
+  随机种子或任务内部知识。
 
 ## 配置
 
@@ -216,7 +236,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 500、50/100、50、100、150 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 500、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

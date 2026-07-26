@@ -19,7 +19,7 @@ OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
     "bindings", "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden"}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
@@ -218,6 +218,50 @@ def validate_observation(value):
             "failed": routine["failed"],
         }
 
+    safe_garden = None
+    if "garden" in value:
+        garden = value["garden"]
+        _exact(
+            garden,
+            {
+                "objective", "time", "weather", "has_watering_can",
+                "can_has_water", "watered_lawns", "required_lawns",
+                "rain_alarm_pressed", "completed", "failed",
+            },
+            "garden",
+        )
+        for name in (
+            "has_watering_can", "can_has_water", "rain_alarm_pressed",
+            "completed", "failed",
+        ):
+            if type(garden[name]) is not bool:
+                raise ObservationValidationError("garden booleans are invalid")
+        weather = _text(garden["weather"], "garden weather", 16, allow_empty=False)
+        if weather not in {"sunny", "rain"}:
+            raise ObservationValidationError("garden weather is invalid")
+        time = _text(garden["time"], "garden time", 5, allow_empty=False)
+        if (
+            len(time) != 5
+            or time[2] != ":"
+            or not time[:2].isdigit()
+            or not time[3:].isdigit()
+            or int(time[:2]) > 23
+            or int(time[3:]) > 59
+        ):
+            raise ObservationValidationError("garden time is invalid")
+        safe_garden = {
+            "objective": _text(garden["objective"], "garden objective", 500),
+            "time": time,
+            "weather": weather,
+            "has_watering_can": garden["has_watering_can"],
+            "can_has_water": garden["can_has_water"],
+            "watered_lawns": _integer(garden["watered_lawns"], "watered_lawns"),
+            "required_lawns": _integer(garden["required_lawns"], "required_lawns"),
+            "rain_alarm_pressed": garden["rain_alarm_pressed"],
+            "completed": garden["completed"],
+            "failed": garden["failed"],
+        }
+
     safe = {
         "observation_id": _integer(value["observation_id"], "observation_id"),
         "captured_at_ms": _integer(value["captured_at_ms"], "captured_at_ms"),
@@ -244,6 +288,8 @@ def validate_observation(value):
     }
     if safe_routine is not None:
         safe["routine"] = safe_routine
+    if safe_garden is not None:
+        safe["garden"] = safe_garden
     return safe
 
 

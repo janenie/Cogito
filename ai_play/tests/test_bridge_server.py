@@ -92,6 +92,23 @@ def _home_observation(observation_id=7):
     return observation
 
 
+def _garden_observation(observation_id=7):
+    observation = _observation(observation_id)
+    observation["garden"] = {
+        "objective": "给目标花园浇水。",
+        "time": "08:29",
+        "weather": "sunny",
+        "has_watering_can": False,
+        "can_has_water": True,
+        "watered_lawns": 0,
+        "required_lawns": 4,
+        "rain_alarm_pressed": False,
+        "completed": False,
+        "failed": False,
+    }
+    return observation
+
+
 def _wait_until(predicate, timeout=1.0):
     deadline = time.monotonic() + timeout
     while not predicate():
@@ -162,6 +179,22 @@ def test_bridge_routes_home_routine_observation_to_game_session():
 
     assert result.status == "ready"
     assert result.observation["routine"]["trash_required"] == 2
+
+
+def test_bridge_routes_garden_observation_to_game_session():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            assert _send(connection, _hello("garden_watering"))["type"] == "hello"
+            connection.send(json.dumps(_garden_observation()))
+            result = session.observe(timeout=0.5)
+    finally:
+        handle.close()
+
+    assert result.status == "ready"
+    assert result.observation["garden"]["required_lawns"] == 4
 
 
 def test_bridge_rejects_second_controller_as_busy():

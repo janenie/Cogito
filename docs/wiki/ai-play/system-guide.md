@@ -43,7 +43,9 @@ Godot 桥的安全边界。
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
   `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
-  `failure/cleanup_incomplete` 和 `failure/max_requests`。`find_key`、`put_book` 和
+  `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
+  硬上限是 300，终局只允许 `success/garden_tasks_complete`、
+  `failure/garden_task_failed` 和 `failure/max_requests`。`find_key`、`put_book` 和
   `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
@@ -206,6 +208,31 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
   `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
 - 公开观察只包含相机图像、玩家基础状态、可见交互提示、HUD 级别的清理进度和持有物
   标签；不公开内部节点路径、脚本类名或候选物体源码。
+
+## garden_watering 回合规则
+
+普通游玩：
+
+```bash
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play-scenario=garden_watering
+```
+
+AI 游玩：
+
+```bash
+godot --path . garden/scenes/garden_vertical_slice.tscn \
+  -- --ai-play --ai-play-scenario=garden_watering
+```
+
+- 该玩法来自导入到当前仓库的 `garden/` 场景，复用同一套 stdio MCP Server、
+  WebSocket 桥、动作执行器、显式启用和 Escape 紧急停止机制。
+- 玩家用中央广场的 4 个满水壶浇完向日葵房和绣球花房各 2 块草坪；每个水壶只能浇
+  1 块。兰花房的草坪不是目标。
+- HUD 天气显示下雨时，玩家必须在雨停前按下兰花房门铃。浇错草坪、按错门铃、
+  非下雨时按兰花房门铃或错过警报都会失败。
+- 公开观察只包含相机图像、玩家基础状态、可见交互提示，以及 HUD 级别的时间、天气、
+  水壶、浇水和警报进度；不公开内部节点路径、脚本类名、随机下雨时间或运行种子。
 
 ## 来源
 

@@ -26,7 +26,7 @@ OBSERVATION_FIELDS = {
     "bindings",
     "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden"}
 
 
 class BridgeHandle:
