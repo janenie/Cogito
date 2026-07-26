@@ -51,6 +51,17 @@ $env:PYTHONPATH = "ai_play/src"
 MCP 相关测试还必须验证工具列表、结构化结果、图片内容、串行动作、过期观察 ID、
 Godot 断线和停止时的输入释放；测试不得启动真实外部模型或使用真实凭据。
 
+修改 Codex orchestrator 或 Godot supervisor 时，运行对应的纯本地 Python 单元测试：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_supervisor.py -q
+```
+
+这些测试只使用临时目录和伪进程，覆盖隔离运行目录、四个 MCP 工具审批段、异常重试及
+停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。当前 controller 的 Escape 停止会
+输出可被 supervisor 记为 `failure/stopped` 的标识；MCP `stop` 只完成 `stop_ack` 并释放输入，
+不产生监督回合终局标识。
+
 Godot AI 契约测试：
 
 ```text
@@ -74,9 +85,9 @@ python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 
 orchestrator 每次在 `--session-root` 下创建新的玩家启动目录和 `AI_PLAY_LOG_ROOT`。
 supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>`
-终局标识、`AI_PLAY disabled; reason=mcp_stop|escape_stop` 停止标识和进程状态；
-MCP/Godot 停止标识按 `failure/stopped` 计入该局并继续后续局数。两者都不得扩展为读取
-轨迹、截图、源码或模型上下文。
+终局标识、可出现的 `AI_PLAY disabled` 停止标识和进程状态；当前 controller 只有 Escape
+停止会发出该标识并按 `failure/stopped` 计入该局。MCP `stop` 不是监督回合终局，应等待合法
+终局或由异常/超时路径处理。两者都不得扩展为读取轨迹、截图、源码或模型上下文。
 
 桥协议变更还必须覆盖 Godot JSON 数值规范化：协议版本只接受非布尔且数值精确等于 `3`
 的表示，安全整数 `observation_id` 必须在回调、`stop_ack` 和终局确认中保持整数语义。
