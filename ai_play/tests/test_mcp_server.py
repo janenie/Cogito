@@ -438,6 +438,43 @@ def test_terminal_observe_returns_terminal_state_without_new_observation(monkeyp
     asyncio.run(run())
 
 
+def test_parse_server_options_defaults_to_stdio():
+    options = mcp_server.parse_server_options([])
+
+    assert options.transport == "stdio"
+    assert options.http_host == "127.0.0.1"
+    assert options.http_port == 8766
+
+
+@pytest.mark.parametrize("host", ["localhost", "::1", "0.0.0.0"])
+def test_parse_server_options_rejects_non_numeric_loopback(host):
+    with pytest.raises(ValueError, match="MCP HTTP host must be 127.0.0.1"):
+        mcp_server.parse_server_options(
+            [
+                "--transport",
+                "streamable-http",
+                "--http-host",
+                host,
+                "--http-port",
+                "8766",
+            ]
+        )
+
+
+def test_configure_transport_sets_fastmcp_http_listener():
+    options = mcp_server.ServerOptions(
+        transport="streamable-http",
+        http_host="127.0.0.1",
+        http_port=8766,
+    )
+
+    transport = mcp_server.configure_transport(options)
+
+    assert transport == "streamable-http"
+    assert mcp_server.mcp.settings.host == "127.0.0.1"
+    assert mcp_server.mcp.settings.port == 8766
+
+
 def test_module_reports_invalid_loopback_config_on_stderr_only():
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(Path("ai_play/src").resolve())
