@@ -65,6 +65,17 @@ godot --headless --path . --script tests/garden/test_garden_scene.gd
 godot --headless --path . --editor --quit
 ```
 
+隔离 Codex 玩家多局验收的 Godot 生命周期由 supervisor 管理：
+
+```bash
+python3 tools/ai_play_codex_orchestrator.py --runs 3 --scenario find_contract
+python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
+```
+
+orchestrator 每次在 `--session-root` 下创建新的玩家启动目录和 `AI_PLAY_LOG_ROOT`。
+supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>`
+终局标识和进程状态；两者都不得扩展为读取轨迹、截图、源码或模型上下文。
+
 桥协议变更还必须覆盖 Godot JSON 数值规范化：协议版本只接受非布尔且数值精确等于 `3`
 的表示，安全整数 `observation_id` 必须在回调、`stop_ack` 和终局确认中保持整数语义。
 

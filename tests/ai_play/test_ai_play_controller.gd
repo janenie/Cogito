@@ -97,6 +97,7 @@ func _run_tests() -> void:
 	_test_bridge_accepts_protocol_three_and_emits_stop_request()
 	_test_bridge_emits_only_exact_request_limit_terminal()
 	_test_user_arg_opt_in(controller_script)
+	_test_exit_on_game_over_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
 	await _test_find_key_hello_includes_round_request_limit(
@@ -177,6 +178,38 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 		controller._find_scenario_monitor("unknown") == null,
 		"unknown scenario has no active monitor",
 	)
+	controller.free()
+
+
+func _test_exit_on_game_over_opt_in(controller_script: GDScript) -> void:
+	var controller: Node = controller_script.new()
+	_assert(
+		controller.has_method("_should_exit_on_game_over_for_user_args"),
+		"controller exposes game-over exit predicate",
+	)
+	if controller.has_method("_should_exit_on_game_over_for_user_args"):
+		_assert(
+			not controller._should_exit_on_game_over_for_user_args([]),
+			"ordinary launch does not exit on game over",
+		)
+		_assert(
+			not controller._should_exit_on_game_over_for_user_args(
+				["--ai-play-exit-on-game-over"],
+			),
+			"exit flag alone does not enable supervised exit",
+		)
+		_assert(
+			controller._should_exit_on_game_over_for_user_args(
+				["--ai-play", "--ai-play-exit-on-game-over"],
+			),
+			"AI launch with supervisor flag exits on game over",
+		)
+		_assert(
+			not controller._should_exit_on_game_over_for_user_args(
+				["--ai-play", "--ai-play-exit-on-game-over=true"],
+			),
+			"similar supervisor flag is ignored",
+		)
 	controller.free()
 
 

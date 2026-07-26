@@ -79,6 +79,88 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
 `ai_play.scenarios` 白名单中的玩法，并使用同一 ID 选择公开简报。
 
+## 隔离 Codex 玩家连续 3 局
+
+如果要让隔离的 Codex 玩家连续玩 `find_contract` 三次并基于公开经验自我调整，推荐把
+职责拆开：
+
+- 玩家 Codex 只接入 `cogito_ai_play` MCP 的 `briefing`、`observe`、`act`、`stop`。
+- 外部 supervisor 只负责启动、监听和重启 Godot。
+- supervisor 不读取轨迹、截图、源码、日志目录或模型上下文，也不修改玩家提示词。
+
+一键托管玩家 Codex 和 Godot supervisor：
+
+```bash
+python3 tools/ai_play_codex_orchestrator.py --runs 3 --scenario find_contract
+```
+
+首次使用前需要让专用 Codex home 完成登录：
+
+```bash
+CODEX_HOME=~/.codex-cogito-player codex login
+```
+
+orchestrator 默认使用 `~/.codex-cogito-player`。如果该目录还没有 `config.toml`，它会写入
+只包含 `cogito_ai_play` MCP Server 的最小配置；如果已经存在配置文件但缺少
+`cogito_ai_play` MCP Server 配置，它会追加该配置而不覆盖其他设置。
+
+默认每次运行都会在 `~/workspace/cogito_ai_player_runs/` 下创建全新的目录：
+
+```text
+cogito_ai_player_runs/
+└── 20260726-170000/
+    ├── player_workspace/
+    │   ├── ai_play_run_config.json
+    │   └── mcplogs/
+```
+
+`player_workspace/ai_play_run_config.json` 会记录本次 `AI_PLAY_LOG_ROOT`，同一个路径也会
+作为环境变量传给玩家 Codex 及其启动的 MCP Server。可以用 `--session-root` 指定这个
+大目录：
+
+```bash
+python3 tools/ai_play_codex_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --session-root ~/workspace/cogito_ai_player_runs
+```
+
+orchestrator 默认要求 `127.0.0.1:8765` 在启动前空闲，并会等待玩家 Codex 启动的
+`cogito_ai_play` MCP Server 监听该地址后才启动 Godot。若该端口已被旧 MCP/Codex 进程
+占用，程序会直接退出，避免 Godot 连接到错误的玩家进程。需要改端口时，同时传入：
+
+```bash
+python3 tools/ai_play_codex_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --ws-host 127.0.0.1 \
+  --ws-port 8766
+```
+
+如果只想手动启动玩家 Codex，再让程序管理 Godot，仍可直接运行 supervisor：
+
+```bash
+python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
+```
+
+supervisor 每局启动的 Godot 命令等价于：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract --ai-play-exit-on-game-over
+```
+
+`--ai-play-exit-on-game-over` 只有在同一启动参数中包含精确的 `--ai-play` 时才会生效。
+合法终局会输出固定标识：
+
+```text
+AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
+```
+
+supervisor 将带有该标识的进程退出计为一局完成；未看到标识的提前退出、超时或连接异常
+按异常局处理并有限重试。跨局“自进化”只能发生在隔离玩家 Codex 基于公开 MCP 结果做出的
+策略总结中。
+
 无论是否启用 AI，`find_contract` 每次载入 Lobby 都会生成一个新回合：从 8 个日期和 8 个版本号候选中
 各抽取一个值，随机选择 `MMDD + VV` 或 `VV + MMDD`，并从三条固定的三地点路线中
 选择一条。玩家会在入口、大厅或 ARCHIVE 门外开始，任务卡位于出生点 1～2 米内。

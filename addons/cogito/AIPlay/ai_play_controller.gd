@@ -9,6 +9,7 @@ const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
+const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
 const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
@@ -57,6 +58,7 @@ var _capture_generation: int = 0
 var _stop_delivery_pending: bool = false
 var _game_finished: bool = false
 var _active_scenario_id: String = ""
+var _exit_on_game_over: bool = false
 
 var _observer: Node
 var _executor: Node
@@ -67,9 +69,9 @@ var _observation_timer: Timer
 
 
 func _ready() -> void:
-	_active_scenario_id = get_requested_scenario_id(
-		OS.get_cmdline_user_args()
-	)
+	var user_args: Array = OS.get_cmdline_user_args()
+	_active_scenario_id = get_requested_scenario_id(user_args)
+	_exit_on_game_over = _should_exit_on_game_over_for_user_args(user_args)
 	_observer = get_node("Observer")
 	_executor = get_node("Executor")
 	_interaction_probe = get_node("InteractionProbe")
@@ -103,17 +105,21 @@ func _ready() -> void:
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
 	print(
 		"AI_PLAY controller ready; scenario=%s user_args=%s auto_start=%s"
-		% [_active_scenario_id, OS.get_cmdline_user_args(), auto_start]
+		% [_active_scenario_id, user_args, auto_start]
 	)
 	if _active_scenario_id.is_empty():
 		push_error("AI_PLAY requested scenario is invalid or unavailable")
 		return
-	if auto_start or _should_enable_for_user_args(OS.get_cmdline_user_args()):
+	if auto_start or _should_enable_for_user_args(user_args):
 		enable_ai()
 
 
 func _should_enable_for_user_args(user_args: Array) -> bool:
 	return "--ai-play" in user_args
+
+
+func _should_exit_on_game_over_for_user_args(user_args: Array) -> bool:
+	return _should_enable_for_user_args(user_args) and EXIT_ON_GAME_OVER_ARG in user_args
 
 
 func get_requested_scenario_id(user_args: Array) -> String:
@@ -514,11 +520,18 @@ func _finish_game(outcome: String, reason: String, observation_id: Variant) -> v
 	})
 	disable_ai("game_over:%s" % reason, send_error != OK)
 	_show_game_over_result(outcome, reason)
+	print("AI_PLAY_GAME_OVER outcome=%s reason=%s" % [outcome, reason])
+	if _exit_on_game_over:
+		_quit_after_game_over.call_deferred(outcome)
 
 
 func _show_game_over_result(outcome: String, reason: String) -> void:
 	if _terminal_monitor != null and _terminal_monitor.has_method("show_result"):
 		_terminal_monitor.show_result(outcome, reason)
+
+
+func _quit_after_game_over(outcome: String) -> void:
+	get_tree().quit(0 if outcome == "success" else 1)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:

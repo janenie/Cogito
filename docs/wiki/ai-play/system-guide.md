@@ -28,6 +28,9 @@ Godot 桥的安全边界。
   和运行时按键绑定。
 - 绝不能把场景源码、节点路径、隐藏状态、仓库文件、谜题答案，或来自 `game_script/`、`code_read/`、测试、规格和计划的事实加入提示词、种子记忆、API 载荷或黑盒验收提示。
 - 除非用户明确要求，并且了解截图、令牌、费用和本地轨迹持久化的影响，否则不要运行真实外部 MCP/模型验收。自动化测试必须不依赖真实凭据。
+- 隔离 Codex 玩家多局验收应由外部 supervisor 重启 Godot。玩家 Codex 只使用
+  `briefing`、`observe`、`act`、`stop`；supervisor 只监听 Godot 终局标识和进程状态，
+  不读取轨迹、截图、源码或模型上下文。
 
 ## 跨层契约
 
@@ -66,6 +69,66 @@ Godot 桥的安全边界。
   bridge 断开和 MCP shutdown。
 - 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和 JPEG 相对路径，绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
 - 修改公开协议、环境变量、控制方式、隐私行为或日志布局时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
+
+## Codex orchestrator 多局验收
+
+一键托管隔离玩家 Codex 和 Godot supervisor：
+
+```bash
+python3 tools/ai_play_codex_orchestrator.py --runs 3 --scenario find_contract
+```
+
+首次使用前需要对专用 Codex home 完成登录：
+
+```bash
+CODEX_HOME=~/.codex-cogito-player codex login
+```
+
+orchestrator 默认使用 `~/.codex-cogito-player`。如果该目录没有 `config.toml`，它会创建
+只包含 `cogito_ai_play` MCP Server 的最小配置；如果配置已存在但缺少
+`cogito_ai_play` MCP Server 配置，它会追加该配置而不覆盖其他设置。
+
+orchestrator 每次运行会在 `--session-root` 指定的大目录下创建全新的运行目录，默认是
+`~/workspace/cogito_ai_player_runs/<YYYYMMDD-HHMMSS>/`。其中
+`player_workspace/` 是玩家 Codex 的启动目录，`player_workspace/mcplogs/` 是本次
+`AI_PLAY_LOG_ROOT`。`player_workspace/ai_play_run_config.json` 会记录该日志根目录，
+且同一路径会作为环境变量传给玩家 Codex 及其启动的 MCP Server。该配置是运行超参数，
+不授权玩家读取日志来帮助当前游玩。
+
+orchestrator 默认使用 `127.0.0.1:8765` 作为 Godot 到 MCP Server 的桥地址。启动玩家
+Codex 前它会确认该端口空闲；端口已被旧 MCP/Codex 进程占用时直接退出。启动玩家
+Codex 后，它会等待 `cogito_ai_play` MCP Server 监听该地址，再启动 Godot supervisor，
+避免 Godot 误连到其他进程。需要并行运行时可用 `--ws-host` 和 `--ws-port` 改桥地址。
+
+orchestrator 不读取轨迹、截图、源码或模型上下文；它只负责同时启动玩家 Codex 和
+supervisor，并在任一子进程异常退出时终止另一侧。
+
+## 外部 supervisor 多局验收
+
+隔离玩家 Codex 不应负责启动或重启 Godot。需要连续运行 `find_contract` 三局时，从仓库
+根目录启动外部 supervisor：
+
+```bash
+python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
+```
+
+supervisor 每局启动：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=find_contract --ai-play-exit-on-game-over
+```
+
+`AIPlayController` 只在同时存在 `--ai-play` 和 `--ai-play-exit-on-game-over` 时启用终局
+自动退出。合法终局会先通过桥发送 `game_over`，再在 Godot 输出中打印：
+
+```text
+AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
+```
+
+supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
+处理并有限重试；Escape 或人工中断停止整轮验收。supervisor 不读取本地轨迹日志，不
+复盘截图，不修改玩家 Codex 提示词，也不访问仓库内部知识。
 
 ## 增加同一 Lobby 的新玩法
 

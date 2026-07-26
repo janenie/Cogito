@@ -53,6 +53,8 @@ do
 done
 grep -q 'SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="' \
 	addons/cogito/AIPlay/ai_play_controller.gd
+grep -q 'EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"' \
+	addons/cogito/AIPlay/ai_play_controller.gd
 grep -q 'player = NodePath("../../Player")' "$scene"
 grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
 grep -q 'ceo_file_clue = NodePath("../../UPPER_OFFICE_CEO/ripped_page_a_pickup_ceo/ReadableComponent")' "$scene"

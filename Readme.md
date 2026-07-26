@@ -19,6 +19,13 @@ In short, with COGITO you get a quick start for a fully-featured first person ga
 ### [Video tutorial series](https://cogito.readthedocs.io/en/latest/tutorials.html)
 ### [Cogito in the Godot Asset Store (beta)](https://store-beta.godotengine.org/asset/philip-drobar/cogito)
 
+## AI First Play
+
+This branch includes an explicit opt-in AI First Play MCP system for black-box
+playtesting selected demo scenarios. See [`ai_play/README.md`](ai_play/README.md)
+for the isolated Codex player setup and the orchestrator command that starts
+Codex plus Godot for three `find_contract` attempts.
+
 ### Current Features
 - First person player controller with:
   - Sprinting, jumping, crouching, sliding, stairs handling, ladder handling, sitting
