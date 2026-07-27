@@ -35,6 +35,19 @@ func _run() -> void:
 
 	_assert(observation["observation_id"] == 1, "observation id starts at one")
 	_assert(observation["image"]["mime_type"] == "image/jpeg", "observation includes jpeg image")
+	_assert(observation["depth_image"]["mime_type"] == "image/png", "observation includes png depth")
+	_assert(
+		observation["depth_image"]["encoding"] == "linear_depth_normalized_8bit",
+		"depth encoding is public",
+	)
+	var depth_image := Image.new()
+	_assert(
+		depth_image.load_png_from_buffer(
+			Marshalls.base64_to_raw(observation["depth_image"]["base64"])
+		) == OK,
+		"depth base64 decodes as PNG",
+	)
+	_assert(depth_image.get_size() == Vector2i(768, 432), "depth image has public dimensions")
 	_assert(observation["player"]["position"].size() == 3, "player position is public")
 	_assert(observation["player"].has("yaw_degrees"), "player yaw is public")
 	_assert(observation["player"].has("pitch_degrees"), "player pitch is public")

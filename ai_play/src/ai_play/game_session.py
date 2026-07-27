@@ -516,10 +516,13 @@ class GameSession:
             "observation": None,
         }
         image_bytes = None
+        depth_image_bytes = None
         if result.observation is not None:
-            public, image_bytes = prepare_mcp_observation(result.observation)
+            public, image_bytes, depth_image_bytes = prepare_mcp_observation(
+                result.observation
+            )
             payload["observation"] = public
-        return payload, image_bytes
+        return payload, image_bytes, depth_image_bytes
 
     def _require_ready_action_state_locked(self, observation_id):
         if self._state == "game_over":

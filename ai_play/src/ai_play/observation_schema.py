@@ -19,12 +19,15 @@ OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
     "bindings", "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image"}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
+DEPTH_IMAGE_FIELDS = {
+    "mime_type", "base64", "width", "height", "encoding", "near_meters", "far_meters",
+}
 
 
 def _exact(value, fields, label):
@@ -143,6 +146,51 @@ def validate_observation(value):
         raise ObservationValidationError("image must contain a bounded JPEG")
     if image["mime_type"] != "image/jpeg" or image["width"] != 768 or image["height"] != 432:
         raise ObservationValidationError("image metadata is invalid")
+
+    safe_depth_image = None
+    if "depth_image" in value:
+        depth_image = value["depth_image"]
+        _exact(depth_image, DEPTH_IMAGE_FIELDS, "depth image")
+        depth_encoded = depth_image["base64"]
+        if (
+            not isinstance(depth_encoded, str)
+            or len(depth_encoded) > ((MAX_IMAGE_BYTES + 2) // 3) * 4
+        ):
+            raise ObservationValidationError("depth image base64 is invalid")
+        try:
+            depth_image_bytes = base64.b64decode(depth_encoded, validate=True)
+        except (ValueError, binascii.Error) as error:
+            raise ObservationValidationError("depth image base64 is invalid") from error
+        if (
+            len(depth_image_bytes) > MAX_IMAGE_BYTES
+            or not depth_image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+            or not depth_image_bytes.endswith(b"IEND\xaeB`\x82")
+        ):
+            raise ObservationValidationError("depth image must contain a bounded PNG")
+        near_meters = _number(
+            depth_image["near_meters"], "depth image near_meters", 0.001, 1_000
+        )
+        far_meters = _number(
+            depth_image["far_meters"], "depth image far_meters", 0.002, 1_000_000
+        )
+        if near_meters >= far_meters:
+            raise ObservationValidationError("depth image range is invalid")
+        if (
+            depth_image["mime_type"] != "image/png"
+            or depth_image["width"] != 768
+            or depth_image["height"] != 432
+            or depth_image["encoding"] != "linear_depth_normalized_8bit"
+        ):
+            raise ObservationValidationError("depth image metadata is invalid")
+        safe_depth_image = {
+            "mime_type": "image/png",
+            "base64": depth_encoded,
+            "width": 768,
+            "height": 432,
+            "encoding": "linear_depth_normalized_8bit",
+            "near_meters": near_meters,
+            "far_meters": far_meters,
+        }
 
     player = value["player"]
     required_player_fields = {
@@ -290,11 +338,13 @@ def validate_observation(value):
         safe["routine"] = safe_routine
     if safe_garden is not None:
         safe["garden"] = safe_garden
+    if safe_depth_image is not None:
+        safe["depth_image"] = safe_depth_image
     return safe
 
 
 def prepare_mcp_observation(value):
-    """Return public structured observation data and its separately carried image bytes."""
+    """Return public structured data plus separately carried screenshot and depth bytes."""
     safe = validate_observation(value)
     encoded = safe["image"]["base64"]
     try:
@@ -308,4 +358,17 @@ def prepare_mcp_observation(value):
         for key, item in safe["image"].items()
         if key != "base64"
     }
-    return public, image_bytes
+    depth_image_bytes = None
+    if "depth_image" in safe:
+        try:
+            depth_image_bytes = base64.b64decode(
+                safe["depth_image"]["base64"], validate=True
+            )
+        except (binascii.Error, ValueError) as error:
+            raise ObservationValidationError("depth image base64 is invalid") from error
+        public["depth_image"] = {
+            key: item
+            for key, item in safe["depth_image"].items()
+            if key != "base64"
+        }
+    return public, image_bytes, depth_image_bytes

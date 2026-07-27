@@ -37,7 +37,7 @@ def _hello(scenario_id="find_contract"):
     }
 
 
-def _observation(observation_id=7):
+def _observation(observation_id=7, include_depth=False):
     image = b"\xff\xd8\xffbridge-image\xff\xd9"
     bindings = {
         "forward": "W",
@@ -51,7 +51,7 @@ def _observation(observation_id=7):
         "interact2": "F",
         "menu": "Escape",
     }
-    return {
+    observation = {
         "type": "observation",
         "protocol_version": 3,
         "observation_id": observation_id,
@@ -77,6 +77,18 @@ def _observation(observation_id=7):
         "bindings": bindings,
         "last_action_results": [],
     }
+    if include_depth:
+        depth_image = b"\x89PNG\r\n\x1a\nbridge-depthIEND\xaeB`\x82"
+        observation["depth_image"] = {
+            "mime_type": "image/png",
+            "base64": base64.b64encode(depth_image).decode("ascii"),
+            "width": 768,
+            "height": 432,
+            "encoding": "linear_depth_normalized_8bit",
+            "near_meters": 0.05,
+            "far_meters": 4000.0,
+        }
+    return observation
 
 
 def _home_observation(observation_id=7):
@@ -163,6 +175,32 @@ def test_bridge_routes_valid_observation_to_game_session():
 
     assert result.status == "ready"
     assert result.observation["observation_id"] == 7
+
+
+def test_bridge_routes_depth_image_to_game_session():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            assert _send(connection, _hello())["type"] == "hello"
+            connection.send(json.dumps(_observation(include_depth=True)))
+            result = session.observe(timeout=0.5)
+    finally:
+        handle.close()
+
+    assert result.status == "ready"
+    assert result.observation["depth_image"] == {
+        "mime_type": "image/png",
+        "base64": base64.b64encode(
+            b"\x89PNG\r\n\x1a\nbridge-depthIEND\xaeB`\x82"
+        ).decode("ascii"),
+        "width": 768,
+        "height": 432,
+        "encoding": "linear_depth_normalized_8bit",
+        "near_meters": 0.05,
+        "far_meters": 4000.0,
+    }
 
 
 def test_bridge_routes_home_routine_observation_to_game_session():

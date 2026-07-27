@@ -137,6 +137,24 @@ func _run_tests() -> void:
 	var decoded := Image.new()
 	_assert(decoded.load_jpg_from_buffer(jpeg_bytes) == OK, "image base64 decodes as JPEG")
 	_assert(decoded.get_size() == Vector2i(768, 432), "JPEG is resized to 768x432")
+	var depth_payload: Dictionary = observation.get("depth_image", {})
+	_assert(depth_payload.get("mime_type") == "image/png", "observation includes PNG depth")
+	_assert(
+		depth_payload.get("width") == 768 and depth_payload.get("height") == 432,
+		"depth dimensions match screenshot",
+	)
+	_assert(
+		depth_payload.get("encoding") == "linear_depth_normalized_8bit",
+		"depth encoding is public",
+	)
+	var decoded_depth := Image.new()
+	_assert(
+		decoded_depth.load_png_from_buffer(
+			Marshalls.base64_to_raw(depth_payload.get("base64", ""))
+		) == OK,
+		"depth base64 decodes as PNG",
+	)
+	_assert(decoded_depth.get_size() == Vector2i(768, 432), "depth is resized to 768x432")
 
 	var serialized: String = str(observation)
 	for forbidden: String in [

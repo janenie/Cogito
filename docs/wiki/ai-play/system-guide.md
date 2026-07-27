@@ -24,7 +24,7 @@ Godot 桥的安全边界。
 - Godot 到 Python 的服务器必须使用精确的数字回环地址 `127.0.0.1`，不得扩大到局域网或公网接口。
 - 绝不能提交 API 密钥，也不能把密钥复制到源代码、测试、文档、测试夹具、命令参数或日志。MCP Server 本身不需要 API Key；外部 MCP 客户端的凭据不进入本仓库或 Godot/Python 桥协议。
 - 外部 AI 只能通过 MCP 工具接收 `ai_play.scenarios` 注册并由对应 loader 筛选的公开
-  简报和参考图，以及文档规定的相机图像、可见交互文本、获准公开的玩家状态、动作结果
+  简报和参考图，以及文档规定的相机图像、同视角 3D 深度图、可见交互文本、获准公开的玩家状态、动作结果
   和运行时按键绑定。
 - 绝不能把场景源码、节点路径、隐藏状态、仓库文件、谜题答案，或来自 `game_script/`、`code_read/`、测试、规格和计划的事实加入提示词、种子记忆、API 载荷或黑盒验收提示。
 - 除非用户明确要求，并且了解截图、令牌、费用和本地轨迹持久化的影响，否则不要运行真实外部 MCP/模型验收。自动化测试必须不依赖真实凭据。
@@ -55,7 +55,7 @@ Godot 桥的安全边界。
   三个工具不计数。第 N 次请求先按正常规则处理，合法玩法终局优先，否则返回
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
 - Godot 执行器必须使用 COGITO 的常规输入、用专用设备 ID 标记合成事件，并在所有退出路径中释放持续按下的移动输入。
-- `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；结构化结果不得重复 Base64 图片，也不得包含隐藏状态。
+- `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；观察成功时图片顺序为截图 JPEG、深度 PNG。结构化结果只保留 `image` 和 `depth_image` 的元数据，不得重复任一图片的 Base64，也不得包含隐藏状态。深度图是 768×432 的 `linear_depth_normalized_8bit` 同视角不透明 3D 几何可视化，范围固定为 0.05～4000 米（近黑、远/背景白）；HUD、2D UI 和透明物体没有独立可靠深度。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
@@ -67,7 +67,7 @@ Godot 桥的安全边界。
   三次连接，不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
   `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
   bridge 断开和 MCP shutdown。
-- 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和 JPEG 相对路径，绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
+- 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和截图 JPEG 相对路径；深度 PNG 只在 MCP 响应中返回，不写入轨迹目录。绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
 - 修改公开协议、环境变量、控制方式、隐私行为或日志布局时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
 
 ## Codex orchestrator 多局验收

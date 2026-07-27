@@ -15,7 +15,8 @@ from .scenarios import (
 
 
 PROTOCOL_VERSION = 3
-MAX_PACKET_SIZE = 4 * 1024 * 1024
+# A full observation may carry both bounded 2 MiB screenshot and depth images.
+MAX_PACKET_SIZE = 6 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
 OBSERVATION_FIELDS = {
     "observation_id",
@@ -26,7 +27,7 @@ OBSERVATION_FIELDS = {
     "bindings",
     "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image"}
 
 
 class BridgeHandle:

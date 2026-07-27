@@ -74,6 +74,19 @@ func _test_public_observation(
 	var observation: Dictionary = observer.capture_observation([])
 	_assert(observation.has("garden"), "observation includes public garden state")
 	_assert(observation.garden == public_state, "observation garden state is exact")
+	_assert(observation["depth_image"]["mime_type"] == "image/png", "observation includes png depth")
+	_assert(
+		observation["depth_image"]["encoding"] == "linear_depth_normalized_8bit",
+		"depth encoding is public",
+	)
+	var depth_image := Image.new()
+	_assert(
+		depth_image.load_png_from_buffer(
+			Marshalls.base64_to_raw(observation["depth_image"]["base64"])
+		) == OK,
+		"depth base64 decodes as PNG",
+	)
+	_assert(depth_image.get_size() == Vector2i(768, 432), "depth image has public dimensions")
 
 
 func _test_terminal_monitor(scene: Node) -> void:

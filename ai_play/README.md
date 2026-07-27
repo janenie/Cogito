@@ -209,7 +209,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 - `briefing()`：等待 Godot 握手确认玩法，再返回该玩法的公开目标、规则、物体操作说明
   和参考图谱；应在首个 `observe` 前调用一次。
-- `observe()`：等待并返回最新获准观察。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
+- `observe()`：等待并返回最新获准观察、截图和当前 3D 画面的深度图。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
 
@@ -242,7 +242,12 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 ## 结果与隐私边界
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
-截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+截图、深度图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+观察成功时，`observe` 和 `act` 的图片顺序固定为截图 `image/jpeg`，再是深度图
+`image/png`。结构化 `observation.image` 与 `observation.depth_image` 只保留元数据；
+深度图固定为 768×432，`encoding` 为 `linear_depth_normalized_8bit`，并公开
+`near_meters=0.05`、`far_meters=4000.0`。它是同视角不透明 3D 几何的归一化线性深度
+可视化（近处较黑、远处/背景较白）；HUD、其他 2D UI 及透明物体没有独立的可靠深度。
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取
 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
@@ -250,10 +255,10 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 启用 AI Play 后，MCP Server 会在 Godot 成功连接时开始保存本地游玩轨迹。日志只记录
-`observe`、`act`、`stop` 的请求、获准公开的结构化结果和工具返回的 JPEG；不记录
-`briefing`、图片 Base64、提示词、令牌、模型上下文、隐藏状态或仓库文件。MCP Host
-是否另行保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，
-MCP 同步返回受限的终局状态。
+`observe`、`act`、`stop` 的请求、获准公开的结构化结果和工具返回的截图 JPEG；深度 PNG
+只在当前 MCP 响应中返回，不写入轨迹目录。不记录 `briefing`、图片 Base64、提示词、令牌、
+模型上下文、隐藏状态或仓库文件。MCP Host 是否另行保存工具结果不属于本服务的控制范围。
+终局时 Godot 可在本地显示结果画面，MCP 同步返回受限的终局状态。
 
 ## 本地轨迹日志
 
