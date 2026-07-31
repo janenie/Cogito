@@ -83,7 +83,7 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
 由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
-`cogito_ai_play` 的 `briefing`、`observe`、`act`、`stop`。游戏目标、规则和物体操作说明只从
+`cogito_ai_play` 的 `briefing`、`observe`、`act`。游戏目标、规则和物体操作说明只从
 `briefing` 返回，初始提示词、工作区、环境和临时配置均不包含玩法 ID、源码、日志或仓库路径。
 
 首次使用前，在**专用认证目录**登录：
@@ -164,7 +164,8 @@ supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“�
 无论是否启用 AI，`find_contract` 每次载入 Lobby 都会生成一个新回合：从 8 个日期和 8 个版本号候选中
 各抽取一个值，随机选择 `MMDD + VV` 或 `VV + MMDD`，并从三条固定的三地点路线中
 选择一条。玩家会在入口、大厅或 ARCHIVE 门外开始，任务卡位于出生点 1～2 米内。
-任务卡只公开三个调查地点中的第一处，并说明密码为六位、记录可能是圆形 COGITO Hint、
+这是解谜任务，第一步一定要先找到并读取任务卡；在读到任务卡之前，不要开始寻找合同记录、
+猜测地点顺序或尝试密码。任务卡只公开三个调查地点中的第一处，并说明密码为六位、记录可能是圆形 COGITO Hint、
 实体文件或书本；第一、第二份记录再依次公开下一处地点。三份记录分别公开日期、版本号
 和拼接顺序。CEO OFFICE 使用桌面上的 RippedPageA 外观可读文件；BREAK ROOM 使用电视柜
 顶面的 RippedPageA 外观可读文件。这两个地点都不使用或移动悬浮 Hint。第三份记录读完前，
@@ -215,17 +216,20 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 动作批次使用现有安全白名单：
 
-- `look`：`yaw` 在 -45～45，`pitch` 在 -30～30。
-- `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～1000。
-- `jump`、`crouch`、`stop`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
+- `look`：`yaw` 在 -15～15，`pitch` 在 -15～15；`yaw` 为正向右转、为负向左转，
+  `pitch` 为正向下看、为负向上看。单位是度；15 度适合扫视房间，5～10 度适合微调准星。
+- `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
+  `duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move` 约等于连续走四分之一秒，
+  满强度 `sprint` 约等于连续跑四分之一秒。接近门、桌面或小物体时优先用 100～150ms。
+- `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
 
 Python 会先校验批次，Godot 会再次校验。上下文变化动作必须是批次最后一个动作；非法批次不会产生 Godot 输入。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
-上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`observe`、`stop` 不计数。
-`find_contract` 的硬上限为 500 次，终局为 `success/correct_password`、
+上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`observe`、MCP `stop()` 不计数。
+`find_contract` 的硬上限为 300 次，终局为 `success/correct_password`、
 `failure/wrong_password` 或 `failure/max_requests`；`find_key` 根据本局位置使用
 50 或 100 次硬上限，公开 briefing 只说明最大值 100 次，
 终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为 50 次，
@@ -243,6 +247,8 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
 截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+运行时观察截图统一缩放为 1024x576 JPEG；Godot 和 Python 桥的单包上限为 8 MiB，
+用于容纳包含截图 Base64 的观察 JSON。
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取
 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
@@ -318,7 +324,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 500、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

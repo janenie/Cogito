@@ -9,7 +9,7 @@ signal end_game_received(request: Dictionary)
 signal remote_error(error: Dictionary)
 
 const PROTOCOL_VERSION: int = 3
-const MAX_PACKET_SIZE: int = 4 * 1024 * 1024
+const MAX_PACKET_SIZE: int = 8 * 1024 * 1024
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
 var _socket: WebSocketPeer
@@ -25,6 +25,7 @@ func connect_to_server(host: String, port: int) -> Error:
 		return ERR_INVALID_PARAMETER
 	disconnect_from_server()
 	_socket = WebSocketPeer.new()
+	_configure_socket_buffers(_socket)
 	_reported_open = false
 	var error: Error = _socket.connect_to_url("ws://%s:%d" % [host, port])
 	if error != OK:
@@ -34,6 +35,11 @@ func connect_to_server(host: String, port: int) -> Error:
 
 func _is_loopback_host(host: String) -> bool:
 	return host == "127.0.0.1"
+
+
+func _configure_socket_buffers(socket: WebSocketPeer) -> void:
+	socket.inbound_buffer_size = MAX_PACKET_SIZE
+	socket.outbound_buffer_size = MAX_PACKET_SIZE
 
 
 func send_packet(packet: Dictionary) -> Error:

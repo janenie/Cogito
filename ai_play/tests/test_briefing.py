@@ -128,3 +128,64 @@ def test_all_scenario_briefings_include_shared_control_rules():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:
             assert rule in briefing["rules"]
+
+
+def test_all_scenario_briefings_teach_look_based_spatial_estimation():
+    for scenario_id in [
+        "find_contract",
+        "find_key",
+        "put_book",
+        "greet_npc_meeting",
+        "daily_routine_cleanup",
+        "garden_watering",
+    ]:
+        briefing, _image_bytes = load_scenario_briefing(scenario_id)
+        serialized_rules = "\n".join(briefing["rules"])
+        assert "look" in serialized_rules
+        assert "yaw" in serialized_rules
+        assert "pitch" in serialized_rules
+        assert "测距" in serialized_rules
+        assert "probe_interaction" in serialized_rules
+        assert "避免碰撞" in serialized_rules
+
+
+def test_all_scenario_briefings_explain_action_parameter_scale():
+    for scenario_id in [
+        "find_contract",
+        "find_key",
+        "put_book",
+        "greet_npc_meeting",
+        "daily_routine_cleanup",
+        "garden_watering",
+    ]:
+        briefing, _image_bytes = load_scenario_briefing(scenario_id)
+        serialized_rules = "\n".join(briefing["rules"])
+        assert "角度单位是度" in serialized_rules
+        assert "15 度适合扫视房间" in serialized_rules
+        assert "duration_ms 是按住移动键的毫秒数" in serialized_rules
+        assert "250ms 满强度 move 约等于连续走四分之一秒" in serialized_rules
+        assert "满强度 sprint 约等于连续跑四分之一秒" in serialized_rules
+        assert "接近门、桌面或小物体时优先用 100 到 150ms" in serialized_rules
+        assert "连续多次 look" not in serialized_rules
+        assert "360 度环顾" not in serialized_rules
+
+
+def test_find_contract_briefing_teaches_flexible_look_and_depth_estimation():
+    briefing, _image_bytes = load_scenario_briefing("find_contract")
+    serialized_rules = "\n".join(briefing["rules"])
+
+    assert "灵活调整视角" in serialized_rules
+    assert "重新 observe" in serialized_rules
+    assert "深度估计" in serialized_rules
+    assert "自己与物体的距离" in serialized_rules
+    assert "300 次 act 请求" in briefing["failure_condition"]
+
+
+def test_find_contract_briefing_requires_task_card_first():
+    briefing, _image_bytes = load_scenario_briefing("find_contract")
+    serialized_rules = "\n".join(briefing["rules"])
+
+    assert "解谜任务" in briefing["background"]
+    assert "第一步一定要找到并读取任务卡" in serialized_rules
+    assert "在读到任务卡之前" in serialized_rules
+    assert "不要开始寻找合同记录" in serialized_rules

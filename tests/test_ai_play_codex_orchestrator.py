@@ -131,7 +131,7 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     assert 'model = "gpt-test"' in text
     assert 'model_reasoning_effort = "high"' in text
     assert 'url = "http://127.0.0.1:8766/mcp"' in text
-    assert 'enabled_tools = ["briefing", "observe", "act", "stop"]' in text
+    assert 'enabled_tools = ["briefing", "observe", "act"]' in text
     assert 'web_search = "disabled"' in text
     assert 'cli_auth_credentials_store = "file"' in text
     assert 'mcp_oauth_credentials_store = "file"' in text
@@ -311,6 +311,22 @@ def test_blackbox_prompt_waits_for_all_runs_with_bounded_log_access(tmp_path):
     assert "run.json" in prompt
 
 
+def test_blackbox_prompt_requires_public_step_memory(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="find_contract",
+        run_config=tmp_path / "ai_play_run_config.json",
+    )
+
+    assert "每一步都先写一段公开决策记录" in prompt
+    assert "当前 goal 是什么" in prompt
+    assert "记忆里的日志截图显示了什么" in prompt
+    assert "最新 observe 截图显示了什么" in prompt
+    assert "主动 Keep 这份 memory" in prompt
+
+
 def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
     orchestrator = load_orchestrator()
     resolved = tmp_path / "codex.cmd"
@@ -334,6 +350,7 @@ def test_parse_args_exposes_only_hardened_player_options():
 
     assert args.codex_auth_home == orchestrator.DEFAULT_CODEX_AUTH_HOME
     assert args.mcp_port == 8766
+    assert args.timeout_seconds == 100000.0
     assert not hasattr(args, "sandbox")
     assert not hasattr(args, "approval_policy")
     assert not hasattr(args, "codex_home")

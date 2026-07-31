@@ -29,6 +29,7 @@ def test_validate_action_batch_rejects_unavailable_interaction():
         [],
         [{"type": "wait", "duration_ms": 50}] * 4,
         [{"type": "made_up"}],
+        [{"type": "stop"}],
         [{"type": "look", "yaw": 0}],
         [{"type": "move", "forward": 0, "right": 0, "duration_ms": 100, "extra": 1}],
     ],
@@ -41,10 +42,14 @@ def test_validate_action_batch_rejects_invalid_shape(actions):
 @pytest.mark.parametrize(
     "action",
     [
-        {"type": "look", "yaw": -45.1, "pitch": 0},
+        {"type": "look", "yaw": -15.1, "pitch": 0},
+        {"type": "look", "yaw": 15.1, "pitch": 0},
+        {"type": "look", "yaw": 0, "pitch": -15.1},
+        {"type": "look", "yaw": 0, "pitch": 15.1},
         {"type": "look", "yaw": math.inf, "pitch": 0},
         {"type": "move", "forward": -1.1, "right": 0, "duration_ms": 50},
-        {"type": "move", "forward": 0, "right": 0, "duration_ms": 1001},
+        {"type": "move", "forward": 0, "right": 0, "duration_ms": 251},
+        {"type": "sprint", "forward": 0, "right": 0, "duration_ms": 251},
         {"type": "look", "yaw": True, "pitch": 0},
         {"type": "enter_digits", "digits": "12A"},
     ],
@@ -57,7 +62,6 @@ def test_validate_action_batch_rejects_unsafe_action_values(action):
 @pytest.mark.parametrize(
     ("actions", "interface_open"),
     [
-        ([{"type": "stop"}, {"type": "wait", "duration_ms": 50}], False),
         ([{"type": "interact", "action": "interact"}, {"type": "wait", "duration_ms": 50}], False),
         ([{"type": "enter_digits", "digits": "1"}, {"type": "wait", "duration_ms": 50}], True),
         ([{"type": "close_ui"}, {"type": "wait", "duration_ms": 50}], True),

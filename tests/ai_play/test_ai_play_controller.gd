@@ -96,6 +96,7 @@ func _run_tests() -> void:
 	_test_bridge_raw_json_packets()
 	_test_bridge_accepts_protocol_three_and_emits_stop_request()
 	_test_bridge_emits_only_exact_request_limit_terminal()
+	_test_bridge_configures_large_packet_buffers()
 	_test_user_arg_opt_in(controller_script)
 	_test_exit_on_game_over_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
@@ -222,6 +223,22 @@ func _test_bridge_requires_exact_loopback() -> void:
 		for host: String in ["localhost", "::1", "192.0.2.1"]:
 			_assert(not bridge._is_loopback_host(host), "%s is rejected" % host)
 			_assert(bridge.connect_to_server(host, 8765) == ERR_INVALID_PARAMETER, "connect boundary rejects %s" % host)
+	bridge.free()
+
+
+func _test_bridge_configures_large_packet_buffers() -> void:
+	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
+	var bridge: Node = bridge_script.new()
+	var socket := WebSocketPeer.new()
+	bridge._configure_socket_buffers(socket)
+	_assert(
+		socket.inbound_buffer_size == bridge.MAX_PACKET_SIZE,
+		"bridge inbound buffer matches packet limit",
+	)
+	_assert(
+		socket.outbound_buffer_size == bridge.MAX_PACKET_SIZE,
+		"bridge outbound buffer matches packet limit",
+	)
 	bridge.free()
 
 

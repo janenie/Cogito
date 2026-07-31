@@ -34,7 +34,7 @@ DEFAULT_WS_HOST = "127.0.0.1"
 DEFAULT_WS_PORT = 8765
 DEFAULT_MCP_PORT = 8766
 AUTH_FILE_NAME = "auth.json"
-PLAYER_TOOL_NAMES = ("briefing", "observe", "act", "stop")
+PLAYER_TOOL_NAMES = ("briefing", "observe", "act")
 CORE_ENV_NAMES = ("PATH", "PATHEXT", "SystemRoot", "WINDIR", "ComSpec")
 PUBLIC_MCP_LOG_ROOT = Path("~/workspace/cogito_logs/mcplogs").expanduser()
 
@@ -367,7 +367,7 @@ def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
 本会话需要完成 {runs} 次独立游玩。每局开始时，先调用 briefing，再调用 observe。
 
 严格限制：
-1. 只使用 cogito_ai_play 的 briefing、observe、act、stop 工具。
+1. 只使用 cogito_ai_play 的 briefing、observe、act 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
 2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
 3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
 4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
@@ -406,6 +406,14 @@ def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
    run.json 和 imgs/*.jpg 当作本局公开观察记忆。
 5. 不要读取仓库源码、测试、spec、game_script、code_read、其他项目文件、其他运行目录或凭据；
    只把本次运行日志当作自己游玩过程的记忆，不要从仓库文件推断隐藏状态。
+
+每步公开决策记录：
+1. 每一步都先写一段公开决策记录，保持简短，只记录可公开依据，不输出隐藏推理链。
+2. 记录当前 goal 是什么，例如“先找到并读取任务卡”或“靠近当前可见交互物”。
+3. 记录记忆里的日志截图显示了什么，只引用本次允许读取的公开轨迹和图片。
+4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。
+5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、
+   已试过但失败的路线，以及下一步要验证的可见线索。
 
 本次运行配置写在你的启动目录 `{run_config.name}`，其中包含 AI_PLAY_LOG_ROOT、
 public_mcp_log_root 和 public_latest_log_pattern。先读这个配置；如果 AI_PLAY_LOG_ROOT
@@ -632,7 +640,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--scene", default=DEFAULT_SCENE)
     parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
     parser.add_argument("--max-retries", type=int, default=2)
-    parser.add_argument("--timeout-seconds", type=float, default=1200.0)
+    parser.add_argument("--timeout-seconds", type=float, default=100000.0)
     parser.add_argument("--mcp-start-timeout-seconds", type=float, default=30.0)
     parser.add_argument("--codex-exit-grace-seconds", type=float, default=5.0)
     return parser.parse_args(argv)

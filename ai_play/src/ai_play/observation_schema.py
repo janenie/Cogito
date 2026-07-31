@@ -141,7 +141,7 @@ def validate_observation(value):
         or not image_bytes.endswith(b"\xff\xd9")
     ):
         raise ObservationValidationError("image must contain a bounded JPEG")
-    if image["mime_type"] != "image/jpeg" or image["width"] != 768 or image["height"] != 432:
+    if image["mime_type"] != "image/jpeg" or image["width"] != 1024 or image["height"] != 576:
         raise ObservationValidationError("image metadata is invalid")
 
     player = value["player"]
@@ -266,7 +266,7 @@ def validate_observation(value):
         "observation_id": _integer(value["observation_id"], "observation_id"),
         "captured_at_ms": _integer(value["captured_at_ms"], "captured_at_ms"),
         "image": {
-            "mime_type": "image/jpeg", "base64": encoded, "width": 768, "height": 432,
+            "mime_type": "image/jpeg", "base64": encoded, "width": 1024, "height": 576,
         },
         "player": {
             "position": _vector(player["position"], 3, "position", -1_000_000, 1_000_000),

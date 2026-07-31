@@ -29,8 +29,8 @@ def observation(observation_id):
         "image": {
             "mime_type": "image/jpeg",
             "base64": base64.b64encode(image_bytes).decode("ascii"),
-            "width": 768,
-            "height": 432,
+            "width": 1024,
+            "height": 576,
         },
         "player": {
             "position": [0, 0, 0],

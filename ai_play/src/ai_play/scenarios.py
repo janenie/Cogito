@@ -27,7 +27,7 @@ class ScenarioDefinition:
 _SCENARIOS = {
     "find_contract": ScenarioDefinition(
         briefing_loader=load_public_briefing,
-        max_act_requests=500,
+        max_act_requests=300,
         terminal_results=frozenset({
             ("success", "correct_password"),
             ("failure", "wrong_password"),

@@ -48,6 +48,17 @@ def test_parse_game_over_marker_treats_mcp_stop_as_failed_attempt():
     assert marker == ("failure", "stopped")
 
 
+def test_parse_game_over_marker_treats_disconnection_as_failed_attempt():
+    supervisor = load_supervisor()
+
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY disabled; reason=bridge_disconnected"
+    ) == ("failure", "bridge_disconnected")
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY WebSocket disconnected; reason=connection_closed"
+    ) == ("failure", "bridge_disconnected")
+
+
 def test_supervisor_retries_abnormal_exit_until_terminal_attempt_completes(tmp_path):
     supervisor = load_supervisor()
     script = tmp_path / "fake_godot.py"
@@ -113,7 +124,7 @@ def test_supervisor_finishes_stopped_attempt_without_waiting_for_timeout(tmp_pat
     assert result.retries == 0
 
 
-def test_supervisor_reports_timeout_after_retries_are_exhausted(tmp_path):
+def test_supervisor_counts_timeout_as_failed_attempt_after_retries_are_exhausted(tmp_path):
     supervisor = load_supervisor()
     script = tmp_path / "hang.py"
     script.write_text(
@@ -130,6 +141,6 @@ def test_supervisor_reports_timeout_after_retries_are_exhausted(tmp_path):
         game_over_exit_timeout_seconds=0.1,
     )
 
-    assert result.status == "timeout"
+    assert result.status == "failure"
     assert result.reason == "attempt_timeout"
     assert result.retries == 0

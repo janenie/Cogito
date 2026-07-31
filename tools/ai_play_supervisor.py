@@ -21,9 +21,14 @@ GAME_OVER_RE = re.compile(
     r"^AI_PLAY_GAME_OVER outcome=(success|failure) reason=([a-z0-9_]+)$"
 )
 AI_PLAY_DISABLED_RE = re.compile(r"^AI_PLAY disabled; reason=([a-z0-9_:]+)$")
+AI_PLAY_DISCONNECTED_RE = re.compile(
+    r"^AI_PLAY WebSocket disconnected; reason=([a-z0-9_:]+)$"
+)
 STOPPED_REASONS = frozenset({
     "mcp_stop",
     "escape_stop",
+    "bridge_disconnected",
+    "mcp_shutdown",
 })
 
 
@@ -41,10 +46,14 @@ def parse_game_over_marker(line: str) -> tuple[str, str] | None:
     if match is not None:
         return match.group(1), match.group(2)
     match = AI_PLAY_DISABLED_RE.match(line.strip())
-    if match is None:
+    if match is not None:
+        reason = match.group(1)
+        if reason in STOPPED_REASONS:
+            return "failure", reason if reason != "mcp_stop" else "stopped"
         return None
-    if match.group(1) in STOPPED_REASONS:
-        return "failure", "stopped"
+    match = AI_PLAY_DISCONNECTED_RE.match(line.strip())
+    if match is not None:
+        return "failure", "bridge_disconnected"
     return None
 
 
@@ -172,7 +181,7 @@ def _run_process_once(
             _terminate_process(process)
             return AttemptResult(
                 attempt=attempt_number,
-                status="timeout",
+                status="failure",
                 reason="attempt_timeout",
                 exit_code=process.returncode,
                 retries=retry,

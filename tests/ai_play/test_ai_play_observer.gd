@@ -132,11 +132,11 @@ func _run_tests() -> void:
 
 	var image_payload: Dictionary = observation.get("image", {})
 	_assert(image_payload.get("mime_type") == "image/jpeg", "image MIME type is JPEG")
-	_assert(image_payload.get("width") == 768 and image_payload.get("height") == 432, "image reports 768x432")
+	_assert(image_payload.get("width") == 1024 and image_payload.get("height") == 576, "image reports 1024x576")
 	var jpeg_bytes: PackedByteArray = Marshalls.base64_to_raw(image_payload.get("base64", ""))
 	var decoded := Image.new()
 	_assert(decoded.load_jpg_from_buffer(jpeg_bytes) == OK, "image base64 decodes as JPEG")
-	_assert(decoded.get_size() == Vector2i(768, 432), "JPEG is resized to 768x432")
+	_assert(decoded.get_size() == Vector2i(1024, 576), "JPEG is resized to 1024x576")
 
 	var serialized: String = str(observation)
 	for forbidden: String in [

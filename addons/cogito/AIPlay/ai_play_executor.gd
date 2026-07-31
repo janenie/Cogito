@@ -19,6 +19,8 @@ const ACTION_FIELDS: Dictionary = {
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
+const LOOK_MAX_DEGREES: float = 15.0
+const MOVE_MAX_DURATION_MS: float = 250.0
 
 @export var player: Node3D
 @export_range(0.01, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
@@ -48,10 +50,14 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 
 	match action_type:
 		"look":
-			var error: String = _number_error(action_dictionary["yaw"], -45.0, 45.0, "yaw")
+			var error: String = _number_error(
+				action_dictionary["yaw"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "yaw"
+			)
 			if not error.is_empty():
 				return _invalid(error)
-			error = _number_error(action_dictionary["pitch"], -30.0, 30.0, "pitch")
+			error = _number_error(
+				action_dictionary["pitch"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "pitch"
+			)
 			if not error.is_empty():
 				return _invalid(error)
 		"move", "sprint":
@@ -60,7 +66,7 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 				if not error.is_empty():
 					return _invalid(error)
 			var duration_error: String = _number_error(
-				action_dictionary["duration_ms"], 50.0, 1000.0, "duration_ms"
+				action_dictionary["duration_ms"], 50.0, MOVE_MAX_DURATION_MS, "duration_ms"
 			)
 			if not duration_error.is_empty():
 				return _invalid(duration_error)

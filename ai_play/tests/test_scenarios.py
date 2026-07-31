@@ -41,7 +41,7 @@ def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
 
 
 def test_scenario_request_limits_are_hard_caps():
-    assert scenario_act_request_limit("find_contract", 500) == 500
+    assert scenario_act_request_limit("find_contract", 500) == 300
     assert scenario_act_request_limit("find_contract", 120) == 120
     assert scenario_act_request_limit("find_key", 500) == 100
     assert scenario_act_request_limit("find_key", 80) == 80

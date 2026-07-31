@@ -59,8 +59,8 @@ def _observation(observation_id=7):
         "image": {
             "mime_type": "image/jpeg",
             "base64": base64.b64encode(image).decode("ascii"),
-            "width": 768,
-            "height": 432,
+            "width": 1024,
+            "height": 576,
         },
         "player": {
             "position": [0, 0, 0],

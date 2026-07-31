@@ -30,11 +30,27 @@ func _run_tests() -> void:
 
 	_assert_invalid(executor, {"type": "teleport"}, {}, "unknown action")
 	_assert_invalid(executor, {
+		"type": "look",
+		"yaw": 15.1,
+		"pitch": 0.0,
+	}, {}, "look yaw over 15 degrees")
+	_assert_invalid(executor, {
+		"type": "look",
+		"yaw": 0.0,
+		"pitch": -15.1,
+	}, {}, "look pitch over 15 degrees")
+	_assert_invalid(executor, {
 		"type": "move",
 		"forward": 1.0,
 		"right": 0.0,
-		"duration_ms": 1001,
-	}, {}, "movement over 1000 ms")
+		"duration_ms": 251,
+	}, {}, "movement over 250 ms")
+	_assert_invalid(executor, {
+		"type": "sprint",
+		"forward": 1.0,
+		"right": 0.0,
+		"duration_ms": 251,
+	}, {}, "sprint over 250 ms")
 	_assert_invalid(executor, {
 		"type": "interact",
 		"action": "interact",
@@ -314,14 +330,14 @@ func _test_home_player_look_is_applied_directly(executor: Node, recorder: InputR
 	var emitted: Array = []
 	var collect := func(results: Array) -> void: emitted.append(results.duplicate(true))
 	executor.batch_finished.connect(collect)
-	executor.execute_batch([{"type": "look", "yaw": 45.0, "pitch": 0.0}], {})
+	executor.execute_batch([{"type": "look", "yaw": 15.0, "pitch": 0.0}], {})
 	await process_frame
 	_assert(
 		emitted == [[{"status": "completed", "type": "look"}]],
 		"home player direct look reports completion",
 	)
 	_assert(
-		is_equal_approx(home_player.global_rotation_degrees.y, -45.0),
+		is_equal_approx(home_player.global_rotation_degrees.y, -15.0),
 		"home player direct look changes yaw by the requested degrees",
 	)
 	_assert(

@@ -15,7 +15,7 @@ from .scenarios import (
 
 
 PROTOCOL_VERSION = 3
-MAX_PACKET_SIZE = 4 * 1024 * 1024
+MAX_PACKET_SIZE = 8 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
 OBSERVATION_FIELDS = {
     "observation_id",

@@ -87,8 +87,8 @@ class FakeReadySession:
                 **result.observation,
                 "image": {
                     "mime_type": "image/jpeg",
-                    "width": 768,
-                    "height": 432,
+                    "width": 1024,
+                    "height": 576,
                 },
             }
             image_bytes = b"\xff\xd8\xffmcp-image\xff\xd9"
@@ -258,8 +258,8 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
             result = await client.call_tool("observe", {})
             assert result.structuredContent["observation"]["image"] == {
                 "mime_type": "image/jpeg",
-                "width": 768,
-                "height": 432,
+                "width": 1024,
+                "height": 576,
             }
             assert any(isinstance(item, ImageContent) for item in result.content)
 

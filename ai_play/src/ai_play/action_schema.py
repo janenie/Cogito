@@ -8,6 +8,9 @@ class ActionValidationError(ValueError):
     """Raised when an action is outside the safe action schema."""
 
 
+LOOK_MAX_DEGREES = 15
+MOVE_MAX_DURATION_MS = 250
+
 ALLOWED_KEYS = {
     "look": {"type", "yaw", "pitch"},
     "move": {"type", "forward", "right", "duration_ms"},
@@ -18,7 +21,6 @@ ALLOWED_KEYS = {
     "enter_digits": {"type", "digits"},
     "close_ui": {"type"},
     "wait": {"type", "duration_ms"},
-    "stop": {"type"},
     "probe_interaction": {"type", "target_x", "target_y"},
 }
 
@@ -49,12 +51,17 @@ def _validate_action(action, available_interactions, interface_open):
         raise ActionValidationError("action has invalid fields")
 
     if action_type == "look":
-        _require_number(action["yaw"], -45, 45, "yaw")
-        _require_number(action["pitch"], -30, 30, "pitch")
+        _require_number(action["yaw"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "yaw")
+        _require_number(
+            action["pitch"],
+            -LOOK_MAX_DEGREES,
+            LOOK_MAX_DEGREES,
+            "pitch",
+        )
     elif action_type in {"move", "sprint"}:
         _require_number(action["forward"], -1, 1, "forward")
         _require_number(action["right"], -1, 1, "right")
-        _require_number(action["duration_ms"], 50, 1000, "duration_ms")
+        _require_number(action["duration_ms"], 50, MOVE_MAX_DURATION_MS, "duration_ms")
     elif action_type == "wait":
         _require_number(action["duration_ms"], 50, 2000, "duration_ms")
     elif action_type == "interact":
@@ -91,7 +98,7 @@ def validate_action_batch(actions, available_interactions, interface_open):
     available = set(available_interactions)
     for index, action in enumerate(actions):
         _validate_action(action, available, interface_open)
-        if action["type"] in {"stop", "interact", "enter_digits", "close_ui"}:
+        if action["type"] in {"interact", "enter_digits", "close_ui"}:
             if index != len(actions) - 1:
                 raise ActionValidationError("context-changing action must be last")
     if (

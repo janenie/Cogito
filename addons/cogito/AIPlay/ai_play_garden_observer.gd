@@ -5,8 +5,8 @@ const APPROVED_ACTIONS: Array[String] = [
 	"forward", "back", "left", "right", "jump", "sprint", "interact",
 	"crouch", "interact2", "menu",
 ]
-const IMAGE_WIDTH: int = 768
-const IMAGE_HEIGHT: int = 432
+const IMAGE_WIDTH: int = 1024
+const IMAGE_HEIGHT: int = 576
 const MAX_JSON_DEPTH: int = 16
 
 @export var player: Node3D

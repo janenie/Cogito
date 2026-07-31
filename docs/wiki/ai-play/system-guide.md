@@ -38,7 +38,10 @@ Godot 桥的安全边界。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
-- `find_contract` 的请求硬上限是 500，终局只允许 `success/correct_password`、
+- 公开 briefing 必须说明 `look` 的角度单位和 `move`/`sprint` 的按键持续时间量级，
+  让黑盒玩家知道何时用扫视、微调和小步移动；`look` 单次最大 15 度，
+  `move`/`sprint` 单次最大 250ms。
+- `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
   `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
   50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
@@ -68,6 +71,8 @@ Godot 桥的安全边界。
   `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
   bridge 断开和 MCP shutdown。
 - 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和 JPEG 相对路径，绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
+- 运行时观察截图统一缩放为 1024x576 JPEG；Godot 和 Python 桥的单包上限为 8 MiB，
+  用于容纳包含截图 Base64 的观察 JSON。
 - 修改公开协议、环境变量、控制方式、隐私行为或日志布局时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
 
 ## Codex orchestrator 多局验收
@@ -78,7 +83,7 @@ Godot 桥的安全边界。
 
 orchestrator 把可信游戏侧和受限 Codex 会话拆开：它在仓库侧启动仅绑定 `127.0.0.1` 的
 Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；Codex 只配置该边车的
-`briefing`、`observe`、`act`、`stop` 四个工具。玩家提示词、环境、工作区和临时配置不含
+`briefing`、`observe`、`act` 三个工具。玩家提示词、环境、工作区和临时配置不含
 仓库路径、启动脚本路径、玩法 ID、日志位置或关卡信息；游戏目标只由 `briefing` 的既有白名单
 结果提供。
 
@@ -147,7 +152,7 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
-处理并有限重试。若玩家 Codex 调用 MCP `stop` 或人工 Escape 触发 Godot 停止控制，
+处理并有限重试。若外部 MCP 客户端调用 `stop` 或人工 Escape 触发 Godot 停止控制，
 Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 `AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
 `failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
@@ -187,6 +192,8 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
   这两个地点不移动悬浮 Hint，也不改变电脑或柜门交互。三份记录依次提供日期、版本号和
   拼接顺序。任务卡和所有本局记录均可随时重复读取；提前读到后续记录不会推进进度，
   玩家仍需按任务卡、第一份、第二份、第三份的顺序完成调查。
+- 对黑盒玩家的公开 briefing 必须强调这是解谜任务，第一步一定要找到并读取任务卡；
+  在读到任务卡之前，不应寻找合同记录、猜测地点顺序或尝试密码。
 - 密码盘在第三份记录被读取前使用非数字哨兵值保持锁定；此时输入数字不会成功，也
   不会触发“密码错误”终局。流程完成后才装载本局六位密码，之后正确输入成功、错误
   输入失败。
