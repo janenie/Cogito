@@ -46,14 +46,16 @@ static func find_recipe(ingredient_ids: Array) -> Dictionary:
 
 
 static func max_attainable_profit(ingredient_ids: Array) -> int:
-	var counts: Array[int] = []
-	counts.resize(INGREDIENT_IDS.size())
-	counts.fill(0)
-	for ingredient_id: Variant in ingredient_ids:
-		var index := INGREDIENT_IDS.find(String(ingredient_id))
-		if index >= 0:
-			counts[index] += 1
-	return _max_profit_for_counts(counts, {})
+	return _max_profit_for_counts(_ingredient_counts(ingredient_ids), {})
+
+
+static func attainable_single_dishes(ingredient_ids: Array) -> Array[Dictionary]:
+	var available_counts := _ingredient_counts(ingredient_ids)
+	var result: Array[Dictionary] = []
+	for recipe: Dictionary in RECIPES:
+		if _can_consume(available_counts, _ingredient_counts(recipe.get("ingredients", []))):
+			result.append(recipe.duplicate(true))
+	return result
 
 
 static func _ingredient_signature(ingredient_ids: Array) -> String:
@@ -62,6 +64,17 @@ static func _ingredient_signature(ingredient_ids: Array) -> String:
 		sorted_ids.append(String(ingredient_id))
 	sorted_ids.sort()
 	return ",".join(sorted_ids)
+
+
+static func _ingredient_counts(ingredient_ids: Array) -> Array[int]:
+	var counts: Array[int] = []
+	counts.resize(INGREDIENT_IDS.size())
+	counts.fill(0)
+	for ingredient_id: Variant in ingredient_ids:
+		var index := INGREDIENT_IDS.find(String(ingredient_id))
+		if index >= 0:
+			counts[index] += 1
+	return counts
 
 
 static func _max_profit_for_counts(counts: Array[int], memo: Dictionary) -> int:
