@@ -18,12 +18,14 @@ from .trajectory_logger import (
     LogPersistenceError,
     TrajectoryLogger,
 )
+from .workflow_memory import SessionWorkflowMemory, WorkflowMemoryError
 
 
 mcp = FastMCP("Cogito AI Play", json_response=True)
 game_session = None
 config = None
 trajectory_logger = None
+workflow_memory = None
 
 
 @dataclass(frozen=True)
@@ -230,14 +232,56 @@ async def stop() -> CallToolResult:
     return _complete_logged_call(token, _result(payload))
 
 
+@mcp.tool()
+async def workflow_memory_read() -> CallToolResult:
+    """Read validated workflows learned in this orchestrator session."""
+    if not _configured() or workflow_memory is None:
+        return _error("server_not_ready")
+    try:
+        scenario_id = await asyncio.to_thread(
+            game_session.wait_for_scenario,
+            config.wait_timeout_seconds,
+        )
+        payload = workflow_memory.read(scenario_id)
+    except SessionError as error:
+        return _error(str(error))
+    except WorkflowMemoryError as error:
+        return _error(error.code)
+    return _result(payload)
+
+
+@mcp.tool()
+async def workflow_memory_update(
+    goal_pattern: str,
+    workflow: list[dict],
+    landmarks: list[dict],
+    avoid: list[str],
+) -> CallToolResult:
+    """Promote a validated workflow candidate after a trusted terminal result."""
+    if not _configured() or workflow_memory is None:
+        return _error("server_not_ready")
+    candidate = {
+        "goal_pattern": goal_pattern,
+        "workflow": workflow,
+        "landmarks": landmarks,
+        "avoid": avoid,
+    }
+    try:
+        return _result(workflow_memory.update(candidate))
+    except WorkflowMemoryError as error:
+        return _error(error.code)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
-    global config, game_session, trajectory_logger
+    global config, game_session, trajectory_logger, workflow_memory
     options = parse_server_options(argv)
     config = Config.from_env()
     trajectory_logger = TrajectoryLogger(config.log_root)
+    workflow_memory = SessionWorkflowMemory()
     game_session = GameSession(
         config,
         trajectory_logger=trajectory_logger,
+        attempt_observer=workflow_memory,
     )
     bridge = start(config, game_session)
     try:

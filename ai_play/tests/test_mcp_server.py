@@ -12,6 +12,7 @@ from ai_play.common_briefing_rules import COMMON_CONTROL_RULES
 from ai_play.config import Config
 from ai_play.game_session import SessionError, SessionResult
 from ai_play.trajectory_logger import LogPersistenceError, ToolCallToken
+from ai_play.workflow_memory import SessionWorkflowMemory
 from ai_play import mcp_server
 
 
@@ -127,7 +128,12 @@ class RecordingTrajectoryLogger:
         )
 
 
-def configure_server(monkeypatch, session=None, logger=None):
+def configure_server(
+    monkeypatch,
+    session=None,
+    logger=None,
+    memory=None,
+):
     monkeypatch.setattr(mcp_server, "game_session", session or fake_ready_session())
     monkeypatch.setattr(mcp_server, "config", Config())
     monkeypatch.setattr(
@@ -136,6 +142,25 @@ def configure_server(monkeypatch, session=None, logger=None):
         logger or RecordingTrajectoryLogger(),
         raising=False,
     )
+    monkeypatch.setattr(
+        mcp_server,
+        "workflow_memory",
+        memory or SessionWorkflowMemory(),
+        raising=False,
+    )
+
+
+def valid_workflow_candidate():
+    return {
+        "goal_pattern": "依据公开线索逐步完成当前任务",
+        "workflow": [{
+            "step": "先确认任务入口物",
+            "precondition": "尚未获得第一条公开任务线索",
+            "success_signal": "观察中出现下一阶段目标",
+        }],
+        "landmarks": [{"relation": "先建立出生区域与主要地标的相对方向"}],
+        "avoid": ["没有交互提示时不要重复 interact"],
+    }
 
 
 def call_tool(name, arguments):
@@ -161,6 +186,8 @@ def test_mcp_exposes_only_game_tools():
                 "observe",
                 "act",
                 "stop",
+                "workflow_memory_read",
+                "workflow_memory_update",
             ]
 
     asyncio.run(run())
@@ -315,6 +342,89 @@ def test_briefing_is_not_logged(monkeypatch):
 
     assert logger.begun == []
     assert logger.completed == []
+
+
+def test_workflow_memory_read_returns_current_session_snapshot(monkeypatch):
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    configure_server(monkeypatch, memory=memory)
+
+    result = call_tool("workflow_memory_read", {})
+
+    assert result.structuredContent == {
+        "status": "ready",
+        "scope": "current_orchestrator_session",
+        "scenario": "find_contract",
+        "version": 0,
+        "completed_runs": 0,
+        "memory": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("outcome", "accepted"),
+    [
+        (
+            "success",
+            {"workflow": 1, "landmarks": 1, "avoid": 1},
+        ),
+        (
+            "failure",
+            {"workflow": 0, "landmarks": 0, "avoid": 1},
+        ),
+    ],
+)
+def test_workflow_memory_update_uses_trusted_attempt_outcome(
+    monkeypatch,
+    outcome,
+    accepted,
+):
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    memory.finish_attempt(outcome, "terminal_reason")
+    configure_server(monkeypatch, memory=memory)
+
+    result = call_tool(
+        "workflow_memory_update",
+        valid_workflow_candidate(),
+    )
+
+    assert result.structuredContent == {
+        "status": "updated",
+        "version": 1,
+        "accepted": accepted,
+    }
+
+
+def test_workflow_memory_tools_are_not_logged(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    configure_server(monkeypatch, logger=logger, memory=memory)
+
+    call_tool("workflow_memory_read", {})
+    memory.finish_attempt("success", "correct_password")
+    call_tool("workflow_memory_update", valid_workflow_candidate())
+
+    assert logger.begun == []
+    assert logger.completed == []
+
+
+def test_workflow_memory_update_rejects_without_echo(monkeypatch):
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("success", "correct_password")
+    configure_server(monkeypatch, memory=memory)
+    candidate = valid_workflow_candidate()
+    candidate["avoid"] = ["secret https://example.invalid/internal"]
+
+    result = call_tool("workflow_memory_update", candidate)
+
+    assert result.structuredContent == {
+        "status": "error",
+        "code": "invalid_workflow_memory",
+    }
+    assert "example.invalid" not in str(result)
 
 
 def test_logging_begin_failure_prevents_session_call(monkeypatch):
