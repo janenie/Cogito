@@ -15,6 +15,7 @@
 - `conveyor_profit/README.md`: launch instructions and asset provenance.
 - `conveyor_profit/assets/kenney_food_kit/{LICENSE.txt,SOURCE.md}`: CC0 and exact source mapping.
 - `conveyor_profit/assets/kenney_food_kit/models/*.glb`: eight ingredients and one plate.
+- `conveyor_profit/assets/kenney_food_kit/models/Textures/colormap.png`: shared external color atlas referenced by the selected GLBs.
 - `conveyor_profit/scripts/conveyor_motion.gd`: pure closed-loop progress calculation.
 - `conveyor_profit/scripts/conveyor_preview.gd`: preview-only `PathFollow3D` advancement.
 - `conveyor_profit/scenes/ingredient_preview.tscn`: shared ingredient visual.
@@ -38,6 +39,7 @@
 - Create: `conveyor_profit/assets/kenney_food_kit/models/fish.glb`
 - Create: `conveyor_profit/assets/kenney_food_kit/models/meat.glb`
 - Create: `conveyor_profit/assets/kenney_food_kit/models/plate.glb`
+- Create: `conveyor_profit/assets/kenney_food_kit/models/Textures/colormap.png`
 
 - [ ] **Step 1: Download into a temporary directory**
 
@@ -51,11 +53,11 @@ Run:
 find "$food_kit_temp" -type f -name '*.glb' | sort
 ```
 
-Choose one unambiguous model for each approved ingredient and one plate. Copy only those nine files to the stable destination names above. Record variant mappings such as steak → `meat.glb`.
+Choose one unambiguous model for each approved ingredient and one plate. Copy only those nine files to the stable destination names above. The pack has no lettuce model, so map `cabbage.glb` to `lettuce.glb`; map `meat-raw.glb` to `meat.glb`. Also copy the shared `Textures/colormap.png` atlas because the selected GLBs reference that relative URI.
 
 - [ ] **Step 3: Record source and license**
 
-`SOURCE.md` records the official URL, `Food Kit 2.0`, download date `2026-07-31`, original filename for every renamed GLB, and that only the selected models were copied. Copy the pack's bundled CC0 file unchanged to `LICENSE.txt`.
+`SOURCE.md` records the official URL, `Food Kit 2.0`, download date `2026-07-31`, original filename for every renamed GLB, the shared atlas, and that only the selected assets were copied. Copy the pack's bundled CC0 file unchanged to `LICENSE.txt`.
 
 - [ ] **Step 4: Verify bounded scope**
 
@@ -64,7 +66,7 @@ find conveyor_profit/assets/kenney_food_kit -type f | sort
 du -sh conveyor_profit/assets/kenney_food_kit
 ```
 
-Expected: two provenance files and exactly nine GLBs; no archive, FBX, OBJ, Blend, generated `.import`, or render file is tracked.
+Expected: two provenance files, exactly nine GLBs, and one shared PNG atlas; no archive, FBX, OBJ, Blend, generated `.import`, or render file is tracked.
 
 - [ ] **Step 5: Commit**
 
