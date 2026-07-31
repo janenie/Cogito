@@ -37,11 +37,18 @@ class SessionResult:
 
 
 class GameSession:
-    def __init__(self, config, trajectory_logger=None):
+    def __init__(
+        self,
+        config,
+        trajectory_logger=None,
+        attempt_observer=None,
+    ):
         self.config = config
         self._trajectory_logger = trajectory_logger
         self._log_attempt_active = False
         self._log_closed = False
+        self._attempt_observer = attempt_observer
+        self._observed_attempt_active = False
         self._condition = Condition(Lock())
         self._send_packet = None
         self._latest_observation = None
@@ -104,7 +111,7 @@ class GameSession:
             self._scenario_id = scenario_id
             self._round_act_request_limit = round_act_request_limit
             try:
-                self._start_log_attempt_locked(scenario_id)
+                self._start_attempt_tracking_locked(scenario_id)
             except Exception:
                 self._scenario_id = previous_scenario_id
                 self._round_act_request_limit = previous_round_act_request_limit
@@ -141,6 +148,7 @@ class GameSession:
 
     def detach(self, reason):
         log_status = None
+        observed_status = None
         with self._condition:
             self._send_packet = None
             self._clear_pending_locked()
@@ -160,9 +168,16 @@ class GameSession:
                 "stopped",
                 terminal_reason,
             )
+            observed_status = self._claim_observed_finish_locked(
+                (
+                    "shutdown"
+                    if reason == "mcp_shutdown"
+                    else "disconnected"
+                ),
+                terminal_reason,
+            )
             self._condition.notify_all()
-        if log_status is not None:
-            self._finish_log_attempt(log_status)
+        self._finish_attempt_tracking(log_status, observed_status)
         if reason == "mcp_shutdown":
             self._close_log()
 
@@ -207,6 +222,7 @@ class GameSession:
     def receive_game_over(self, packet):
         safe = _validate_game_over(packet, self._scenario_id)
         log_status = None
+        observed_status = None
         with self._condition:
             if self._game_over is not None:
                 if safe == self._game_over:
@@ -226,13 +242,17 @@ class GameSession:
                 safe["outcome"],
                 safe["reason"],
             )
+            observed_status = self._claim_observed_finish_locked(
+                safe["outcome"],
+                safe["reason"],
+            )
             self._condition.notify_all()
-        if log_status is not None:
-            self._finish_log_attempt(log_status)
+        self._finish_attempt_tracking(log_status, observed_status)
 
     def receive_stop(self, packet):
         safe, results = _validate_stop(packet, expected_reason="escape_stop")
         log_status = None
+        observed_status = None
         with self._condition:
             self._clear_pending_locked()
             self._stopped_result = SessionResult(
@@ -245,9 +265,12 @@ class GameSession:
                 "stopped",
                 "escape_stop",
             )
+            observed_status = self._claim_observed_finish_locked(
+                "stopped",
+                "escape_stop",
+            )
             self._condition.notify_all()
-        if log_status is not None:
-            self._finish_log_attempt(log_status)
+        self._finish_attempt_tracking(log_status, observed_status)
         return self._copy_result(self._stopped_result)
 
     def receive_stop_ack(self, packet):
@@ -267,6 +290,7 @@ class GameSession:
             raise SessionError("invalid_stop_ack") from error
 
         log_status = None
+        observed_status = None
         with self._condition:
             if self._pending_observation_id is not None and (
                 observation_id != self._pending_observation_id
@@ -283,9 +307,12 @@ class GameSession:
                 "stopped",
                 "mcp_stop",
             )
+            observed_status = self._claim_observed_finish_locked(
+                "stopped",
+                "mcp_stop",
+            )
             self._condition.notify_all()
-        if log_status is not None:
-            self._finish_log_attempt(log_status)
+        self._finish_attempt_tracking(log_status, observed_status)
 
     def observe(self, timeout=None):
         deadline = _deadline(timeout or self.config.wait_timeout_seconds)
@@ -586,6 +613,24 @@ class GameSession:
         self._pending_results = None
         self._pending_next_observation = None
 
+    def _start_attempt_tracking_locked(self, scenario_id):
+        if self._attempt_observer is not None:
+            try:
+                self._attempt_observer.start_attempt(scenario_id)
+            except Exception as error:
+                raise SessionError("workflow_memory_failed") from error
+            self._observed_attempt_active = True
+        try:
+            self._start_log_attempt_locked(scenario_id)
+        except Exception:
+            observed_status = self._claim_observed_finish_locked(
+                "shutdown",
+                "logging_failed",
+            )
+            if observed_status is not None:
+                self._finish_attempt_observer(observed_status)
+            raise
+
     def _start_log_attempt_locked(self, scenario_id):
         if self._trajectory_logger is None:
             return
@@ -601,12 +646,33 @@ class GameSession:
         self._log_attempt_active = False
         return status, terminal_reason
 
+    def _claim_observed_finish_locked(self, status, terminal_reason):
+        if not self._observed_attempt_active:
+            return None
+        self._observed_attempt_active = False
+        return status, terminal_reason
+
+    def _finish_attempt_tracking(self, log_terminal, observed_terminal):
+        try:
+            if log_terminal is not None:
+                self._finish_log_attempt(log_terminal)
+        finally:
+            if observed_terminal is not None:
+                self._finish_attempt_observer(observed_terminal)
+
     def _finish_log_attempt(self, terminal):
         status, terminal_reason = terminal
         try:
             self._trajectory_logger.finish_attempt(status, terminal_reason)
         except LogPersistenceError as error:
             raise SessionError("logging_failed") from error
+
+    def _finish_attempt_observer(self, terminal):
+        status, terminal_reason = terminal
+        try:
+            self._attempt_observer.finish_attempt(status, terminal_reason)
+        except Exception as error:
+            raise SessionError("workflow_memory_failed") from error
 
     def _close_log(self):
         if self._trajectory_logger is None or self._log_closed:

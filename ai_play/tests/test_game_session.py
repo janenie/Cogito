@@ -66,9 +66,21 @@ class RecordingLogger:
         self.events.append(("close", None))
 
 
+class RecordingAttemptObserver:
+    def __init__(self):
+        self.events = []
+
+    def start_attempt(self, scenario_id):
+        self.events.append(("start", scenario_id))
+
+    def finish_attempt(self, status, terminal_reason):
+        self.events.append(("finish", status, terminal_reason))
+
+
 def make_session(
     max_act_requests=500,
     trajectory_logger=None,
+    attempt_observer=None,
     scenario_id="find_contract",
 ):
     sent = []
@@ -79,6 +91,7 @@ def make_session(
             max_act_requests=max_act_requests,
         ),
         trajectory_logger=trajectory_logger,
+        attempt_observer=attempt_observer,
     )
     session.attach(
         lambda packet: sent.append(packet) or True,
@@ -445,6 +458,106 @@ def test_mcp_stop_ack_finishes_log_as_stopped():
     session.detach("connection_closed")
 
     assert logger.events == [
+        ("start", "find_contract"),
+        ("finish", "stopped", "mcp_stop"),
+    ]
+
+
+def test_attach_starts_attempt_observer_without_logger():
+    observer = RecordingAttemptObserver()
+
+    make_session(attempt_observer=observer)
+
+    assert observer.events == [("start", "find_contract")]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [
+        ("success", "correct_password"),
+        ("failure", "wrong_password"),
+    ],
+)
+def test_game_over_finishes_attempt_observer_once(outcome, reason):
+    observer = RecordingAttemptObserver()
+    session, _ = make_session(attempt_observer=observer)
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": outcome,
+        "reason": reason,
+    }
+
+    session.receive_game_over(terminal)
+    session.receive_game_over(terminal)
+    session.detach("connection_closed")
+
+    assert observer.events == [
+        ("start", "find_contract"),
+        ("finish", outcome, reason),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("detach_reason", "status", "terminal_reason"),
+    [
+        ("connection_closed", "disconnected", "bridge_disconnected"),
+        ("mcp_shutdown", "shutdown", "mcp_shutdown"),
+    ],
+)
+def test_detach_finishes_attempt_observer_once(
+    detach_reason,
+    status,
+    terminal_reason,
+):
+    observer = RecordingAttemptObserver()
+    session, _ = make_session(attempt_observer=observer)
+
+    session.detach(detach_reason)
+    session.detach(detach_reason)
+
+    assert observer.events == [
+        ("start", "find_contract"),
+        ("finish", status, terminal_reason),
+    ]
+
+
+def test_escape_stop_finishes_attempt_observer_once():
+    observer = RecordingAttemptObserver()
+    session, _ = make_session(attempt_observer=observer)
+    session.receive_observation(observation(7))
+
+    session.receive_stop({
+        "type": "stop",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "reason": "escape_stop",
+        "results": [],
+    })
+    session.detach("connection_closed")
+
+    assert observer.events == [
+        ("start", "find_contract"),
+        ("finish", "stopped", "escape_stop"),
+    ]
+
+
+def test_mcp_stop_ack_finishes_attempt_observer_once():
+    observer = RecordingAttemptObserver()
+    session, _ = make_session(attempt_observer=observer)
+    session.receive_observation(observation(7))
+
+    session.receive_stop_ack({
+        "type": "stop_ack",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "results": [],
+    })
+    session.detach("connection_closed")
+
+    assert observer.events == [
         ("start", "find_contract"),
         ("finish", "stopped", "mcp_stop"),
     ]
