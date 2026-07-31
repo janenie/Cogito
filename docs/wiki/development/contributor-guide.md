@@ -80,12 +80,14 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 不产生监督回合终局标识。
 
 黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时副本清理、空且隔离的玩家目录、
-确定性临时 Codex 配置、四工具 HTTP MCP 白名单、玩家/可信侧环境隔离、提示词不含游戏实现信息，
+确定性临时 Codex 配置、五工具 HTTP MCP 白名单、玩家/可信侧环境隔离、提示词不含游戏实现信息，
 以及 MCP/Codex/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、MCP Server 或 Godot。
 
 Godot AI 契约测试：
 
 ```text
+# 干净 worktree 首次测试前先生成忽略的导入产物和全局类缓存
+godot --headless --path . --editor --quit
 godot --headless --path . --script tests/ai_play/test_ai_play_executor.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_observer.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
@@ -94,7 +96,6 @@ godot --headless --path . --script tests/ai_play/test_cogito_keypad_result.gd
 godot --headless --path . --script tests/garden/test_garden_ai_play.gd
 godot --headless --path . --script tests/garden/test_garden_game1.gd
 godot --headless --path . --script tests/garden/test_garden_scene.gd
-godot --headless --path . --editor --quit
 ```
 
 隔离 Codex 玩家多局验收的 Godot 生命周期由 supervisor 管理；真实运行前还须获得用户对截图、
@@ -113,7 +114,7 @@ supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reas
 终局标识、`AI_PLAY disabled; reason=mcp_stop|escape_stop` 停止标识和进程状态；
 MCP/Godot 停止标识按 `failure/stopped` 计入该局并继续后续局数。两者都不得扩展为读取
 轨迹、截图、源码或模型上下文。隔离玩家 Codex 不读取 `AI_PLAY_LOG_ROOT`、轨迹、摘要
-或截图；这些内容只留在可信 MCP 边车侧，玩家只可通过获准的四个 MCP 工具取得公开结果。
+或截图；这些内容只留在可信 MCP 边车侧，玩家只可通过获准的五个 MCP 工具取得公开结果。
 
 桥协议变更还必须覆盖 Godot JSON 数值规范化：协议版本只接受非布尔且数值精确等于 `3`
 的表示，安全整数 `observation_id` 必须在回调、`stop_ack` 和终局确认中保持整数语义。

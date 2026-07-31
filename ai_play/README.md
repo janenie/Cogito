@@ -222,12 +222,17 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 ## MCP 工具
 
-服务只注册四个游玩工具：
+服务注册六个工具；通用 MCP Host 可见全部六个，隔离 Codex 玩家固定只允许除 `stop`
+之外的五个：
 
 - `briefing()`：等待 Godot 握手确认玩法，再返回该玩法的公开目标、规则、物体操作说明
   和参考图谱；应在首个 `observe` 前调用一次。
+- `workflow_memory_read()`：读取当前 orchestrator 会话中已经通过终局资格和内容校验的
+  抽象工作流；第一局返回 `version: 0` 和 `memory: null`。
 - `observe()`：等待并返回最新获准观察。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
+- `workflow_memory_update(goal_pattern, workflow, landmarks, avoid)`：在可信终局后提交一次
+  固定结构候选；工具不接受调用方提供的胜负结果。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
 
 动作批次使用现有安全白名单：
@@ -244,7 +249,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 Python 会先校验批次，Godot 会再次校验。上下文变化动作必须是批次最后一个动作；非法批次不会产生 Godot 输入。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
-上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`observe`、MCP `stop()` 不计数。
+上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
+`workflow_memory_update`、`observe`、MCP `stop()` 不计数。
 `find_contract` 的硬上限为 300 次，终局为 `success/correct_password`、
 `failure/wrong_password` 或 `failure/max_requests`；`find_key` 根据本局位置使用
 50 或 100 次硬上限，公开 briefing 只说明最大值 100 次，

@@ -5,7 +5,9 @@
 AI First Play 是一套需要显式启用的自主游玩系统：
 
 - `addons/cogito/AIPlay/` 下的 Godot 代码捕获获准公开的观察数据，并执行有严格限制的输入动作。
-- `ai_play/` 下的 Python 进程是 stdio MCP Server，负责暴露 `briefing`、`observe`、`act`、`stop` 工具、验证 DTO，并通过本机回环 WebSocket 桥与 Godot 串行交换观察和动作结果。
+- `ai_play/` 下的 Python 进程是 MCP Server，负责暴露 `briefing`、`workflow_memory_read`、
+  `observe`、`act`、`workflow_memory_update`、`stop`，验证 DTO，并通过本机回环 WebSocket
+  桥与 Godot 串行交换观察和动作结果；隔离 Codex 玩家不获准使用 `stop`。
 - 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码，只把获准公开的 MCP 游玩轨迹和截图保存到操作者配置的本地日志目录。
 - Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
 - 同一 Lobby 可用 `--ai-play-scenario=<id>` 选择玩法脚本；省略时默认
