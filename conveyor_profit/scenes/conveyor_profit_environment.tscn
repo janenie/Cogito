@@ -80,7 +80,7 @@ size = Vector3(9.4, 0.22, 0.1)
 
 [sub_resource type="BoxMesh" id="PanelMesh"]
 material = SubResource("PanelMaterial")
-size = Vector3(7.1, 3.35, 0.18)
+size = Vector3(8.4, 3.8, 0.18)
 
 [sub_resource type="BoxMesh" id="TrayCounterMesh"]
 material = SubResource("PanelMaterial")
@@ -179,7 +179,7 @@ mesh = SubResource("PanelMesh")
 position = Vector3(0, 1.08, -0.11)
 rotation = Vector3(0, 3.14159, 0)
 text = "CONVEYOR KITCHEN  •  RECIPE BOARD"
-font_size = 48
+font_size = 58
 outline_size = 8
 modulate = Color(1, 0.53, 0.12, 1)
 
@@ -187,9 +187,9 @@ modulate = Color(1, 0.53, 0.12, 1)
 position = Vector3(0, -0.1, -0.11)
 rotation = Vector3(0, 3.14159, 0)
 text = "SALAD   L+T+M   $7  PROFIT +3\nEGG TOAST   B+E   $8  PROFIT +4\nCHEESE TOAST   B+C   $10  PROFIT +5\nBURGER   B+MEAT+L+T   $15  PROFIT +6\nFISH SANDWICH   B+F+L   $14  PROFIT +7\nMUSHROOM OMELET   E+C+M   $14  PROFIT +7"
-font_size = 31
+font_size = 40
 outline_size = 6
-line_spacing = 4.0
+line_spacing = 7.0
 modulate = Color(0.96, 0.95, 0.87, 1)
 
 [node name="Tray" type="Node3D" parent="Stations"]
