@@ -3,7 +3,6 @@ extends RefCounted
 
 const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
 
-var target_profit: int
 var selected_ingredients: Array[String] = []
 var spent: int = 0
 var revenue: int = 0
@@ -11,8 +10,8 @@ var terminal_status: String = ""
 var terminal_reason: String = ""
 
 
-func _init(goal: int = 100) -> void:
-	target_profit = goal
+func _init(_legacy_goal: int = 0) -> void:
+	pass
 
 
 func select_ingredient(ingredient_id: String) -> bool:
@@ -40,9 +39,6 @@ func make() -> Dictionary:
 	var recipe_id := String(recipe.get("id", ""))
 	selected_ingredients.clear()
 
-	if get_profit() >= target_profit:
-		terminal_status = "success"
-		terminal_reason = "profit_target_reached"
 	return {
 		"accepted": true,
 		"recipe_id": recipe_id,
@@ -50,19 +46,15 @@ func make() -> Dictionary:
 	}
 
 
-func evaluate_reachability(available_ingredients: Array) -> String:
-	if is_terminal():
-		return terminal_status
-	var unconsumed: Array = available_ingredients.duplicate()
-	unconsumed.append_array(selected_ingredients)
-	if get_profit() + CATALOG.max_attainable_profit(unconsumed) < target_profit:
-		terminal_status = "failure"
-		terminal_reason = "profit_target_unreachable"
-	return terminal_status
-
-
 func get_profit() -> int:
 	return revenue - spent
+
+
+func freeze(status: String, reason: String) -> void:
+	if is_terminal():
+		return
+	terminal_status = status
+	terminal_reason = reason
 
 
 func is_terminal() -> bool:

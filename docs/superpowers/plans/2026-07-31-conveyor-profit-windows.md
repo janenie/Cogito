@@ -179,6 +179,9 @@ assert(windows.record_make("egg_toast") == "accepted")
 assert(windows.record_make("egg_toast") == "window_locked")
 assert(windows.advance_time(120.0) == [2, 3])
 windows.advance_time(420.0)
+assert(windows.is_time_expired())
+assert(not windows.is_terminal())
+windows.finish(39)
 assert(windows.is_terminal())
 assert(windows.passing_profit == 40)
 ```
@@ -227,18 +230,23 @@ func _init(values: Array[int], seconds: float = 60.0) -> void:
 	passing_profit = ceili(float(_sum(best_profits)) * TARGET_RATIO)
 
 func record_make(recipe_id: String) -> String:
-	if is_terminal(): return "game_finished"
+	if is_terminal() or is_time_expired(): return "game_finished"
 	if dish_made: return "window_locked"
 	if recipe_id.is_empty(): return "invalid_combo"
 	dish_made = true
 	return "accepted"
 
 func finish(actual_profit: int) -> void:
+	if is_terminal() or not is_time_expired(): return
 	terminal_status = "success" if actual_profit >= passing_profit else "failure"
 	terminal_reason = "efficiency_target_reached" if terminal_status == "success" else "efficiency_below_target"
 ```
 
-`advance_time()` clamps negative delta to zero, returns every newly entered window index in order, resets `dish_made` at each boundary, and freezes at total duration. Add `get_total_remaining_seconds()`, `get_window_remaining_seconds()`, `get_efficiency_percent(actual_profit)`, and `is_terminal()`.
+`advance_time()` clamps negative delta to zero, returns every newly entered window index in order,
+resets `dish_made` at each boundary, and marks the clock expired at total duration. It does not choose
+an outcome until `finish(actual_profit)` receives the final economic result. Add
+`get_total_remaining_seconds()`, `get_window_remaining_seconds()`,
+`get_efficiency_percent(actual_profit)`, `is_time_expired()`, and `is_terminal()`.
 
 - [ ] **Step 5: Run both tests and commit**
 
