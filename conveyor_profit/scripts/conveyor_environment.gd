@@ -2,23 +2,22 @@ extends Node3D
 
 const INGREDIENT_PREVIEW := preload("res://conveyor_profit/scenes/ingredient_preview.tscn")
 
-const INGREDIENTS: Array[Dictionary] = [
-	{"id": "lettuce", "cost": 1, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/lettuce.glb"},
-	{"id": "tomato", "cost": 1, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/tomato.glb"},
-	{"id": "bread", "cost": 2, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/bread.glb"},
-	{"id": "egg", "cost": 2, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/egg.glb"},
-	{"id": "mushroom", "cost": 2, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/mushroom.glb"},
-	{"id": "cheese", "cost": 3, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/cheese.glb"},
-	{"id": "fish", "cost": 4, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/fish.glb"},
-	{"id": "meat", "cost": 5, "scene": "res://conveyor_profit/assets/kenney_food_kit/models/meat.glb"},
-]
-
 @onready var ingredient_path: Path3D = $Architecture/Conveyor/IngredientPath
+@onready var gameplay: Node = $Gameplay
 
 
 func _ready() -> void:
 	_build_closed_path()
-	_place_ingredients()
+	_place_slots()
+	gameplay.initialize(
+		ingredient_path,
+		$Stations/Tray/SelectedVisuals,
+		$Stations/Tray/TrayLabel,
+		$HUD/ProfitLabel,
+		$HUD/StatusLabel,
+		$Stations/MakeButton,
+		$Stations/UndoButton,
+	)
 
 
 func _build_closed_path() -> void:
@@ -39,27 +38,15 @@ func _build_closed_path() -> void:
 	ingredient_path.curve = loop_curve
 
 
-func _place_ingredients() -> void:
+func _place_slots() -> void:
 	for index: int in range(16):
-		var definition: Dictionary = INGREDIENTS[index % INGREDIENTS.size()]
 		var follower := PathFollow3D.new()
-		follower.name = "Slot%02d_%s" % [index + 1, definition.id]
+		follower.name = "Slot%02d" % [index + 1]
 		follower.loop = true
 		follower.rotation_mode = PathFollow3D.ROTATION_ORIENTED
-		follower.set_meta("ingredient_id", definition.id)
 		ingredient_path.add_child(follower)
 		follower.progress_ratio = float(index) / 16.0
 
 		var preview := INGREDIENT_PREVIEW.instantiate() as Node3D
 		preview.name = "IngredientPreview"
 		follower.add_child(preview)
-		var label := preview.get_node("CostLabel") as Label3D
-		label.text = "$%d  %s" % [definition.cost, String(definition.id).to_upper()]
-
-		var food_scene := load(definition.scene) as PackedScene
-		if food_scene != null:
-			var food := food_scene.instantiate() as Node3D
-			food.name = "FoodModel"
-			food.position.y = 0.16
-			food.scale = Vector3.ONE * 1.35
-			preview.add_child(food)

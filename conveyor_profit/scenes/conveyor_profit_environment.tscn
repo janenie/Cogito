@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_environment.gd" id="1_environment"]
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_preview.gd" id="2_preview"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenFridge.glb" id="5_fridge"]
 [ext_resource type="PackedScene" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenStove.glb" id="6_stove"]
 [ext_resource type="PackedScene" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenSink.glb" id="7_sink"]
+[ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_gameplay.gd" id="8_gameplay"]
+[ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_action_button.gd" id="9_button"]
 
 [sub_resource type="StandardMaterial3D" id="FloorMaterial"]
 albedo_color = Color(0.115, 0.13, 0.15, 1)
@@ -92,8 +94,15 @@ bottom_radius = 0.34
 height = 0.16
 radial_segments = 32
 
+[sub_resource type="CylinderShape3D" id="ButtonShape"]
+radius = 0.36
+height = 0.18
+
 [node name="ConveyorProfitEnvironment" type="Node3D"]
 script = ExtResource("1_environment")
+
+[node name="Gameplay" type="Node" parent="."]
+script = ExtResource("8_gameplay")
 
 [node name="Architecture" type="Node3D" parent="."]
 
@@ -210,9 +219,17 @@ font_size = 40
 outline_size = 8
 modulate = Color(1, 0.73, 0.22, 1)
 
+[node name="SelectedVisuals" type="Node3D" parent="Stations/Tray"]
+position = Vector3(0, 0.48, 0)
+
 [node name="MakeButton" type="StaticBody3D" parent="Stations"]
 position = Vector3(-0.75, 1.08, -1.0)
 rotation = Vector3(1.5708, 0, 0)
+collision_layer = 2
+collision_mask = 0
+input_ray_pickable = true
+script = ExtResource("9_button")
+action = "make"
 
 [node name="Mesh" type="MeshInstance3D" parent="Stations/MakeButton"]
 mesh = SubResource("ButtonMesh")
@@ -225,9 +242,17 @@ text = "MAKE"
 font_size = 32
 outline_size = 6
 
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/MakeButton"]
+shape = SubResource("ButtonShape")
+
 [node name="UndoButton" type="StaticBody3D" parent="Stations"]
 position = Vector3(0.75, 1.08, -1.0)
 rotation = Vector3(1.5708, 0, 0)
+collision_layer = 2
+collision_mask = 0
+input_ray_pickable = true
+script = ExtResource("9_button")
+action = "undo"
 
 [node name="Mesh" type="MeshInstance3D" parent="Stations/UndoButton"]
 mesh = SubResource("ButtonMesh")
@@ -239,6 +264,9 @@ rotation = Vector3(-1.5708, 0, 0)
 text = "UNDO"
 font_size = 32
 outline_size = 6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/UndoButton"]
+shape = SubResource("ButtonShape")
 
 [node name="SetDressing" type="Node3D" parent="."]
 
@@ -270,4 +298,16 @@ theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
 theme_override_constants/outline_size = 10
 theme_override_font_sizes/font_size = 36
 text = "NET PROFIT  $0 / $100"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="HUD"]
+offset_left = 320.0
+offset_top = 88.0
+offset_right = 960.0
+offset_bottom = 132.0
+theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 22
+text = "Choose ingredients from the moving belt"
 horizontal_alignment = 1
