@@ -34,9 +34,14 @@ DEFAULT_WS_HOST = "127.0.0.1"
 DEFAULT_WS_PORT = 8765
 DEFAULT_MCP_PORT = 8766
 AUTH_FILE_NAME = "auth.json"
-PLAYER_TOOL_NAMES = ("briefing", "observe", "act")
+PLAYER_TOOL_NAMES = (
+    "briefing",
+    "workflow_memory_read",
+    "observe",
+    "act",
+    "workflow_memory_update",
+)
 CORE_ENV_NAMES = ("PATH", "PATHEXT", "SystemRoot", "WINDIR", "ComSpec")
-PUBLIC_MCP_LOG_ROOT = Path("~/workspace/cogito_logs/mcplogs").expanduser()
 
 
 @dataclass(frozen=True)
@@ -44,7 +49,6 @@ class RunPaths:
     run_dir: Path
     player_workspace: Path
     log_root: Path
-    run_config: Path
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:
@@ -100,7 +104,6 @@ def create_run_paths(
         run_dir=run_dir,
         player_workspace=player_workspace,
         log_root=log_root,
-        run_config=player_workspace / "ai_play_run_config.json",
     )
 
 
@@ -143,7 +146,6 @@ def write_player_codex_config(
     model: str,
     reasoning_effort: str,
     mcp_url: str,
-    readable_log_roots: Sequence[Path] = (),
 ) -> Path:
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     player_home_path = _toml_basic_string(str(home.resolve()))
@@ -152,10 +154,6 @@ def write_player_codex_config(
         '":minimal" = "read"',
         f"{player_home_path} = \"deny\"",
     ]
-    for log_root in readable_log_roots:
-        filesystem_rules.append(
-            f"{_toml_basic_string(str(log_root.expanduser().resolve()))} = \"read\""
-        )
     config_path.write_text(
         "\n".join(
             [
@@ -204,23 +202,6 @@ def write_player_codex_config(
         encoding="utf-8",
     )
     return config_path
-
-
-def write_player_run_config(paths: RunPaths, runs: int, scenario: str) -> Path:
-    payload = {
-        "scenario": scenario,
-        "runs": runs,
-        "ai_play_log_root": str(paths.log_root),
-        "public_mcp_log_root": str(PUBLIC_MCP_LOG_ROOT),
-        "public_latest_log_pattern": str(
-            PUBLIC_MCP_LOG_ROOT / scenario / "<latest_time>"
-        ),
-    }
-    paths.run_config.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    return paths.run_config
 
 
 def build_core_env(
@@ -360,22 +341,31 @@ def build_supervisor_command(
     ]
 
 
-def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
+def build_player_prompt(runs: int) -> str:
     return f"""
 你是 Cogito AI First Play 的隔离黑盒玩家。
 
-本会话需要完成 {runs} 次独立游玩。每局开始时，先调用 briefing，再调用 observe。
+本会话需要完成 {runs} 次独立游玩。每局开始时，先调用 briefing，再调用 workflow_memory_read，再调用 observe。
 
 严格限制：
-1. 只使用 cogito_ai_play 的 briefing、observe、act 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
+1. 只使用 cogito_ai_play 的 briefing、workflow_memory_read、observe、act、
+   workflow_memory_update 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
 2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
 3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
 4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
 5. 密码证据不足时继续探索，不能盲猜。
 6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；每次 act 后重新观察和规划。
-7. 收到 success、failure、stopped 或 disconnected 后，停止本局动作；下一局可用时重新从 briefing 开始。
-8. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
-9. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
+7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
+8. 不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。
+9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
+10. 终局后调用 workflow_memory_update，但 stopped、disconnected 或其他异常局不要更新。
+11. 成功局提交由本局公开证据支持的抽象 workflow、landmarks 和 avoid。
+12. 失败局只提交 avoid：workflow 和 landmarks 必须为空，不得把未验证路线晋升为经验。
+13. 不要保存图片、图片引用、Base64 或 embedding；不要保存密码、随机答案、绝对坐标、
+    逐帧动作序列、文件路径、URL 或内部实现信息。
+14. eligible 更新返回后再等待下一局，并重新从 briefing 开始。
+15. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
+16. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
    等待下一局；observe 仍返回 stopped/disconnected 时等待后再 observe，直到出现新的可玩观察。
 
 像人一样玩：
@@ -392,32 +382,13 @@ def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
 7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
    的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
 
-经验总结：
-1. 可以边思考边玩，在自己的上下文中记录简短经验，例如安全路线、房屋相对方位、边界位置、
-   哪些动作会导致越界或 act failed。
-2. 只允许使用 shell/文件读取本启动目录的 `{run_config.name}`，以及该配置列出的
-   ai_play_log_root、public_mcp_log_root/{scenario}/<latest_time> 日志目录；不要读取
-   任何其他路径。
-3. 可以读取本次 ai_play_log_root 下的所有日志内容来总结经验，包括 JPEG 截图、
-   trajectory.json、run.json 和公开 MCP 结构化结果。
-4. 本次运行配置同时包含 public_mcp_log_root 和 public_latest_log_pattern。每局开始后，
-   读取 public_mcp_log_root 下 `{scenario}` 子目录里最新创建的时间戳目录，例如
-   `{PUBLIC_MCP_LOG_ROOT / scenario}/20260727-01-36`，把里面的 trajectory.json、
-   run.json 和 imgs/*.jpg 当作本局公开观察记忆。
-5. 不要读取仓库源码、测试、spec、game_script、code_read、其他项目文件、其他运行目录或凭据；
-   只把本次运行日志当作自己游玩过程的记忆，不要从仓库文件推断隐藏状态。
-
 每步公开决策记录：
 1. 每一步都先写一段公开决策记录，保持简短，只记录可公开依据，不输出隐藏推理链。
 2. 记录当前 goal 是什么，例如“先找到并读取任务卡”或“靠近当前可见交互物”。
-3. 记录记忆里的日志截图显示了什么，只引用本次允许读取的公开轨迹和图片。
+3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。
 4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。
 5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、
-   已试过但失败的路线，以及下一步要验证的可见线索。
-
-本次运行配置写在你的启动目录 `{run_config.name}`，其中包含 AI_PLAY_LOG_ROOT、
-public_mcp_log_root 和 public_latest_log_pattern。先读这个配置；如果 AI_PLAY_LOG_ROOT
-为空，立刻按 public_mcp_log_root/{scenario}/<latest_time> 选择最新目录读取日志和图片。
+   已试过但失败的路线，以及终局后要提交的抽象候选；不要把图片本身写入 memory。
 
 游戏目标、规则和物体操作说明只由 briefing 提供。现在开始第 1 局。
 """.strip()
@@ -691,7 +662,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
 
     paths = create_run_paths(session_root)
-    write_player_run_config(paths, args.runs, args.scenario)
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env()
     mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
@@ -722,10 +692,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.model,
             args.reasoning_effort,
             f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp",
-            readable_log_roots=(
-                paths.log_root,
-                PUBLIC_MCP_LOG_ROOT / args.scenario,
-            ),
         )
         return run_orchestrated_session(
             mcp_command=mcp_command,
@@ -734,7 +700,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 paths.player_workspace,
             ),
             supervisor_command=supervisor_command,
-            prompt=build_player_prompt(args.runs, args.scenario, paths.run_config),
+            prompt=build_player_prompt(args.runs),
             mcp_env=mcp_env,
             codex_env=build_player_env(player_home),
             supervisor_env=supervisor_env,

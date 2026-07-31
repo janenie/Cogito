@@ -22,7 +22,7 @@ def load_orchestrator():
     return module
 
 
-def test_create_run_paths_keeps_logs_trusted_and_records_config_path(
+def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
     monkeypatch,
     tmp_path,
 ):
@@ -38,32 +38,6 @@ def test_create_run_paths_keeps_logs_trusted_and_records_config_path(
     assert list(paths.player_workspace.iterdir()) == []
     assert paths.log_root == paths.run_dir / "trusted_mcplogs"
     assert paths.log_root.is_dir()
-    assert paths.run_config == paths.player_workspace / "ai_play_run_config.json"
-
-
-def test_write_player_run_config_records_trusted_and_public_log_roots(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    monkeypatch.setattr(
-        orchestrator,
-        "validate_isolated_session_root",
-        lambda root: Path(root).resolve(),
-    )
-    paths = orchestrator.create_run_paths(tmp_path, timestamp="20260726-170000")
-
-    config_path = orchestrator.write_player_run_config(paths, 3, "find_contract")
-
-    payload = json.loads(config_path.read_text(encoding="utf-8"))
-    assert config_path == paths.player_workspace / "ai_play_run_config.json"
-    assert payload["scenario"] == "find_contract"
-    assert payload["runs"] == 3
-    assert payload["ai_play_log_root"] == str(paths.log_root)
-    assert payload["public_mcp_log_root"].endswith("/workspace/cogito_logs/mcplogs")
-    assert payload["public_latest_log_pattern"].endswith(
-        "/workspace/cogito_logs/mcplogs/find_contract/<latest_time>"
-    )
 
 
 @pytest.mark.parametrize(
@@ -131,7 +105,12 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     assert 'model = "gpt-test"' in text
     assert 'model_reasoning_effort = "high"' in text
     assert 'url = "http://127.0.0.1:8766/mcp"' in text
-    assert 'enabled_tools = ["briefing", "observe", "act"]' in text
+    assert (
+        'enabled_tools = ["briefing", "workflow_memory_read", "observe", '
+        '"act", "workflow_memory_update"]'
+    ) in text
+    assert "generate_memories = false" in text
+    assert "use_memories = false" in text
     assert 'web_search = "disabled"' in text
     assert 'cli_auth_credentials_store = "file"' in text
     assert 'mcp_oauth_credentials_store = "file"' in text
@@ -267,11 +246,7 @@ def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
 
     mcp_command = orchestrator.build_mcp_command("python", 8766)
     codex_command = orchestrator.build_codex_command("codex", tmp_path / "workspace")
-    prompt = orchestrator.build_player_prompt(
-        runs=3,
-        scenario="find_contract",
-        run_config=tmp_path / "ai_play_run_config.json",
-    )
+    prompt = orchestrator.build_player_prompt(runs=3)
 
     assert mcp_command == [
         "python",
@@ -286,45 +261,48 @@ def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
     ]
     assert "--sandbox" not in codex_command
     assert "start_ai.sh" not in " ".join(codex_command)
-    assert "find_contract" in prompt
-    assert "ai_play_run_config.json" in prompt
+    assert "find_contract" not in prompt
+    assert "ai_play_run_config.json" not in prompt
     assert str(orchestrator.REPO_ROOT) not in prompt
 
 
-def test_blackbox_prompt_waits_for_all_runs_with_bounded_log_access(tmp_path):
+def test_blackbox_prompt_waits_for_all_runs_without_log_access(tmp_path):
     orchestrator = load_orchestrator()
 
-    prompt = orchestrator.build_player_prompt(
-        runs=3,
-        scenario="garden_watering",
-        run_config=tmp_path / "ai_play_run_config.json",
-    )
+    prompt = orchestrator.build_player_prompt(runs=3)
 
     assert "不要输出最终回答" in prompt
     assert "继续调用 observe" in prompt
-    assert "ai_play_log_root" in prompt
-    assert "public_mcp_log_root" in prompt
-    assert "public_latest_log_pattern" in prompt
-    assert "/workspace/cogito_logs/mcplogs/garden_watering" in prompt
-    assert "最新创建的时间戳目录" in prompt
-    assert "trajectory.json" in prompt
-    assert "run.json" in prompt
+    assert "ai_play_log_root" not in prompt
+    assert "public_mcp_log_root" not in prompt
+    assert "trajectory.json" not in prompt
+    assert "run.json" not in prompt
+    assert "不得读取任何本地轨迹或截图文件" in prompt
 
 
 def test_blackbox_prompt_requires_public_step_memory(tmp_path):
     orchestrator = load_orchestrator()
 
-    prompt = orchestrator.build_player_prompt(
-        runs=3,
-        scenario="find_contract",
-        run_config=tmp_path / "ai_play_run_config.json",
-    )
+    prompt = orchestrator.build_player_prompt(runs=3)
 
     assert "每一步都先写一段公开决策记录" in prompt
     assert "当前 goal 是什么" in prompt
-    assert "记忆里的日志截图显示了什么" in prompt
+    assert "workflow memory" in prompt
     assert "最新 observe 截图显示了什么" in prompt
     assert "主动 Keep 这份 memory" in prompt
+
+
+def test_player_prompt_requires_awm_lifecycle(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(runs=3)
+
+    assert "briefing，再调用 workflow_memory_read，再调用 observe" in prompt
+    assert "终局后调用 workflow_memory_update" in prompt
+    assert "成功局" in prompt
+    assert "失败局只提交 avoid" in prompt
+    assert "不要保存图片" in prompt
+    assert "不要保存密码" in prompt
 
 
 def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
