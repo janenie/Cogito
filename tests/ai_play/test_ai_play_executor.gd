@@ -17,6 +17,21 @@ class FakeCogitoPlayer extends Node3D:
 	var MOUSE_SENS := 0.25
 
 
+class FakeSemanticActionProvider extends Node:
+	var received: Array[Dictionary] = []
+
+	func execute_semantic_action(action: Dictionary) -> Dictionary:
+		received.append(action.duplicate(true))
+		var result := {
+			"status": "completed",
+			"type": action["type"],
+			"outcome": "selected" if action["type"] == "select_ingredient" else "accepted",
+		}
+		if action["type"] == "select_ingredient":
+			result["ingredient"] = action["ingredient"]
+		return result
+
+
 func _initialize() -> void:
 	call_deferred("_run_tests")
 
@@ -87,6 +102,7 @@ func _run_tests() -> void:
 		"probe must be the only action",
 	)
 	_test_batch_validation(executor, recorder)
+	await _test_conveyor_semantic_actions(executor)
 	_test_terminal_stop(executor)
 	await _test_blocked_movement(executor, recorder)
 	await _test_look_angles_scale_for_home_player(executor, recorder)
@@ -192,6 +208,37 @@ func _test_batch_validation(executor: Node, recorder: InputRecorder) -> void:
 	)
 	_assert(recorder.events.is_empty(), "invalid batch performs no input")
 	executor.batch_finished.disconnect(collect)
+
+
+func _test_conveyor_semantic_actions(executor: Node) -> void:
+	_assert("active_scenario_id" in executor, "executor exposes active scenario")
+	_assert("semantic_action_provider" in executor, "executor exposes semantic provider")
+	if not "active_scenario_id" in executor or not "semantic_action_provider" in executor:
+		return
+	var provider := FakeSemanticActionProvider.new()
+	root.add_child(provider)
+	executor.active_scenario_id = "conveyor_profit"
+	executor.semantic_action_provider = provider
+	var actions: Array = [
+		{"type": "select_ingredient", "ingredient": "tomato"},
+		{"type": "make"},
+	]
+	_assert(executor.validate_batch(actions, {}) == {"valid": true}, "conveyor batch validates")
+	executor.active_scenario_id = "find_contract"
+	_assert(
+		not executor.validate_action({"type": "undo"}, {}).get("valid", false),
+		"other scenarios reject conveyor action",
+	)
+	executor.active_scenario_id = "conveyor_profit"
+	var emitted: Array = []
+	var collect := func(results: Array) -> void: emitted.append(results.duplicate(true))
+	executor.batch_finished.connect(collect)
+	executor.execute_batch(actions, {})
+	await process_frame
+	_assert(provider.received == actions, "semantic actions preserve order")
+	_assert(emitted.size() == 1 and emitted[0].size() == 2, "semantic results are emitted")
+	executor.batch_finished.disconnect(collect)
+	provider.queue_free()
 
 
 func _test_terminal_stop(executor: Node) -> void:
