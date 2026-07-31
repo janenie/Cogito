@@ -104,6 +104,9 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     text = config_path.read_text(encoding="utf-8")
     assert 'model = "gpt-test"' in text
     assert 'model_reasoning_effort = "high"' in text
+    assert "developer_instructions = " in text
+    assert "比较当前截图与本会话之前由 observe 返回的截图" in text
+    assert "像人类玩家一样" in text
     assert 'url = "http://127.0.0.1:8766/mcp"' in text
     assert (
         'enabled_tools = ["briefing", "workflow_memory_read", "observe", '
@@ -126,6 +129,23 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     )
     assert "start_ai.sh" not in text
     assert str(orchestrator.REPO_ROOT) not in text
+
+
+def test_write_player_codex_config_can_disable_workflow_memory_tools(tmp_path):
+    orchestrator = load_orchestrator()
+
+    config_path = orchestrator.write_player_codex_config(
+        tmp_path,
+        model="gpt-test",
+        reasoning_effort="high",
+        mcp_url="http://127.0.0.1:8766/mcp",
+        workflow_memory_enabled=False,
+    )
+
+    text = config_path.read_text(encoding="utf-8")
+    assert 'enabled_tools = ["briefing", "observe", "act"]' in text
+    assert "workflow_memory_read" not in text
+    assert "workflow_memory_update" not in text
 
 
 @pytest.mark.parametrize(
@@ -292,6 +312,19 @@ def test_blackbox_prompt_requires_public_step_memory(tmp_path):
     assert "主动 Keep 这份 memory" in prompt
 
 
+def test_player_developer_instructions_authorize_visual_comparison_only():
+    orchestrator = load_orchestrator()
+
+    instructions = orchestrator.build_player_developer_instructions()
+
+    assert "briefing" in instructions
+    assert "游戏规则" in instructions
+    assert "比较当前截图与本会话之前由 observe 返回的截图" in instructions
+    assert "相对位移、转向、遮挡变化和地标关系" in instructions
+    assert "磁盘" in instructions
+    assert "隐藏状态" in instructions
+
+
 def test_player_prompt_requires_awm_lifecycle(tmp_path):
     orchestrator = load_orchestrator()
 
@@ -303,6 +336,20 @@ def test_player_prompt_requires_awm_lifecycle(tmp_path):
     assert "失败局只提交 avoid" in prompt
     assert "不要保存图片" in prompt
     assert "不要保存密码" in prompt
+
+
+def test_player_prompt_without_awm_uses_only_in_context_notes():
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        workflow_memory_enabled=False,
+    )
+
+    assert "briefing，再调用 observe" in prompt
+    assert "workflow_memory_read" not in prompt
+    assert "workflow_memory_update" not in prompt
+    assert "普通会话上下文" in prompt
 
 
 def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
@@ -329,6 +376,7 @@ def test_parse_args_exposes_only_hardened_player_options():
     assert args.codex_auth_home == orchestrator.DEFAULT_CODEX_AUTH_HOME
     assert args.mcp_port == 8766
     assert args.timeout_seconds == 100000.0
+    assert args.workflow_memory == "enabled"
     assert not hasattr(args, "sandbox")
     assert not hasattr(args, "approval_policy")
     assert not hasattr(args, "codex_home")

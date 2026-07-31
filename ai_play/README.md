@@ -84,7 +84,8 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
 由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
 `cogito_ai_play` 的 `briefing`、`workflow_memory_read`、`observe`、`act` 和
-`workflow_memory_update`。游戏目标、规则和物体操作说明只从
+`workflow_memory_update`。传入 `--workflow-memory disabled` 时，黑盒玩家只获准使用
+`briefing`、`observe` 和 `act`，可用于同一分支上的无结构化 AWM 对照。游戏目标、规则和物体操作说明只从
 `briefing` 返回，初始提示词、工作区、环境和临时配置均不包含玩法 ID、源码、日志或仓库路径。
 
 首次使用前，在**专用认证目录**登录：
@@ -107,6 +108,9 @@ python3 tools/ai_play_codex_orchestrator.py \
 `--model` 与 `--reasoning-effort` 没有默认值；空白或控制字符会在启动子进程前被拒绝。
 `--codex-auth-home` 默认是 `~/.codex-cogito-player`，只作为 `auth.json` 的来源：启动器既不
 读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
+并通过 `developer_instructions` 给两种模式加载相同的黑盒视觉权限：模型应像人类玩家一样遵循
+`briefing` 规则，并比较当前与本会话先前 `observe` 直接返回的截图，以画面变化推断相对位移、
+转向、遮挡和地标关系。该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
 仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
 
 该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许上述

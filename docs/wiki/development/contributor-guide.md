@@ -80,7 +80,8 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 不产生监督回合终局标识。
 
 黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时副本清理、空且隔离的玩家目录、
-确定性临时 Codex 配置、五工具 HTTP MCP 白名单、玩家/可信侧环境隔离、提示词不含游戏实现信息，
+确定性临时 Codex 配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
+玩家/可信侧环境隔离、提示词不含游戏实现信息，
 以及 MCP/Codex/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、MCP Server 或 Godot。
 
 Godot AI 契约测试：

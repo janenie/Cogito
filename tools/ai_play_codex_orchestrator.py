@@ -34,7 +34,12 @@ DEFAULT_WS_HOST = "127.0.0.1"
 DEFAULT_WS_PORT = 8765
 DEFAULT_MCP_PORT = 8766
 AUTH_FILE_NAME = "auth.json"
-PLAYER_TOOL_NAMES = (
+BASE_PLAYER_TOOL_NAMES = (
+    "briefing",
+    "observe",
+    "act",
+)
+AWM_PLAYER_TOOL_NAMES = (
     "briefing",
     "workflow_memory_read",
     "observe",
@@ -141,11 +146,28 @@ def _toml_basic_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def build_player_developer_instructions() -> str:
+    return """
+你是通过视觉与获准 MCP 工具操作 3D 游戏的黑盒玩家。briefing 是游戏规则、目标和物体操作说明的
+唯一权威来源；每局先读取并遵守它，像人类玩家一样从第一次进入场景开始观察、探索、规划和纠错。
+
+observe 在工具结果中返回的截图属于你的获准视觉输入。你可以并且应该比较当前截图与本会话之前由 observe 返回的截图，
+依据画面中物体大小、屏幕位置、透视、可见/遮挡和朝向的变化，推断相对位移、转向、遮挡变化和地标关系，
+逐步建立以可见地标为依据的空间理解。动作后必须用新截图验证实际变化；
+没有变化、变化方向不符或目标丢失时，应调整假设与动作，不要机械重复。
+
+此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
+embedding、轨迹文件、仓库内容、场景源码或隐藏状态，也不得使用 shell、文件系统、搜索或网络扩展信息源。
+只输出简短、可公开的决策依据，不输出隐藏推理链。
+""".strip()
+
+
 def write_player_codex_config(
     home: Path,
     model: str,
     reasoning_effort: str,
     mcp_url: str,
+    workflow_memory_enabled: bool = True,
 ) -> Path:
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     player_home_path = _toml_basic_string(str(home.resolve()))
@@ -160,6 +182,8 @@ def write_player_codex_config(
                 f"model = {_toml_basic_string(model)}",
                 "model_reasoning_effort = "
                 f"{_toml_basic_string(reasoning_effort)}",
+                "developer_instructions = "
+                f"{_toml_basic_string(build_player_developer_instructions())}",
                 'approval_policy = "never"',
                 "allow_login_shell = false",
                 'web_search = "disabled"',
@@ -194,7 +218,14 @@ def write_player_codex_config(
                 f"url = {_toml_basic_string(mcp_url)}",
                 "required = true",
                 "enabled_tools = "
-                + json.dumps(list(PLAYER_TOOL_NAMES), ensure_ascii=False),
+                + json.dumps(
+                    list(
+                        AWM_PLAYER_TOOL_NAMES
+                        if workflow_memory_enabled
+                        else BASE_PLAYER_TOOL_NAMES
+                    ),
+                    ensure_ascii=False,
+                ),
                 'default_tools_approval_mode = "approve"',
                 "",
             ]
@@ -341,21 +372,17 @@ def build_supervisor_command(
     ]
 
 
-def build_player_prompt(runs: int) -> str:
-    return f"""
-你是 Cogito AI First Play 的隔离黑盒玩家。
-
-本会话需要完成 {runs} 次独立游玩。每局开始时，先调用 briefing，再调用 workflow_memory_read，再调用 observe。
-
-严格限制：
-1. 只使用 cogito_ai_play 的 briefing、workflow_memory_read、observe、act、
-   workflow_memory_update 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
-2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
-3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
-4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
-5. 密码证据不足时继续探索，不能盲猜。
-6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；每次 act 后重新观察和规划。
-7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
+def build_player_prompt(
+    runs: int,
+    workflow_memory_enabled: bool = True,
+) -> str:
+    if workflow_memory_enabled:
+        startup = "先调用 briefing，再调用 workflow_memory_read，再调用 observe"
+        allowed_tools = (
+            "briefing、workflow_memory_read、observe、act、\n"
+            "   workflow_memory_update"
+        )
+        memory_rules = """7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
 8. 不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。
 9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
 10. 终局后调用 workflow_memory_update，但 stopped、disconnected 或其他异常局不要更新。
@@ -363,7 +390,39 @@ def build_player_prompt(runs: int) -> str:
 12. 失败局只提交 avoid：workflow 和 landmarks 必须为空，不得把未验证路线晋升为经验。
 13. 不要保存图片、图片引用、Base64 或 embedding；不要保存密码、随机答案、绝对坐标、
     逐帧动作序列、文件路径、URL 或内部实现信息。
-14. eligible 更新返回后再等待下一局，并重新从 briefing 开始。
+14. eligible 更新返回后再等待下一局，并重新从 briefing 开始。"""
+        decision_memory = (
+            "3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。\n"
+            "4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
+            "5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、\n"
+            "   已试过但失败的路线，以及终局后要提交的抽象候选；不要把图片本身写入 memory。"
+        )
+    else:
+        startup = "先调用 briefing，再调用 observe"
+        allowed_tools = "briefing、observe、act"
+        memory_rules = """7. 只可在普通会话上下文中保留公开的简短笔记；没有结构化经验读写工具。
+8. 不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。
+9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
+10. 终局后等待下一局，并重新从 briefing 开始。"""
+        decision_memory = (
+            "3. 记录普通会话上下文中已有的高层经验，以及最新观察是否支持采用它。\n"
+            "4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
+            "5. 每次 observe 或 act 后用公开新证据更新当前目标、已确认地标和已试过但失败的路线；\n"
+            "   不要保存图片本身，也不要使用 shell 或文件系统保存笔记。"
+        )
+    return f"""
+你是 Cogito AI First Play 的隔离黑盒玩家。
+
+本会话需要完成 {runs} 次独立游玩。每局开始时，{startup}。
+
+严格限制：
+1. 只使用 cogito_ai_play 的 {allowed_tools} 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
+2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
+3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
+4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
+5. 密码证据不足时继续探索，不能盲猜。
+6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；每次 act 后重新观察和规划。
+{memory_rules}
 15. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
 16. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
    等待下一局；observe 仍返回 stopped/disconnected 时等待后再 observe，直到出现新的可玩观察。
@@ -385,10 +444,7 @@ def build_player_prompt(runs: int) -> str:
 每步公开决策记录：
 1. 每一步都先写一段公开决策记录，保持简短，只记录可公开依据，不输出隐藏推理链。
 2. 记录当前 goal 是什么，例如“先找到并读取任务卡”或“靠近当前可见交互物”。
-3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。
-4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。
-5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、
-   已试过但失败的路线，以及终局后要提交的抽象候选；不要把图片本身写入 memory。
+{decision_memory}
 
 游戏目标、规则和物体操作说明只由 briefing 提供。现在开始第 1 局。
 """.strip()
@@ -605,6 +661,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("--model", required=True)
     parser.add_argument("--reasoning-effort", required=True)
+    parser.add_argument(
+        "--workflow-memory",
+        choices=("enabled", "disabled"),
+        default="enabled",
+    )
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument("--python-bin", default=sys.executable)
     parser.add_argument("--godot-bin", default="godot")
@@ -692,6 +753,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.model,
             args.reasoning_effort,
             f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp",
+            workflow_memory_enabled=args.workflow_memory == "enabled",
         )
         return run_orchestrated_session(
             mcp_command=mcp_command,
@@ -700,7 +762,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 paths.player_workspace,
             ),
             supervisor_command=supervisor_command,
-            prompt=build_player_prompt(args.runs),
+            prompt=build_player_prompt(
+                args.runs,
+                workflow_memory_enabled=args.workflow_memory == "enabled",
+            ),
             mcp_env=mcp_env,
             codex_env=build_player_env(player_home),
             supervisor_env=supervisor_env,
