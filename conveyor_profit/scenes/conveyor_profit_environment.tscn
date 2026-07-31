@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=36 format=3]
 
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_environment.gd" id="1_environment"]
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_preview.gd" id="2_preview"]
@@ -32,6 +32,34 @@ roughness = 0.35
 albedo_color = Color(0.045, 0.075, 0.09, 1)
 metallic = 0.1
 roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StickerPaperMaterial"]
+albedo_color = Color(0.94, 0.89, 0.76, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="SaladTitleMaterial"]
+albedo_color = Color(0.31, 0.62, 0.31, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="EggTitleMaterial"]
+albedo_color = Color(0.89, 0.58, 0.2, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="CheeseTitleMaterial"]
+albedo_color = Color(0.91, 0.72, 0.2, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="BurgerTitleMaterial"]
+albedo_color = Color(0.72, 0.25, 0.2, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="FishTitleMaterial"]
+albedo_color = Color(0.2, 0.48, 0.7, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="MushroomTitleMaterial"]
+albedo_color = Color(0.52, 0.34, 0.62, 1)
+roughness = 0.72
 
 [sub_resource type="StandardMaterial3D" id="GreenMaterial"]
 albedo_color = Color(0.12, 0.68, 0.32, 1)
@@ -83,6 +111,13 @@ size = Vector3(9.4, 0.22, 0.1)
 [sub_resource type="BoxMesh" id="PanelMesh"]
 material = SubResource("PanelMaterial")
 size = Vector3(8.4, 3.8, 0.18)
+
+[sub_resource type="BoxMesh" id="StickerBackgroundMesh"]
+material = SubResource("StickerPaperMaterial")
+size = Vector3(2.5, 1.15, 0.08)
+
+[sub_resource type="BoxMesh" id="StickerTitleBarMesh"]
+size = Vector3(2.38, 0.3, 0.04)
 
 [sub_resource type="BoxMesh" id="TrayCounterMesh"]
 material = SubResource("PanelMaterial")
@@ -185,21 +220,228 @@ position = Vector3(0, 3.15, 5.05)
 mesh = SubResource("PanelMesh")
 
 [node name="Title" type="Label3D" parent="Stations/MenuBoard"]
-position = Vector3(0, 1.08, -0.11)
+position = Vector3(0, 1.56, -0.12)
 rotation = Vector3(0, 3.14159, 0)
 text = "CONVEYOR KITCHEN  •  RECIPE BOARD"
-font_size = 58
+font_size = 42
 outline_size = 8
 modulate = Color(1, 0.53, 0.12, 1)
 
-[node name="Recipes" type="Label3D" parent="Stations/MenuBoard"]
-position = Vector3(0, -0.1, -0.11)
+[node name="RecipeStickers" type="Node3D" parent="Stations/MenuBoard"]
+
+[node name="Salad" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(-2.7, 0.52, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("SaladTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+position = Vector3(0, 0.39, -0.09)
 rotation = Vector3(0, 3.14159, 0)
-text = "SALAD   L+T+M   $7  PROFIT +3\nEGG TOAST   B+E   $8  PROFIT +4\nCHEESE TOAST   B+C   $10  PROFIT +5\nBURGER   B+MEAT+L+T   $15  PROFIT +6\nFISH SANDWICH   B+F+L   $14  PROFIT +7\nMUSHROOM OMELET   E+C+M   $14  PROFIT +7"
-font_size = 40
-outline_size = 6
-line_spacing = 7.0
-modulate = Color(0.96, 0.95, 0.87, 1)
+text = "沙拉  SALAD"
+font_size = 25
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "生菜 LETTUCE + 番茄 TOMATO\n蘑菇 MUSHROOM"
+font_size = 17
+outline_size = 2
+line_spacing = 2.0
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $7  ·  净利 PROFIT +$3"
+font_size = 15
+outline_size = 2
+modulate = Color(0.19, 0.3, 0.17, 1)
+
+[node name="EggToast" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(0, 0.52, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("EggTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+position = Vector3(0, 0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "鸡蛋吐司  EGG TOAST"
+font_size = 25
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "面包 BREAD + 鸡蛋 EGG"
+font_size = 18
+outline_size = 2
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $8  ·  净利 PROFIT +$4"
+font_size = 15
+outline_size = 2
+modulate = Color(0.32, 0.2, 0.07, 1)
+
+[node name="CheeseToast" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(2.7, 0.52, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("CheeseTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+position = Vector3(0, 0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "奶酪吐司  CHEESE TOAST"
+font_size = 23
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "面包 BREAD + 奶酪 CHEESE"
+font_size = 17
+outline_size = 2
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $10  ·  净利 PROFIT +$5"
+font_size = 15
+outline_size = 2
+modulate = Color(0.34, 0.25, 0.06, 1)
+
+[node name="Burger" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(-2.7, -0.78, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("BurgerTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+position = Vector3(0, 0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "汉堡  BURGER"
+font_size = 25
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "面包 BREAD + 肉 MEAT\n生菜 LETTUCE + 番茄 TOMATO"
+font_size = 16
+outline_size = 2
+line_spacing = 2.0
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $15  ·  净利 PROFIT +$6"
+font_size = 15
+outline_size = 2
+modulate = Color(0.35, 0.1, 0.08, 1)
+
+[node name="FishSandwich" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(0, -0.78, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("FishTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+position = Vector3(0, 0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "鱼肉三明治  FISH SANDWICH"
+font_size = 22
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "面包 BREAD + 鱼 FISH\n生菜 LETTUCE"
+font_size = 17
+outline_size = 2
+line_spacing = 2.0
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $14  ·  净利 PROFIT +$7"
+font_size = 15
+outline_size = 2
+modulate = Color(0.08, 0.2, 0.34, 1)
+
+[node name="MushroomOmelet" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+position = Vector3(2.7, -0.78, -0.15)
+
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+mesh = SubResource("StickerBackgroundMesh")
+
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+position = Vector3(0, 0.39, -0.06)
+mesh = SubResource("StickerTitleBarMesh")
+surface_material_override/0 = SubResource("MushroomTitleMaterial")
+
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+position = Vector3(0, 0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "蘑菇蛋卷  MUSHROOM OMELET"
+font_size = 22
+outline_size = 4
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+position = Vector3(0, 0.04, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "鸡蛋 EGG + 奶酪 CHEESE\n蘑菇 MUSHROOM"
+font_size = 17
+outline_size = 2
+line_spacing = 2.0
+modulate = Color(0.08, 0.09, 0.075, 1)
+
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+position = Vector3(0, -0.39, -0.09)
+rotation = Vector3(0, 3.14159, 0)
+text = "售价 SALE $14  ·  净利 PROFIT +$7"
+font_size = 15
+outline_size = 2
+modulate = Color(0.23, 0.12, 0.3, 1)
 
 [node name="Tray" type="Node3D" parent="Stations"]
 position = Vector3(0, 0.55, -0.2)
