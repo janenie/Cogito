@@ -83,7 +83,8 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
 由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
-`cogito_ai_play` 的 `briefing`、`observe`、`act`。游戏目标、规则和物体操作说明只从
+`cogito_ai_play` 的 `briefing`、`workflow_memory_read`、`observe`、`act` 和
+`workflow_memory_update`。游戏目标、规则和物体操作说明只从
 `briefing` 返回，初始提示词、工作区、环境和临时配置均不包含玩法 ID、源码、日志或仓库路径。
 
 首次使用前，在**专用认证目录**登录：
@@ -108,8 +109,9 @@ python3 tools/ai_play_codex_orchestrator.py \
 读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
 仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
 
-该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许四个
-游玩工具；它关闭 Web 搜索、子代理、记忆、登录 shell 和模型生成命令的网络访问。不要传递旧的
+该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许上述
+五个工具；它关闭 Web 搜索、子代理、Codex 内建记忆、登录 shell 和模型生成命令的网络访问。
+不要传递旧的
 `--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host` 或 `--ws-port`：它们不是此启动器
 接受的参数。在 Windows 上，该配置请求 Codex 的原生 `elevated` sandbox；无法建立该沙箱时应
 修复本机 Codex/权限环境，而不是改用宽松配置。权限 profile 还显式拒绝模型生成命令读取本局
@@ -160,6 +162,20 @@ supervisor 将带有该标识的进程退出计为一局完成；未看到标识
 输出 `AI_PLAY disabled; reason=mcp_stop` 或 `AI_PLAY disabled; reason=escape_stop` 时，
 supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。
+
+### 会话级 Agent Workflow Memory
+
+同一次 orchestrator 多局运行共享 MCP sidecar 进程内的 `SessionWorkflowMemory`。每局先调用
+`briefing`，再调用 `workflow_memory_read`，随后才用 `observe`/`act` 游玩；终局后调用一次
+`workflow_memory_update` 提交固定结构的抽象流程。服务端依据 `GameSession` 的真实终局决定
+晋升范围：成功局可以合并 workflow、地标关系和避坑规则，正常失败局只能合并避坑规则；
+stopped、disconnected、MCP shutdown、异常退出和未终局局次不学习。调用方不能自行声明胜负。
+
+AWM 只保存经过严格字段、长度和内容校验的语言化程序性记忆。运行时截图可以作为玩家提炼经验
+的依据，但 memory 不保存图片、图片引用、Base64、embedding、逐帧动作、坐标、随机密码或其他
+本局答案。两个 AWM 工具不接入 `TrajectoryLogger`，其请求和结果不进入 `trajectory.json`、
+`run.json` 或其他文件；MCP sidecar 退出后 memory 自然消失，下一次 orchestrator 不会加载。
+Codex 配置中的 `[memories]` 仍保持禁用。
 
 无论是否启用 AI，`find_contract` 每次载入 Lobby 都会生成一个新回合：从 8 个日期和 8 个版本号候选中
 各抽取一个值，随机选择 `MMDD + VV` 或 `VV + MMDD`，并从三条固定的三地点路线中

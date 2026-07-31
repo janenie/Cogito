@@ -83,7 +83,8 @@ Godot 桥的安全边界。
 
 orchestrator 把可信游戏侧和受限 Codex 会话拆开：它在仓库侧启动仅绑定 `127.0.0.1` 的
 Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；Codex 只配置该边车的
-`briefing`、`observe`、`act` 三个工具。玩家提示词、环境、工作区和临时配置不含
+`briefing`、`workflow_memory_read`、`observe`、`act`、`workflow_memory_update` 五个
+工具。玩家提示词、环境、工作区和临时配置不含
 仓库路径、启动脚本路径、玩法 ID、日志位置或关卡信息；游戏目标只由 `briefing` 的既有白名单
 结果提供。
 
@@ -94,7 +95,7 @@ MCP、插件、技能、记忆或会话。临时凭据副本和配置会在所�
 运行配置都不放入或传入玩家侧。
 
 启动命令必须显式提供 `--model`、`--reasoning-effort` 和（需要覆盖默认值时）
-`--codex-auth-home`。临时配置固定模型、思考强度、唯一 MCP URL、四工具白名单和自定义最小
+`--codex-auth-home`。临时配置固定模型、思考强度、唯一 MCP URL、五工具白名单和自定义最小
 权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的网络访问。旧的
 `--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 都不被接受，不能
 用来放宽此边界。Windows 配置还请求 Codex 原生 `elevated` sandbox；建立失败时应修复本机
@@ -127,6 +128,23 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 该本机方案限制 Codex 会话通过配置工具读取文件和使用网络的范围，但不是容器、VM 或独立 OS
 用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
 会涉及截图、令牌、费用和本地轨迹持久化，仍须用户单独确认。
+
+### 会话级 Agent Workflow Memory
+
+> 设计来源见 [会话级 AWM spec](../../scope/2026-07-31-session-awm/spec-session-awm.md)。
+
+同一次 orchestrator 多局运行共享可信 MCP sidecar 进程内的 `SessionWorkflowMemory`。它不启用
+Codex 内建 memories，也不跨 orchestrator 复用。每局的固定调用顺序是 `briefing`、
+`workflow_memory_read`、`observe`/`act`，终局后再调用一次 `workflow_memory_update`。
+`GameSession` 的真实 attempt 生命周期决定晋升资格：成功局可以晋升抽象 workflow、相对地标和
+avoid，正常失败局只能晋升 avoid；stopped、disconnected、shutdown、异常和未终局 attempt
+不得晋升。每个终局 attempt 最多消费一次，调用方不提供也不能伪造 outcome。
+
+AWM 只保存固定结构、受长度和内容校验的语言化程序性记忆。图片可以参与玩家当局判断，但不会
+作为图片、引用、Base64 或 embedding 存入 memory；密码、随机答案、绝对坐标、逐帧动作、路径
+和内部实现事实也必须被拒绝。两个 AWM 工具不进入 `TrajectoryLogger`，不改变
+`trajectory.json`/`run.json` schema，也不写其他审计文件。MCP sidecar 退出时 memory 随进程
+释放。
 
 ## 外部 supervisor 多局验收
 
