@@ -13,6 +13,7 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
 - Left-click a moving ingredient to place it on the tray. The belt replenishes that slot from a finite supply.
 - Left-click **UNDO** to return the last tray ingredient to the remaining supply.
 - Left-click **MAKE** to consume the tray. Exact recipes earn their sale price; invalid combinations earn nothing but still pay every selected ingredient cost.
+- The wall menu uses six bilingual full-name recipe stickers, so no ingredient abbreviations need to be memorized.
 - Net profit is revenue minus consumed ingredient cost. Reach `$100` to win; the run ends in failure when the remaining ingredients can no longer reach the target.
 - The default seed is `1337`. Every generated batch is finite and contains at least `$120` attainable recipe profit before player mistakes.
 
