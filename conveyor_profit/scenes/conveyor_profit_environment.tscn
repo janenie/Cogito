@@ -530,6 +530,39 @@ rotation = Vector3(0, 3.14159, 0)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
+[node name="TotalTimeLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 340.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 24
+text = "TOTAL TIME  10:00"
+
+[node name="WindowLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 54.0
+offset_right = 360.0
+offset_bottom = 90.0
+theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 24
+text = "WINDOW  1 / 10  ·  01:00"
+
+[node name="DishLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 90.0
+offset_right = 260.0
+offset_bottom = 126.0
+theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 24
+text = "DISH  0 / 1"
+
 [node name="ProfitLabel" type="Label" parent="HUD"]
 offset_left = 384.0
 offset_top = 28.0
@@ -539,14 +572,14 @@ theme_override_colors/font_color = Color(1, 0.74, 0.25, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
 theme_override_constants/outline_size = 10
 theme_override_font_sizes/font_size = 36
-text = "NET PROFIT  $0 / $100"
+text = "NET PROFIT  $0"
 horizontal_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="HUD"]
 offset_left = 320.0
-offset_top = 88.0
+offset_top = 96.0
 offset_right = 960.0
-offset_bottom = 132.0
+offset_bottom = 140.0
 theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
 theme_override_constants/outline_size = 8
