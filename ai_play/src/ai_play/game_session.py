@@ -343,6 +343,7 @@ class GameSession:
                     actions,
                     self._available_interactions(self._latest_observation),
                     self._interface_open(self._latest_observation),
+                    self._scenario_id,
                 )
             except ActionValidationError as error:
                 raise SessionError(str(error)) from error

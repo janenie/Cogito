@@ -20,6 +20,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "greet_npc_meeting",
         "daily_routine_cleanup",
         "garden_watering",
+        "conveyor_profit",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
@@ -27,6 +28,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert is_supported_scenario("greet_npc_meeting")
     assert is_supported_scenario("daily_routine_cleanup")
     assert is_supported_scenario("garden_watering")
+    assert is_supported_scenario("conveyor_profit")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -53,6 +55,7 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
     assert scenario_act_request_limit("garden_watering", 500) == 300
     assert scenario_act_request_limit("garden_watering", 200) == 200
+    assert scenario_act_request_limit("conveyor_profit", 500) == 300
 
 
 def test_find_key_round_request_limits_are_allowlisted():
@@ -133,6 +136,16 @@ def test_terminal_results_are_scenario_specific():
         "garden_watering",
         "failure",
         "garden_task_failed",
+    )
+    assert is_allowed_game_over(
+        "conveyor_profit",
+        "success",
+        "efficiency_target_reached",
+    )
+    assert is_allowed_game_over(
+        "conveyor_profit",
+        "failure",
+        "efficiency_below_target",
     )
     assert not is_allowed_game_over(
         "greet_npc_meeting",

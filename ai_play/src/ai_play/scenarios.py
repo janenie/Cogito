@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .briefing import load_public_briefing
+from .conveyor_profit_briefing import load_conveyor_profit_briefing
 from .daily_routine_cleanup_briefing import load_daily_routine_cleanup_briefing
 from .find_key_briefing import load_find_key_briefing
 from .garden_watering_briefing import load_garden_watering_briefing
@@ -73,6 +74,15 @@ _SCENARIOS = {
         terminal_results=frozenset({
             ("success", "garden_tasks_complete"),
             ("failure", "garden_task_failed"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "conveyor_profit": ScenarioDefinition(
+        briefing_loader=load_conveyor_profit_briefing,
+        max_act_requests=300,
+        terminal_results=frozenset({
+            ("success", "efficiency_target_reached"),
+            ("failure", "efficiency_below_target"),
             ("failure", "max_requests"),
         }),
     ),

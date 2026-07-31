@@ -116,6 +116,21 @@ def test_garden_watering_briefing_is_public_and_bounded():
         assert forbidden not in serialized
 
 
+def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state():
+    briefing, image_bytes = load_scenario_briefing("conveyor_profit")
+
+    assert image_bytes is None
+    assert briefing["game_id"] == "conveyor_profit"
+    serialized = repr(briefing)
+    for term in ["select_ingredient", "undo", "make", "80%", "一分钟"]:
+        assert term in serialized
+    for forbidden in [
+        "node_path", "passing_profit", "best_profit", "future_supply",
+        "round_seed", "game_script", "conveyor_gameplay.gd",
+    ]:
+        assert forbidden not in serialized
+
+
 def test_all_scenario_briefings_include_shared_control_rules():
     for scenario_id in [
         "find_contract",

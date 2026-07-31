@@ -169,3 +169,59 @@ def test_garden_observation_rejects_invalid_public_state(field, value):
 
     with pytest.raises(ObservationValidationError):
         validate_observation(observation)
+
+
+def test_conveyor_observation_is_hud_level_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": -3,
+        "tray": ["bread", "egg"],
+        "finished": False,
+    }
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert public["conveyor"] == observation["conveyor"]
+
+
+@pytest.mark.parametrize(
+    "hidden_field",
+    ["ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit"],
+)
+def test_conveyor_observation_rejects_hidden_fields(hidden_field):
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": [],
+        "finished": False,
+        hidden_field: [],
+    }
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
+
+
+def test_conveyor_semantic_action_results_are_bounded():
+    results = [
+        {
+            "status": "completed",
+            "type": "select_ingredient",
+            "outcome": "selected",
+            "ingredient": "tomato",
+        },
+        {
+            "status": "completed",
+            "type": "make",
+            "outcome": "window_locked",
+        },
+    ]
+
+    assert validate_action_results(results) == results
