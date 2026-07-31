@@ -1,0 +1,199 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_station.gd" id="1_station"]
+[ext_resource type="Script" path="res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_manager.gd" id="2_manager"]
+[ext_resource type="PackedScene" uid="uid://cs6raqlyejqul" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_button.tscn" id="3_button"]
+[ext_resource type="PackedScene" uid="uid://dqsod8j0c6qag" path="res://addons/cogito/DemoScenes/DemoPrefabs/note_welcome.tscn" id="4_note"]
+
+[sub_resource type="StandardMaterial3D" id="MaterialConsole"]
+albedo_color = Color(0.055, 0.07, 0.075, 1)
+metallic = 0.65
+roughness = 0.28
+
+[sub_resource type="BoxMesh" id="MeshConsole"]
+material = SubResource("MaterialConsole")
+size = Vector3(4.8, 2.5, 0.18)
+
+[sub_resource type="BoxShape3D" id="ShapeConsole"]
+size = Vector3(4.8, 2.5, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="MaterialBench"]
+albedo_color = Color(0.16, 0.18, 0.17, 1)
+metallic = 0.35
+roughness = 0.45
+
+[sub_resource type="BoxMesh" id="MeshBench"]
+material = SubResource("MaterialBench")
+size = Vector3(5.4, 0.18, 1.25)
+
+[sub_resource type="SphereMesh" id="MeshLamp"]
+radius = 0.22
+height = 0.44
+
+[node name="LaboratoryExperiment" type="Node3D"]
+script = ExtResource("1_station")
+
+[node name="Manager" type="Node" parent="."]
+script = ExtResource("2_manager")
+
+[node name="Console" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.65, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Console"]
+mesh = SubResource("MeshConsole")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Console"]
+shape = SubResource("ShapeConsole")
+
+[node name="Bench" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.68, 0.45)
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench"]
+mesh = SubResource("MeshBench")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bench"]
+shape = SubResource("ShapeConsole")
+scale = Vector3(1.12, 0.072, 6.94)
+
+[node name="TaskCard" parent="." instance=ExtResource("4_note")]
+position = Vector3(2.15, 0.83, 0.45)
+rotation = Vector3(0, 0, 0)
+
+[node name="ReadableComponent" parent="TaskCard" index="6"]
+readable_title = "Laboratory Experiment Protocol"
+readable_content = "Experiment protocol loading."
+
+[node name="StatusPanel" type="Label3D" parent="."]
+position = Vector3(-1.25, 2.35, 0.12)
+pixel_size = 0.0028
+font_size = 48
+text = "LABORATORY EXPERIMENT"
+outline_size = 8
+
+[node name="HistoryPanel" type="Label3D" parent="."]
+position = Vector3(1.15, 2.35, 0.12)
+pixel_size = 0.0025
+font_size = 42
+text = "MEASUREMENTS"
+outline_size = 8
+
+[node name="ExperimentLamp" type="MeshInstance3D" parent="."]
+position = Vector3(0, 3.12, 0.18)
+mesh = SubResource("MeshLamp")
+
+[node name="TreatmentEffect" type="OmniLight3D" parent="."]
+position = Vector3(0, 0.95, 0.45)
+visible = false
+omni_range = 2.5
+light_energy = 2.0
+
+[node name="Controls" type="Node3D" parent="."]
+
+[node name="BatteryAlpha" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-1.8, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select Alpha battery"
+press_cooldown_time = 0.2
+
+[node name="BatteryBeta" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-1.35, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select Beta battery"
+press_cooldown_time = 0.2
+
+[node name="BatteryGamma" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-0.9, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select Gamma battery"
+press_cooldown_time = 0.2
+
+[node name="SampleA" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-0.3, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select sample A"
+press_cooldown_time = 0.2
+
+[node name="SampleB" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(0.15, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select sample B"
+press_cooldown_time = 0.2
+
+[node name="SampleC" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(0.6, 1.75, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Select sample C"
+press_cooldown_time = 0.2
+
+[node name="TreatmentDry" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-1.8, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Keep sample dry"
+press_cooldown_time = 0.2
+
+[node name="TreatmentWet" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-1.35, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Wet sample"
+press_cooldown_time = 0.2
+
+[node name="TreatmentHeated" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-0.9, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Heat sample"
+press_cooldown_time = 0.2
+
+[node name="InstallBar" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(-0.3, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Install metal bar"
+press_cooldown_time = 0.2
+
+[node name="RunExperiment" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(0.3, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Run experiment"
+press_cooldown_time = 0.2
+
+[node name="ResetSetup" parent="Controls" instance=ExtResource("3_button")]
+position = Vector3(0.9, 1.25, 0.18)
+rotation = Vector3(1.5708, 0, 0)
+usable_interaction_text = "Reset setup"
+press_cooldown_time = 0.2
+
+[node name="ButtonLabels" type="Label3D" parent="."]
+position = Vector3(-0.45, 0.95, 0.18)
+pixel_size = 0.0024
+font_size = 38
+text = "BATTERY:  ALPHA    BETA    GAMMA       SAMPLE:  A     B     C\nTREATMENT: DRY      WET     HEAT        BAR     RUN     RESET"
+outline_size = 8
+
+[node name="BatteryAnchors" type="Node3D" parent="."]
+[node name="Anchor1" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(-2, 0.88, 0.45)
+[node name="Anchor2" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(-1.5, 0.88, 0.45)
+[node name="Anchor3" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(-1, 0.88, 0.45)
+[node name="Anchor4" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(-0.5, 0.88, 0.45)
+[node name="Anchor5" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(0, 0.88, 0.45)
+[node name="Anchor6" type="Marker3D" parent="BatteryAnchors"]
+position = Vector3(0.5, 0.88, 0.45)
+
+[node name="BarAnchors" type="Node3D" parent="."]
+[node name="Anchor1" type="Marker3D" parent="BarAnchors"]
+position = Vector3(0.9, 0.88, 0.45)
+[node name="Anchor2" type="Marker3D" parent="BarAnchors"]
+position = Vector3(1.3, 0.88, 0.45)
+[node name="Anchor3" type="Marker3D" parent="BarAnchors"]
+position = Vector3(1.7, 0.88, 0.45)
+
+[node name="TaskCardAnchors" type="Node3D" parent="."]
+[node name="Anchor1" type="Marker3D" parent="TaskCardAnchors"]
+position = Vector3(2.15, 0.83, 0.45)
+[node name="Anchor2" type="Marker3D" parent="TaskCardAnchors"]
+position = Vector3(1.85, 0.83, 0.45)
+
+[editable path="TaskCard"]

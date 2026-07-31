@@ -68,6 +68,7 @@
 [ext_resource type="PackedScene" uid="uid://byb1y44thne6i" path="res://addons/cogito/PackedScenes/gravity_zone.tscn" id="68_kt1ow"]
 [ext_resource type="Resource" uid="uid://c2goscdbbyawd" path="res://addons/cogito/QuestSystem/Quests/DemoSceneQuests/Demo_TargetPractice.tres" id="68_r8380"]
 [ext_resource type="PackedScene" uid="uid://b2cccsfb5tikx" path="res://addons/cogito/CogitoNPC/cogito_npc.tscn" id="68_wxy0x"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_station.tscn" id="69_laboratory_experiment"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_wjbty"]
 panorama = ExtResource("2_akrjl")
@@ -4230,6 +4231,10 @@ transform = Transform3D(1.31134e-07, 0, -1, 0, 1, 0, 1, 0, 1.31134e-07, 3, 0, 2)
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1, 0, 4)
 
 [node name="SYSTEMIC_PROPERTIES" type="Node3D" parent="NavigationRegion3D" unique_id=721963478]
+
+[node name="LaboratoryExperiment" parent="NavigationRegion3D/SYSTEMIC_PROPERTIES" instance=ExtResource("69_laboratory_experiment")]
+position = Vector3(-14.25, 0, -23.5)
+rotation = Vector3(0, 1.5708, 0)
 
 [node name="Pickup_Dart_Water" parent="NavigationRegion3D/SYSTEMIC_PROPERTIES" unique_id=696360870 instance=ExtResource("45_0fawo")]
 transform = Transform3D(0.754801, 6.99125e-15, -0.655954, 0, 1, 1.06581e-14, 0.655954, -8.04478e-15, 0.754801, -11.0006, 0.76828, -30.2038)
