@@ -38,6 +38,7 @@ var _status_label: Label
 var _make_button: StaticBody3D
 var _undo_button: StaticBody3D
 var _next_selection_id: int = 1
+var _semantic_random := RandomNumberGenerator.new()
 
 
 func initialize(
@@ -63,6 +64,7 @@ func initialize(
 	_make_button = make_button
 	_undo_button = undo_button
 	session = PROFIT_SESSION.new()
+	_semantic_random.seed = supply_seed
 	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(supply_seed, window_count)
 	var best_profits: Array[int] = []
 	for window: Dictionary in window_supplies:
@@ -154,6 +156,30 @@ func request_make() -> Dictionary:
 	return {"outcome": outcome, "recipe_id": recipe_id, "profit": session.get_profit()}
 
 
+func request_select_ingredient(ingredient_id: String, camera: Camera3D) -> Dictionary:
+	if ingredient_id not in CATALOG.INGREDIENT_IDS:
+		return {"outcome": "invalid_ingredient"}
+	if window_session.is_terminal() or window_session.is_time_expired():
+		return {"outcome": "game_finished"}
+	if window_session.dish_made:
+		return {"outcome": "window_locked"}
+	var matches: Array[PathFollow3D] = []
+	for follower_node: Node in _ingredient_path.get_children():
+		var follower := follower_node as PathFollow3D
+		if (
+			follower.get_meta("ingredient_id", "") == ingredient_id
+			and follower.get_meta("available", false)
+			and _is_in_camera(follower, camera)
+		):
+			var interactable := follower.get_node("IngredientPreview/Interactable") as Area3D
+			if interactable.enabled:
+				matches.append(follower)
+	if matches.is_empty():
+		return {"outcome": "ingredient_not_available"}
+	var chosen := matches[_semantic_random.randi_range(0, matches.size() - 1)]
+	return _select_by_selection_id(int(chosen.get_meta("selection_id", -1)))
+
+
 func _fill_follower(follower: PathFollow3D) -> void:
 	var preview := follower.get_node("IngredientPreview") as Node3D
 	var previous_model := preview.get_node_or_null("FoodModel")
@@ -190,18 +216,41 @@ func _fill_follower(follower: PathFollow3D) -> void:
 
 
 func _on_select_requested(selection_id: int) -> void:
-	if session == null or session.is_terminal() or window_session.dish_made:
-		return
+	_select_by_selection_id(selection_id)
+
+
+func _select_by_selection_id(selection_id: int) -> Dictionary:
+	if session == null or window_session == null:
+		return {"outcome": "game_finished"}
+	if session.is_terminal() or window_session.is_terminal() or window_session.is_time_expired():
+		return {"outcome": "game_finished"}
+	if window_session.dish_made:
+		return {"outcome": "window_locked"}
 	for follower: Node in _ingredient_path.get_children():
-		if follower.get_meta("selection_id", -1) != selection_id:
+		if (
+			follower.get_meta("selection_id", -1) != selection_id
+			or not follower.visible
+			or not follower.get_meta("available", false)
+		):
 			continue
 		var ingredient_id := String(follower.get_meta("ingredient_id", ""))
 		if not session.select_ingredient(ingredient_id):
-			return
+			return {"outcome": "game_finished"}
 		_add_tray_visual(ingredient_id)
 		_fill_follower(follower as PathFollow3D)
 		_update_public_display("Selected %s" % ingredient_id.to_upper())
-		return
+		return {"outcome": "selected", "ingredient": ingredient_id}
+	return {"outcome": "ingredient_not_available"}
+
+
+func _is_in_camera(follower: Node3D, camera: Camera3D) -> bool:
+	if not follower.visible or camera == null or camera.cull_mask == 0:
+		return false
+	if not camera.is_position_in_frustum(follower.global_position):
+		return false
+	var screen_point := camera.unproject_position(follower.global_position)
+	var viewport_size := camera.get_viewport().get_visible_rect().size
+	return Rect2(Vector2.ZERO, viewport_size).has_point(screen_point)
 
 
 func _on_action_requested(action: String) -> void:

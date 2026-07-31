@@ -82,6 +82,33 @@ func _run_test() -> void:
 	_check(gameplay.window_session.current_window_index == 2, "next boundary enters window three")
 	_check(not gameplay.window_session.dish_made, "new window restores dish allowance")
 
+	var camera := Camera3D.new()
+	camera.position = Vector3(0, 6.7, -10.8)
+	camera.rotation = Vector3(-0.36, PI, 0)
+	camera.current = true
+	root.add_child(camera)
+	await process_frame
+	_check(
+		gameplay.request_select_ingredient("potato", camera)["outcome"] == "invalid_ingredient",
+		"unknown English ingredient ID is rejected",
+	)
+	var visible_ids := _available_ingredient_ids(path)
+	_check(not visible_ids.is_empty(), "window three has selectable ingredients")
+	if not visible_ids.is_empty():
+		var requested_id := visible_ids[0]
+		var semantic_result: Dictionary = gameplay.request_select_ingredient(requested_id, camera)
+		_check(
+			semantic_result == {"outcome": "selected", "ingredient": requested_id},
+			"semantic action selects a visible named ingredient",
+		)
+		camera.cull_mask = 0
+		_check(
+			gameplay.request_select_ingredient(requested_id, camera)["outcome"]
+			== "ingredient_not_available",
+			"semantic action rejects an ingredient outside the rendered view",
+		)
+
+	camera.queue_free()
 	environment.queue_free()
 	quit(1 if not failures.is_empty() else 0)
 
