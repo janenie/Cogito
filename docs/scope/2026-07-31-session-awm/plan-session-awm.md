@@ -73,7 +73,7 @@ def test_success_promotes_all_candidate_sections():
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_workflow_memory.py -q
 ```
 
@@ -278,7 +278,7 @@ Use small helpers `_validate_exact_dict`, `_normalize_text`, `_validate_list`, a
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_workflow_memory.py -q
 ```
 
@@ -332,7 +332,7 @@ def test_attempt_observer_receives_successful_lifecycle(config):
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_game_session.py -k attempt_observer -q
 ```
 
@@ -392,7 +392,7 @@ Keep gameplay outcomes as `success`/`failure`. Map physical or MCP stops to `sto
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_game_session.py -q
 ```
 
@@ -456,7 +456,7 @@ Update the list-tools assertion to:
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_mcp_server.py -k workflow_memory -q
 ```
 
@@ -526,7 +526,7 @@ Do not call `_begin_logged_call` or `_complete_logged_call` in either AWM tool.
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_mcp_server.py \
   ai_play/tests/test_trajectory_logger.py -q
 ```
@@ -585,7 +585,7 @@ def test_player_prompt_requires_awm_lifecycle(tmp_path):
 Run:
 
 ```bash
-.venv/bin/python -m pytest \
+../../.venv/bin/python -m pytest \
   tests/test_ai_play_codex_orchestrator.py \
   -k 'awm or workflow_memory' -q
 ```
@@ -623,7 +623,7 @@ Require:
 Run:
 
 ```bash
-.venv/bin/python -m pytest \
+../../.venv/bin/python -m pytest \
   tests/test_ai_play_codex_orchestrator.py \
   tests/test_ai_play_supervisor.py -q
 ```
@@ -662,7 +662,7 @@ Confirm both documents say:
 Run:
 
 ```bash
-PYTHONPATH=ai_play/src .venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests \
   tests/test_ai_play_codex_orchestrator.py \
   tests/test_ai_play_supervisor.py -q
