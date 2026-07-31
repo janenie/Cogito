@@ -54,12 +54,12 @@ func _place_ingredients() -> void:
 		preview.name = "IngredientPreview"
 		follower.add_child(preview)
 		var label := preview.get_node("CostLabel") as Label3D
-		label.text = "%s  $%d" % [String(definition.id).to_upper(), definition.cost]
+		label.text = "$%d  %s" % [definition.cost, String(definition.id).to_upper()]
 
 		var food_scene := load(definition.scene) as PackedScene
 		if food_scene != null:
 			var food := food_scene.instantiate() as Node3D
 			food.name = "FoodModel"
 			food.position.y = 0.16
-			food.scale = Vector3.ONE * 0.72
+			food.scale = Vector3.ONE * 1.35
 			preview.add_child(food)

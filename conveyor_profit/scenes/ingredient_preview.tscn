@@ -22,9 +22,9 @@ shading_mode = 0
 mesh = SubResource("PlateMesh")
 
 [node name="CostLabel" type="Label3D" parent="."]
-position = Vector3(0, 0.76, 0)
+position = Vector3(0, 0.88, 0)
 billboard = 1
 text = "FOOD  $0"
-font_size = 42
-outline_size = 8
+font_size = 32
+outline_size = 6
 modulate = Color(1, 0.74, 0.28, 1)
