@@ -170,6 +170,7 @@ grep -q '^scenario_id = "repair_lighting_circuit"$' "$scene"
 grep -q 'name="RepairLightingCircuitSetup" parent="\." instance=ExtResource("ai_play_repair_lighting_circuit_setup")' "$scene"
 grep -q 'control_switch_a = NodePath("../../GenericSwitch")' "$scene"
 grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
+grep -q 'demo_hints = NodePath("../../DEMO_HINTS")' "$scene"
 grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
 grep -q 'entrance_lamp = NodePath("../../ENTRANCE_AREA/lampRoundFloor")' "$scene"
 grep -q 'ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")' "$scene"
@@ -294,7 +295,7 @@ do
 	grep -q '^collision_mask = 0$' <<<"$folder_block"
 	grep -q '^is_disabled = true$' \
 		<<<"$(meeting_setup_child_block CarryableComponent "$folder_name")"
-	grep -q '^text = "\(ATLAS\|BIRCH\|CROWN\|DELTA\)"$' \
+	grep -q '^text = "\(李明\|王芳\|陈宇\|赵宁\)"$' \
 		<<<"$(meeting_setup_child_block NameLabel "$folder_name")"
 done
 
@@ -313,8 +314,10 @@ grep -q '^collision_layer = 0$' \
 	<<<"$(meeting_setup_node_block VerifyButton)"
 grep -q '^is_disabled = true$' \
 	<<<"$(meeting_setup_child_block BasicInteraction VerifyButton)"
-grep -q '^text = "↻  CLOCKWISE"$' \
+grep -q '^text = "↻  顺时针 / CLOCKWISE"$' \
 	<<<"$(meeting_setup_node_block ClockwiseLabel)"
+grep -q '^text = "任务卡 / TASK CARD"$' \
+	<<<"$(meeting_setup_node_block TaskCardLabel)"
 
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2

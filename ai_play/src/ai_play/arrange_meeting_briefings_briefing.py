@@ -23,9 +23,11 @@ PUBLIC_BRIEFING = {
         "会议室中有四份待分发资料和四个由环境位置区分的席位。"
     ),
     "objective": (
-        "先读取入口任务卡，再分别调查 CEO 办公室、档案室和休息室的会议记录。"
-        "合并三条关系线索，推断 ATLAS、BIRCH、CROWN、DELTA 应放到会议桌的"
-        "电视侧、电视对面侧、会议室门侧和内墙侧哪个席位；完成摆放后按 Verify。"
+        "先读取入口任务卡，再分别调查 CEO 办公室 (CEO OFFICE)、档案室 (ARCHIVE)"
+        "和休息室 (BREAK ROOM) 的会议记录。合并三条关系线索，推断李明、王芳、"
+        "陈宇、赵宁的资料应放到会议桌的电视侧 (TV SIDE)、电视对面侧 "
+        "(OPPOSITE TV)、会议室门侧 (DOOR SIDE) 和内墙侧 (INNER WALL) 哪个席位；"
+        "完成摆放后按 Verify。"
     ),
     "success_condition": "四份资料全部位于正确席位，并按下 Verify。",
     "failure_condition": (
@@ -33,8 +35,10 @@ PUBLIC_BRIEFING = {
     ),
     "rules": COMMON_CONTROL_RULES + [
         "第一步一定要找到并读取出生点附近的任务卡；任务卡可重复阅读。",
-        "必须实际前往 CEO 办公室、档案室和休息室读取三份会议记录；简报不提供本局线索。",
-        "四个席位由电视、电视对面、会议室门和内墙区分，桌面的 ↻ CLOCKWISE 标记定义顺时针方向。",
+        "必须实际前往 CEO 办公室 (CEO OFFICE)、档案室 (ARCHIVE) 和休息室 "
+        "(BREAK ROOM) 读取三份会议记录；简报不提供本局线索。",
+        "四个席位由电视侧 (TV SIDE)、电视对面侧 (OPPOSITE TV)、会议室门侧 "
+        "(DOOR SIDE) 和内墙侧 (INNER WALL) 区分，桌面的 ↻ CLOCKWISE 标记定义顺时针方向。",
         "手持会议资料并对准空席位使用放置交互，资料会自动对齐；一个席位只能容纳一份资料。",
         "已经放好的资料在提交前可以重新拿起并调整，系统不会提前反馈位置是否正确。",
         "只有在四份资料全部摆好并检查无误后才按 Verify；错误或不完整提交会立即结束任务。",
@@ -55,7 +59,7 @@ PUBLIC_BRIEFING = {
         },
         {
             "id": "meeting_briefing_folders",
-            "meaning": "ATLAS、BIRCH、CROWN、DELTA 是会议室内四份可搬运资料。",
+            "meaning": "李明、王芳、陈宇、赵宁是四位参会者；会议室内有他们的四份可搬运资料。",
             "actions": {
                 "probe_interaction": "对准资料名称和资料本体寻找拿取提示。",
                 "interact2": "拿起或放下资料；对准席位时可执行辅助放置。",

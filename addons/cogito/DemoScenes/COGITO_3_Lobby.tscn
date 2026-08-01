@@ -3403,12 +3403,13 @@ ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")
 lobby_lamps = [NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling8"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling9"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling10"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling11"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling12"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling13")]
 break_room_lamp = NodePath("../../RepairLightingCircuitSetup/BreakRoomLamp")
 
-[node name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "record_readables", "folder_nodes", "seat_interactions", "seat_snap_anchors", "verify_button", "player_spawn", "task_card_anchor")]
+[node name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("setup", "player", "task_card", "demo_hints", "game_over_screen", "record_readables", "folder_nodes", "seat_interactions", "seat_snap_anchors", "verify_button", "player_spawn", "task_card_anchor")]
 script = ExtResource("ai_play_arrange_meeting_briefings_monitor")
 scenario_id = "arrange_meeting_briefings"
 setup = NodePath("../../ArrangeMeetingBriefingsSetup")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
+demo_hints = NodePath("../../DEMO_HINTS")
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 record_readables = [NodePath("../../ArrangeMeetingBriefingsSetup/RecordCEO/ReadableComponent"), NodePath("../../ArrangeMeetingBriefingsSetup/RecordArchive/ReadableComponent"), NodePath("../../ArrangeMeetingBriefingsSetup/RecordBreakRoom/ReadableComponent")]
 folder_nodes = [NodePath("../../ArrangeMeetingBriefingsSetup/FolderAtlas"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderBirch"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderCrown"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderDelta")]

@@ -3,17 +3,23 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const TASK_TITLE := "会议席位与资料分发"
+const TASK_TITLE := "会议席位与资料分发 / ARRANGE MEETING BRIEFINGS"
 const RECORD_TITLES := {
-	"ceo": "CEO 办公室会议记录",
-	"archive": "档案室会议记录",
-	"break_room": "休息室会议记录",
+	"ceo": "CEO 办公室会议记录 / CEO OFFICE RECORD",
+	"archive": "档案室会议记录 / ARCHIVE RECORD",
+	"break_room": "休息室会议记录 / BREAK ROOM RECORD",
+}
+const RECORD_INTERACTION_TEXT := {
+	"ceo": "读取 CEO 办公室会议记录 / Read CEO Office meeting record",
+	"archive": "读取档案室会议记录 / Read Archive meeting record",
+	"break_room": "读取休息室会议记录 / Read Break Room meeting record",
 }
 
 @export var scenario_id: String = "arrange_meeting_briefings"
 @export var setup: Node3D
 @export var player: Node3D
 @export var task_card: ReadableComponent
+@export var demo_hints: Node3D
 @export var game_over_screen: AIPlayGameOverScreen
 @export var record_readables: Array[ReadableComponent] = []
 @export var folder_nodes: Array[RigidBody3D] = []
@@ -62,6 +68,10 @@ func _activate_task() -> void:
 	_connect_signals()
 	_set_records_enabled(true)
 	_place_player_and_task_card()
+	_disable_demo_hints()
+	_configure_readable_ui(task_card)
+	for readable: ReadableComponent in record_readables:
+		_configure_readable_ui(readable)
 	configure_round(round_seed)
 
 
@@ -173,7 +183,7 @@ func _write_records() -> void:
 		var readable: ReadableComponent = record_readables[record_index]
 		readable.readable_title = RECORD_TITLES[record_id]
 		readable.readable_content = content
-		readable.interaction_text = "Read %s meeting record" % record_id
+		readable.interaction_text = RECORD_INTERACTION_TEXT[record_id]
 		readable.is_disabled = false
 		if readable.is_node_ready():
 			readable.label_title.text = readable.readable_title
@@ -185,14 +195,15 @@ func _write_task_card() -> void:
 		"任务目标：调查三份会议记录，推断四份资料各自对应的会议席位。",
 		"",
 		"必须调查的区域：",
-		"1. CEO 办公室",
-		"2. 档案室",
-		"3. 休息室",
+		"1. CEO 办公室 (CEO OFFICE)",
+		"2. 档案室 (ARCHIVE)",
+		"3. 休息室 (BREAK ROOM)",
 		"每个区域的会议记录只提供一条线索，必须合并三条线索。",
 		"",
-		"会议室资料：ATLAS、BIRCH、CROWN、DELTA。",
-		"四个席位：电视侧、会议室门侧、电视对面侧、内墙侧。",
-		"桌面的 ↻ CLOCKWISE 标记定义“顺时针下一席”的方向。",
+		"四位参会者的资料：李明、王芳、陈宇、赵宁。",
+		"四个席位：电视侧 (TV SIDE)、会议室门侧 (DOOR SIDE)、",
+		"电视对面侧 (OPPOSITE TV)、内墙侧 (INNER WALL)。",
+		"桌面的 ↻ 顺时针 / CLOCKWISE 标记定义“顺时针下一席”的方向。",
 		"",
 		"操作方法：",
 		"1. 从电视附近的侧桌拿起资料。",
@@ -220,6 +231,41 @@ func _place_player_and_task_card() -> void:
 	var card_object := task_card.get_parent_node_3d()
 	card_object.reparent(task_card_anchor, false)
 	card_object.transform = Transform3D.IDENTITY
+
+
+func _disable_demo_hints() -> void:
+	demo_hints.visible = false
+	demo_hints.process_mode = Node.PROCESS_MODE_DISABLED
+	for child: Node in demo_hints.find_children("*", "CollisionObject3D", true, false):
+		var collision_object := child as CollisionObject3D
+		collision_object.collision_layer = 0
+		collision_object.collision_mask = 0
+
+
+func _configure_readable_ui(readable: ReadableComponent) -> void:
+	var readable_ui := readable.get_node_or_null("ReadableUi") as Control
+	var scroll := readable.get_node_or_null(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var title := readable.get_node_or_null(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableTitle"
+	) as Label
+	var content := readable.get_node_or_null(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableContent"
+	) as RichTextLabel
+	if readable_ui != null:
+		readable_ui.offset_left = -440.0
+		readable_ui.offset_top = -360.0
+		readable_ui.offset_right = 440.0
+		readable_ui.offset_bottom = 360.0
+	if scroll != null:
+		scroll.custom_minimum_size = Vector2(760.0, 0.0)
+	if title != null:
+		title.custom_minimum_size = Vector2(760.0, 0.0)
+		title.add_theme_font_size_override("font_size", 42)
+	if content != null:
+		content.custom_minimum_size = Vector2(760.0, 0.0)
+		content.add_theme_font_size_override("normal_font_size", 24)
 
 
 func _set_records_enabled(enabled: bool) -> void:
@@ -334,6 +380,7 @@ func _has_required_nodes() -> bool:
 		setup,
 		player,
 		task_card,
+		demo_hints,
 		game_over_screen,
 		verify_button,
 		player_spawn,

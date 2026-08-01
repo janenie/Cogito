@@ -29,6 +29,12 @@ func _test_assignment_enumeration() -> void:
 
 func _test_clue_semantics() -> void:
 	var round_state := AIPlayMeetingBriefingRound.new()
+	var public_names: Dictionary = {}
+	for folder_id: String in AIPlayMeetingBriefingRound.FOLDER_IDS:
+		var public_name: String = AIPlayMeetingBriefingRound.FOLDER_LABELS[folder_id]
+		_assert(public_name.length() == 2, "%s has a two-character Chinese name" % folder_id)
+		_assert(public_name not in public_names, "%s has a unique public name" % folder_id)
+		public_names[public_name] = true
 	var assignment := {
 		"atlas": "tv_side",
 		"birch": "door_side",
@@ -52,6 +58,8 @@ func _test_clue_semantics() -> void:
 		_assert(not text.is_empty(), "%s clue has public text" % clue.kind)
 		for internal_id: String in AIPlayMeetingBriefingRound.SEAT_IDS:
 			_assert(internal_id not in text, "public clue hides internal seat IDs")
+		for internal_id: String in AIPlayMeetingBriefingRound.FOLDER_IDS:
+			_assert(internal_id not in text, "public clue hides internal folder IDs")
 
 	_assert(
 		round_state.clue_matches(

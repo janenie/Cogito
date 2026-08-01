@@ -68,14 +68,31 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		)
 	_assert(monitor.seat_interactions.size() == 4, "four seats are active")
 	_assert(monitor.record_readables.size() == 3, "three records are active")
+	_assert(not monitor.demo_hints.visible, "unrelated Demo Hints are hidden")
+	_assert(
+		monitor.demo_hints.process_mode == Node.PROCESS_MODE_DISABLED,
+		"unrelated Demo Hints stop processing",
+	)
+	for child: Node in monitor.demo_hints.find_children(
+		"*",
+		"CollisionObject3D",
+		true,
+		false,
+	):
+		var hint_object := child as CollisionObject3D
+		_assert(hint_object.collision_layer == 0, "%s hint collision is removed" % child.name)
+		_assert(hint_object.collision_mask == 0, "%s hint mask is removed" % child.name)
 	for required_text: String in [
 		"CEO 办公室",
+		"CEO OFFICE",
 		"档案室",
+		"ARCHIVE",
 		"休息室",
-		"ATLAS",
-		"BIRCH",
-		"CROWN",
-		"DELTA",
+		"BREAK ROOM",
+		"李明",
+		"王芳",
+		"陈宇",
+		"赵宁",
 		"电视侧",
 		"会议室门侧",
 		"电视对面侧",
@@ -86,6 +103,9 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			monitor.task_card.readable_content.contains(required_text),
 			"task card explains %s" % required_text,
 		)
+	_assert_large_readable(monitor.task_card, "task card")
+	for readable: Node in monitor.record_readables:
+		_assert_large_readable(readable, readable.get_parent().name)
 	_assert(
 		monitor.player.global_position.distance_to(monitor.player_spawn.global_position)
 		< 0.25,
@@ -108,10 +128,19 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 	for record_index: int in range(AIPlayMeetingBriefingRound.RECORD_IDS.size()):
 		var record_id: String = AIPlayMeetingBriefingRound.RECORD_IDS[record_index]
 		var clue_index: int = first_snapshot.record_clues[record_id]
+		var interaction_text: String = monitor.record_readables[record_index].interaction_text
 		_assert(
 			monitor.record_readables[record_index].readable_content
 			== monitor._round.clue_text(first_snapshot.clues[clue_index]),
 			"%s record contains its assigned clue" % record_id,
+		)
+		_assert(
+			interaction_text.contains("读取") and interaction_text.contains("Read"),
+			"%s record interaction is bilingual" % record_id,
+		)
+		_assert(
+			not interaction_text.contains("break_room"),
+			"%s record interaction uses a readable place name" % record_id,
 		)
 
 	var player_interaction: Node = monitor.player.get_node("PlayerInteractionComponent")
@@ -228,6 +257,11 @@ func _test_isolation(monitor: Node, setup: Node) -> void:
 	)
 	_assert(monitor.get_round_snapshot().is_empty(), "unselected Monitor has no state")
 	_assert(monitor.get_folder_seat_map().is_empty(), "unselected placement map is empty")
+	_assert(monitor.demo_hints.visible, "unselected Demo Hints stay visible")
+	_assert(
+		monitor.demo_hints.process_mode != Node.PROCESS_MODE_DISABLED,
+		"unselected Demo Hints keep normal processing",
+	)
 	for folder: RigidBody3D in monitor.folder_nodes:
 		_assert(
 			folder.process_mode == Node.PROCESS_MODE_DISABLED,
@@ -255,6 +289,27 @@ func _test_isolation(monitor: Node, setup: Node) -> void:
 	_assert(
 		monitor.verify_button.get_node("BasicInteraction").is_disabled,
 		"Verify interaction stays disabled",
+	)
+
+
+func _assert_large_readable(readable: Node, label: String) -> void:
+	var readable_ui := readable.get_node("ReadableUi") as Control
+	var scroll := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var title := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableTitle"
+	) as Label
+	var content := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableContent"
+	) as RichTextLabel
+	_assert(readable_ui.size.x >= 880.0, "%s popup is wider" % label)
+	_assert(readable_ui.size.y >= 720.0, "%s popup is taller" % label)
+	_assert(scroll.custom_minimum_size.x >= 760.0, "%s text area is wider" % label)
+	_assert(title.get_theme_font_size("font_size") >= 42, "%s title is larger" % label)
+	_assert(
+		content.get_theme_font_size("normal_font_size") >= 24,
+		"%s content is larger" % label,
 	)
 
 

@@ -34,13 +34,13 @@ transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.2, 1.2, -16.7)
 [node name="TaskCardLabel" type="Label3D" parent="TaskCardAnchor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 0, 0)
 billboard = 1
-text = "TASK CARD"
+text = "任务卡 / TASK CARD"
 font = ExtResource("6_font")
 font_size = 18
 outline_size = 6
 
 [node name="RecordCEO" parent="." instance=ExtResource("2_record")]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -6.15, 3.46, -11.4)
+transform = Transform3D(-2.63806e-09, 0.998177, -0.0603517, 4.36317e-08, 0.0603517, 0.998177, 1, 0, -4.37114e-08, -6.75, 3.49246, -10.6396)
 collision_layer = 0
 cogito_name = "MeetingRecordCEO"
 display_name = "CEO meeting record"
@@ -52,15 +52,15 @@ readable_title = "Inactive meeting record"
 readable_content = "This record is available only during its task."
 
 [node name="RecordCEOLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.15, 3.75, -11.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.75, 3.82, -10.6396)
 billboard = 1
-text = "CEO MEETING RECORD"
+text = "CEO 办公室 / CEO OFFICE\n会议记录 / MEETING RECORD"
 font = ExtResource("6_font")
-font_size = 20
+font_size = 17
 outline_size = 6
 
 [node name="RecordArchive" parent="." instance=ExtResource("2_record")]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -5.35, 0.92, 9.85)
+transform = Transform3D(-2.63806e-09, 0.998177, -0.0603517, 4.36317e-08, 0.0603517, 0.998177, 1, 0, -4.37114e-08, -1.03, 0.82, 12.27)
 collision_layer = 0
 cogito_name = "MeetingRecordArchive"
 display_name = "Archive meeting record"
@@ -72,15 +72,15 @@ readable_title = "Inactive meeting record"
 readable_content = "This record is available only during its task."
 
 [node name="RecordArchiveLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.35, 1.22, 9.85)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.03, 1.15, 12.27)
 billboard = 1
-text = "ARCHIVE MEETING RECORD"
+text = "档案室 / ARCHIVE\n会议记录 / MEETING RECORD"
 font = ExtResource("6_font")
-font_size = 20
+font_size = 17
 outline_size = 6
 
 [node name="RecordBreakRoom" parent="." instance=ExtResource("2_record")]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -1, 0.9, -11.5)
+transform = Transform3D(-2.63806e-09, 0.998177, -0.0603517, 4.36317e-08, 0.0603517, 0.998177, 1, 0, -4.37114e-08, -6.1, 0.06, -12.8)
 collision_layer = 0
 cogito_name = "MeetingRecordBreakRoom"
 display_name = "Break Room meeting record"
@@ -92,11 +92,11 @@ readable_title = "Inactive meeting record"
 readable_content = "This record is available only during its task."
 
 [node name="RecordBreakRoomLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.2, -11.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1, 0.42, -12.8)
 billboard = 1
-text = "BREAK ROOM MEETING RECORD"
+text = "休息室 / BREAK ROOM\n会议记录 / MEETING RECORD"
 font = ExtResource("6_font")
-font_size = 20
+font_size = 17
 outline_size = 6
 
 [node name="FolderAtlas" parent="." instance=ExtResource("1_books")]
@@ -105,7 +105,7 @@ process_mode = 4
 collision_layer = 0
 collision_mask = 0
 cogito_name = "MeetingBriefingAtlas"
-display_name = "ATLAS meeting briefing"
+display_name = "李明的会议资料"
 
 [node name="CarryableComponent" parent="FolderAtlas" index="4"]
 is_disabled = true
@@ -113,7 +113,7 @@ is_disabled = true
 [node name="NameLabel" type="Label3D" parent="FolderAtlas"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
 billboard = 1
-text = "ATLAS"
+text = "李明"
 font = ExtResource("6_font")
 font_size = 20
 outline_size = 7
@@ -124,7 +124,7 @@ process_mode = 4
 collision_layer = 0
 collision_mask = 0
 cogito_name = "MeetingBriefingBirch"
-display_name = "BIRCH meeting briefing"
+display_name = "王芳的会议资料"
 
 [node name="CarryableComponent" parent="FolderBirch" index="4"]
 is_disabled = true
@@ -132,7 +132,7 @@ is_disabled = true
 [node name="NameLabel" type="Label3D" parent="FolderBirch"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
 billboard = 1
-text = "BIRCH"
+text = "王芳"
 font = ExtResource("6_font")
 font_size = 20
 outline_size = 7
@@ -143,7 +143,7 @@ process_mode = 4
 collision_layer = 0
 collision_mask = 0
 cogito_name = "MeetingBriefingCrown"
-display_name = "CROWN meeting briefing"
+display_name = "陈宇的会议资料"
 
 [node name="CarryableComponent" parent="FolderCrown" index="4"]
 is_disabled = true
@@ -151,7 +151,7 @@ is_disabled = true
 [node name="NameLabel" type="Label3D" parent="FolderCrown"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
 billboard = 1
-text = "CROWN"
+text = "陈宇"
 font = ExtResource("6_font")
 font_size = 20
 outline_size = 7
@@ -162,7 +162,7 @@ process_mode = 4
 collision_layer = 0
 collision_mask = 0
 cogito_name = "MeetingBriefingDelta"
-display_name = "DELTA meeting briefing"
+display_name = "赵宁的会议资料"
 
 [node name="CarryableComponent" parent="FolderDelta" index="4"]
 is_disabled = true
@@ -170,7 +170,7 @@ is_disabled = true
 [node name="NameLabel" type="Label3D" parent="FolderDelta"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
 billboard = 1
-text = "DELTA"
+text = "赵宁"
 font = ExtResource("6_font")
 font_size = 20
 outline_size = 7
@@ -193,9 +193,9 @@ shape = SubResource("SeatShape")
 [node name="SeatLabel" type="Label3D" parent="SeatTVSide"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
-text = "TV SIDE"
+text = "电视侧 / TV SIDE"
 font = ExtResource("6_font")
-font_size = 14
+font_size = 12
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatTVSide"]
@@ -223,9 +223,9 @@ shape = SubResource("SeatShape")
 [node name="SeatLabel" type="Label3D" parent="SeatDoorSide"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
-text = "DOOR SIDE"
+text = "门侧 / DOOR SIDE"
 font = ExtResource("6_font")
-font_size = 14
+font_size = 12
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatDoorSide"]
@@ -253,9 +253,9 @@ shape = SubResource("SeatShape")
 [node name="SeatLabel" type="Label3D" parent="SeatOppositeTV"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
-text = "OPPOSITE TV"
+text = "电视对面 / OPPOSITE TV"
 font = ExtResource("6_font")
-font_size = 14
+font_size = 12
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatOppositeTV"]
@@ -283,9 +283,9 @@ shape = SubResource("SeatShape")
 [node name="SeatLabel" type="Label3D" parent="SeatInnerWall"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
-text = "INNER WALL"
+text = "内墙侧 / INNER WALL"
 font = ExtResource("6_font")
-font_size = 14
+font_size = 12
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatInnerWall"]
@@ -298,7 +298,7 @@ seat_id = "inner_wall"
 [node name="ClockwiseLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.15, 1.55, 14.55)
 billboard = 1
-text = "↻  CLOCKWISE"
+text = "↻  顺时针 / CLOCKWISE"
 font = ExtResource("6_font")
 font_size = 18
 outline_size = 7
@@ -316,7 +316,7 @@ is_disabled = true
 
 [node name="VerifyLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 1.48, 12.23)
-text = "VERIFY"
+text = "验证 / VERIFY"
 font = ExtResource("6_font")
 font_size = 24
 outline_size = 7

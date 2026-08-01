@@ -10,16 +10,16 @@ const SEAT_IDS: Array[String] = [
 ]
 const RECORD_IDS: Array[String] = ["ceo", "archive", "break_room"]
 const FOLDER_LABELS := {
-	"atlas": "ATLAS",
-	"birch": "BIRCH",
-	"crown": "CROWN",
-	"delta": "DELTA",
+	"atlas": "李明",
+	"birch": "王芳",
+	"crown": "陈宇",
+	"delta": "赵宁",
 }
 const SEAT_LABELS := {
-	"tv_side": "电视侧",
-	"door_side": "会议室门侧",
-	"opposite_tv": "电视对面侧",
-	"inner_wall": "内墙侧",
+	"tv_side": "电视侧 (TV SIDE)",
+	"door_side": "会议室门侧 (DOOR SIDE)",
+	"opposite_tv": "电视对面侧 (OPPOSITE TV)",
+	"inner_wall": "内墙侧 (INNER WALL)",
 }
 
 var _configured: bool = false
@@ -208,27 +208,27 @@ func clue_text(clue: Dictionary) -> String:
 	var kind: String = str(clue.get("kind", ""))
 	match kind:
 		"exact_seat":
-			return "%s 资料属于%s席位。" % [
+			return "%s的资料属于%s席位。" % [
 				_folder_label(clue.get("folder", "")),
 				_seat_label(clue.get("seat", "")),
 			]
 		"not_seat":
-			return "%s 资料不属于%s席位。" % [
+			return "%s的资料不属于%s席位。" % [
 				_folder_label(clue.get("folder", "")),
 				_seat_label(clue.get("seat", "")),
 			]
 		"adjacent":
-			return "%s 与 %s 两份资料的席位相邻。" % [
+			return "%s与%s的资料席位相邻。" % [
 				_folder_label(clue.get("folder_a", "")),
 				_folder_label(clue.get("folder_b", "")),
 			]
 		"opposite":
-			return "%s 与 %s 两份资料的席位相对。" % [
+			return "%s与%s的资料席位相对。" % [
 				_folder_label(clue.get("folder_a", "")),
 				_folder_label(clue.get("folder_b", "")),
 			]
 		"clockwise_next":
-			return "%s 位于 %s 的顺时针下一席。" % [
+			return "%s的资料席位是%s资料席位的顺时针下一席。" % [
 				_folder_label(clue.get("to_folder", "")),
 				_folder_label(clue.get("from_folder", "")),
 			]

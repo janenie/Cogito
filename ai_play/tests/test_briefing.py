@@ -146,9 +146,15 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
     assert briefing["game_id"] == "arrange_meeting_briefings"
     serialized = repr(briefing)
     assert "CEO 办公室" in serialized
+    assert "CEO OFFICE" in serialized
     assert "档案室" in serialized
+    assert "ARCHIVE" in serialized
     assert "休息室" in serialized
-    assert "ATLAS" in serialized
+    assert "BREAK ROOM" in serialized
+    for attendee_name in ["李明", "王芳", "陈宇", "赵宁"]:
+        assert attendee_name in serialized
+    for legacy_name in ["ATLAS", "BIRCH", "CROWN", "DELTA"]:
+        assert legacy_name not in serialized
     assert "顺时针" in serialized
     assert "200 次 act 请求" in briefing["failure_condition"]
     assert "一次" in serialized
