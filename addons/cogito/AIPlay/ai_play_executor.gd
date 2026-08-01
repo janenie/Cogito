@@ -4,7 +4,7 @@ extends Node
 signal batch_finished(results: Array)
 
 const ACTION_FIELDS: Dictionary = {
-	"look": ["type", "yaw", "pitch"],
+	"look": ["type", "direction", "degrees"],
 	"move": ["type", "forward", "right", "duration_ms"],
 	"sprint": ["type", "forward", "right", "duration_ms"],
 	"jump": ["type"],
@@ -19,7 +19,8 @@ const ACTION_FIELDS: Dictionary = {
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
-const LOOK_MAX_DEGREES: float = 15.0
+const LOOK_DIRECTIONS: Array[String] = ["left", "right", "up", "down"]
+const LOOK_MAX_DEGREES: float = 45.0
 const MOVE_MAX_DURATION_MS: float = 250.0
 
 @export var player: Node3D
@@ -50,13 +51,11 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 
 	match action_type:
 		"look":
+			var direction: Variant = action_dictionary["direction"]
+			if not direction is String or direction not in LOOK_DIRECTIONS:
+				return _invalid("look direction is not allowed")
 			var error: String = _number_error(
-				action_dictionary["yaw"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "yaw"
-			)
-			if not error.is_empty():
-				return _invalid(error)
-			error = _number_error(
-				action_dictionary["pitch"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "pitch"
+				action_dictionary["degrees"], 1.0, LOOK_MAX_DEGREES, "degrees"
 			)
 			if not error.is_empty():
 				return _invalid(error)
@@ -160,15 +159,15 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 	var action_type: String = action["type"]
 	match action_type:
 		"look":
+			var look_delta := _semantic_look_delta(
+				action["direction"], float(action["degrees"])
+			)
 			if player != null and player.has_method("ai_play_look_degrees"):
-				player.ai_play_look_degrees(float(action["yaw"]), float(action["pitch"]))
+				player.ai_play_look_degrees(look_delta.x, look_delta.y)
 			else:
 				var motion := InputEventMouseMotion.new()
 				motion.device = SYNTHETIC_DEVICE_ID
-				motion.relative = _look_degrees_to_mouse_relative(
-					float(action["yaw"]),
-					float(action["pitch"])
-				)
+				motion.relative = _look_degrees_to_mouse_relative(look_delta.x, look_delta.y)
 				motion.screen_relative = motion.relative
 				Input.parse_input_event(motion)
 		"move", "sprint":
@@ -217,6 +216,19 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
+
+
+func _semantic_look_delta(direction: String, degrees: float) -> Vector2:
+	match direction:
+		"left":
+			return Vector2(-degrees, 0.0)
+		"right":
+			return Vector2(degrees, 0.0)
+		"up":
+			return Vector2(0.0, -degrees)
+		"down":
+			return Vector2(0.0, degrees)
+	return Vector2.ZERO
 
 
 func _look_degrees_to_mouse_relative(yaw_degrees: float, pitch_degrees: float) -> Vector2:
