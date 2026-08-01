@@ -54,14 +54,6 @@ size = Vector3(8, 0.3, 4)
 albedo_color = Color(0.83, 0.73, 0.56, 1)
 roughness = 0.9
 
-[sub_resource type="BoxMesh" id="FenceLongMesh"]
-material = SubResource("FenceMaterial")
-size = Vector3(10, 1.1, 0.25)
-
-[sub_resource type="BoxMesh" id="FenceSideMesh"]
-material = SubResource("FenceMaterial")
-size = Vector3(0.25, 1.1, 6.5)
-
 [sub_resource type="BoxMesh" id="SignPostMesh"]
 material = SubResource("FenceMaterial")
 size = Vector3(0.25, 2.4, 0.25)
@@ -114,18 +106,6 @@ billboard = 1
 [node name="SoilBed" type="MeshInstance3D" parent="Garden"]
 position = Vector3(0, 0.16, -5.15)
 mesh = SubResource("SoilMesh")
-
-[node name="BackFence" type="MeshInstance3D" parent="Garden"]
-position = Vector3(0, 0.55, -7.2)
-mesh = SubResource("FenceLongMesh")
-
-[node name="LeftFence" type="MeshInstance3D" parent="Garden"]
-position = Vector3(-5, 0.55, -4)
-mesh = SubResource("FenceSideMesh")
-
-[node name="RightFence" type="MeshInstance3D" parent="Garden"]
-position = Vector3(5, 0.55, -4)
-mesh = SubResource("FenceSideMesh")
 
 [node name="Plants" type="Node3D" parent="Garden"]
 

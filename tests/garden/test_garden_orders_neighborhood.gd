@@ -44,6 +44,7 @@ func _test_house_component() -> void:
 	_assert(house.get_node_or_null("Garden/Destination") != null, "house has a destination marker")
 	_assert(house.get_node_or_null("Garden/GardenWorkPoint") != null, "house has a work marker")
 	_assert(house.get_node_or_null("HouseBody/CollisionShape3D") != null, "house has collision")
+	_assert(_count_garden_fences(house) == 0, "house garden stays open without perimeter fences")
 	house.queue_free()
 	await process_frame
 
@@ -135,3 +136,11 @@ func _assert(condition: bool, message: String) -> void:
 		return
 	failures += 1
 	push_error("FAIL: %s" % message)
+
+
+func _count_garden_fences(house: Node) -> int:
+	var count := 0
+	for fence_name in ["BackFence", "LeftFence", "RightFence"]:
+		if house.get_node_or_null("Garden/%s" % fence_name) != null:
+			count += 1
+	return count
