@@ -70,9 +70,11 @@ Godot 桥的安全边界。
   不受过滤；垂直映射必须抵消玩家的反转轴设置，使 `up` / `down` 与最终画面一致。停用、错误、
   终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
 - 所有动作的后续 observation（包括普通 interval、即时和恢复捕获）都必须在 Godot 内部先留出
-  一个完整输入/处理帧，再等待 `RenderingServer.frame_post_draw` 后捕获截图；这项等待不得暴露为
-  AI action 或消耗请求额度。等待后重新检查 capture generation、控制器状态和节点生命周期，
-  防止动作尚未生效、旧动作、停用或销毁后发送滞后观察。
+  一个完整输入/处理帧，再等待最多 1 秒的 `RenderingServer.frame_post_draw` 后捕获截图；后台窗口
+  没有产生信号时，必须在主线程调用 `RenderingServer.force_draw(false)` 重绘当前 Viewport，而不是
+  等待到 Python action timeout 或发送旧纹理。这项等待不得暴露为 AI action 或消耗请求额度。
+  等待后重新检查 capture generation、控制器状态和节点生命周期，防止动作尚未生效、旧动作、
+  停用或销毁后发送滞后观察。
 - `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；结构化结果不得重复 Base64 图片，也不得包含隐藏状态。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受

@@ -116,6 +116,7 @@ func _run_tests() -> void:
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
 	await _test_interval_recapture_waits_for_rendering(controller_script)
+	await _test_interval_recapture_force_draws_after_render_timeout(controller_script)
 	await _test_terminal_outcomes(controller_script)
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
@@ -781,6 +782,32 @@ func _test_interval_recapture_waits_for_rendering(controller_script: GDScript) -
 	_assert(
 		fixture.observer.capture_count == initial_capture_count + 1,
 		"interval recapture captures exactly once after rendering",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_interval_recapture_force_draws_after_render_timeout(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	var has_timeout_setting: bool = "_render_frame_wait_timeout_msec" in fixture.controller
+	_assert(has_timeout_setting, "controller exposes an internal bounded render wait")
+	if has_timeout_setting:
+		fixture.controller._render_frame_wait_timeout_msec = 20
+	fixture.bridge.action_batch_received.emit({
+		"type": "action_batch",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"actions": [{"type": "look", "direction": "left", "degrees": 45.0}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "completed", "type": "look"}])
+	fixture.timer.stop()
+	fixture.timer.timeout.emit()
+	await create_timer(0.1).timeout
+	_assert(
+		fixture.observer.capture_count == initial_capture_count + 1,
+		"render timeout force-draws and captures without a frame_post_draw signal",
 	)
 	await _free_fixture(fixture)
 

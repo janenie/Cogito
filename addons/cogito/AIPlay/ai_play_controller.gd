@@ -62,6 +62,7 @@ var _stop_delivery_pending: bool = false
 var _game_finished: bool = false
 var _active_scenario_id: String = ""
 var _exit_on_game_over: bool = false
+var _render_frame_wait_timeout_msec: int = 1000
 
 var _observer: Node
 var _executor: Node
@@ -450,7 +451,6 @@ func _capture_observation_if_current(generation: int, results: Array) -> void:
 	# Synthetic input is delivered after the batch signal. Give the game one full
 	# input/process frame to apply UI and interaction changes before reading pixels.
 	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
 	if (
 		generation != _capture_generation
 		or _state != State.READY
@@ -458,7 +458,38 @@ func _capture_observation_if_current(generation: int, results: Array) -> void:
 		or not is_inside_tree()
 	):
 		return
+	var rendered: bool = await _wait_for_render_frame(_render_frame_wait_timeout_msec)
+	if (
+		generation != _capture_generation
+		or _state != State.READY
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
+		return
+	if not rendered:
+		# A background or throttled window may keep processing game state without
+		# producing frame_post_draw. Force one current-state viewport redraw instead
+		# of waiting until the MCP action timeout or publishing stale pixels.
+		RenderingServer.force_draw(false)
 	_capture_observation(results)
+
+
+func _wait_for_render_frame(timeout_msec: int) -> bool:
+	var render_state: Dictionary = {"completed": false}
+	var mark_completed := func() -> void:
+		render_state["completed"] = true
+	RenderingServer.frame_post_draw.connect(mark_completed, CONNECT_ONE_SHOT)
+	var deadline_msec: int = Time.get_ticks_msec() + timeout_msec
+	while (
+		not render_state["completed"]
+		and Time.get_ticks_msec() < deadline_msec
+		and not is_queued_for_deletion()
+		and is_inside_tree()
+	):
+		await get_tree().process_frame
+	if RenderingServer.frame_post_draw.is_connected(mark_completed):
+		RenderingServer.frame_post_draw.disconnect(mark_completed)
+	return render_state["completed"]
 
 
 func _exit_tree() -> void:
