@@ -41,9 +41,15 @@ func _run_test() -> void:
 		for follower: Node in path.get_children():
 			if follower.visible and follower.get_meta("available", false):
 				ingredient_ids.append(String(follower.get_meta("ingredient_id", "")))
+		_check(ingredient_ids.size() == 16, "all sixteen food slots are filled")
 		var catalog: GDScript = load("res://conveyor_profit/scripts/recipe_catalog.gd")
 		var candidates: Array[Dictionary] = catalog.attainable_single_dishes(ingredient_ids)
-		_check(candidates.size() in [1, 2], "active window has one or two candidate dishes")
+		_check(candidates.size() == 2, "active window has exactly two candidate dishes")
+		if candidates.size() == 2:
+			_check(
+				int(candidates[0]["profit"]) != int(candidates[1]["profit"]),
+				"active candidate dish profits differ",
+			)
 
 	environment.queue_free()
 	quit(1 if not failures.is_empty() else 0)

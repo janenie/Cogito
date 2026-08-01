@@ -36,10 +36,20 @@ func _initialize() -> void:
 			and window.has("best_profit"),
 			"window exposes only ingredients and hidden best profit",
 		)
-		var candidates: Array[Dictionary] = catalog.attainable_single_dishes(
-			window["ingredients"],
-		)
-		_check(candidates.size() in [1, 2], "window has one or two feasible recipes")
+		var ingredients: Array = window["ingredients"]
+		_check(ingredients.size() == 16, "window contains sixteen real plates")
+		var valid_ingredients := true
+		for ingredient: Variant in ingredients:
+			if not ingredient is String or ingredient not in catalog.INGREDIENT_IDS:
+				valid_ingredients = false
+		_check(valid_ingredients, "every plate contains a catalog ingredient")
+		var candidates: Array[Dictionary] = catalog.attainable_single_dishes(ingredients)
+		_check(candidates.size() == 2, "window has exactly two feasible recipes")
+		if candidates.size() == 2:
+			_check(
+				int(candidates[0]["profit"]) != int(candidates[1]["profit"]),
+				"candidate recipe profits differ",
+			)
 		var expected_best := 0
 		for recipe: Dictionary in candidates:
 			expected_best = maxi(expected_best, int(recipe["profit"]))
