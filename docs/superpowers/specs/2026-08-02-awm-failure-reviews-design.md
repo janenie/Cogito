@@ -110,6 +110,9 @@ review contributes one accepted item; a normalized duplicate contributes zero.
 Memory stores at most the three most recent unique failure reviews. Reviews are
 compared after normalization, including the trusted terminal reason. When a
 fourth unique review is accepted, the oldest review is discarded.
+A duplicate contributes zero accepted items and does not refresh its recency.
+When a memory snapshot exists but no review has been stored, the snapshot
+returns `"failure_reviews": []`.
 
 Reviews remain scoped to one `SessionWorkflowMemory` instance and disappear
 when the MCP process exits. They are never sent to `TrajectoryLogger` and are
@@ -130,7 +133,7 @@ The review uses the existing normalized-text safety boundary:
 - rejection of URLs, repository paths, internal file types, node paths,
   six-digit secrets, coordinates, absolute positions, and timed actions.
 
-Recommended bounds are one non-empty `stage`, one to three non-empty
+Required bounds are one non-empty `stage`, one to three non-empty
 `bottlenecks`, and one to four non-empty `optimizations`, with each text value
 limited to the existing 240-character maximum.
 
