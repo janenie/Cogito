@@ -1097,7 +1097,7 @@ git commit -m "docs(ai-play): explain ordered CEO book delivery"
 - Consumes: complete seeded shelf, pickup-order, destination, protocol, and briefing implementation.
 - Produces: evidence that the feature works in the real Lobby scene without breaking the AI-play bridge or other scenarios.
 
-- [ ] **Step 1: Generate engine-owned resource metadata and inspect it**
+- [x] **Step 1: Generate engine-owned resource metadata and inspect it**
 
 Run:
 
@@ -1108,7 +1108,7 @@ git status --short
 
 Expected: no parse/UID error. Track only new `.uid` files generated for the three new GDScript resources; do not add `.godot/` or import caches.
 
-- [ ] **Step 2: Run focused Godot tests**
+- [x] **Step 2: Run focused Godot tests**
 
 Run:
 
@@ -1121,7 +1121,7 @@ bash tests/check_ai_play_lobby.sh
 
 Expected: all commands exit `0`; the put-book test prints `AIPlay put-book monitor test passed` and no output contains `SCRIPT ERROR` or `invalid UID`.
 
-- [ ] **Step 3: Run the full Python AI-play suite**
+- [x] **Step 3: Run the full Python AI-play suite**
 
 Run:
 
@@ -1132,7 +1132,7 @@ sphinx-build -b html docs docs/_build/html
 
 Expected: all Python AI-play tests pass with no real MCP client, model invocation, screenshot persistence, or credentials.
 
-- [ ] **Step 4: Run repository safety and formatting checks**
+- [x] **Step 4: Run repository safety and formatting checks**
 
 Run:
 
@@ -1166,7 +1166,7 @@ Verify in the rendered game:
 
 Do not run `tools/ai_play_codex_orchestrator.py` as part of this plan. A real 150-request Codex acceptance uses screenshots, credentials, tokens, and persisted trajectories and therefore requires separate explicit user authorization.
 
-- [ ] **Step 6: Record completion in the plan and commit final verification**
+- [x] **Step 6: Record completion in the plan and commit final verification**
 
 Mark completed checkboxes only for commands and acceptance checks actually performed. If the human visual check is delegated to the user, leave that checkbox open and report it explicitly.
 
