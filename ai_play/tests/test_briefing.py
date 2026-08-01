@@ -41,15 +41,23 @@ def test_put_book_registry_loads_bounded_public_briefing():
     briefing, image_bytes = load_scenario_briefing("put_book")
 
     assert briefing["game_id"] == "put_book"
-    assert briefing["success_condition"] == "目标书进入档案室地上的目标纸箱。"
-    assert "50" in briefing["failure_condition"]
+    assert briefing["success_condition"] == (
+        "按低层、中层、高层顺序，将三本带标记的任务书逐本送到 "
+        "CEO OFFICE 的书籍放置点。"
+    )
+    assert "150" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
+    for required in ["六本", "任务书", "低层", "中层", "高层", "CEO OFFICE", "一次搬运一本"]:
+        assert required in serialized
+    for obsolete in ["目标纸箱", "最近", "jump", "crouch", "高处或低处"]:
+        assert obsolete not in serialized
     for forbidden in [
-        "ArchiveDoor",
-        "PutBook",
-        "cardboardBoxOpen",
-        "books2",
+        "PutBookShelfSlots",
+        "DestinationArea",
+        "slot_id",
+        "shelf_id",
+        "height_tier",
         "round_seed",
     ]:
         assert forbidden not in serialized

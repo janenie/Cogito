@@ -209,9 +209,12 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 `success/key_picked_up`，该玩法没有答错失败。台式电脑桌、电视茶几和档案室沙发位置
 使用 50 次请求硬上限，笔记本电脑桌和会议长桌位置使用 100 次请求硬上限。
 
-`put_book` 每局从档案室初始可见的书中随机选择一本，将其他书隐藏，并把一个打开纸箱
-以 50% 概率放在档案室地上靠近门口或远离门口的位置。玩家从档案室门口开始，门已打开，
-任务卡位于出生点附近。成功把目标书放入目标纸箱产生 `success/book_in_box`。
+`put_book` 在三组书架上的九个作者标定槽位中，以种子确定的均衡方式选择六个位置：
+每组书架两本、低中高三层各两本。每层有一本带可见任务书标记；玩家必须一次搬运一本，
+按低层、中层、高层顺序把三本任务书送到 CEO OFFICE 的同一个书籍放置点。拿起普通书
+或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`；三本依序送达才产生
+`success/books_in_ceo_office`。该玩法的请求硬上限为 150，仍可通过
+`AI_PLAY_MAX_ACT_REQUESTS` 进一步收紧。
 
 `greet_npc_meeting` 每局让 NPC 沿会议室到休息室方向的既有路线循环移动，并随机选择
 NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，任务卡位于出生点附近。玩家必须
@@ -278,9 +281,10 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `find_contract` 的硬上限为 300 次，终局为 `success/correct_password`、
 `failure/wrong_password` 或 `failure/max_requests`；`find_key` 根据本局位置使用
 50 或 100 次硬上限，公开 briefing 只说明最大值 100 次，
-终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为 50 次，
-终局为 `success/book_in_box` 或 `failure/max_requests`；`greet_npc_meeting` 的硬上限
-为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`；
+终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为
+150 次，终局为 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
+`failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，终局为
+`success/meeting_door_closed` 或 `failure/max_requests`；
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
 为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
@@ -357,7 +361,7 @@ mcplogs/
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
   `daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
-  不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
+  不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书籍的随机布局或任务书选择、
   NPC 路线起点、NPC 路线方向、daily routine 或 garden 内部节点路径、随机下雨时间、
   随机种子或任务内部知识。
 

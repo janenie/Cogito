@@ -54,13 +54,14 @@ Godot 桥的安全边界。
   `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
   50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
-  是 50，终局只允许 `success/book_in_box` 和 `failure/max_requests`；
+  是 150，终局只允许 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和
+  `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
   `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
   硬上限是 300，终局只允许 `success/garden_tasks_complete`、
-  `failure/garden_task_failed` 和 `failure/max_requests`。`find_key`、`put_book` 和
+  `failure/garden_task_failed` 和 `failure/max_requests`。`find_key` 和
   `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
@@ -285,13 +286,19 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 - 玩家固定从档案室门口开始，档案室门在本玩法中已打开，任务卡位于出生点附近。
-- 每局从档案室初始可见的书中随机选择一本，其他书隐藏；目标书以可搬运物体形式放在
-  选中书的位置。
-- 目标纸箱以 50% 概率放在档案室地上靠近门口或远离门口的位置。
-- 只有目标书进入目标纸箱检测区才产生 `success/book_in_box`；仅看到书、拿起书或靠近
-  纸箱不算成功。
-- 非零 `round_seed` 仅供本地确定性测试。候选书、目标箱选择和种子都属于隐藏初始化
-  状态，不得进入公开简报、观察或桥协议。
+- 档案室有分布在三组书架上的九个作者标定槽位。每局以种子确定地选中六个槽位，保持
+  每组书架两本、低中高三层各两本的均衡分布；不同种子可使用不同布局。
+- 每层两本书中恰有一本带可见任务书标记。玩家先从画面判断三本任务书的书架高度，再按
+  低层、中层、高层顺序一次搬运一本；所有槽位均可站立交互，不需要跳跃或下蹲。
+- 玩家拿起普通书或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`。观察或探测
+  不会失败；正确书在 CEO OFFICE 书籍放置点外放下后，可重新拿起继续完成该步骤。
+- CEO OFFICE 只有一个逻辑书籍放置点；三本任务书依序送达才产生
+  `success/books_in_ceo_office`。`put_book` 的硬上限为
+  150 次请求，
+  `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧它。
+- 非零 `round_seed` 仅供本地确定性初始化和测试。种子、已选槽位、任务书身份及其他
+  运行时答案不得进入公开简报、观察或 MCP 协议；内部文档也不得把这些信息作为公开
+  MCP 答案泄露。
 
 ## greet_npc_meeting 回合规则
 
