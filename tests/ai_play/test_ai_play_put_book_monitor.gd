@@ -120,6 +120,91 @@ func _run_test() -> void:
 	var random_snapshot: Dictionary = monitor.get_round_snapshot()
 	_assert(int(random_snapshot["seed"]) != 0, "zero seed creates an effective random seed")
 
+	var terminal_results: Array[Dictionary] = []
+	monitor.game_finished.connect(
+		func(outcome: String, reason: String) -> void:
+			terminal_results.append({
+				"outcome": outcome,
+				"reason": reason,
+			})
+	)
+	monitor.configure_round(123456)
+	var expected: RigidBody3D = monitor._target_books[0]
+	var later_target: RigidBody3D = monitor._target_books[1]
+	var ordinary: RigidBody3D = _first_ordinary_book(monitor)
+	_assert(ordinary != null, "round includes an ordinary book")
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			not monitor._carry_component_for_book(book).is_disabled,
+			"all books start available",
+		)
+	_assert(terminal_results.is_empty(), "observing ordinary books does not fail")
+	monitor._on_book_carry_state_changed(
+		true,
+		ordinary,
+		monitor._carry_component_for_book(ordinary),
+	)
+	_assert(
+		terminal_results == [{
+			"outcome": "failure",
+			"reason": "wrong_book_pickup",
+		}],
+		"ordinary pickup fails immediately",
+	)
+	monitor._on_book_carry_state_changed(
+		true,
+		ordinary,
+		monitor._carry_component_for_book(ordinary),
+	)
+	_assert(terminal_results.size() == 1, "wrong pickup ends the round exactly once")
+
+	monitor.configure_round(123456)
+	terminal_results.clear()
+	later_target = monitor._target_books[1]
+	monitor._on_book_carry_state_changed(
+		true,
+		later_target,
+		monitor._carry_component_for_book(later_target),
+	)
+	_assert(
+		terminal_results == [{
+			"outcome": "failure",
+			"reason": "wrong_book_pickup",
+		}],
+		"later target pickup fails immediately",
+	)
+
+	monitor.configure_round(123456)
+	terminal_results.clear()
+	expected = monitor._target_books[0]
+	monitor._on_book_carry_state_changed(
+		true,
+		expected,
+		monitor._carry_component_for_book(expected),
+	)
+	_assert(terminal_results.is_empty(), "expected target pickup keeps the round active")
+	_assert(monitor._current_carried_book == expected, "expected target becomes the carried book")
+	_assert(monitor._books_carried_once.has(expected), "actual pickup is recorded")
+	for book: RigidBody3D in monitor._active_books:
+		var carry_component: Variant = monitor._carry_component_for_book(book)
+		_assert(
+			carry_component.is_disabled == (book != expected),
+			"correct carry disables every other unfinished book",
+		)
+	monitor._on_book_carry_state_changed(
+		false,
+		expected,
+		monitor._carry_component_for_book(expected),
+	)
+	_assert(monitor._current_target_index == 0, "outside drop does not advance target order")
+	_assert(terminal_results.is_empty(), "outside drop remains recoverable")
+	_assert(monitor._current_carried_book == null, "outside drop clears carried book")
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			not monitor._carry_component_for_book(book).is_disabled,
+			"outside drop re-enables unfinished books",
+		)
+
 	lobby.queue_free()
 	if _test_scene_root != null:
 		_test_scene_root.queue_free()
@@ -167,6 +252,13 @@ func _visible_runtime_books(monitor: AIPlayPutBookMonitor) -> Array[RigidBody3D]
 		if book.visible:
 			result.append(book)
 	return result
+
+
+func _first_ordinary_book(monitor: Node) -> RigidBody3D:
+	for book: RigidBody3D in monitor._active_books:
+		if book not in monitor._target_books:
+			return book
+	return null
 
 
 func _ensure_current_scene() -> void:

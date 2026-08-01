@@ -224,11 +224,45 @@ func _on_book_carry_state_changed(
 	book: RigidBody3D,
 	_carry_component: Variant,
 ) -> void:
+	if _round_finished:
+		return
 	if is_being_carried:
+		if book != _expected_target_book():
+			_finish_round("failure", "wrong_book_pickup")
+			return
 		_current_carried_book = book
+		_books_carried_once[book] = true
 		_snap_book_to_carry_position(book)
+		_update_book_pickup_gate()
 	elif _current_carried_book == book:
 		_current_carried_book = null
+		_update_book_pickup_gate()
+
+
+func _finish_round(outcome: String, reason: String) -> void:
+	if _round_finished:
+		return
+	_round_finished = true
+	game_finished.emit(outcome, reason)
+
+
+func _expected_target_book() -> RigidBody3D:
+	if _current_target_index < 0 or _current_target_index >= _target_books.size():
+		return null
+	return _target_books[_current_target_index]
+
+
+func _update_book_pickup_gate() -> void:
+	for book: RigidBody3D in _active_books:
+		var carry_component: Variant = _carry_component_for_book(book)
+		if carry_component == null:
+			continue
+		if book in _completed_books:
+			carry_component.is_disabled = true
+		elif _current_carried_book == null:
+			carry_component.is_disabled = false
+		else:
+			carry_component.is_disabled = book != _current_carried_book
 
 
 func _snap_book_to_carry_position(book: RigidBody3D = null) -> void:
