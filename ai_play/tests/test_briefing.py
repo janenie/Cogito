@@ -121,6 +121,56 @@ def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state
 
     assert image_bytes is None
     assert briefing["game_id"] == "conveyor_profit"
+    expected_menu = [
+        {
+            "id": "salad",
+            "name": "SALAD",
+            "ingredients": ["lettuce", "tomato", "mushroom"],
+            "sale_price": 7,
+            "net_profit": 3,
+        },
+        {
+            "id": "egg_toast",
+            "name": "EGG TOAST",
+            "ingredients": ["bread", "egg"],
+            "sale_price": 8,
+            "net_profit": 4,
+        },
+        {
+            "id": "cheese_toast",
+            "name": "CHEESE TOAST",
+            "ingredients": ["bread", "cheese"],
+            "sale_price": 10,
+            "net_profit": 5,
+        },
+        {
+            "id": "burger",
+            "name": "BURGER",
+            "ingredients": ["bread", "meat", "lettuce", "tomato"],
+            "sale_price": 15,
+            "net_profit": 6,
+        },
+        {
+            "id": "fish_sandwich",
+            "name": "FISH SANDWICH",
+            "ingredients": ["bread", "fish", "lettuce"],
+            "sale_price": 14,
+            "net_profit": 7,
+        },
+        {
+            "id": "mushroom_omelet",
+            "name": "MUSHROOM OMELET",
+            "ingredients": ["egg", "cheese", "mushroom"],
+            "sale_price": 14,
+            "net_profit": 7,
+        },
+    ]
+    assert briefing["menu"] == expected_menu
+
+    second, _ = load_scenario_briefing("conveyor_profit")
+    briefing["menu"][0]["ingredients"].append("bread")
+    assert second["menu"] == expected_menu
+
     serialized = repr(briefing)
     for term in [
         "select_ingredient", "undo", "make", "wait_next_window",
