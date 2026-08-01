@@ -164,10 +164,10 @@ font_size = 20
 outline_size = 6
 
 [node name="PanelSpawn" type="Marker3D" parent="."]
-transform = Transform3D(-0.611835, 0, -0.790986, 0, 1, 0, 0.790986, 0, -0.611835, 3.03073, 0.905039, -17.9321)
+transform = Transform3D(0.815423, 0, -0.578866, 0, 1, 0, 0.578866, 0, 0.815423, 3, 0.905039, -12)
 
 [node name="TaskCardAnchor" type="Marker3D" parent="."]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 4.85, 1.35, -17.35)
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 4.85, 1.35, -14.2)
 
 [node name="BreakRoomLamp" parent="." instance=ExtResource("3_lamp")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, -13)

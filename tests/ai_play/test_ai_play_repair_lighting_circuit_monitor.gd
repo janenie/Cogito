@@ -63,15 +63,15 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.control_switch_a == lobby.get_node("GenericSwitch"),
 		"existing red switch is A",
 	)
-	var entrance_spawn: Marker3D = lobby.get_node("AIPlayRoundMarkers/EntranceSpawn")
+	var lobby_spawn: Marker3D = lobby.get_node("AIPlayRoundMarkers/LobbySpawn")
 	_assert(
-		monitor.panel_spawn.global_position.distance_to(entrance_spawn.global_position) < 0.01,
-		"lighting task reuses the established indoor entrance position",
+		monitor.panel_spawn.global_position.distance_to(lobby_spawn.global_position) < 0.01,
+		"lighting task reuses the established main-Lobby position",
 	)
 	_assert(
-		monitor.player.global_position.distance_to(entrance_spawn.global_position) < 0.25,
-		"selected task places the player at the indoor entrance spawn: actual=%s expected=%s"
-		% [monitor.player.global_position, entrance_spawn.global_position],
+		monitor.player.global_position.distance_to(lobby_spawn.global_position) < 0.25,
+		"selected task places the player inside the main Lobby: actual=%s expected=%s"
+		% [monitor.player.global_position, lobby_spawn.global_position],
 	)
 	var panel_direction: Vector3 = (
 		monitor.control_switch_a.global_position - monitor.panel_spawn.global_position
@@ -81,6 +81,33 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		spawn_forward.dot(panel_direction) > 0.95,
 		"indoor spawn faces the lighting control panel: forward=%s target=%s dot=%s"
 		% [spawn_forward, panel_direction, spawn_forward.dot(panel_direction)],
+	)
+	_assert(
+		monitor.panel_spawn.global_position.z > monitor.control_switch_a.global_position.z,
+		"player starts on the control face of the panel wall",
+	)
+	_assert(
+		monitor.task_card.get_parent_node_3d().global_position.z
+		> monitor.control_switch_a.global_position.z,
+		"task card stays on the same indoor side as the player",
+	)
+	var camera: Camera3D = monitor.player.get_node("Body/Neck/Head/Eyes/Camera")
+	var sight_direction: Vector3 = (
+		monitor.control_switch_a.global_position - camera.global_position
+	).normalized()
+	var sight_query := PhysicsRayQueryParameters3D.create(
+		camera.global_position,
+		monitor.control_switch_a.global_position + sight_direction * 0.25,
+		3,
+		[monitor.player.get_rid()],
+	)
+	var sight_hit: Dictionary = camera.get_world_3d().direct_space_state.intersect_ray(
+		sight_query
+	)
+	_assert(
+		sight_hit.get("collider") == monitor.control_switch_a,
+		"no wall blocks the initial view of the control panel: hit=%s"
+		% sight_hit.get("collider"),
 	)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
 	_assert(
