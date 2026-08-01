@@ -51,8 +51,7 @@ Godot 桥的安全边界。
   Godot 必须镜像精确字段和边界校验。briefing 还要说明 `move`/`sprint` 的按键持续时间量级，
   让黑盒玩家知道何时用扫视、微调和小步移动；`move`/`sprint` 单次最大 250ms。
 - `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
-  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
-  50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
+  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 使用 50 次请求硬上限，
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
   是 50，终局只允许 `success/book_in_box` 和 `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
@@ -77,8 +76,9 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
-- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`，只允许整数 50 或 100；
-  省略时默认 100，其他玩法携带、非法类型和值都必须拒绝。首次握手后重连上限必须一致。
+- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`；当前 Godot 固定发送 50。
+  Python 为兼容旧 Godot 仍允许整数 50 或 100；省略时默认 100，其他玩法携带、非法类型
+  和值都必须拒绝。首次握手后重连上限必须一致。
   该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
   `<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行/尝试目录；一个运行最多分组同一任务的
@@ -263,8 +263,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   直线距离最远的出生点；任务卡与出生点保持 1～2 米距离。
 - 只有成功执行 Pickup 才产生 `success/key_picked_up`；仅看到钥匙不算成功，本玩法没有
   wrong-answer 失败。
-- 台式电脑桌、电视茶几和档案室沙发位置使用 50 次请求硬上限；笔记本电脑桌和会议长桌
-  位置使用 100 次请求硬上限。Godot 只向内部桥发送 50/100 上限，不发送位置 ID。
+- 无论钥匙随机出现在哪类家具位置，每局都使用 50 次请求硬上限。Godot 只向内部桥发送
+  固定的 50 步上限，不发送位置 ID。
 - 非零 `round_seed` 仅供本地确定性测试。候选坐标、所选位置、出生点计算和种子都属于
   隐藏初始化状态，不得进入公开简报、观察或桥协议。
 

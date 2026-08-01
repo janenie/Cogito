@@ -206,8 +206,8 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 `find_key` 每局把场景中唯一的钥匙放到五类办公家具位置之一，任务卡只描述本局目标
 位置的环境特征。游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择
 与钥匙直线距离最远的出生点；任务卡仍位于出生点 1～2 米内。成功拾取钥匙产生
-`success/key_picked_up`，该玩法没有答错失败。台式电脑桌、电视茶几和档案室沙发位置
-使用 50 次请求硬上限，笔记本电脑桌和会议长桌位置使用 100 次请求硬上限。
+`success/key_picked_up`，该玩法没有答错失败。无论钥匙随机出现在哪类家具位置，每局都
+使用 50 次请求硬上限。
 
 `put_book` 每局从档案室初始可见的书中随机选择一本，将其他书隐藏，并把一个打开纸箱
 以 50% 概率放在档案室地上靠近门口或远离门口的位置。玩家从档案室门口开始，门已打开，
@@ -276,8 +276,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
 `workflow_memory_update`、`observe`、MCP `stop()` 不计数。
 `find_contract` 的硬上限为 300 次，终局为 `success/correct_password`、
-`failure/wrong_password` 或 `failure/max_requests`；`find_key` 根据本局位置使用
-50 或 100 次硬上限，公开 briefing 只说明最大值 100 次，
+`failure/wrong_password` 或 `failure/max_requests`；`find_key` 使用 50 次硬上限，
 终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为 50 次，
 终局为 `success/book_in_box` 或 `failure/max_requests`；`greet_npc_meeting` 的硬上限
 为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`；
@@ -343,8 +342,9 @@ mcplogs/
 
 - Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
-- `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`，只接受整数
-  `50` 或 `100`；旧 Godot 省略时默认 100，其他玩法不得携带。该字段不进入 MCP
+- `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`；当前 Godot
+  固定发送 `50`。Python 为兼容旧 Godot 仍接受整数 `50` 或 `100`，省略时默认 100，
+  其他玩法不得携带。该字段不进入 MCP
   工具结果或轨迹日志，重连时必须与首次握手一致。
 - Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `4` 的表示，并在桥内规范化为整数 `4`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
@@ -370,7 +370,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

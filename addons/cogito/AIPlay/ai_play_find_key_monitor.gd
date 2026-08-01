@@ -17,13 +17,7 @@ const LOCATION_TASK_TEXT := {
 	"meeting_table": "钥匙在会议室的长桌上。",
 	"tv_coffee_table": "钥匙在有大电视的茶几上。",
 }
-const SHORT_ACT_REQUEST_LIMIT: int = 50
-const DEFAULT_ACT_REQUEST_LIMIT: int = 100
-const SHORT_LIMIT_LOCATION_IDS: Array[String] = [
-	"desktop_desk",
-	"tv_coffee_table",
-	"archive_sofa",
-]
+const ACT_REQUEST_LIMIT: int = 50
 
 @export var scenario_id: String = "find_key"
 @export var game_over_screen: AIPlayGameOverScreen
@@ -96,9 +90,7 @@ func _key_anchors() -> Dictionary:
 
 
 func get_act_request_limit() -> int:
-	if _selected_location in SHORT_LIMIT_LOCATION_IDS:
-		return SHORT_ACT_REQUEST_LIMIT
-	return DEFAULT_ACT_REQUEST_LIMIT
+	return ACT_REQUEST_LIMIT
 
 
 func _spawn_options() -> Array[Dictionary]:

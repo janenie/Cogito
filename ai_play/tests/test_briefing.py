@@ -23,7 +23,7 @@ def test_find_key_registry_loads_bounded_public_briefing():
 
     assert briefing["game_id"] == "find_key"
     assert briefing["success_condition"] == "成功拾取办公室中唯一的目标钥匙。"
-    assert "100" in briefing["failure_condition"]
+    assert "50" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for forbidden in [

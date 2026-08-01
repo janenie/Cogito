@@ -39,18 +39,9 @@ func _run_test() -> void:
 			location in monitor.LOCATION_IDS,
 			"location is allowlisted",
 		)
-		var expected_limit: int = (
-			50
-			if location in [
-				"desktop_desk",
-				"tv_coffee_table",
-				"archive_sofa",
-			]
-			else 100
-		)
 		_assert(
-			monitor.get_act_request_limit() == expected_limit,
-			"selected key location uses its allowlisted request limit",
+			monitor.get_act_request_limit() == 50,
+			"every selected key location uses the fixed 50-request limit",
 		)
 		_assert(
 			snapshot["task_text"]
