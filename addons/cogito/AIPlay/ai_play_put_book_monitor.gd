@@ -15,6 +15,7 @@ const HEIGHT_TIERS: Array[String] = ["low", "middle", "high"]
 const BOOK_CARRY_DISTANCE_OFFSET := 0.0
 const BOOK_CARRYING_VELOCITY_MULTIPLIER := 18.0
 const BOOK_DROP_DISTANCE := 100.0
+const ASSISTED_DROP_RANGE := 2.0
 
 @export var scenario_id: String = "put_book"
 @export var game_over_screen: Node
@@ -26,6 +27,10 @@ const BOOK_DROP_DISTANCE := 100.0
 @export var shelf_slots_root: Node3D
 @export var archive_spawn: Marker3D
 @export var archive_task_card_anchor: Marker3D
+@export var ceo_door: CogitoDoor
+@export var destination: StaticBody3D
+@export var destination_area: Area3D
+@export var destination_slots_root: Node3D
 @export var round_seed: int = 0
 
 var _round_finished := false
@@ -39,6 +44,7 @@ var _current_target_index := 0
 var _current_carried_book: RigidBody3D = null
 var _completed_books: Array[RigidBody3D] = []
 var _books_carried_once: Dictionary = {}
+var _delivery_in_progress := false
 
 
 func _ready() -> void:
@@ -73,6 +79,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_current_carried_book = null
 	_completed_books.clear()
 	_books_carried_once.clear()
+	_delivery_in_progress = false
 	_hide_decorative_archive_items()
 	_reset_runtime_books()
 	var selected_slots := AIPlayPutBookLayout.select_slots(_shelf_slots(), rng)
@@ -84,6 +91,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_place_player_and_task_card()
 	_write_task_card()
 	_open_archive_door()
+	_activate_destination()
 	_round_finished = false
 
 
@@ -220,6 +228,107 @@ func _open_archive_door() -> void:
 		archive_door.call("set_state")
 
 
+func _activate_destination() -> void:
+	destination.visible = true
+	destination.process_mode = Node.PROCESS_MODE_INHERIT
+	destination.collision_layer = 3
+	destination.collision_mask = 3
+	destination_area.monitoring = true
+	var interaction := destination.get_node(
+		"DestinationDropInteraction"
+	) as AIPlayPutBookDestinationDropInteraction
+	interaction.monitor = self
+	destination.set("interaction_nodes", [interaction])
+	var callback := Callable(self, "_on_destination_body_entered")
+	if not destination_area.body_entered.is_connected(callback):
+		destination_area.body_entered.connect(callback)
+	ceo_door.is_locked = false
+
+
+func can_assisted_drop_to_destination() -> bool:
+	var carry_component: Variant = _carry_component_for_book(_current_carried_book)
+	return (
+		not _round_finished
+		and _current_carried_book == _expected_target_book()
+		and carry_component != null
+		and carry_component.is_being_carried
+		and player.global_position.distance_to(destination_area.global_position)
+			<= ASSISTED_DROP_RANGE
+	)
+
+
+func can_show_destination_interaction() -> bool:
+	return (
+		not _round_finished
+		and player != null
+		and player.global_position.distance_to(destination_area.global_position)
+			<= ASSISTED_DROP_RANGE
+	)
+
+
+func assisted_drop_to_destination() -> void:
+	if not can_assisted_drop_to_destination():
+		return
+	var book := _current_carried_book
+	var carry_component: Variant = _carry_component_for_book(book)
+	if carry_component.has_method("leave"):
+		carry_component.leave()
+	_complete_current_delivery(book)
+
+
+func _complete_current_delivery(book: RigidBody3D) -> void:
+	if (
+		_round_finished
+		or _delivery_in_progress
+		or book != _expected_target_book()
+		or not _books_carried_once.has(book)
+	):
+		return
+	_delivery_in_progress = true
+	var display_slot := destination_slots_root.get_child(_current_target_index) as Marker3D
+	book.reparent(display_slot, false)
+	book.transform = Transform3D.IDENTITY
+	book.freeze = true
+	book.linear_velocity = Vector3.ZERO
+	book.angular_velocity = Vector3.ZERO
+	_completed_books.append(book)
+	_current_carried_book = null
+	_current_target_index += 1
+	var carry_component: Variant = _carry_component_for_book(book)
+	if carry_component != null:
+		carry_component.is_being_carried = false
+		carry_component.is_disabled = true
+	var marker := book.get_node_or_null("TargetMarker") as Label3D
+	if marker != null:
+		marker.visible = false
+	_update_book_pickup_gate()
+	_delivery_in_progress = false
+	if _current_target_index == _target_books.size():
+		_finish_round("success", "books_in_ceo_office")
+
+
+func _on_destination_body_entered(body: Node) -> void:
+	_try_complete_destination_book(body as RigidBody3D)
+
+
+func _try_complete_destination_book(book: RigidBody3D = null) -> void:
+	if book == null or book != _expected_target_book():
+		return
+	var carry_component: Variant = _carry_component_for_book(book)
+	if carry_component != null and carry_component.is_being_carried:
+		return
+	if not _books_carried_once.has(book):
+		return
+	if book in destination_area.get_overlapping_bodies():
+		_complete_current_delivery(book)
+
+
+func _physics_process(_delta: float) -> void:
+	if _round_finished:
+		return
+	_try_complete_destination_book(_expected_target_book())
+
+
 func _on_book_carry_state_changed(
 	is_being_carried: bool,
 	book: RigidBody3D,
@@ -350,6 +459,10 @@ func _has_required_nodes() -> bool:
 		"shelf_slots_root": shelf_slots_root,
 		"archive_spawn": archive_spawn,
 		"archive_task_card_anchor": archive_task_card_anchor,
+		"ceo_door": ceo_door,
+		"destination": destination,
+		"destination_area": destination_area,
+		"destination_slots_root": destination_slots_root,
 	}
 	for required_name: String in required:
 		var required_node: Node = required[required_name] as Node
@@ -364,6 +477,9 @@ func _has_required_nodes() -> bool:
 		return false
 	if not _has_properties(archive_door, ["is_locked", "is_open"]) or not archive_door.has_method("set_state"):
 		push_error("AIPlayPutBookMonitor archive_door must implement the CogitoDoor contract")
+		return false
+	if not _has_properties(ceo_door, ["is_locked", "is_open"]) or not ceo_door.has_method("set_state"):
+		push_error("AIPlayPutBookMonitor ceo_door must implement the CogitoDoor contract")
 		return false
 	if not game_over_screen.has_method("show_result"):
 		push_error("AIPlayPutBookMonitor game_over_screen must implement show_result")

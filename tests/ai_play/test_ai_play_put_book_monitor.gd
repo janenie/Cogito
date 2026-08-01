@@ -17,6 +17,23 @@ func _run_test() -> void:
 	if lobby_scene == null:
 		_finish()
 		return
+	var destination_scene: PackedScene = load(
+		"res://addons/cogito/DemoScenes/DemoPrefabs/ai_play_put_book_destination.tscn"
+	)
+	_assert(destination_scene != null, "CEO destination prefab loads")
+	if destination_scene != null:
+		var inactive_destination := destination_scene.instantiate() as StaticBody3D
+		root.add_child(inactive_destination)
+		var inactive_area := inactive_destination.get_node("DestinationArea") as Area3D
+		_assert(not inactive_destination.visible, "CEO destination starts hidden")
+		_assert(
+			inactive_destination.process_mode == Node.PROCESS_MODE_DISABLED,
+			"CEO destination starts process-disabled",
+		)
+		_assert(inactive_destination.collision_layer == 0, "CEO destination starts collision-free")
+		_assert(not inactive_area.monitoring, "CEO destination area starts inert")
+		inactive_destination.queue_free()
+		await process_frame
 
 	var lobby: Node = lobby_scene.instantiate()
 	root.add_child(lobby)
@@ -54,13 +71,32 @@ func _run_test() -> void:
 	_assert(seen_slot_layouts.size() > 1, "seed sample produces multiple layouts")
 	_assert(seen_slot_ids.size() == slots.size(), "seed sample reaches every authored slot")
 
-	var monitor := lobby.get_node_or_null("AIPlayController/PutBookMonitor") as AIPlayPutBookMonitor
+	var monitor: Node = lobby.get_node_or_null("AIPlayController/PutBookMonitor")
 	_assert(monitor != null, "Lobby includes PutBookMonitor")
 	if monitor == null:
 		lobby.queue_free()
 		await process_frame
 		_finish()
 		return
+	_assert(monitor.ceo_door != null, "put-book round resolves the CEO office door")
+	_assert(monitor.destination != null, "put-book round resolves one CEO destination")
+	_assert(monitor.destination_area != null, "CEO destination exposes an acceptance area")
+	_assert(
+		monitor.destination_slots_root != null,
+		"CEO destination exposes internal display slots",
+	)
+	_assert(monitor.destination.visible, "CEO destination is visible during put-book")
+	_assert(
+		monitor.destination.is_in_group("interactable"),
+		"CEO destination is an interactable placement point",
+	)
+	_assert(
+		monitor.destination_slots_root.get_child_count() == 3,
+		"CEO destination has three display slots",
+	)
+	for child: Node in monitor.destination_slots_root.get_children():
+		_assert(child is Marker3D, "CEO destination display slots are authored markers")
+	_assert(not monitor.ceo_door.is_locked, "CEO office door unlocks for put-book")
 
 	var seen_layouts: Dictionary = {}
 	for seed_value: int in range(1, 129):
@@ -237,6 +273,76 @@ func _run_test() -> void:
 			"outside drop re-enables unfinished books",
 		)
 
+	monitor.player.global_position = monitor.destination_area.global_position
+	var destination_interaction: Node = monitor.destination.get_node_or_null(
+		"DestinationDropInteraction"
+	)
+	_assert(destination_interaction != null, "CEO destination exposes assisted placement")
+	if destination_interaction != null:
+		destination_interaction.interact(player_interaction)
+	_assert(monitor._current_target_index == 0, "destination interaction without a book is inert")
+	_assert(terminal_results.is_empty(), "empty destination interaction leaves the round active")
+
+	expected_carry.carry(player_interaction)
+	expected.global_position = monitor.destination_area.global_position
+	PhysicsServer3D.body_set_state(
+		expected.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		expected.global_transform,
+	)
+	expected_carry.leave()
+	await physics_frame
+	await physics_frame
+	_assert(monitor._current_target_index == 1, "physical destination drop advances one tier")
+	_assert(expected in monitor._completed_books, "physical destination drop completes the book")
+	_assert(expected_carry.is_disabled, "physically delivered book is locked")
+	_assert(
+		expected.global_position.distance_to(
+			(monitor.destination_slots_root.get_child(0) as Marker3D).global_position
+		) < 0.001,
+		"physical destination drop snaps to the first display slot",
+	)
+	_assert(terminal_results.is_empty(), "first physical delivery is nonterminal")
+
+	monitor.configure_round(123456)
+	terminal_results.clear()
+	monitor.player.global_position = monitor.destination_area.global_position
+	for index: int in range(3):
+		var book: RigidBody3D = monitor._target_books[index]
+		var carry_component: Variant = monitor._carry_component_for_book(book)
+		carry_component.is_being_carried = true
+		monitor._on_book_carry_state_changed(true, book, carry_component)
+		_assert(
+			monitor.can_assisted_drop_to_destination(),
+			"current target can use CEO destination",
+		)
+		monitor.assisted_drop_to_destination()
+		_assert(monitor._current_target_index == index + 1, "delivery advances one tier")
+		_assert(book in monitor._completed_books, "delivered book is completed")
+		_assert(carry_component.is_disabled, "delivered book is locked")
+		var display_slot: Marker3D = monitor.destination_slots_root.get_child(index)
+		_assert(
+			book.global_position.distance_to(display_slot.global_position) < 0.001,
+			"book snaps to its display slot",
+		)
+		if index < 2:
+			_assert(terminal_results.is_empty(), "partial delivery is nonterminal")
+	_assert(
+		terminal_results == [{
+			"outcome": "success",
+			"reason": "books_in_ceo_office",
+		}],
+		"three ordered deliveries succeed",
+	)
+
+	monitor.configure_round(123456)
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			book.get_parent_node_3d() == monitor._runtime_book_parent,
+			"round reset detaches delivered books from display slots",
+		)
+	terminal_results.clear()
+
 	expected_carry.carry(player_interaction)
 	_assert(monitor._books_carried_once.has(expected), "second real pickup remains tracked")
 	monitor.configure_round(123456)
@@ -295,7 +401,7 @@ func _count_shelf(slots: Array[Marker3D], shelf_name: String) -> int:
 	return count
 
 
-func _visible_runtime_books(monitor: AIPlayPutBookMonitor) -> Array[RigidBody3D]:
+func _visible_runtime_books(monitor: Node) -> Array[RigidBody3D]:
 	var result: Array[RigidBody3D] = []
 	for book: RigidBody3D in monitor._runtime_books:
 		if book.visible:
@@ -312,7 +418,7 @@ func _first_ordinary_book(monitor: Node) -> RigidBody3D:
 
 func _monitor_carry_connection_count(
 	carry_component: Variant,
-	monitor: AIPlayPutBookMonitor,
+	monitor: Node,
 ) -> int:
 	var count := 0
 	for connection: Dictionary in carry_component.carry_state_changed.get_connections():

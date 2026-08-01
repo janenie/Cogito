@@ -1,0 +1,65 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_put_book_destination_interactable.gd" id="1_destination"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_put_book_destination_drop_interaction.gd" id="2_interaction"]
+
+[sub_resource type="StandardMaterial3D" id="DestinationMaterial"]
+albedo_color = Color(0, 0.85, 0.95, 1)
+emission_enabled = true
+emission = Color(0, 0.35, 0.45, 1)
+emission_energy_multiplier = 0.65
+
+[sub_resource type="BoxMesh" id="DestinationMesh"]
+material = SubResource("DestinationMaterial")
+size = Vector3(0.96, 0.08, 0.52)
+
+[sub_resource type="BoxShape3D" id="DestinationCollisionShape"]
+size = Vector3(0.96, 0.08, 0.52)
+
+[sub_resource type="BoxShape3D" id="DestinationAreaShape"]
+size = Vector3(1.1, 0.55, 0.7)
+
+[node name="PutBookDestination" type="StaticBody3D" groups=["interactable"]]
+process_mode = 4
+visible = false
+collision_layer = 0
+script = ExtResource("1_destination")
+
+[node name="TrayMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("DestinationMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+shape = SubResource("DestinationCollisionShape")
+
+[node name="PlacementLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0)
+text = "书籍放置点"
+font_size = 28
+outline_size = 10
+billboard = 1
+
+[node name="DestinationArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 3
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DestinationArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("DestinationAreaShape")
+
+[node name="DisplaySlots" type="Node3D" parent="."]
+
+[node name="Book1" type="Marker3D" parent="DisplaySlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.13, 0)
+
+[node name="Book2" type="Marker3D" parent="DisplaySlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
+
+[node name="Book3" type="Marker3D" parent="DisplaySlots"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.13, 0)
+
+[node name="DestinationDropInteraction" type="Node3D" parent="."]
+script = ExtResource("2_interaction")
