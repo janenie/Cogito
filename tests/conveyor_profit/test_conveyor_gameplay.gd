@@ -109,6 +109,20 @@ func _run_test() -> void:
 			== "ingredient_not_available",
 			"semantic action rejects an ingredient outside the rendered view",
 		)
+		while gameplay.get_selected_count() < 4:
+			var refill_follower := path.get_child(0) as PathFollow3D
+			var refill_result: Dictionary = gameplay._select_by_selection_id(
+				int(refill_follower.get_meta("selection_id", -1)),
+			)
+			_check(refill_result["outcome"] == "selected", "tray accepts up to four items")
+		var fifth_follower := path.get_child(0) as PathFollow3D
+		_check(
+			gameplay._select_by_selection_id(
+				int(fifth_follower.get_meta("selection_id", -1)),
+			)["outcome"] == "tray_full",
+			"fifth ingredient is rejected with a recoverable result",
+		)
+		_check(gameplay.get_selected_count() == 4, "full tray remains bounded to four items")
 		var invalid_result: Dictionary = gameplay.request_make()
 		_check(invalid_result["outcome"] == "invalid_combo", "invalid combo settles")
 		_check(gameplay.get_profit() < profit_before_invalid, "invalid combo deducts cost")

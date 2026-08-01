@@ -10,7 +10,7 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
 
 ## Controls and rules
 
-- Left-click a moving ingredient to place it on the tray. The belt immediately replenishes the selected slot, so all sixteen positions remain occupied.
+- Left-click a moving ingredient to place it on the tray. The belt immediately replenishes the selected slot, so all sixteen positions remain occupied. The tray holds at most four ingredients, matching the largest public recipe.
 - Left-click **UNDO** to remove the last tray ingredient.
 - Left-click **MAKE** to consume the tray. Exact recipes earn their sale price; invalid combinations earn nothing but still pay every selected ingredient cost. Either result consumes the window's only make opportunity.
 - The wall menu uses six bilingual full-name recipe stickers, so no ingredient abbreviations need to be memorized.
@@ -25,6 +25,6 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
   -- --ai-play --ai-play-scenario=conveyor_profit
 ```
 
-The allowlisted MCP scenario exposes only the public briefing, screenshot/HUD observation, and four semantic actions: `select_ingredient`, `undo`, `make`, and `wait_next_window`. AI selection chooses a currently visible matching plate through the same gameplay/economy path; it does not expose supply generation, candidate recipes, per-window optimum, future windows, seed, or target amount. While the external model is deciding, Godot pauses the window clock. After a make locks a window, `wait_next_window` advances exactly one window without making the AI wait for wall-clock time.
+The allowlisted MCP scenario exposes only the public briefing, screenshot/HUD observation, and four semantic actions: `select_ingredient`, `undo`, `make`, and `wait_next_window`. AI selection chooses a currently visible matching plate through the same gameplay/economy path; a fifth selection returns `tray_full` without changing the tray, so the player can recover with `undo`. The scenario does not expose supply generation, candidate recipes, per-window optimum, future windows, seed, or target amount. While the external model is deciding, Godot pauses the window clock. After a make locks a window, `wait_next_window` advances exactly one window without making the AI wait for wall-clock time.
 
 The food visuals are selected from Kenney Food Kit 2.0 under CC0. See [SOURCE.md](assets/kenney_food_kit/SOURCE.md) for exact file mappings and [LICENSE.txt](assets/kenney_food_kit/LICENSE.txt) for the bundled license.

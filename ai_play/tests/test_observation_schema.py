@@ -232,6 +232,16 @@ def test_conveyor_semantic_action_results_are_bounded():
     assert validate_action_results(results) == results
 
 
+def test_conveyor_full_tray_result_is_recoverable_and_bounded():
+    result = [{
+        "status": "completed",
+        "type": "select_ingredient",
+        "outcome": "tray_full",
+    }]
+
+    assert validate_action_results(result) == result
+
+
 @pytest.mark.parametrize(
     "outcome",
     ["window_not_complete", "window_advanced", "game_finished"],

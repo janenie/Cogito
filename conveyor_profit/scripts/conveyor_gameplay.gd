@@ -7,6 +7,7 @@ const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
 const PROFIT_SESSION := preload("res://conveyor_profit/scripts/profit_session.gd")
 const PROFIT_WINDOW_SESSION := preload("res://conveyor_profit/scripts/profit_window_session.gd")
 const WINDOW_SUPPLY_GENERATOR := preload("res://conveyor_profit/scripts/window_supply_generator.gd")
+const MAX_TRAY_INGREDIENTS: int = 4
 
 const MODEL_PATHS := {
 	"lettuce": "res://conveyor_profit/assets/kenney_food_kit/models/lettuce.glb",
@@ -194,6 +195,8 @@ func request_select_ingredient(ingredient_id: String, camera: Camera3D) -> Dicti
 		return {"outcome": "game_finished"}
 	if window_session.dish_made:
 		return {"outcome": "window_locked"}
+	if session.selected_ingredients.size() >= MAX_TRAY_INGREDIENTS:
+		return {"outcome": "tray_full"}
 	var matches: Array[PathFollow3D] = []
 	for follower_node: Node in _ingredient_path.get_children():
 		var follower := follower_node as PathFollow3D
@@ -257,6 +260,8 @@ func _select_by_selection_id(selection_id: int) -> Dictionary:
 		return {"outcome": "game_finished"}
 	if window_session.dish_made:
 		return {"outcome": "window_locked"}
+	if session.selected_ingredients.size() >= MAX_TRAY_INGREDIENTS:
+		return {"outcome": "tray_full"}
 	for follower: Node in _ingredient_path.get_children():
 		if (
 			follower.get_meta("selection_id", -1) != selection_id

@@ -45,6 +45,28 @@ func _run_test() -> void:
 		},
 		"monitor exposes only the public selected ingredient",
 	)
+	for _index: int in 3:
+		ingredient_id = String(path.get_child(0).get_meta("ingredient_id", ""))
+		_check(
+			monitor.execute_semantic_action({
+				"type": "select_ingredient",
+				"ingredient": ingredient_id,
+			})["outcome"] == "selected",
+			"monitor fills the bounded tray",
+		)
+	ingredient_id = String(path.get_child(0).get_meta("ingredient_id", ""))
+	_check(
+		monitor.execute_semantic_action({
+			"type": "select_ingredient",
+			"ingredient": ingredient_id,
+		}) == {
+			"status": "completed",
+			"type": "select_ingredient",
+			"outcome": "tray_full",
+		},
+		"monitor exposes a recoverable full-tray result without hidden fields",
+	)
+	_check(gameplay.get_selected_count() == 4, "monitor cannot grow the tray past four items")
 	_check(
 		monitor.execute_semantic_action({"type": "wait_next_window"}) == {
 			"status": "completed",

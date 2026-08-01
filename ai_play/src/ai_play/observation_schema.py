@@ -33,7 +33,7 @@ CONVEYOR_INGREDIENT_IDS = {
 CONVEYOR_OUTCOMES = {
     "selected", "undone", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
-    "window_not_complete", "window_advanced",
+    "window_not_complete", "window_advanced", "tray_full",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -100,7 +100,10 @@ def validate_action_results(results):
             "select_ingredient", "undo", "make", "wait_next_window",
         }:
             expected = {"status", "type", "outcome"}
-            if result["type"] == "select_ingredient":
+            if (
+                result["type"] == "select_ingredient"
+                and result.get("outcome") == "selected"
+            ):
                 expected.add("ingredient")
             if result_fields != expected or result.get("outcome") not in CONVEYOR_OUTCOMES:
                 raise ObservationValidationError("conveyor result fields are invalid")
@@ -109,7 +112,10 @@ def validate_action_results(results):
                 "type": result["type"],
                 "outcome": result["outcome"],
             }
-            if result["type"] == "select_ingredient":
+            if (
+                result["type"] == "select_ingredient"
+                and result["outcome"] == "selected"
+            ):
                 if result.get("ingredient") not in CONVEYOR_INGREDIENT_IDS:
                     raise ObservationValidationError("conveyor result ingredient is invalid")
                 safe_result["ingredient"] = result["ingredient"]

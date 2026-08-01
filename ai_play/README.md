@@ -283,7 +283,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
 - `conveyor_profit` 只允许 `select_ingredient`、`undo`、`make` 和 `wait_next_window`：选材按
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
-  已经锁定的窗口。四种动作均不得在其他玩法使用。
+  已经锁定的窗口。托盘最多容纳四项；第 5 次选材返回 `tray_full` 且不改变托盘，调用方可用
+  `undo` 恢复。四种动作均不得在其他玩法使用。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
