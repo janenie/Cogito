@@ -83,6 +83,10 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
   -- --ai-play --ai-play-scenario=conveyor_profit
 ```
 
+`conveyor_profit` 的白名单 `briefing` 会返回墙上同样可见的六道固定菜谱，包括完整食材、
+售价和净利润。当前窗口的结构化食材清单、两道候选菜、最优菜、未来供给、随机种子和绝对
+目标金额仍不公开；客户端必须根据 `observe` 截图识别当前可见食材，再与公开菜单比较。
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受

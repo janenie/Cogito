@@ -92,7 +92,7 @@ This test catches a missing menu, a wrong recipe ingredient, wrong price/profit,
 Run:
 
 ```bash
-../../.venv/bin/python -m pytest ai_play/tests/test_briefing.py::test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state -q
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest ai_play/tests/test_briefing.py::test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state -q
 ```
 
 Expected: FAIL with `KeyError: 'menu'`.
@@ -161,7 +161,7 @@ Do not read repository files at runtime and do not add window-specific values.
 Run:
 
 ```bash
-../../.venv/bin/python -m pytest \
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest \
   ai_play/tests/test_briefing.py \
   ai_play/tests/test_scenarios.py \
   ai_play/tests/test_mcp_server.py -q
@@ -205,8 +205,8 @@ Run:
 
 ```bash
 tests/check_ai_play_mcp_only.sh
-tests/check_ai_play_start_gate.sh
-tests/check_ai_play_secret_scan.sh
+tests/check_ai_play_start_script.sh
+tests/check_ai_play_secrets.sh
 git diff --check
 ```
 
@@ -234,7 +234,7 @@ git commit -m "docs(ai-play): describe public conveyor menu"
 Run:
 
 ```bash
-../../.venv/bin/python -m pytest ai_play/tests -q
+PYTHONPATH=ai_play/src ../../.venv/bin/python -m pytest ai_play/tests -q
 ../../.venv/bin/python -m pytest tests/test_ai_play_codex_orchestrator.py tests/test_ai_play_supervisor.py -q
 godot --headless --path . --script tests/conveyor_profit/test_conveyor_profit_scene.gd
 godot --headless --path . --script tests/conveyor_profit/test_recipe_catalog.gd
@@ -246,8 +246,8 @@ godot --headless --path . --script tests/conveyor_profit/test_conveyor_ai_play_o
 godot --headless --path . --script tests/conveyor_profit/test_conveyor_ai_play_monitor.gd
 godot --headless --path . --script tests/conveyor_profit/test_conveyor_motion.gd
 tests/check_ai_play_mcp_only.sh
-tests/check_ai_play_start_gate.sh
-tests/check_ai_play_secret_scan.sh
+tests/check_ai_play_start_script.sh
+tests/check_ai_play_secrets.sh
 git diff --check
 ```
 
