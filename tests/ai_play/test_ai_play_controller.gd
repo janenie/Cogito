@@ -115,6 +115,7 @@ func _run_tests() -> void:
 	await _test_action_batch_requires_exact_mcp_fields(controller_script)
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
+	await _test_interval_recapture_waits_for_rendering(controller_script)
 	await _test_terminal_outcomes(controller_script)
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
@@ -747,6 +748,43 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	await _free_fixture(fixture)
 
 
+func _test_interval_recapture_waits_for_rendering(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	fixture.bridge.action_batch_received.emit({
+		"type": "action_batch",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"actions": [{"type": "move", "forward": 1.0, "right": 0.0, "duration_ms": 50}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "completed", "type": "move"}])
+	_assert(not fixture.timer.is_stopped(), "completed move starts observation interval timer")
+	fixture.timer.stop()
+	fixture.timer.timeout.emit()
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture does not read the viewport before a rendered frame",
+	)
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture waits for rendering after the timer",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture waits one full process frame before rendering",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count + 1,
+		"interval recapture captures exactly once after rendering",
+	)
+	await _free_fixture(fixture)
+
+
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	for terminal_case: Dictionary in [
 		{
@@ -1149,6 +1187,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	executor.batch_finished.emit([{"status": "completed"}])
 	fixture.observer.next_observation_id = 18
 	fixture.timer.emit_signal("timeout")
+	await _flush_deferred_capture()
 	bridge.action_batch_received.emit({
 		"type": "action_batch",
 		"protocol_version": 4,

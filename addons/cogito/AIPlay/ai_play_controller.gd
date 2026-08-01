@@ -472,7 +472,8 @@ func _set_ai_mouse_guard(enabled: bool) -> void:
 
 
 func _on_observation_timer_timeout() -> void:
-	_capture_observation(_last_results)
+	var generation: int = _capture_generation
+	call_deferred("_capture_observation_if_current", generation, _last_results)
 
 
 func _on_bridge_disconnected(reason: String) -> void:

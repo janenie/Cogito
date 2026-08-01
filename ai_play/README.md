@@ -267,9 +267,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
 CogitoPlayer 只接受专用合成设备的鼠标移动，Escape 仍是物理紧急停止键；停用或退出后立即恢复
-普通鼠标控制。需要即时重新观察的动作会等待 `RenderingServer.frame_post_draw` 后截图，避免把
-动作前的画面当成动作结果；交互和界面动作还会先留出一个完整输入/处理帧，确保公开界面状态与
-截图来自动作实际生效之后。若 Python 等待动作超时，会进入 `recovering`，暂停接受新动作并向
+普通鼠标控制。所有动作的后续 observation 都由 Godot 在内部先等待一个完整输入/处理帧，再等待
+`RenderingServer.frame_post_draw` 后截图，避免把新位置或朝向与动作前的旧画面组合在一起；这项
+等待对 AI 和 MCP 客户端透明，也不消耗动作额度。若 Python 等待动作超时，会进入 `recovering`，暂停接受新动作并向
 Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消该 observation 尚未完成的
 动作、释放全部模拟输入，并从玩家已经到达的位置和当前世界状态捕获全新的 observation ID；旧
 `action_results` 和延迟截图会被废弃。Python 收到新 observation 后恢复 `act`，不会重启场景或
