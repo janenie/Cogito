@@ -20,7 +20,7 @@ from .scenarios import (
 from .trajectory_logger import LogPersistenceError
 
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 SAFE_INTEGER_MAX = 9_007_199_254_740_991
 
 
@@ -55,6 +55,7 @@ class GameSession:
         self._pending_observation_id = None
         self._pending_results = None
         self._pending_next_observation = None
+        self._recovering_observation_id = None
         self._game_over = None
         self._stopped_result = None
         self._stop_waiting = False
@@ -122,6 +123,7 @@ class GameSession:
             self._request_limit_pending = False
             self._end_game_sent = False
             self._send_packet = send_packet
+            self._recovering_observation_id = None
             self._state = (
                 "ready" if self._latest_observation is not None else "waiting_for_observation"
             )
@@ -132,6 +134,7 @@ class GameSession:
         self._pending_observation_id = None
         self._pending_results = None
         self._pending_next_observation = None
+        self._recovering_observation_id = None
         self._game_over = None
         self._stopped_result = None
         self._stop_waiting = False
@@ -152,6 +155,7 @@ class GameSession:
         with self._condition:
             self._send_packet = None
             self._clear_pending_locked()
+            self._recovering_observation_id = None
             self._stop_waiting = False
             if self._stopped_result is not None:
                 self._state = "stopped"
@@ -190,6 +194,14 @@ class GameSession:
         with self._condition:
             if self._state in {"stopped", "game_over"}:
                 raise SessionError(self._state)
+            if self._state == "recovering":
+                if safe["observation_id"] == self._recovering_observation_id:
+                    return
+                self._latest_observation = safe
+                self._recovering_observation_id = None
+                self._state = "ready"
+                self._condition.notify_all()
+                return
             if self._pending_observation_id is not None:
                 if self._pending_next_observation is not None:
                     raise SessionError("duplicate_observation")
@@ -211,6 +223,8 @@ class GameSession:
 
         with self._condition:
             if self._pending_observation_id is None:
+                if observation_id == self._recovering_observation_id:
+                    return
                 raise SessionError("unexpected_action_results")
             if observation_id != self._pending_observation_id:
                 raise SessionError("action_results_observation_mismatch")
@@ -329,7 +343,12 @@ class GameSession:
                     return SessionResult(status="disconnected")
                 if (
                     self._latest_observation is not None
-                    and self._state not in {"executing", "stopping", "ending"}
+                    and self._state not in {
+                        "executing",
+                        "recovering",
+                        "stopping",
+                        "ending",
+                    }
                 ):
                     return SessionResult(
                         status="ready",
@@ -337,6 +356,9 @@ class GameSession:
                     )
                 remaining = _remaining(deadline)
                 if remaining <= 0:
+                    if self._state == "recovering":
+                        self._send_recovery_locked()
+                        raise SessionError("action_recovery_timeout")
                     raise SessionError("observation_timeout")
                 self._condition.wait(timeout=remaining)
 
@@ -412,7 +434,12 @@ class GameSession:
                 remaining = _remaining(deadline)
                 if remaining <= 0:
                     self._clear_pending_locked()
-                    self._state = "ready" if self._send_packet is not None else "disconnected"
+                    if self._send_packet is None:
+                        self._state = "disconnected"
+                    else:
+                        self._recovering_observation_id = observation_id
+                        self._state = "recovering"
+                        self._send_recovery_locked()
                     raise SessionError("action_timeout")
                 self._condition.wait(timeout=remaining)
 
@@ -555,6 +582,8 @@ class GameSession:
             raise SessionError("stopped")
         if self._state == "disconnected":
             raise SessionError("disconnected")
+        if self._state == "recovering":
+            raise SessionError("action_recovery_in_progress")
         if self._pending_observation_id is not None:
             raise SessionError("action_in_flight")
         if self._latest_observation is None:
@@ -562,6 +591,34 @@ class GameSession:
         if observation_id != self._latest_observation["observation_id"]:
             raise SessionError("stale_observation")
         if self._send_packet is None:
+            raise SessionError("transport_unavailable")
+
+    def _send_recovery_locked(self):
+        if self._recovering_observation_id is None:
+            raise SessionError("action_recovery_not_pending")
+        sender = self._send_packet
+        if sender is None:
+            self._state = "disconnected"
+            raise SessionError("transport_unavailable")
+        packet = {
+            "type": "recover_action",
+            "protocol_version": PROTOCOL_VERSION,
+            "observation_id": self._recovering_observation_id,
+            "reason": "action_timeout",
+        }
+        try:
+            sent = sender(packet)
+        except Exception as error:
+            sent = False
+            send_error = error
+        else:
+            send_error = None
+        if sent is not True:
+            self._send_packet = None
+            self._recovering_observation_id = None
+            self._state = "disconnected"
+            if send_error is not None:
+                raise SessionError("transport_unavailable") from send_error
             raise SessionError("transport_unavailable")
 
     def _complete_turn_locked(self):

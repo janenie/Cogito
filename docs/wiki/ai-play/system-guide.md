@@ -9,7 +9,7 @@ AI First Play 是一套需要显式启用的自主游玩系统：
   `observe`、`act`、`workflow_memory_update`、`stop`，验证 DTO，并通过本机回环 WebSocket
   桥与 Godot 串行交换观察和动作结果；隔离 Codex 玩家不获准使用 `stop`。
 - 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码，只把获准公开的 MCP 游玩轨迹和截图保存到操作者配置的本地日志目录。
-- Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
+- Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 同一 Lobby 可用 `--ai-play-scenario=<id>` 选择玩法脚本；省略时默认
   `find_contract`。Controller 只激活直属子节点中 `scenario_id` 匹配的终局监视器。
   Godot 在 `hello` 中上报所选 ID，Python 使用独立白名单选择公开简报。
@@ -36,13 +36,16 @@ Godot 桥的安全边界。
 
 ## 跨层契约
 
-- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 3 的桥协议使用 `action_batch`、`action_results`、`game_over`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合和终局。
+- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
-- Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
+- Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `4` 的 `protocol_version` 规范化为整数 `4`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
-- Python 等待动作超时后可用同一 `observation_id` 重试。Godot 若仍在执行该 ID，必须把这个
-  精确合法的重复批次作为恢复信号：取消旧动作并释放输入、返回 cancelled 结果、重新捕获观察，
-  不执行重复批次且不关闭 AI。非法批次、不同 ID 或其他非预期状态仍必须 fail-closed。
+- Python 等待动作超时后必须进入 `recovering`，拒绝新动作，并发送精确字段的
+  `recover_action/action_timeout`。Godot 必须取消该 ID 尚未完成的动作、释放输入、废弃旧动作结果
+  和延迟截图，再从当前玩家位置与世界状态捕获全新的 observation ID；不得重启场景或回滚已经
+  生效的移动和交互。Python 仅在收到不同 ID 的新观察后恢复接受动作；恢复不增加完成局数、不
+  更新 AWM，也不触发 supervisor 异常重试。重复恢复请求必须幂等，非法字段和不匹配 ID 仍
+  fail-closed。
 - 公开 briefing 必须说明 `look` 只接受 `direction`（`left`、`right`、`up`、`down`）和
   `degrees`（有限、非布尔、1～45），并明确禁止公开 `yaw`、`pitch` 和正负号；Python 与
   Godot 必须镜像精确字段和边界校验。briefing 还要说明 `move`/`sprint` 的按键持续时间量级，
@@ -74,7 +77,7 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
-- `find_key` 的版本 3 `hello` 可额外携带 `act_request_limit`，只允许整数 50 或 100；
+- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`，只允许整数 50 或 100；
   省略时默认 100，其他玩法携带、非法类型和值都必须拒绝。首次握手后重连上限必须一致。
   该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在

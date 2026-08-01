@@ -266,10 +266,11 @@ Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语�
 CogitoPlayer 只接受专用合成设备的鼠标移动，Escape 仍是物理紧急停止键；停用或退出后立即恢复
 普通鼠标控制。需要即时重新观察的动作会等待 `RenderingServer.frame_post_draw` 后截图，避免把
 动作前的画面当成动作结果；交互和界面动作还会先留出一个完整输入/处理帧，确保公开界面状态与
-截图来自动作实际生效之后。若 Python 等待动作超时后以同一个 `observation_id` 重试，Godot
-把重复的在途批次当作超时恢复信号：取消旧动作、释放全部模拟输入、返回 cancelled 结果并重新
-捕获观察；重复批次本身不执行，也不会关闭 AI 控制。其他状态错误、非法字段和不匹配 ID 仍然
-fail-closed。
+截图来自动作实际生效之后。若 Python 等待动作超时，会进入 `recovering`，暂停接受新动作并向
+Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消该 observation 尚未完成的
+动作、释放全部模拟输入，并从玩家已经到达的位置和当前世界状态捕获全新的 observation ID；旧
+`action_results` 和延迟截图会被废弃。Python 收到新 observation 后恢复 `act`，不会重启场景或
+把恢复计为新一局。重复恢复请求幂等；非法字段和不匹配 ID 仍然 fail-closed。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
@@ -340,12 +341,12 @@ mcplogs/
 
 ## 安全与桥协议
 
-- Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 3。
+- Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
-- `find_key` 的版本 3 `hello` 可携带仅内部使用的 `act_request_limit`，只接受整数
+- `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`，只接受整数
   `50` 或 `100`；旧 Godot 省略时默认 100，其他玩法不得携带。该字段不进入 MCP
   工具结果或轨迹日志，重连时必须与首次握手一致。
-- Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `3` 的表示，并在桥内规范化为整数 `3`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
+- Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `4` 的表示，并在桥内规范化为整数 `4`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。

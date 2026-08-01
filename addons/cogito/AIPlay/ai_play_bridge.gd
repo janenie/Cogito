@@ -4,11 +4,12 @@ extends Node
 signal connected
 signal disconnected(reason: String)
 signal action_batch_received(batch: Dictionary)
+signal recover_action_received(request: Dictionary)
 signal stop_request_received(request: Dictionary)
 signal end_game_received(request: Dictionary)
 signal remote_error(error: Dictionary)
 
-const PROTOCOL_VERSION: int = 3
+const PROTOCOL_VERSION: int = 4
 const MAX_PACKET_SIZE: int = 8 * 1024 * 1024
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 
@@ -94,7 +95,7 @@ func _handle_text_packet(raw_packet: String) -> void:
 		return
 	var packet: Dictionary = json.data
 	if not _is_current_protocol_version(packet.get("protocol_version")):
-		_protocol_error("unsupported_protocol", "protocol version must be 3")
+		_protocol_error("unsupported_protocol", "protocol version must be 4")
 		return
 	packet["protocol_version"] = PROTOCOL_VERSION
 	var normalized_observation_id: Dictionary = _normalize_observation_id(
@@ -107,6 +108,18 @@ func _handle_text_packet(raw_packet: String) -> void:
 			pass
 		"action_batch":
 			action_batch_received.emit(packet)
+		"recover_action":
+			if (
+				_has_exact_keys(
+					packet,
+					["type", "protocol_version", "observation_id", "reason"],
+				)
+				and normalized_observation_id["valid"]
+				and packet["reason"] == "action_timeout"
+			):
+				recover_action_received.emit(packet)
+			else:
+				_protocol_error("invalid_recover_action", "invalid recovery request")
 		"stop_request":
 			if _has_exact_keys(
 				packet,

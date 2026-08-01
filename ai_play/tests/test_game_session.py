@@ -226,7 +226,7 @@ def test_find_key_accepts_only_key_success_terminal():
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "key_picked_up",
@@ -242,7 +242,7 @@ def test_put_book_accepts_only_book_success_terminal():
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "book_in_box",
@@ -256,7 +256,7 @@ def test_greet_npc_meeting_accepts_only_meeting_door_success_terminal():
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "meeting_door_closed",
@@ -270,7 +270,7 @@ def test_garden_watering_accepts_garden_success_terminal():
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "garden_tasks_complete",
@@ -285,7 +285,7 @@ def test_terminal_success_cannot_cross_scenarios():
     with pytest.raises(SessionError, match="invalid_game_over"):
         contract.receive_game_over({
             "type": "game_over",
-            "protocol_version": 3,
+            "protocol_version": 4,
             "observation_id": 7,
             "outcome": "success",
             "reason": "key_picked_up",
@@ -296,7 +296,7 @@ def test_terminal_success_cannot_cross_scenarios():
     with pytest.raises(SessionError, match="invalid_game_over"):
         find_key.receive_game_over({
             "type": "game_over",
-            "protocol_version": 3,
+            "protocol_version": 4,
             "observation_id": 7,
             "outcome": "success",
             "reason": "correct_password",
@@ -307,7 +307,7 @@ def test_terminal_success_cannot_cross_scenarios():
     with pytest.raises(SessionError, match="invalid_game_over"):
         put_book.receive_game_over({
             "type": "game_over",
-            "protocol_version": 3,
+            "protocol_version": 4,
             "observation_id": 7,
             "outcome": "success",
             "reason": "key_picked_up",
@@ -318,7 +318,7 @@ def test_terminal_success_cannot_cross_scenarios():
     with pytest.raises(SessionError, match="invalid_game_over"):
         greet_npc_meeting.receive_game_over({
             "type": "game_over",
-            "protocol_version": 3,
+            "protocol_version": 4,
             "observation_id": 7,
             "outcome": "success",
             "reason": "book_in_box",
@@ -381,7 +381,7 @@ def test_game_over_finishes_log_without_later_tool_call(
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": outcome,
         "reason": reason,
@@ -429,7 +429,7 @@ def test_escape_stop_finishes_log_as_stopped():
 
     session.receive_stop({
         "type": "stop",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "reason": "escape_stop",
         "results": [],
@@ -450,7 +450,7 @@ def test_mcp_stop_ack_finishes_log_as_stopped():
 
     session.receive_stop_ack({
         "type": "stop_ack",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "results": [],
     })
@@ -484,7 +484,7 @@ def test_game_over_finishes_attempt_observer_once(outcome, reason):
     session.receive_observation(observation(7))
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": outcome,
         "reason": reason,
@@ -531,7 +531,7 @@ def test_escape_stop_finishes_attempt_observer_once():
 
     session.receive_stop({
         "type": "stop",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "reason": "escape_stop",
         "results": [],
@@ -551,7 +551,7 @@ def test_mcp_stop_ack_finishes_attempt_observer_once():
 
     session.receive_stop_ack({
         "type": "stop_ack",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "results": [],
     })
@@ -681,7 +681,7 @@ def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
 
     assert sent == [{
         "type": "action_batch",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "actions": actions,
     }]
@@ -733,7 +733,7 @@ def test_act_returns_game_over_when_terminal_packet_precedes_next_observation():
     results = wait_action_results()
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "correct_password",
@@ -784,14 +784,14 @@ def test_stop_sends_mcp_stop_and_acknowledges_cancellation():
 
     assert sent == [{
         "type": "stop_request",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "reason": "mcp_stop",
     }]
     results = [{"status": "cancelled", "reason": "mcp_stop"}]
     session.receive_stop_ack({
         "type": "stop_ack",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "results": results,
     })
@@ -808,7 +808,7 @@ def test_attach_after_mcp_stop_starts_next_attempt():
     results = [{"status": "cancelled", "reason": "mcp_stop"}]
     session.receive_stop_ack({
         "type": "stop_ack",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "results": results,
     })
@@ -827,7 +827,7 @@ def test_attach_after_game_over_starts_next_attempt():
     session.receive_observation(observation(7))
     session.receive_game_over({
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
         "reason": "correct_password",
@@ -842,17 +842,7 @@ def test_attach_after_game_over_starts_next_attempt():
     assert result.observation["observation_id"] == 1
 
 
-def test_act_times_out_and_does_not_leave_an_in_flight_batch():
-    session, sent = make_session()
-    session.receive_observation(observation(7))
-
-    with pytest.raises(SessionError, match="action_timeout"):
-        session.act(7, [{"type": "wait", "duration_ms": 50}], timeout=0.01)
-
-    assert len(sent) == 1
-
-
-def test_retry_after_action_timeout_accepts_godot_cancellation_and_recovers():
+def test_action_timeout_enters_recovery_until_a_fresh_observation_arrives():
     session, sent = make_session()
     session.receive_observation(observation(7))
     actions = [{"type": "wait", "duration_ms": 50}]
@@ -860,22 +850,48 @@ def test_retry_after_action_timeout_accepts_godot_cancellation_and_recovers():
     with pytest.raises(SessionError, match="action_timeout"):
         session.act(7, actions, timeout=0.01)
 
+    assert sent[-1] == {
+        "type": "recover_action",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "reason": "action_timeout",
+    }
+    assert session.act_request_count == 1
+    with pytest.raises(SessionError, match="action_recovery_in_progress"):
+        session.act(7, actions, timeout=0.01)
+
     result_holder = []
     thread = threading.Thread(
-        target=lambda: result_holder.append(session.act(7, actions, timeout=0.5))
+        target=lambda: result_holder.append(session.observe(timeout=0.5))
     )
     thread.start()
-    wait_until(lambda: len(sent) == 2)
-    cancelled = [{"status": "cancelled", "reason": "duplicate_action_batch"}]
-    session.receive_action_results(7, cancelled)
+    time.sleep(0.02)
+    assert thread.is_alive()
+    session.receive_action_results(7, [{
+        "status": "cancelled",
+        "reason": "action_timeout",
+    }])
     session.receive_observation(observation(8))
     thread.join()
 
     assert result_holder == [SessionResult(
         status="ready",
         observation=observation(8),
-        action_results=cancelled,
     )]
+
+
+def test_recovery_observe_timeout_keeps_recovering_and_resends_request():
+    session, sent = make_session()
+    session.receive_observation(observation(7))
+
+    with pytest.raises(SessionError, match="action_timeout"):
+        session.act(7, [{"type": "wait", "duration_ms": 50}], timeout=0.01)
+
+    with pytest.raises(SessionError, match="action_recovery_timeout"):
+        session.observe(timeout=0.01)
+
+    assert sent[-2:] == [sent[-1], sent[-1]]
+    assert sent[-1]["type"] == "recover_action"
 
 
 def test_threshold_act_finishes_then_requests_max_requests_game_over():
@@ -899,14 +915,14 @@ def test_threshold_act_finishes_then_requests_max_requests_game_over():
 
     assert sent[1] == {
         "type": "end_game",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 8,
         "outcome": "failure",
         "reason": "max_requests",
     }
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 8,
         "outcome": "failure",
         "reason": "max_requests",
@@ -939,14 +955,14 @@ def test_invalid_threshold_act_error_is_superseded_by_terminal_result():
 
     assert sent == [{
         "type": "end_game",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "failure",
         "reason": "max_requests",
     }]
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "failure",
         "reason": "max_requests",
@@ -986,7 +1002,7 @@ def test_password_terminal_on_threshold_act_takes_priority(outcome, reason):
     session.receive_action_results(7, wait_action_results())
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": outcome,
         "reason": reason,
@@ -1023,7 +1039,7 @@ def test_request_after_threshold_is_rejected_while_terminal_is_pending():
 
     session.receive_game_over({
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": 7,
         "outcome": "failure",
         "reason": "max_requests",
@@ -1081,7 +1097,7 @@ def test_game_over_rejects_invalid_max_requests_pair():
     with pytest.raises(SessionError, match="invalid_game_over"):
         session.receive_game_over({
             "type": "game_over",
-            "protocol_version": 3,
+            "protocol_version": 4,
             "observation_id": 7,
             "outcome": "success",
             "reason": "max_requests",
@@ -1092,7 +1108,7 @@ def test_max_requests_game_over_allows_null_id_without_an_observation():
     session, _ = make_session()
     terminal = {
         "type": "game_over",
-        "protocol_version": 3,
+        "protocol_version": 4,
         "observation_id": None,
         "outcome": "failure",
         "reason": "max_requests",

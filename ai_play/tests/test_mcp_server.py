@@ -34,7 +34,7 @@ class FakeReadySession:
                 status="game_over",
                 game_over={
                     "type": "game_over",
-                    "protocol_version": 3,
+                    "protocol_version": 4,
                     "observation_id": 7,
                     "outcome": "success",
                     "reason": self.terminal_reason,
@@ -59,7 +59,7 @@ class FakeReadySession:
                 action_results=[{"status": "completed", "type": "wait"}],
                 game_over={
                     "type": "game_over",
-                    "protocol_version": 3,
+                    "protocol_version": 4,
                     "observation_id": 7,
                     "outcome": "success",
                     "reason": self.terminal_reason,
@@ -265,7 +265,7 @@ def test_find_key_briefing_and_terminal_state_use_selected_scenario(monkeypatch)
             assert observe_result.structuredContent["status"] == "game_over"
             assert observe_result.structuredContent["game_over"] == {
                 "type": "game_over",
-                "protocol_version": 3,
+                "protocol_version": 4,
                 "observation_id": 7,
                 "outcome": "success",
                 "reason": "key_picked_up",

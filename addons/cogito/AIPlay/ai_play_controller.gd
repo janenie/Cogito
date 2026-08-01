@@ -3,7 +3,7 @@ extends Node
 
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
-const PROTOCOL_VERSION: int = 3
+const PROTOCOL_VERSION: int = 4
 const EXECUTOR_DEVICE_ID: int = AIPlayExecutor.SYNTHETIC_DEVICE_ID
 const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
@@ -52,6 +52,8 @@ const SCENARIO_TERMINAL_RESULTS := {
 var _state: State = State.DISABLED
 var _pending_observation_id: int = -1
 var _executing_observation_id: int = -1
+var _last_completed_observation_id: int = -1
+var _recovering_observation_id: int = -1
 var _pending_context: Dictionary = {}
 var _last_results: Array = []
 var _reconnect_remaining: float = -1.0
@@ -97,6 +99,7 @@ func _ready() -> void:
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
+	_bridge.recover_action_received.connect(_on_recover_action_received)
 	_bridge.stop_request_received.connect(_on_stop_request_received)
 	_bridge.end_game_received.connect(_on_end_game_received)
 	_bridge.remote_error.connect(_on_remote_error)
@@ -194,6 +197,8 @@ func enable_ai() -> void:
 	_state = State.CONNECTING
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
+	_recovering_observation_id = -1
 	var error: Error = _bridge.connect_to_server(host, port)
 	if error != OK:
 		_on_bridge_disconnected("connect_error:%d" % error)
@@ -206,6 +211,8 @@ func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> 
 	_state = State.DISABLED
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
+	_recovering_observation_id = -1
 	_reconnect_remaining = -1.0
 	if _observation_timer != null:
 		_observation_timer.stop()
@@ -305,6 +312,11 @@ func _capture_observation(results: Array) -> void:
 	observation["type"] = "observation"
 	observation["protocol_version"] = PROTOCOL_VERSION
 	print("AI_PLAY sending observation=%d" % observation_id["value"])
+	if (
+		_recovering_observation_id >= 0
+		and observation_id["value"] != _recovering_observation_id
+	):
+		_recovering_observation_id = -1
 	_pending_observation_id = observation_id["value"]
 	var interface: Dictionary = observation.get("interface", {})
 	_pending_context = {
@@ -318,13 +330,6 @@ func _capture_observation(results: Array) -> void:
 
 func _on_action_batch_received(batch: Dictionary) -> void:
 	if _state != State.WAITING_FOR_DECISION:
-		if _state == State.EXECUTING and _is_duplicate_inflight_batch(batch):
-			print(
-				"AI_PLAY cancelling timed-out action for observation=%s"
-				% str(batch.get("observation_id"))
-			)
-			_executor.cancel_all("duplicate_action_batch")
-			return
 		if _state == State.DISABLED and _stop_delivery_pending:
 			return
 		_pause_for_error("unexpected_action_batch")
@@ -354,22 +359,49 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	_executor.execute_batch(actions, _pending_context)
 
 
-func _is_duplicate_inflight_batch(batch: Dictionary) -> bool:
+func _on_recover_action_received(request: Dictionary) -> void:
 	if (
 		not _has_exact_keys(
-			batch,
-			["type", "protocol_version", "observation_id", "actions"],
+			request,
+			["type", "protocol_version", "observation_id", "reason"],
 		)
-		or batch.get("type") != "action_batch"
-		or batch.get("protocol_version") != PROTOCOL_VERSION
-		or not batch.get("actions") is Array
+		or request.get("type") != "recover_action"
+		or request.get("protocol_version") != PROTOCOL_VERSION
+		or request.get("reason") != "action_timeout"
 	):
-		return false
-	var observation_id: Dictionary = _parse_observation_id(batch.get("observation_id"))
-	return (
-		observation_id["valid"]
-		and observation_id["value"] == _executing_observation_id
-	)
+		_pause_for_error("invalid_recover_action")
+		return
+	var observation_id: Dictionary = _parse_observation_id(request.get("observation_id"))
+	if not observation_id["valid"]:
+		_pause_for_error("invalid_recover_action")
+		return
+	var recovered_id: int = observation_id["value"]
+	if _state == State.EXECUTING and recovered_id == _executing_observation_id:
+		if _recovering_observation_id == recovered_id:
+			return
+		print("AI_PLAY recovering executing action observation=%d" % recovered_id)
+		_recovering_observation_id = recovered_id
+		_capture_generation += 1
+		_observation_timer.stop()
+		_executor.cancel_all("action_timeout")
+		return
+	if _state == State.READY and recovered_id == _last_completed_observation_id:
+		if _recovering_observation_id == recovered_id:
+			return
+		print("AI_PLAY recovering delayed observation=%d" % recovered_id)
+		_recovering_observation_id = recovered_id
+		_capture_generation += 1
+		_observation_timer.stop()
+		var generation: int = _capture_generation
+		call_deferred("_capture_observation_if_current", generation, _last_results)
+		return
+	if (
+		_state == State.WAITING_FOR_DECISION
+		and recovered_id == _last_completed_observation_id
+		and _pending_observation_id != recovered_id
+	):
+		return
+	_pause_for_error("stale_recover_action")
 
 
 func _on_batch_finished(results: Array) -> void:
@@ -377,6 +409,17 @@ func _on_batch_finished(results: Array) -> void:
 		return
 	var completed_observation_id: int = _executing_observation_id
 	_executing_observation_id = -1
+	_last_completed_observation_id = completed_observation_id
+	if _recovering_observation_id == completed_observation_id:
+		_last_results = results.duplicate(true)
+		_state = State.READY
+		var recovery_generation: int = _capture_generation
+		call_deferred(
+			"_capture_observation_if_current",
+			recovery_generation,
+			_last_results,
+		)
+		return
 	if _bridge.send_packet({
 		"type": "action_results",
 		"protocol_version": PROTOCOL_VERSION,
@@ -441,6 +484,8 @@ func _on_bridge_disconnected(reason: String) -> void:
 	_state = State.CONNECTING
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
+	_recovering_observation_id = -1
 	_observation_timer.stop()
 	_executor.cancel_all(reason)
 	_reconnect_remaining = RECONNECT_DELAY_SECONDS
