@@ -283,7 +283,7 @@ godot --headless --path . --editor --quit
 
 Expected: renderer test exits 0 without shader errors; editor exits 0 without parse failures.
 
-- [ ] **Step 4: Inspect final diff and formatting**
+- [x] **Step 4: Inspect final diff and formatting**
 
 ```bash
 git diff --check
