@@ -4,10 +4,18 @@ extends RefCounted
 const INGREDIENT_IDS: Array[String] = [
 	"lettuce",
 	"tomato",
+	"carrot",
+	"avocado",
+	"sausage",
 	"bread",
 	"egg",
 	"mushroom",
+	"onion",
+	"pumpkin",
 	"cheese",
+	"bacon",
+	"broccoli",
+	"corn",
 	"fish",
 	"meat",
 ]
@@ -15,21 +23,33 @@ const INGREDIENT_IDS: Array[String] = [
 const INGREDIENT_COSTS := {
 	"lettuce": 1,
 	"tomato": 1,
+	"carrot": 1,
+	"onion": 1,
 	"bread": 2,
 	"egg": 2,
 	"mushroom": 2,
+	"pumpkin": 2,
+	"broccoli": 2,
+	"corn": 2,
 	"cheese": 3,
+	"avocado": 4,
+	"sausage": 4,
+	"bacon": 4,
 	"fish": 4,
 	"meat": 5,
 }
 
 const RECIPES: Array[Dictionary] = [
-	{"id": "salad", "ingredients": ["lettuce", "tomato", "mushroom"], "sale_price": 7, "profit": 3},
-	{"id": "egg_toast", "ingredients": ["bread", "egg"], "sale_price": 8, "profit": 4},
-	{"id": "cheese_toast", "ingredients": ["bread", "cheese"], "sale_price": 10, "profit": 5},
-	{"id": "burger", "ingredients": ["bread", "meat", "lettuce", "tomato"], "sale_price": 15, "profit": 6},
-	{"id": "fish_sandwich", "ingredients": ["bread", "fish", "lettuce"], "sale_price": 14, "profit": 7},
-	{"id": "mushroom_omelet", "ingredients": ["egg", "cheese", "mushroom"], "sale_price": 14, "profit": 7},
+	{"id": "garden_salad", "ingredients": ["lettuce", "tomato", "carrot"], "sale_price": 7, "profit": 4},
+	{"id": "avocado_salad", "ingredients": ["lettuce", "tomato", "avocado"], "sale_price": 19, "profit": 13},
+	{"id": "carrot_sausage_soup", "ingredients": ["sausage", "mushroom", "onion", "carrot"], "sale_price": 14, "profit": 6},
+	{"id": "pumpkin_sausage_soup", "ingredients": ["sausage", "mushroom", "onion", "pumpkin"], "sale_price": 24, "profit": 15},
+	{"id": "classic_burger", "ingredients": ["bread", "meat", "lettuce", "tomato"], "sale_price": 17, "profit": 8},
+	{"id": "avocado_burger", "ingredients": ["bread", "meat", "avocado", "tomato"], "sale_price": 30, "profit": 18},
+	{"id": "broccoli_bacon_omelet", "ingredients": ["egg", "cheese", "bacon", "broccoli"], "sale_price": 18, "profit": 7},
+	{"id": "corn_bacon_omelet", "ingredients": ["egg", "cheese", "bacon", "corn"], "sale_price": 27, "profit": 16},
+	{"id": "garden_fish_sandwich", "ingredients": ["bread", "fish", "lettuce", "onion"], "sale_price": 15, "profit": 7},
+	{"id": "avocado_fish_sandwich", "ingredients": ["bread", "fish", "avocado", "onion"], "sale_price": 28, "profit": 17},
 ]
 
 

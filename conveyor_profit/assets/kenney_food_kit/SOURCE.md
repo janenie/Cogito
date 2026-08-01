@@ -17,6 +17,14 @@ Only the following files were selected from the pack. Stable project names are o
 | `models/mushroom.glb` | `Models/GLB format/mushroom.glb` |
 | `models/fish.glb` | `Models/GLB format/fish.glb` |
 | `models/meat.glb` | `Models/GLB format/meat-raw.glb` |
+| `models/avocado.glb` | `Models/GLB format/avocado.glb` |
+| `models/bacon.glb` | `Models/GLB format/bacon.glb` |
+| `models/broccoli.glb` | `Models/GLB format/broccoli.glb` |
+| `models/carrot.glb` | `Models/GLB format/carrot.glb` |
+| `models/corn.glb` | `Models/GLB format/corn.glb` |
+| `models/onion.glb` | `Models/GLB format/onion.glb` |
+| `models/pumpkin.glb` | `Models/GLB format/pumpkin.glb` |
+| `models/sausage.glb` | `Models/GLB format/sausage.glb` |
 | `models/plate.glb` | `Models/GLB format/plate.glb` |
 | `models/Textures/colormap.png` | `Models/GLB format/Textures/colormap.png` |
 
