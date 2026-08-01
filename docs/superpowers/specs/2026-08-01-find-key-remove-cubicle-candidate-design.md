@@ -20,6 +20,10 @@
 - Lobby 不再为 `find_key` 连接 `DesktopDeskAnchor`。
 - `find_contract` 的 CUBICLE AREA 锚点和线索连线保持不变。
 - Godot 的 `find_key` 定向测试、AI Play 控制器测试、Python 测试及静态检查通过，最终执行 `git diff --check`。
+- 自动测试通过后，使用 `gpt-5.6-sol`、`high` reasoning 和 AWM 连续进行三局真实黑盒试玩，
+  每局最多 50 步且无人工干预；记录每局结果和轨迹目录。用户已确认接受截图发送、Codex
+  令牌消耗及本地截图和轨迹持久化。真实模型未完成任务属于验收结果，不自动扩大为玩法或
+  supervisor 修复。
 
 ## 范围之外
 
