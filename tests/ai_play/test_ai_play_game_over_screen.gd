@@ -32,6 +32,27 @@ func _run_tests() -> void:
 		"任务成功",
 		"已找到办公室钥匙",
 	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"circuit_repaired",
+		"任务成功",
+		"照明电路已修复",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"wrong_breaker",
+		"任务失败",
+		"断路器选择错误",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"incorrect_circuit_configuration",
+		"任务失败",
+		"照明配置不正确",
+	)
 	_finish()
 
 

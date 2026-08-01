@@ -774,6 +774,21 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"outcome": "failure",
 			"reason": "garden_task_failed",
 		},
+		{
+			"scenario": "repair_lighting_circuit",
+			"outcome": "success",
+			"reason": "circuit_repaired",
+		},
+		{
+			"scenario": "repair_lighting_circuit",
+			"outcome": "failure",
+			"reason": "wrong_breaker",
+		},
+		{
+			"scenario": "repair_lighting_circuit",
+			"outcome": "failure",
+			"reason": "incorrect_circuit_configuration",
+		},
 	]:
 		var fixture: Dictionary = await _connected_fixture(
 			controller_script,
@@ -839,6 +854,20 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		"find_contract rejects find-key success",
 	)
 	await _free_fixture(contract_fixture)
+
+	var circuit_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_contract",
+	)
+	circuit_fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"circuit_repaired",
+	)
+	_assert(
+		"invalid_game_outcome" in circuit_fixture.executor.cancel_reasons,
+		"find_contract rejects lighting-circuit success",
+	)
+	await _free_fixture(circuit_fixture)
 
 	var find_key_fixture: Dictionary = await _connected_fixture(
 		controller_script,

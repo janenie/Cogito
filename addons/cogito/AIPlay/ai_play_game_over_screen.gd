@@ -13,6 +13,9 @@ const OUTCOME_TEXT := {
 	"cleanup_incomplete": "任务失败",
 	"garden_tasks_complete": "任务成功",
 	"garden_task_failed": "任务失败",
+	"circuit_repaired": "任务成功",
+	"wrong_breaker": "任务失败",
+	"incorrect_circuit_configuration": "任务失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -26,6 +29,9 @@ const REASON_TEXT := {
 	"cleanup_incomplete": "还有垃圾没有处理",
 	"garden_tasks_complete": "浇水和下雨警报都已完成",
 	"garden_task_failed": "花园任务未完成",
+	"circuit_repaired": "照明电路已修复",
+	"wrong_breaker": "断路器选择错误",
+	"incorrect_circuit_configuration": "照明配置不正确",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome
