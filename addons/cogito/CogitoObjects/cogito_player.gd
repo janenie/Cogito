@@ -744,7 +744,7 @@ func _process_on_ladder(_delta):
 
 	# Applying ladder input_dir to direction
 	var y_dir = 1 if looking_down else -1
-	direction = (body.global_transform.basis * Vector3(input_dir.x,input_dir.y * y_dir,0)).normalized()
+	direction = body.global_transform.basis.orthonormalized() * Vector3(input_dir.x,input_dir.y * y_dir,0)
 	main_velocity = direction * ladder_speed
 	
 	if jump:
@@ -759,6 +759,10 @@ func _process_on_ladder(_delta):
 
 var jumped_from_slide = false
 var was_in_air = false
+
+
+func _movement_direction_from_input(input_dir: Vector2) -> Vector3:
+	return body.global_transform.basis.orthonormalized() * Vector3(input_dir.x, 0.0, input_dir.y)
 
 
 ##Sittables Process
@@ -1062,13 +1066,13 @@ func _physics_process(delta):
 		if is_on_floor():
 			direction = lerp(
 				direction,
-				(body.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized(),
+				_movement_direction_from_input(input_dir),
 				delta * LERP_SPEED
 			)
 		elif input_dir != Vector2.ZERO:
 			direction = lerp(
 				direction,
-				(body.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized(),
+				_movement_direction_from_input(input_dir),
 				delta * AIR_LERP_SPEED
 			)
 	else:

@@ -258,8 +258,13 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   扫视房间，5～15 度适合微调准星。一次动作只改变一个方向轴；Godot 映射会抵消玩家的
   垂直轴反转设置，因此语义 `up` / `down` 始终与最终画面方向一致。
 - `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
-  `duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move` 约等于连续走四分之一秒，
-  满强度 `sprint` 约等于连续跑四分之一秒。接近门、桌面或小物体时优先用 100～150ms。
+  `forward` 与 `right` 组成的输入向量长度会保留为实际移动力度（上限为 1）；单轴绝对值 1
+  是满强度，0.2～0.4 适合精细对位。`duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move`
+  约等于连续走四分之一秒，满强度 `sprint` 约等于连续跑四分之一秒。接近普通目标时优先用
+  100～150ms；穿过狭窄门口或贴近门框时优先用单轴 0.2～0.4、50～100ms，并在每步后
+  重新观察，不要连续使用满强度 250ms。Godot 执行器会补偿项目 Input Map 的移动死区，
+  各场景玩家移动层会保留补偿后的向量长度，确保 MCP 幅值不会被死区或归一化吞掉；移动受阻
+  判定阈值也会随请求力度缩放，避免把有效的精细小步误报为 `blocked`。
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。

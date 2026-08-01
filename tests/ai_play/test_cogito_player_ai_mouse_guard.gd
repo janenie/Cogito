@@ -16,9 +16,31 @@ func _run_tests() -> void:
 		_finish()
 		return
 	var player: Node = packed.instantiate()
-	player.body = player.get_node("Body")
+	var player_body: Node3D = player.get_node("Body")
+	player.body = player_body
 	player.neck = player.get_node("Body/Neck")
 	player.head = player.get_node("Body/Neck/Head")
+	_assert(
+		player.has_method("_movement_direction_from_input"),
+		"player exposes movement direction conversion",
+	)
+	if player.has_method("_movement_direction_from_input"):
+		var movement_body := Node3D.new()
+		root.add_child(movement_body)
+		player.body = movement_body
+		var full_input: Vector3 = player._movement_direction_from_input(Vector2(0.0, -1.0))
+		var precise_input: Vector3 = player._movement_direction_from_input(Vector2(0.0, -0.25))
+		_assert(is_equal_approx(full_input.length(), 1.0), "full movement input keeps full strength")
+		_assert(
+			is_equal_approx(precise_input.length(), 0.25),
+			"fractional movement input keeps fractional strength",
+		)
+		_assert(
+			precise_input.normalized().is_equal_approx(full_input.normalized()),
+			"fractional movement input keeps direction",
+		)
+		player.body = player_body
+		movement_body.free()
 	var starting_body: Vector3 = player.body.rotation
 	var starting_head: Vector3 = player.head.rotation
 

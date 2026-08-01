@@ -75,6 +75,7 @@ func _run_tests() -> void:
 		"right": 0.0,
 		"duration_ms": 251,
 	}, {}, "sprint over 250 ms")
+	_test_fractional_movement_strength(executor)
 	_assert_invalid(executor, {
 		"type": "interact",
 		"action": "interact",
@@ -163,6 +164,34 @@ func _assert_invalid(executor: Node, action: Dictionary, context: Dictionary, la
 	_assert(not result.get("valid", false), "rejects %s" % label)
 
 
+func _test_fractional_movement_strength(executor: Node) -> void:
+	_assert(
+		executor.has_method("_deadzone_compensated_movement_axes"),
+		"executor exposes deadzone-compensated movement axes",
+	)
+	if not executor.has_method("_deadzone_compensated_movement_axes"):
+		return
+	var cases: Array[Vector2] = [
+		Vector2(0.25, 0.0),
+		Vector2(-0.4, 0.0),
+		Vector2(0.2, 0.2),
+	]
+	for requested_axes: Vector2 in cases:
+		var encoded_axes: Vector2 = executor._deadzone_compensated_movement_axes(
+			requested_axes.x,
+			requested_axes.y,
+		)
+		executor._press_axis("forward", "back", encoded_axes.x)
+		executor._press_axis("right", "left", encoded_axes.y)
+		var input_vector := Input.get_vector("left", "right", "forward", "back")
+		executor._release_held_actions()
+		var actual_axes := Vector2(-input_vector.y, input_vector.x)
+		_assert(
+			actual_axes.is_equal_approx(requested_axes),
+			"fractional movement survives the project input deadzone",
+		)
+
+
 func _test_batch_validation(executor: Node, recorder: InputRecorder) -> void:
 	for invalid_size: Variant in [[], [{"type": "wait", "duration_ms": 50}] + [
 		{"type": "stop"},
@@ -245,6 +274,10 @@ func _test_blocked_movement(executor: Node, recorder: InputRecorder) -> void:
 		"zero blocked threshold is clamped to a positive minimum",
 	)
 	executor.blocked_distance_threshold = 0.05
+	_assert(
+		is_equal_approx(executor._effective_blocked_distance_threshold(0.25), 0.0125),
+		"blocked threshold scales with fractional movement strength",
+	)
 	var static_player := Node3D.new()
 	root.add_child(static_player)
 	executor.player = static_player

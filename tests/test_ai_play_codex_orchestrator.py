@@ -405,6 +405,21 @@ def test_player_prompt_prioritizes_nearby_task_card_before_leaving_spawn(
     assert "单独调用 probe_interaction" in prompt
 
 
+@pytest.mark.parametrize("workflow_memory_enabled", [False, True])
+def test_player_prompt_teaches_precise_doorway_movement(workflow_memory_enabled):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        workflow_memory_enabled=workflow_memory_enabled,
+    )
+
+    assert "穿过狭窄门口或贴近门框" in prompt
+    assert "单轴 0.2 到 0.4" in prompt
+    assert "50 到 100ms" in prompt
+    assert "不要连续使用满强度 250ms" in prompt
+
+
 def test_player_prompt_requires_awm_lifecycle(tmp_path):
     orchestrator = load_orchestrator()
 

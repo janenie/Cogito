@@ -175,11 +175,15 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 				not is_zero_approx(float(action["forward"]))
 				or not is_zero_approx(float(action["right"]))
 			)
+			var movement_axes := _deadzone_compensated_movement_axes(
+				float(action["forward"]),
+				float(action["right"]),
+			)
 			var start_position := Vector2.ZERO
 			if player != null and movement_requested:
 				start_position = Vector2(player.global_position.x, player.global_position.z)
-			_press_axis("forward", "back", float(action["forward"]))
-			_press_axis("right", "left", float(action["right"]))
+			_press_axis("forward", "back", movement_axes.x)
+			_press_axis("right", "left", movement_axes.y)
 			if action_type == "sprint":
 				_press_held("sprint", 1.0)
 			await get_tree().create_timer(float(action["duration_ms"]) / 1000.0).timeout
@@ -188,7 +192,14 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 			_release_held_actions()
 			if player != null and movement_requested:
 				var end_position := Vector2(player.global_position.x, player.global_position.z)
-				if start_position.distance_to(end_position) < _effective_blocked_distance_threshold():
+				var requested_strength := Vector2(
+					float(action["forward"]),
+					float(action["right"]),
+				).limit_length(1.0).length()
+				if (
+					start_position.distance_to(end_position)
+					< _effective_blocked_distance_threshold(requested_strength)
+				):
 					return {"status": "blocked", "type": action_type}
 		"jump", "crouch":
 			_emit_action_pair(action_type)
@@ -254,8 +265,27 @@ func _look_degrees_to_mouse_relative(yaw_degrees: float, pitch_degrees: float) -
 	return Vector2(yaw_degrees, pitch_degrees)
 
 
-func _effective_blocked_distance_threshold() -> float:
-	return maxf(MIN_BLOCKED_DISTANCE_THRESHOLD, blocked_distance_threshold)
+func _effective_blocked_distance_threshold(movement_strength: float = 1.0) -> float:
+	return maxf(
+		MIN_BLOCKED_DISTANCE_THRESHOLD,
+		blocked_distance_threshold * clampf(movement_strength, 0.0, 1.0),
+	)
+
+
+func _deadzone_compensated_movement_axes(forward: float, right: float) -> Vector2:
+	var requested_axes := Vector2(forward, right).limit_length(1.0)
+	var requested_strength := requested_axes.length()
+	if is_zero_approx(requested_strength):
+		return Vector2.ZERO
+	var movement_deadzone := (
+		InputMap.action_get_deadzone("left")
+		+ InputMap.action_get_deadzone("right")
+		+ InputMap.action_get_deadzone("forward")
+		+ InputMap.action_get_deadzone("back")
+	) / 4.0
+	movement_deadzone = clampf(movement_deadzone, 0.0, 0.99)
+	var encoded_strength := lerpf(movement_deadzone, 1.0, requested_strength)
+	return requested_axes.normalized() * encoded_strength
 
 
 func _press_axis(positive_action: String, negative_action: String, value: float) -> void:

@@ -2,7 +2,12 @@ extends SceneTree
 
 var failures := 0
 
-func _init() -> void:
+
+func _initialize() -> void:
+	call_deferred("_run_tests")
+
+
+func _run_tests() -> void:
 	_test_player_resolves_interactables_and_prompts()
 	if failures == 0:
 		print("Home robot player interaction tests passed")
@@ -22,6 +27,13 @@ func _test_player_resolves_interactables_and_prompts() -> void:
 
 	_assert(player.has_method("resolve_interaction_target_for_test"), "player exposes interaction target resolver")
 	_assert(player.has_method("get_interaction_prompt_for_test"), "player exposes interaction prompt resolver")
+	_assert(player.has_method("_movement_direction_from_input"), "player exposes movement conversion")
+	if player.has_method("_movement_direction_from_input"):
+		var precise_direction: Vector3 = player._movement_direction_from_input(Vector2(0.0, -0.25))
+		_assert(
+			is_equal_approx(precise_direction.length(), 0.25),
+			"player preserves fractional movement strength",
+		)
 
 	var InteractableScript = load("res://tests/dailyroutine/fixtures/fake_interactable.gd")
 	_assert(InteractableScript != null, "fake interactable script loads")

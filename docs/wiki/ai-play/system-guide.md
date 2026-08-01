@@ -49,7 +49,11 @@ Godot 桥的安全边界。
 - 公开 briefing 必须说明 `look` 只接受 `direction`（`left`、`right`、`up`、`down`）和
   `degrees`（有限、非布尔、1～45），并明确禁止公开 `yaw`、`pitch` 和正负号；Python 与
   Godot 必须镜像精确字段和边界校验。briefing 还要说明 `move`/`sprint` 的按键持续时间量级，
-  让黑盒玩家知道何时用扫视、微调和小步移动；`move`/`sprint` 单次最大 250ms。
+  让黑盒玩家知道何时用扫视、微调和小步移动；`forward`/`right` 输入向量的长度必须保留为
+  实际移动力度（上限为 1）。Godot 执行器必须补偿 Input Map 的移动死区，各场景玩家移动层
+  不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
+  `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
+  50～100ms，并在每步后重新观察。
 - `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
   `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
   50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，

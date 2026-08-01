@@ -468,7 +468,9 @@ def build_player_prompt(
    不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 返回的截图中
    地标的位置、大小与遮挡变化，确认方向正确后再移动。
 2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
-3. 靠近目标时使用短距离 move，不要长时间 sprint；转向后重新 observe，确认准星没有偏离目标。
+3. 靠近目标时使用短距离 move，不要长时间 sprint；穿过狭窄门口或贴近门框时，优先使用
+   单轴 0.2 到 0.4 的力度和 50 到 100ms，每步重新 observe 修正站位，不要连续使用满强度 250ms。
+   转向后也要重新 observe，确认准星没有偏离目标。
 4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
    交互动作格式必须精确写成 {{"type":"interact","action":"interact"}} 或
    {{"type":"interact","action":"interact2"}}，不要把提示文字、物体名或绑定键写进 action。

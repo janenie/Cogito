@@ -36,6 +36,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("menu"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+
+func _movement_direction_from_input(input_dir: Vector2) -> Vector3:
+	return global_transform.basis.orthonormalized() * Vector3(input_dir.x, 0.0, input_dir.y)
+
+
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -43,7 +48,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_velocity
 
 	var input_dir := Input.get_vector("left", "right", "forward", "back")
-	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	var direction := _movement_direction_from_input(input_dir)
 	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	if direction:
 		velocity.x = direction.x * speed

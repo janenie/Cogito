@@ -36,6 +36,18 @@ func _run_tests() -> void:
 		_assert(observer.watering_state == scene, "observer reads the garden state")
 	if monitor != null:
 		_assert(monitor.scenario_id == "garden_watering", "monitor selects garden scenario")
+	var player: Node = scene.get_node_or_null("CogitoPlayer")
+	_assert(player != null, "garden scene has a player")
+	if player != null:
+		_assert(player.has_method("_movement_direction_from_input"), "player exposes movement conversion")
+		if player.has_method("_movement_direction_from_input"):
+			var precise_direction: Vector3 = player._movement_direction_from_input(
+				Vector2(0.0, -0.25)
+			)
+			_assert(
+				is_equal_approx(precise_direction.length(), 0.25),
+				"player preserves fractional movement strength",
+			)
 
 	_test_public_observation(scene, observer)
 	await _test_terminal_monitor(scene)
