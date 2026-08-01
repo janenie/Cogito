@@ -53,3 +53,12 @@ shape = SubResource("BookShape")
 carry_distance_offset = -0.75
 carrying_velocity_multiplier = 12.0
 drop_distance = 1.2
+
+[node name="TargetMarker" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.34, 0)
+visible = false
+text = "任务书"
+font_size = 32
+outline_size = 10
+billboard = 1
+no_depth_test = false

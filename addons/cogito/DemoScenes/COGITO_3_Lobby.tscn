@@ -3339,7 +3339,7 @@ lobby_task_card_anchor = NodePath("../../AIPlayRoundMarkers/LobbyTaskCard")
 archive_spawn = NodePath("../../AIPlayRoundMarkers/ArchiveSpawn")
 archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
-[node name="PutBookMonitor" type="Node" parent="AIPlayController" unique_id=1959638116 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "archive_door", "carried_book", "target_box", "target_box_area", "near_box_anchor", "far_box_anchor", "archive_spawn", "archive_task_card_anchor", "book_a", "book_b", "book_c", "book_d", "book_e", "book_f")]
+[node name="PutBookMonitor" type="Node" parent="AIPlayController" unique_id=1959638116 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "archive_door", "carried_book", "archive_root", "shelf_slots_root", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_put_book_monitor")
 scenario_id = "put_book"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
@@ -3347,18 +3347,10 @@ player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
 archive_door = NodePath("../../ARCHIVE/ArchiveDoor/FrontDoor")
 carried_book = NodePath("../../ARCHIVE/PutBook_CarryableBook")
-target_box = NodePath("../../ARCHIVE/cardboardBoxOpen")
-target_box_area = NodePath("../../ARCHIVE/cardboardBoxOpen/PutBookBoxArea")
-near_box_anchor = NodePath("../../ARCHIVE/PutBookNearBoxAnchor")
-far_box_anchor = NodePath("../../ARCHIVE/PutBookFarBoxAnchor")
+archive_root = NodePath("../../ARCHIVE")
+shelf_slots_root = NodePath("../../ARCHIVE/PutBookShelfSlots")
 archive_spawn = NodePath("../../AIPlayRoundMarkers/ArchiveSpawn")
 archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
-book_a = NodePath("../../ARCHIVE/books")
-book_b = NodePath("../../ARCHIVE/books2")
-book_c = NodePath("../../ARCHIVE/books3")
-book_d = NodePath("../../ARCHIVE/books5")
-book_e = NodePath("../../ARCHIVE/books6")
-book_f = NodePath("../../ARCHIVE/books4")
 
 [node name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("game_over_screen", "player", "task_card", "npc", "conference_door", "meeting_room", "entrance_spawn", "entrance_task_card_anchor")]
 script = ExtResource("ai_play_greet_npc_meeting_monitor")
@@ -6729,22 +6721,28 @@ transform = Transform3D(1, 0, 2.13163e-14, 0, 1, 0, -2.13163e-14, 0, 1, 1.2, 0, 
 [node name="books" parent="ARCHIVE" unique_id=585762745 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 3.05588, 1.22094, -1.11634)
 visible = false
+groups = ["put_book_decorative_book"]
 
 [node name="books2" parent="ARCHIVE" unique_id=2040553632 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.3711402e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711402e-08, 2.6558802, 1.7036599, -1.5934706)
+groups = ["put_book_decorative_book"]
 
 [node name="books3" parent="ARCHIVE" unique_id=593321889 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.65588, 0.742455, -0.693467)
+groups = ["put_book_decorative_book"]
 
 [node name="books5" parent="ARCHIVE" unique_id=1479314314 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 0.6504271, 1.603652, -0.49346542)
+groups = ["put_book_decorative_book"]
 
 [node name="books6" parent="ARCHIVE" unique_id=1483841084 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.55467, 0.139511, -0.493466)
+groups = ["put_book_decorative_book"]
 
 [node name="books4" parent="ARCHIVE" unique_id=409455667 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1.31134e-07, -8.74228e-08, -1, 1, -4.37114e-08, -1.31134e-07, -4.37114e-08, -1, 8.74228e-08, 2.80461, 0.165415, -0.123862)
 visible = false
+groups = ["put_book_decorative_book"]
 
 [node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE"]
 
