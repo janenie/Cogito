@@ -94,8 +94,27 @@ func _run_test() -> void:
 		monitor.destination_slots_root.get_child_count() == 3,
 		"CEO destination has three display slots",
 	)
+	var book_collision := (
+		monitor.carried_book.get_node("CollisionShape3D") as CollisionShape3D
+	)
+	_assert(book_collision.shape is BoxShape3D, "runtime book uses box collision bounds")
+	var book_collision_size := (book_collision.shape as BoxShape3D).size
+	var tray_mesh := monitor.destination.get_node("TrayMesh") as MeshInstance3D
+	_assert(tray_mesh.mesh is BoxMesh, "CEO destination tray uses measurable box geometry")
+	var tray_size := (tray_mesh.mesh as BoxMesh).size
+	var display_slots: Array[Marker3D] = []
 	for child: Node in monitor.destination_slots_root.get_children():
 		_assert(child is Marker3D, "CEO destination display slots are authored markers")
+		if child is Marker3D:
+			display_slots.append(child as Marker3D)
+	_assert(
+		_display_slots_clear_book_bounds(display_slots, book_collision_size, 0.04),
+		"CEO display slots leave at least 4 cm between completed-book collision bounds",
+	)
+	_assert(
+		_display_slots_fit_tray(display_slots, book_collision_size, tray_size, 0.04),
+		"all completed-book collision bounds fit inside the one cyan tray with margin",
+	)
 	_assert(not monitor.ceo_door.is_locked, "CEO office door unlocks for put-book")
 
 	var seen_layouts: Dictionary = {}
@@ -134,6 +153,11 @@ func _run_test() -> void:
 			)
 			var carry_component: Variant = book.get_node_or_null("CarryableComponent")
 			_assert(carry_component != null and not carry_component.is_disabled, "all books start pickup-enabled")
+		if seed_value in [1, 17, 64, 128]:
+			_assert(
+				_books_match_seeded_authored_transforms(monitor, slots, seed_value),
+				"runtime books occupy the independently selected authored transforms",
+			)
 		var decorative_books := lobby.get_tree().get_nodes_in_group("put_book_decorative_book")
 		_assert(decorative_books.size() == 6, "all six decorative books are in the scene group")
 		for decorative_book: Node in decorative_books:
@@ -144,6 +168,7 @@ func _run_test() -> void:
 
 	monitor.configure_round(73421)
 	var first_snapshot: Dictionary = monitor.get_round_snapshot()
+	var first_transforms := _book_transforms(monitor._active_books)
 	var task_label_title := monitor.task_card.get("label_title") as Label
 	var task_label_content := monitor.task_card.get("label_content") as RichTextLabel
 	_assert(task_label_title != null, "task card exposes its rendered title label")
@@ -162,6 +187,22 @@ func _run_test() -> void:
 	_assert(
 		first_snapshot["target_order"] == second_snapshot["target_order"],
 		"same seed reproduces target order",
+	)
+	_assert(
+		_book_transforms(monitor._active_books) == first_transforms,
+		"same seed reproduces actual runtime book transforms",
+	)
+
+	monitor.ceo_door.is_open = true
+	monitor.ceo_door.is_moving = true
+	monitor.ceo_door.set_state()
+	monitor.configure_round(73421)
+	_assert(not monitor.ceo_door.is_open, "repeated setup restores the CEO door to closed")
+	_assert(not monitor.ceo_door.is_locked, "repeated setup leaves the CEO door unlocked")
+	_assert(not monitor.ceo_door.is_moving, "CEO door reset cancels stale movement")
+	_assert(
+		monitor.ceo_door.rotation_degrees.distance_to(monitor.ceo_door.closed_rotation) < 0.001,
+		"repeated setup restores the CEO door authored closed transform",
 	)
 
 	monitor.configure_round(0)
@@ -419,6 +460,79 @@ func _count_shelf(slots: Array[Marker3D], shelf_name: String) -> int:
 	return count
 
 
+func _display_slots_clear_book_bounds(
+	slots: Array[Marker3D],
+	book_size: Vector3,
+	margin: float,
+) -> bool:
+	for first_index: int in range(slots.size()):
+		for second_index: int in range(first_index + 1, slots.size()):
+			var offset := slots[first_index].position - slots[second_index].position
+			var separated := (
+				absf(offset.x) >= book_size.x + margin
+				or absf(offset.y) >= book_size.y + margin
+				or absf(offset.z) >= book_size.z + margin
+			)
+			if not separated:
+				return false
+	return true
+
+
+func _display_slots_fit_tray(
+	slots: Array[Marker3D],
+	book_size: Vector3,
+	tray_size: Vector3,
+	margin: float,
+) -> bool:
+	var tray_half := tray_size * 0.5
+	var book_half := book_size * 0.5
+	for slot: Marker3D in slots:
+		if absf(slot.position.x) + book_half.x + margin > tray_half.x:
+			return false
+		if absf(slot.position.z) + book_half.z + margin > tray_half.z:
+			return false
+	return true
+
+
+func _books_match_seeded_authored_transforms(
+	monitor: Node,
+	slots: Array[Marker3D],
+	seed_value: int,
+) -> bool:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var selected_slots := AIPlayPutBookLayout.select_slots(slots, rng)
+	if selected_slots.size() != monitor._active_books.size():
+		return false
+	var unmatched_slots: Array[Marker3D] = selected_slots.duplicate()
+	for book: RigidBody3D in monitor._active_books:
+		var match_index := -1
+		for index: int in range(unmatched_slots.size()):
+			if _transforms_match(book.global_transform, unmatched_slots[index].global_transform):
+				match_index = index
+				break
+		if match_index < 0:
+			return false
+		unmatched_slots.remove_at(match_index)
+	return unmatched_slots.is_empty()
+
+
+func _transforms_match(left: Transform3D, right: Transform3D) -> bool:
+	return (
+		left.origin.distance_to(right.origin) < 0.001
+		and left.basis.x.distance_to(right.basis.x) < 0.001
+		and left.basis.y.distance_to(right.basis.y) < 0.001
+		and left.basis.z.distance_to(right.basis.z) < 0.001
+	)
+
+
+func _book_transforms(books: Array[RigidBody3D]) -> Array[Transform3D]:
+	var result: Array[Transform3D] = []
+	for book: RigidBody3D in books:
+		result.append(book.global_transform)
+	return result
+
+
 func _visible_runtime_books(monitor: Node) -> Array[RigidBody3D]:
 	var result: Array[RigidBody3D] = []
 	for book: RigidBody3D in monitor._runtime_books:
@@ -510,8 +624,6 @@ func _ensure_current_scene() -> void:
 	_test_scene_root.name = "AIPlayHeadlessTestScene"
 	root.add_child(_test_scene_root)
 	current_scene = _test_scene_root
-
-
 func _finish() -> void:
 	if _failures.is_empty():
 		print("AIPlay put-book monitor test passed")

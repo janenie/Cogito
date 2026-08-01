@@ -11,13 +11,13 @@ emission_energy_multiplier = 0.65
 
 [sub_resource type="BoxMesh" id="DestinationMesh"]
 material = SubResource("DestinationMaterial")
-size = Vector3(0.96, 0.08, 0.52)
+size = Vector3(1.36, 0.08, 0.6)
 
 [sub_resource type="BoxShape3D" id="DestinationCollisionShape"]
-size = Vector3(0.96, 0.08, 0.52)
+size = Vector3(1.36, 0.08, 0.6)
 
 [sub_resource type="BoxShape3D" id="DestinationAreaShape"]
-size = Vector3(1.1, 0.55, 0.7)
+size = Vector3(1.5, 0.55, 0.76)
 
 [node name="PutBookDestination" type="StaticBody3D" groups=["interactable"]]
 process_mode = 4
@@ -53,13 +53,13 @@ shape = SubResource("DestinationAreaShape")
 [node name="DisplaySlots" type="Node3D" parent="."]
 
 [node name="Book1" type="Marker3D" parent="DisplaySlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.13, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.44, 0.15, 0)
 
 [node name="Book2" type="Marker3D" parent="DisplaySlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 
 [node name="Book3" type="Marker3D" parent="DisplaySlots"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.13, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, 0.15, 0)
 
 [node name="DestinationDropInteraction" type="Node3D" parent="."]
 script = ExtResource("2_interaction")

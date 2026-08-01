@@ -242,7 +242,14 @@ func _activate_destination() -> void:
 	var callback := Callable(self, "_on_destination_body_entered")
 	if not destination_area.body_entered.is_connected(callback):
 		destination_area.body_entered.connect(callback)
+	_reset_ceo_door()
+
+
+func _reset_ceo_door() -> void:
 	ceo_door.is_locked = false
+	ceo_door.is_open = false
+	ceo_door.is_moving = false
+	ceo_door.set_state()
 
 
 func can_assisted_drop_to_destination() -> bool:
