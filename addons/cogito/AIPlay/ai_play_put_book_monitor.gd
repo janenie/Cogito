@@ -68,7 +68,7 @@ func configure_round(seed_value: int = 0) -> void:
 	else:
 		rng.seed = seed_value
 	_effective_seed = rng.seed
-	_round_finished = false
+	_round_finished = true
 	_current_target_index = 0
 	_current_carried_book = null
 	_completed_books.clear()
@@ -84,6 +84,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_place_player_and_task_card()
 	_write_task_card()
 	_open_archive_door()
+	_round_finished = false
 
 
 func _shelf_slots() -> Array[Marker3D]:
@@ -138,7 +139,8 @@ func _reset_runtime_books() -> void:
 		_set_collision_enabled(book, false)
 		var carry_component: Variant = _carry_component_for_book(book)
 		if carry_component != null:
-			carry_component.is_being_carried = false
+			if carry_component.is_being_carried:
+				carry_component.leave()
 			carry_component.is_disabled = true
 
 
@@ -160,7 +162,6 @@ func _place_round_books(selected_slots: Array[Marker3D]) -> void:
 			carry_component.carry_distance_offset = BOOK_CARRY_DISTANCE_OFFSET
 			carry_component.carrying_velocity_multiplier = BOOK_CARRYING_VELOCITY_MULTIPLIER
 			carry_component.drop_distance = BOOK_DROP_DISTANCE
-			carry_component.is_being_carried = false
 			carry_component.is_disabled = false
 			var callback := Callable(self, "_on_book_carry_state_changed").bind(book, carry_component)
 			if carry_component.has_signal("carry_state_changed") and not (

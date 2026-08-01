@@ -129,20 +129,36 @@ func _run_test() -> void:
 			})
 	)
 	monitor.configure_round(123456)
+	var player_interaction: Variant = monitor._player_interaction_component()
+	_assert(player_interaction != null, "player exposes its real interaction component")
 	var expected: RigidBody3D = monitor._target_books[0]
 	var later_target: RigidBody3D = monitor._target_books[1]
 	var ordinary: RigidBody3D = _first_ordinary_book(monitor)
 	_assert(ordinary != null, "round includes an ordinary book")
+	var ordinary_carry: Variant = monitor._carry_component_for_book(ordinary)
+	_assert(
+		_monitor_carry_connection_count(ordinary_carry, monitor) == 1,
+		"runtime book signal has one bound monitor callback",
+	)
+	_assert(
+		await _raycast_hits_book(player_interaction.interaction_raycast, ordinary),
+		"raycast fixture detects an available ordinary book",
+	)
 	for book: RigidBody3D in monitor._active_books:
 		_assert(
 			not monitor._carry_component_for_book(book).is_disabled,
 			"all books start available",
 		)
 	_assert(terminal_results.is_empty(), "observing ordinary books does not fail")
-	monitor._on_book_carry_state_changed(
-		true,
-		ordinary,
-		monitor._carry_component_for_book(ordinary),
+	ordinary_carry.carry(player_interaction)
+	_assert(ordinary_carry.is_being_carried, "ordinary book enters the real carried state")
+	_assert(
+		player_interaction.carried_object == ordinary_carry,
+		"real pickup registers the carried component on the player",
+	)
+	_assert(
+		not (await _raycast_hits_book(player_interaction.interaction_raycast, ordinary)),
+		"real pickup excludes the carried book from the interaction raycast",
 	)
 	_assert(
 		terminal_results == [{
@@ -151,21 +167,33 @@ func _run_test() -> void:
 		}],
 		"ordinary pickup fails immediately",
 	)
-	monitor._on_book_carry_state_changed(
-		true,
-		ordinary,
-		monitor._carry_component_for_book(ordinary),
-	)
+	ordinary_carry.carry_state_changed.emit(true)
 	_assert(terminal_results.size() == 1, "wrong pickup ends the round exactly once")
 
 	monitor.configure_round(123456)
+	_assert(terminal_results.size() == 1, "reset callback cannot score the new round")
+	_assert(not ordinary_carry.is_being_carried, "round reset leaves a genuinely carried book")
+	_assert(
+		player_interaction.carried_object == null,
+		"round reset clears the player's carried component",
+	)
+	_assert(
+		await _raycast_hits_book(player_interaction.interaction_raycast, ordinary),
+		"round reset removes the carried book raycast exception",
+	)
+	_assert(
+		_monitor_carry_connection_count(ordinary_carry, monitor) == 1,
+		"round reset does not duplicate the bound carry callback",
+	)
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			not monitor._carry_component_for_book(book).is_disabled,
+			"all books are pickup-enabled after a carried-book reset",
+		)
 	terminal_results.clear()
 	later_target = monitor._target_books[1]
-	monitor._on_book_carry_state_changed(
-		true,
-		later_target,
-		monitor._carry_component_for_book(later_target),
-	)
+	var later_carry: Variant = monitor._carry_component_for_book(later_target)
+	later_carry.carry(player_interaction)
 	_assert(
 		terminal_results == [{
 			"outcome": "failure",
@@ -175,34 +203,55 @@ func _run_test() -> void:
 	)
 
 	monitor.configure_round(123456)
+	monitor.configure_round(123456)
 	terminal_results.clear()
 	expected = monitor._target_books[0]
-	monitor._on_book_carry_state_changed(
-		true,
-		expected,
-		monitor._carry_component_for_book(expected),
-	)
+	var expected_carry: Variant = monitor._carry_component_for_book(expected)
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			_monitor_carry_connection_count(
+				monitor._carry_component_for_book(book),
+				monitor,
+			) == 1,
+			"repeated round setup keeps one effective carry callback per book",
+		)
+	expected_carry.carry(player_interaction)
 	_assert(terminal_results.is_empty(), "expected target pickup keeps the round active")
 	_assert(monitor._current_carried_book == expected, "expected target becomes the carried book")
 	_assert(monitor._books_carried_once.has(expected), "actual pickup is recorded")
+	_assert(player_interaction.carried_object == expected_carry, "correct pickup uses real player carry state")
 	for book: RigidBody3D in monitor._active_books:
 		var carry_component: Variant = monitor._carry_component_for_book(book)
 		_assert(
 			carry_component.is_disabled == (book != expected),
 			"correct carry disables every other unfinished book",
 		)
-	monitor._on_book_carry_state_changed(
-		false,
-		expected,
-		monitor._carry_component_for_book(expected),
-	)
+	expected_carry.leave()
 	_assert(monitor._current_target_index == 0, "outside drop does not advance target order")
 	_assert(terminal_results.is_empty(), "outside drop remains recoverable")
 	_assert(monitor._current_carried_book == null, "outside drop clears carried book")
+	_assert(player_interaction.carried_object == null, "outside drop clears real player carry state")
 	for book: RigidBody3D in monitor._active_books:
 		_assert(
 			not monitor._carry_component_for_book(book).is_disabled,
 			"outside drop re-enables unfinished books",
+		)
+
+	expected_carry.carry(player_interaction)
+	_assert(monitor._books_carried_once.has(expected), "second real pickup remains tracked")
+	monitor.configure_round(123456)
+	_assert(terminal_results.is_empty(), "real carry reset does not finish the fresh round")
+	_assert(not expected_carry.is_being_carried, "fresh round leaves the previously carried target")
+	_assert(player_interaction.carried_object == null, "fresh round clears player carry ownership")
+	_assert(
+		await _raycast_hits_book(player_interaction.interaction_raycast, expected),
+		"fresh round removes the target raycast exception",
+	)
+	_assert(monitor._books_carried_once.is_empty(), "fresh round clears carry-once tracking")
+	for book: RigidBody3D in monitor._active_books:
+		_assert(
+			not monitor._carry_component_for_book(book).is_disabled,
+			"fresh round ends with every unfinished book pickup-enabled",
 		)
 
 	lobby.queue_free()
@@ -259,6 +308,75 @@ func _first_ordinary_book(monitor: Node) -> RigidBody3D:
 		if book not in monitor._target_books:
 			return book
 	return null
+
+
+func _monitor_carry_connection_count(
+	carry_component: Variant,
+	monitor: AIPlayPutBookMonitor,
+) -> int:
+	var count := 0
+	for connection: Dictionary in carry_component.carry_state_changed.get_connections():
+		var callback: Callable = connection["callable"]
+		if (
+			callback.get_object() == monitor
+			and callback.get_method() == &"_on_book_carry_state_changed"
+		):
+			count += 1
+	return count
+
+
+func _raycast_hits_book(raycast: RayCast3D, book: RigidBody3D) -> bool:
+	var original_raycast_transform := raycast.global_transform
+	var original_target := raycast.target_position
+	var original_enabled := raycast.enabled
+	var original_collision_mask := raycast.collision_mask
+	var original_book_transform := book.global_transform
+	var original_freeze := book.freeze
+	var original_book_collision_layer := book.collision_layer
+	var original_book_collision_mask := book.collision_mask
+	var isolated_collision_layer := 1 << 19
+	var carry_component: Node = book.get_node("CarryableComponent")
+	var original_carry_process_mode := carry_component.process_mode
+	var probe_shape := CollisionShape3D.new()
+	var probe_box := BoxShape3D.new()
+	probe_box.size = Vector3.ONE
+	probe_shape.shape = probe_box
+	book.add_child(probe_shape)
+	raycast.enabled = true
+	raycast.collision_mask = isolated_collision_layer
+	raycast.global_transform = Transform3D(Basis.IDENTITY, Vector3(200.0, 200.0, 200.0))
+	raycast.target_position = Vector3(0.0, 0.0, -4.0)
+	carry_component.process_mode = Node.PROCESS_MODE_DISABLED
+	book.freeze = true
+	book.collision_layer = isolated_collision_layer
+	book.collision_mask = 0
+	book.global_transform = Transform3D(Basis.IDENTITY, Vector3(200.0, 200.0, 198.0))
+	PhysicsServer3D.body_set_state(
+		book.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		book.global_transform,
+	)
+	await physics_frame
+	raycast.force_raycast_update()
+	var hit := raycast.get_collider() == book
+	book.global_transform = original_book_transform
+	PhysicsServer3D.body_set_state(
+		book.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		original_book_transform,
+	)
+	book.freeze = original_freeze
+	carry_component.process_mode = original_carry_process_mode
+	book.collision_layer = original_book_collision_layer
+	book.collision_mask = original_book_collision_mask
+	probe_shape.queue_free()
+	raycast.global_transform = original_raycast_transform
+	raycast.target_position = original_target
+	raycast.collision_mask = original_collision_mask
+	raycast.enabled = original_enabled
+	if raycast.enabled:
+		raycast.force_raycast_update()
+	return hit
 
 
 func _ensure_current_scene() -> void:
