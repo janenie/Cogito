@@ -105,7 +105,7 @@ Expected: all exit 0 without shader errors; rendered output reports center depth
 - Consumes: Base64 PNG bytes and depth metadata from the untrusted Godot observation DTO.
 - Produces: `_validate_depth_png(data: bytes) -> None`, raising `ObservationValidationError` unless bytes are exactly a decodable 1024×576, 8-bit, non-interlaced RGB PNG with valid chunks and scanlines.
 
-- [ ] **Step 1: Replace the fake fixture with a real PNG builder**
+- [x] **Step 1: Replace the fake fixture with a real PNG builder**
 
 In the test file, build literal RGB scanlines and valid chunks with `struct.pack` and `zlib.crc32`:
 
@@ -129,7 +129,7 @@ def depth_png(width=1024, height=576, idat_data=None) -> bytes:
 
 Make existing expected-byte assertions compare with the returned fixture rather than the old signature-only byte string.
 
-- [ ] **Step 2: Add malformed-input tests and verify RED**
+- [x] **Step 2: Add malformed-input tests and verify RED**
 
 Add tests that independently submit:
 
@@ -148,7 +148,7 @@ PYTHONPATH=ai_play/src python3 -m pytest ai_play/tests/test_observation_schema.p
 
 Expected: the new malformed PNG and alternative-range cases fail because the current validator checks only the signature, suffix, broad numeric ranges, and declared DTO dimensions.
 
-- [ ] **Step 3: Implement exact standard-library PNG validation**
+- [x] **Step 3: Implement exact standard-library PNG validation**
 
 Add protocol constants and a private validator. It must:
 
@@ -164,7 +164,7 @@ Add protocol constants and a private validator. It must:
 
 Call this validator after Base64 decoding, and require depth metadata to equal the fixed protocol constants rather than merely being ordered.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run:
 

@@ -1,4 +1,6 @@
 import base64
+import struct
+import zlib
 
 import pytest
 
@@ -50,11 +52,37 @@ def valid_observation_with_jpeg_base64():
     }
 
 
+def png_chunk(kind, data):
+    checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
+    return (
+        struct.pack(">I", len(data))
+        + kind
+        + data
+        + struct.pack(">I", checksum)
+    )
+
+
+def depth_png(width=1024, height=576, idat_data=None, raw_rows=None):
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    rows = raw_rows or b"".join(
+        b"\x00" + b"\xff\xff\xff" * width for _unused_row in range(height)
+    )
+    compressed = zlib.compress(rows) if idat_data is None else idat_data
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + png_chunk(b"IHDR", ihdr)
+        + png_chunk(b"IDAT", compressed)
+        + png_chunk(b"IEND", b"")
+    )
+
+
+VALID_DEPTH_PNG = depth_png()
+
+
 def valid_depth_image():
-    depth_bytes = b"\x89PNG\r\n\x1a\ndepth-mapIEND\xaeB`\x82"
     return {
         "mime_type": "image/png",
-        "base64": base64.b64encode(depth_bytes).decode("ascii"),
+        "base64": base64.b64encode(VALID_DEPTH_PNG).decode("ascii"),
         "width": 1024,
         "height": 576,
         "encoding": "linear_depth_normalized_8bit",
@@ -123,7 +151,7 @@ def test_prepare_mcp_observation_separates_depth_png_from_structured_state():
     public, image_bytes, depth_image_bytes = prepare_mcp_observation(observation)
 
     assert image_bytes == b"\xff\xd8\xffjpeg-bytes\xff\xd9"
-    assert depth_image_bytes == b"\x89PNG\r\n\x1a\ndepth-mapIEND\xaeB`\x82"
+    assert depth_image_bytes == VALID_DEPTH_PNG
     assert public["depth_image"] == {
         "mime_type": "image/png",
         "width": 1024,
@@ -144,6 +172,62 @@ def test_prepare_mcp_observation_validates_before_projection():
         prepare_mcp_observation(observation)
 
 
+def test_depth_image_rejects_invalid_chunk_crc():
+    observation = valid_observation_with_depth_image()
+    corrupt_png = bytearray(VALID_DEPTH_PNG)
+    corrupt_png[29] ^= 0x01
+    observation["depth_image"]["base64"] = base64.b64encode(corrupt_png).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
+def test_depth_image_rejects_ihdr_dimensions_that_disagree_with_metadata():
+    observation = valid_observation_with_depth_image()
+    observation["depth_image"]["base64"] = base64.b64encode(
+        depth_png(width=512)
+    ).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
+def test_depth_image_rejects_invalid_compressed_scanlines():
+    observation = valid_observation_with_depth_image()
+    observation["depth_image"]["base64"] = base64.b64encode(
+        depth_png(idat_data=b"not-a-zlib-stream")
+    ).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
+def test_depth_image_rejects_invalid_scanline_filter():
+    observation = valid_observation_with_depth_image()
+    rows = (
+        b"\x05" + b"\xff\xff\xff" * 1024
+        + b"".join(
+            b"\x00" + b"\xff\xff\xff" * 1024
+            for _unused_row in range(575)
+        )
+    )
+    observation["depth_image"]["base64"] = base64.b64encode(
+        depth_png(raw_rows=rows)
+    ).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
+def test_depth_image_rejects_trailing_bytes_after_iend():
+    observation = valid_observation_with_depth_image()
+    trailing_png = VALID_DEPTH_PNG + b"trailingIEND\xaeB`\x82"
+    observation["depth_image"]["base64"] = base64.b64encode(trailing_png).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
 @pytest.mark.parametrize(
     "patch",
     [
@@ -151,6 +235,8 @@ def test_prepare_mcp_observation_validates_before_projection():
         {"encoding": "raw_depth"},
         {"near_meters": 4000.0},
         {"far_meters": 0.05},
+        {"near_meters": 0.1},
+        {"far_meters": 1000.0},
     ],
 )
 def test_depth_image_rejects_invalid_metadata(patch):

@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import binascii
 import math
+import struct
+import zlib
 
 
 class ObservationValidationError(ValueError):
@@ -25,6 +27,12 @@ ACTION_TYPES = {
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
+DEPTH_IMAGE_WIDTH = 1024
+DEPTH_IMAGE_HEIGHT = 576
+DEPTH_NEAR_METERS = 0.05
+DEPTH_FAR_METERS = 4000.0
+DEPTH_ENCODING = "linear_depth_normalized_8bit"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 DEPTH_IMAGE_FIELDS = {
     "mime_type", "base64", "width", "height", "encoding", "near_meters", "far_meters",
 }
@@ -67,6 +75,109 @@ def _vector(value, length, label, lower, upper):
     if not isinstance(value, list) or len(value) != length:
         raise ObservationValidationError(f"{label} has invalid dimensions")
     return [_number(component, label, lower, upper) for component in value]
+
+
+def _invalid_depth_png():
+    raise ObservationValidationError("depth image must contain a valid protocol PNG")
+
+
+def _validate_depth_png(data):
+    if not data.startswith(PNG_SIGNATURE):
+        _invalid_depth_png()
+
+    offset = len(PNG_SIGNATURE)
+    chunk_index = 0
+    saw_ihdr = False
+    saw_plte = False
+    idat_chunks = []
+    idat_ended = False
+    saw_iend = False
+
+    try:
+        while offset < len(data):
+            if len(data) - offset < 12:
+                _invalid_depth_png()
+            chunk_length = struct.unpack_from(">I", data, offset)[0]
+            chunk_end = offset + 12 + chunk_length
+            if chunk_length > MAX_IMAGE_BYTES or chunk_end > len(data):
+                _invalid_depth_png()
+
+            chunk_type = data[offset + 4:offset + 8]
+            chunk_data = data[offset + 8:offset + 8 + chunk_length]
+            expected_crc = struct.unpack_from(">I", data, offset + 8 + chunk_length)[0]
+            actual_crc = zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF
+            if expected_crc != actual_crc or any(
+                not (65 <= byte <= 90 or 97 <= byte <= 122)
+                for byte in chunk_type
+            ):
+                _invalid_depth_png()
+
+            if chunk_index == 0 and chunk_type != b"IHDR":
+                _invalid_depth_png()
+            if chunk_type == b"IHDR":
+                if saw_ihdr or chunk_length != 13:
+                    _invalid_depth_png()
+                header = struct.unpack(">IIBBBBB", chunk_data)
+                if header != (
+                    DEPTH_IMAGE_WIDTH,
+                    DEPTH_IMAGE_HEIGHT,
+                    8,
+                    2,
+                    0,
+                    0,
+                    0,
+                ):
+                    _invalid_depth_png()
+                saw_ihdr = True
+            elif chunk_type == b"PLTE":
+                if not saw_ihdr or saw_plte or idat_chunks:
+                    _invalid_depth_png()
+                saw_plte = True
+            elif chunk_type == b"IDAT":
+                if not saw_ihdr or idat_ended:
+                    _invalid_depth_png()
+                idat_chunks.append(chunk_data)
+            elif chunk_type == b"IEND":
+                if not idat_chunks or chunk_length != 0 or chunk_end != len(data):
+                    _invalid_depth_png()
+                saw_iend = True
+                offset = chunk_end
+                break
+            else:
+                if idat_chunks:
+                    idat_ended = True
+                if chunk_type[0] & 0x20 == 0:
+                    _invalid_depth_png()
+
+            offset = chunk_end
+            chunk_index += 1
+    except (IndexError, struct.error) as error:
+        raise ObservationValidationError(
+            "depth image must contain a valid protocol PNG"
+        ) from error
+
+    if not saw_ihdr or not saw_iend or offset != len(data):
+        _invalid_depth_png()
+
+    row_size = 1 + DEPTH_IMAGE_WIDTH * 3
+    expected_size = DEPTH_IMAGE_HEIGHT * row_size
+    try:
+        decompressor = zlib.decompressobj()
+        pixels = decompressor.decompress(b"".join(idat_chunks), expected_size + 1)
+        if decompressor.unconsumed_tail:
+            _invalid_depth_png()
+        pixels += decompressor.flush()
+    except zlib.error as error:
+        raise ObservationValidationError(
+            "depth image must contain a valid protocol PNG"
+        ) from error
+    if (
+        not decompressor.eof
+        or decompressor.unused_data
+        or len(pixels) != expected_size
+        or any(pixels[row * row_size] > 4 for row in range(DEPTH_IMAGE_HEIGHT))
+    ):
+        _invalid_depth_png()
 
 
 def validate_action_results(results):
@@ -163,33 +274,36 @@ def validate_observation(value):
             raise ObservationValidationError("depth image base64 is invalid") from error
         if (
             len(depth_image_bytes) > MAX_IMAGE_BYTES
-            or not depth_image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
-            or not depth_image_bytes.endswith(b"IEND\xaeB`\x82")
+            or not depth_image_bytes.startswith(PNG_SIGNATURE)
         ):
             raise ObservationValidationError("depth image must contain a bounded PNG")
+        _validate_depth_png(depth_image_bytes)
         near_meters = _number(
             depth_image["near_meters"], "depth image near_meters", 0.001, 1_000
         )
         far_meters = _number(
             depth_image["far_meters"], "depth image far_meters", 0.002, 1_000_000
         )
-        if near_meters >= far_meters:
+        if (
+            near_meters != DEPTH_NEAR_METERS
+            or far_meters != DEPTH_FAR_METERS
+        ):
             raise ObservationValidationError("depth image range is invalid")
         if (
             depth_image["mime_type"] != "image/png"
-            or depth_image["width"] != 1024
-            or depth_image["height"] != 576
-            or depth_image["encoding"] != "linear_depth_normalized_8bit"
+            or depth_image["width"] != DEPTH_IMAGE_WIDTH
+            or depth_image["height"] != DEPTH_IMAGE_HEIGHT
+            or depth_image["encoding"] != DEPTH_ENCODING
         ):
             raise ObservationValidationError("depth image metadata is invalid")
         safe_depth_image = {
             "mime_type": "image/png",
             "base64": depth_encoded,
-            "width": 1024,
-            "height": 576,
-            "encoding": "linear_depth_normalized_8bit",
-            "near_meters": near_meters,
-            "far_meters": far_meters,
+            "width": DEPTH_IMAGE_WIDTH,
+            "height": DEPTH_IMAGE_HEIGHT,
+            "encoding": DEPTH_ENCODING,
+            "near_meters": DEPTH_NEAR_METERS,
+            "far_meters": DEPTH_FAR_METERS,
         }
 
     player = value["player"]
