@@ -39,6 +39,9 @@ var _make_button: StaticBody3D
 var _undo_button: StaticBody3D
 var _next_selection_id: int = 1
 var _semantic_random := RandomNumberGenerator.new()
+var _ai_control_active: bool = false
+var _window_refill_pool: Array[String] = []
+var _refill_index: int = 0
 
 
 func initialize(
@@ -77,7 +80,12 @@ func initialize(
 
 
 func _process(delta: float) -> void:
-	advance_time(delta)
+	if not _ai_control_active:
+		advance_time(delta)
+
+
+func set_ai_control_active(value: bool) -> void:
+	_ai_control_active = value
 
 
 func get_profit() -> int:
@@ -134,9 +142,7 @@ func request_undo() -> Dictionary:
 	var ingredient_id: String = session.undo()
 	if ingredient_id.is_empty():
 		return {"outcome": "tray_empty"}
-	pending_supply.push_front(ingredient_id)
 	_remove_last_tray_visual()
-	_fill_empty_slots()
 	return {"outcome": "undone", "ingredient": ingredient_id}
 
 
@@ -150,10 +156,35 @@ func request_make() -> Dictionary:
 		return {"outcome": "tray_empty"}
 	_clear_tray_visuals()
 	var recipe_id := String(result.get("recipe_id", ""))
-	var outcome: String = window_session.record_make(recipe_id)
-	if outcome == "accepted":
+	var outcome: String = window_session.record_make(
+		recipe_id,
+		int(result.get("dish_profit", 0)),
+	)
+	if outcome in ["accepted", "invalid_combo"]:
 		_set_input_enabled(false)
+		var message := "WINDOW COMPLETE · INVALID COMBO · COST CHARGED"
+		if outcome == "accepted":
+			message = "WINDOW COMPLETE · SOLD %s" % recipe_id.replace("_", " ").to_upper()
+		_update_public_display(message)
 	return {"outcome": outcome, "recipe_id": recipe_id, "profit": session.get_profit()}
+
+
+func request_wait_next_window() -> Dictionary:
+	if window_session.is_terminal() or window_session.is_time_expired():
+		return {"outcome": "game_finished"}
+	if not window_session.dish_made:
+		return {"outcome": "window_not_complete"}
+	var previous_index: int = window_session.current_window_index
+	advance_time(window_session.get_window_remaining_seconds())
+	if window_session.is_terminal():
+		return {"outcome": "game_finished"}
+	return {
+		"outcome": (
+			"window_advanced"
+			if window_session.current_window_index == previous_index + 1
+			else "game_finished"
+		),
+	}
 
 
 func request_select_ingredient(ingredient_id: String, camera: Camera3D) -> Dictionary:
@@ -237,6 +268,7 @@ func _select_by_selection_id(selection_id: int) -> Dictionary:
 		if not session.select_ingredient(ingredient_id):
 			return {"outcome": "game_finished"}
 		_add_tray_visual(ingredient_id)
+		_queue_replacement()
 		_fill_follower(follower as PathFollow3D)
 		_update_public_display("Selected %s" % ingredient_id.to_upper())
 		return {"outcome": "selected", "ingredient": ingredient_id}
@@ -279,10 +311,10 @@ func _make_dish() -> void:
 		_update_public_display("Dish already made; wait for next window")
 		return
 	var recipe_id := String(result.get("recipe_id", ""))
-	var message := "Invalid combo: ingredients consumed"
 	if result["outcome"] == "accepted":
-		message = "Sold %s; wait for next window" % recipe_id.replace("_", " ").to_upper()
-	_update_public_display(message)
+		_update_public_display(
+			"WINDOW COMPLETE · SOLD %s" % recipe_id.replace("_", " ").to_upper()
+		)
 
 
 func _add_tray_visual(ingredient_id: String) -> void:
@@ -319,7 +351,9 @@ func _set_input_enabled(value: bool) -> void:
 
 
 func _load_window(index: int) -> void:
-	pending_supply.assign(window_supplies[index]["ingredients"])
+	_window_refill_pool.assign(window_supplies[index]["ingredients"])
+	pending_supply.assign(_window_refill_pool)
+	_refill_index = 0
 	for follower: Node in _ingredient_path.get_children():
 		_fill_follower(follower as PathFollow3D)
 	_set_input_enabled(true)
@@ -327,6 +361,7 @@ func _load_window(index: int) -> void:
 
 func _expire_current_window() -> void:
 	pending_supply.clear()
+	_window_refill_pool.clear()
 	session.selected_ingredients.clear()
 	_clear_tray_visuals()
 	for follower: Node in _ingredient_path.get_children():
@@ -343,12 +378,11 @@ func _clear_follower(follower: PathFollow3D) -> void:
 	interactable.selection_id = -1
 
 
-func _fill_empty_slots() -> void:
-	for follower: Node in _ingredient_path.get_children():
-		if pending_supply.is_empty():
-			return
-		if not follower.visible:
-			_fill_follower(follower as PathFollow3D)
+func _queue_replacement() -> void:
+	if _window_refill_pool.is_empty():
+		return
+	pending_supply.append(_window_refill_pool[_refill_index % _window_refill_pool.size()])
+	_refill_index += 1
 
 
 func _remove_last_tray_visual() -> void:
@@ -366,6 +400,16 @@ func _finish_game() -> void:
 	window_session.finish(session.get_profit())
 	session.freeze(window_session.terminal_status, window_session.terminal_reason)
 	_set_input_enabled(false)
+	var metrics: Dictionary = window_session.get_developer_metrics(session.get_profit())
+	print(
+		"CONVEYOR_PROFIT_RESULT optimal_windows=%d completed_windows=%d total_windows=%d efficiency=%d"
+		% [
+			metrics["optimal_windows"],
+			metrics["completed_windows"],
+			metrics["total_windows"],
+			metrics["efficiency_percent"],
+		]
+	)
 	_update_public_display(
 		"EFFICIENCY  %d%%  ·  %s" % [
 			window_session.get_efficiency_percent(session.get_profit()),

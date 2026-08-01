@@ -48,6 +48,7 @@ func _run_test() -> void:
 	var first_interactable := path.get_child(0).get_node("IngredientPreview/Interactable")
 	first_interactable.select()
 	_check(gameplay.get_selected_count() == 1, "ingredient click enters tray")
+	_check(_available_ingredient_ids(path).size() == 16, "belt refills after selection")
 	var tray_label := environment.get_node("Stations/Tray/TrayLabel") as Label3D
 	_check(not tray_label.text.contains("EMPTY"), "tray label shows selection")
 
@@ -96,6 +97,7 @@ func _run_test() -> void:
 	_check(not visible_ids.is_empty(), "window three has selectable ingredients")
 	if not visible_ids.is_empty():
 		var requested_id := visible_ids[0]
+		var profit_before_invalid: int = gameplay.get_profit()
 		var semantic_result: Dictionary = gameplay.request_select_ingredient(requested_id, camera)
 		_check(
 			semantic_result == {"outcome": "selected", "ingredient": requested_id},
@@ -107,6 +109,30 @@ func _run_test() -> void:
 			== "ingredient_not_available",
 			"semantic action rejects an ingredient outside the rendered view",
 		)
+		var invalid_result: Dictionary = gameplay.request_make()
+		_check(invalid_result["outcome"] == "invalid_combo", "invalid combo settles")
+		_check(gameplay.get_profit() < profit_before_invalid, "invalid combo deducts cost")
+		_check(gameplay.window_session.dish_made, "invalid combo locks window")
+		_check(gameplay.request_make()["outcome"] == "window_locked", "invalid retry is rejected")
+		var status_label := environment.get_node("HUD/StatusLabel") as Label
+		_check(status_label.text.contains("WINDOW COMPLETE"), "HUD marks completed window")
+		var previous_window: int = gameplay.window_session.current_window_index
+		_check(
+			gameplay.request_wait_next_window()["outcome"] == "window_advanced",
+			"locked window advances directly",
+		)
+		_check(
+			gameplay.window_session.current_window_index == previous_window + 1,
+			"direct advance enters exactly one window",
+		)
+		var elapsed_before_pause: float = gameplay.window_session.elapsed_seconds
+		gameplay.set_ai_control_active(true)
+		gameplay._process(10.0)
+		_check(
+			is_equal_approx(gameplay.window_session.elapsed_seconds, elapsed_before_pause),
+			"AI decision wait pauses the game clock",
+		)
+		gameplay.set_ai_control_active(false)
 
 	camera.queue_free()
 	environment.queue_free()

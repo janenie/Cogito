@@ -37,11 +37,13 @@ func make() -> Dictionary:
 	if not recipe.is_empty():
 		revenue += int(recipe.get("sale_price", 0))
 	var recipe_id := String(recipe.get("id", ""))
+	var dish_profit := int(recipe.get("profit", 0))
 	selected_ingredients.clear()
 
 	return {
 		"accepted": true,
 		"recipe_id": recipe_id,
+		"dish_profit": dish_profit,
 		"profit": get_profit(),
 	}
 

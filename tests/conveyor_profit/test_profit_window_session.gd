@@ -19,12 +19,14 @@ func _initialize() -> void:
 	_check(session.current_window_index == 0, "first window remains active")
 	_check(session.advance_time(0.001) == [1], "exact boundary enters window two")
 	_check(session.current_window_index == 1, "second window becomes active")
-	_check(session.record_make("") == "invalid_combo", "invalid combo does not lock")
-	_check(not session.dish_made, "invalid combo leaves the window unlocked")
-	_check(session.record_make("egg_toast") == "accepted", "first legal dish is accepted")
-	_check(session.record_make("egg_toast") == "window_locked", "second legal dish is rejected")
+	_check(session.record_make("", 0) == "invalid_combo", "invalid combo is recorded")
+	_check(session.dish_made, "invalid combo consumes the window")
+	_check(session.record_make("egg_toast", 4) == "window_locked", "retry is rejected")
 	_check(session.advance_time(120.0) == [2, 3], "large delta crosses boundaries in order")
 	_check(not session.dish_made, "new window resets the dish lock")
+	_check(session.record_make("burger", 6) == "accepted", "legal dish is accepted")
+	_check(session.completed_windows == 2, "completed window count includes invalid attempts")
+	_check(session.optimal_windows == 1, "optimal window count tracks best legal dish")
 	_check(session.advance_time(420.0) == [4, 5, 6, 7, 8, 9], "final delta visits remaining windows")
 	_check(session.is_time_expired(), "six hundred seconds expires the game clock")
 	_check(not session.is_terminal(), "actual profit is required before terminal judgment")
@@ -38,6 +40,15 @@ func _initialize() -> void:
 	_check(passing.terminal_status == "success", "profit at threshold succeeds")
 	_check(passing.terminal_reason == "efficiency_target_reached", "success reason is stable")
 	_check(passing.get_efficiency_percent(40) == 80, "final efficiency uses theoretical total")
+	_check(
+		session.get_developer_metrics(39) == {
+			"completed_windows": 2,
+			"optimal_windows": 1,
+			"total_windows": 10,
+			"efficiency_percent": 78,
+		},
+		"developer metrics remain exact",
+	)
 
 	var guarded_values: Array[int] = [3]
 	var guarded: RefCounted = session_script.new(guarded_values, 60.0)

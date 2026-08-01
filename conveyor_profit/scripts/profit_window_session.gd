@@ -11,6 +11,8 @@ var dish_made: bool = false
 var terminal_status: String = ""
 var terminal_reason: String = ""
 var passing_profit: int
+var completed_windows: int = 0
+var optimal_windows: int = 0
 
 
 func _init(values: Array[int], seconds: float = 60.0) -> void:
@@ -40,15 +42,16 @@ func advance_time(delta_seconds: float) -> Array[int]:
 	return entered_windows
 
 
-func record_make(recipe_id: String) -> String:
+func record_make(recipe_id: String, dish_profit: int) -> String:
 	if is_terminal() or is_time_expired():
 		return "game_finished"
 	if dish_made:
 		return "window_locked"
-	if recipe_id.is_empty():
-		return "invalid_combo"
 	dish_made = true
-	return "accepted"
+	completed_windows += 1
+	if not recipe_id.is_empty() and dish_profit == best_profits[current_window_index]:
+		optimal_windows += 1
+	return "invalid_combo" if recipe_id.is_empty() else "accepted"
 
 
 func finish(actual_profit: int) -> void:
@@ -78,6 +81,15 @@ func get_efficiency_percent(actual_profit: int) -> int:
 	if theoretical_total <= 0:
 		return 0
 	return roundi(float(actual_profit) * 100.0 / float(theoretical_total))
+
+
+func get_developer_metrics(actual_profit: int) -> Dictionary:
+	return {
+		"completed_windows": completed_windows,
+		"optimal_windows": optimal_windows,
+		"total_windows": best_profits.size(),
+		"efficiency_percent": get_efficiency_percent(actual_profit),
+	}
 
 
 func is_time_expired() -> bool:
