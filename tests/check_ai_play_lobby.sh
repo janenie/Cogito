@@ -179,7 +179,7 @@ test "$(grep -o 'lampSquareCeiling\(8\|9\|10\|11\|12\|13\)' "$scene" | sort -u |
 setup="addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn"
 test -f "$setup"
 for node_name in \
-	PanelBacking TitleLabel SwitchLabelA SwitchLabelB SwitchLabelC SwitchLabelD \
+	TitleLabel SwitchLabelA SwitchLabelB SwitchLabelC SwitchLabelD \
 	ControlSwitchB ControlSwitchC ControlSwitchD BreakerHeadingLabel \
 	BreakerEntrance BreakerEntranceLabel BreakerCEO BreakerCEOLabel \
 	BreakerLobby BreakerLobbyLabel BreakerBreakRoom BreakerBreakRoomLabel \
@@ -187,6 +187,10 @@ for node_name in \
 do
 	grep -q "name=\"$node_name\"" "$setup"
 done
+if grep -q 'name="PanelBacking"' "$setup"; then
+	echo "lighting setup must not add a black panel backing" >&2
+	exit 1
+fi
 grep -A4 '^\[node name="RepairLightingCircuitSetup"' "$setup" | grep -q '^process_mode = 4$'
 grep -A4 '^\[node name="RepairLightingCircuitSetup"' "$setup" | grep -q '^visible = false$'
 

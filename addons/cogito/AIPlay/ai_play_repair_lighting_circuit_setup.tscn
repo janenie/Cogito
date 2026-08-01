@@ -1,26 +1,13 @@
-[gd_scene load_steps=7 format=3 uid="uid://dxwcvsdh2ms8r"]
+[gd_scene load_steps=5 format=3 uid="uid://dxwcvsdh2ms8r"]
 
 [ext_resource type="PackedScene" uid="uid://6k5rvlwcpys1" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_switch.tscn" id="1_switch"]
 [ext_resource type="PackedScene" uid="uid://cs6raqlyejqul" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_button.tscn" id="2_button"]
 [ext_resource type="PackedScene" uid="uid://dkundghktg5ol" path="res://addons/cogito/DemoScenes/DemoPrefabs/lamp_round_floor.tscn" id="3_lamp"]
 [ext_resource type="FontFile" uid="uid://bu5on5evfoljs" path="res://addons/cogito/Assets/Fonts/Montserrat/Montserrat-Bold.ttf" id="4_font"]
 
-[sub_resource type="StandardMaterial3D" id="PanelMaterial"]
-albedo_color = Color(0.055, 0.075, 0.095, 1)
-metallic = 0.55
-roughness = 0.35
-
-[sub_resource type="BoxMesh" id="PanelMesh"]
-material = SubResource("PanelMaterial")
-size = Vector3(3.4, 2.75, 0.12)
-
 [node name="RepairLightingCircuitSetup" type="Node3D"]
 process_mode = 4
 visible = false
-
-[node name="PanelBacking" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 1.18, -15.76)
-mesh = SubResource("PanelMesh")
 
 [node name="TitleLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 2.28, -15.94)
