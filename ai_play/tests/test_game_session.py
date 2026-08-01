@@ -230,6 +230,20 @@ def test_repair_lighting_circuit_uses_100_request_hard_cap():
     assert session.act_request_limit == 100
 
 
+def test_arrange_meeting_briefings_uses_200_request_hard_cap():
+    session, _ = make_scenario_session(
+        "arrange_meeting_briefings",
+        configured_limit=500,
+    )
+    tightened, _ = make_scenario_session(
+        "arrange_meeting_briefings",
+        configured_limit=125,
+    )
+
+    assert session.act_request_limit == 200
+    assert tightened.act_request_limit == 125
+
+
 def test_find_key_accepts_only_key_success_terminal():
     session, _ = make_scenario_session("find_key")
     session.receive_observation(observation(7))
@@ -285,6 +299,22 @@ def test_garden_watering_accepts_garden_success_terminal():
         "reason": "garden_tasks_complete",
     }
     session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_arrange_meeting_briefings_accepts_meeting_success_terminal():
+    session, _ = make_scenario_session("arrange_meeting_briefings")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "meeting_prepared",
+    }
+
+    session.receive_game_over(terminal)
+
     assert session.observe(timeout=0.1).game_over == terminal
 
 
@@ -370,6 +400,12 @@ def test_logging_failure_rejects_attach_without_controller():
             "garden_watering",
             "success",
             "garden_tasks_complete",
+            "success",
+        ),
+        (
+            "arrange_meeting_briefings",
+            "success",
+            "meeting_prepared",
             "success",
         ),
         ("find_contract", "failure", "wrong_password", "failure"),

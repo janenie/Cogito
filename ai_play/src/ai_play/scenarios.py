@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from .arrange_meeting_briefings_briefing import (
+    load_arrange_meeting_briefings_briefing,
+)
 from .briefing import load_public_briefing
 from .daily_routine_cleanup_briefing import load_daily_routine_cleanup_briefing
 from .find_key_briefing import load_find_key_briefing
@@ -86,6 +89,15 @@ _SCENARIOS = {
             ("success", "circuit_repaired"),
             ("failure", "wrong_breaker"),
             ("failure", "incorrect_circuit_configuration"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "arrange_meeting_briefings": ScenarioDefinition(
+        briefing_loader=load_arrange_meeting_briefings_briefing,
+        max_act_requests=200,
+        terminal_results=frozenset({
+            ("success", "meeting_prepared"),
+            ("failure", "incorrect_seating_assignment"),
             ("failure", "max_requests"),
         }),
     ),

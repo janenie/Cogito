@@ -21,6 +21,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "daily_routine_cleanup",
         "garden_watering",
         "repair_lighting_circuit",
+        "arrange_meeting_briefings",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
@@ -29,6 +30,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert is_supported_scenario("daily_routine_cleanup")
     assert is_supported_scenario("garden_watering")
     assert is_supported_scenario("repair_lighting_circuit")
+    assert is_supported_scenario("arrange_meeting_briefings")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -57,6 +59,8 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("garden_watering", 200) == 200
     assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
     assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
+    assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 200
+    assert scenario_act_request_limit("arrange_meeting_briefings", 125) == 125
 
 
 def test_find_key_round_request_limits_are_allowlisted():
@@ -153,6 +157,16 @@ def test_terminal_results_are_scenario_specific():
         "failure",
         "incorrect_circuit_configuration",
     )
+    assert is_allowed_game_over(
+        "arrange_meeting_briefings",
+        "success",
+        "meeting_prepared",
+    )
+    assert is_allowed_game_over(
+        "arrange_meeting_briefings",
+        "failure",
+        "incorrect_seating_assignment",
+    )
     assert not is_allowed_game_over(
         "greet_npc_meeting",
         "success",
@@ -181,8 +195,23 @@ def test_terminal_results_are_scenario_specific():
         "failure",
         "max_requests",
     )
+    assert is_allowed_game_over(
+        "arrange_meeting_briefings",
+        "failure",
+        "max_requests",
+    )
     assert not is_allowed_game_over(
         "find_contract",
+        "success",
+        "circuit_repaired",
+    )
+    assert not is_allowed_game_over(
+        "find_contract",
+        "success",
+        "meeting_prepared",
+    )
+    assert not is_allowed_game_over(
+        "arrange_meeting_briefings",
         "success",
         "circuit_repaired",
     )
