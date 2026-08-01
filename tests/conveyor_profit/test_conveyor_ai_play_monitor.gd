@@ -1,0 +1,81 @@
+extends SceneTree
+
+const ENVIRONMENT_PATH := "res://conveyor_profit/scenes/conveyor_profit_environment.tscn"
+const MONITOR_PATH := "res://conveyor_profit/scripts/conveyor_ai_play_monitor.gd"
+
+var failures: Array[String] = []
+
+
+func _initialize() -> void:
+	call_deferred("_run_test")
+
+
+func _run_test() -> void:
+	var monitor_script := load(MONITOR_PATH) as GDScript
+	_check(monitor_script != null, "conveyor AI Play monitor loads")
+	if monitor_script == null:
+		quit(1)
+		return
+	var environment := (load(ENVIRONMENT_PATH) as PackedScene).instantiate()
+	root.add_child(environment)
+	var camera := Camera3D.new()
+	camera.position = Vector3(0, 6.7, -10.8)
+	camera.rotation = Vector3(-0.36, PI, 0)
+	camera.current = true
+	root.add_child(camera)
+	var monitor: Node = monitor_script.new()
+	monitor.gameplay = environment.get_node("Gameplay")
+	monitor.camera = camera
+	root.add_child(monitor)
+	await process_frame
+
+	var gameplay: Node = monitor.gameplay
+	var path := environment.get_node("Architecture/Conveyor/IngredientPath") as Path3D
+	var ingredient_id := String(path.get_child(0).get_meta("ingredient_id", ""))
+	var selected: Dictionary = monitor.execute_semantic_action({
+		"type": "select_ingredient",
+		"ingredient": ingredient_id,
+	})
+	_check(
+		selected == {
+			"status": "completed",
+			"type": "select_ingredient",
+			"outcome": "selected",
+			"ingredient": ingredient_id,
+		},
+		"monitor exposes only the public selected ingredient",
+	)
+	_check(
+		monitor.execute_semantic_action({"type": "wait_next_window"}) == {
+			"status": "completed",
+			"type": "wait_next_window",
+			"outcome": "window_not_complete",
+		},
+		"unlocked window cannot be skipped",
+	)
+	monitor.execute_semantic_action({"type": "make"})
+	var previous_window: int = gameplay.window_session.current_window_index
+	_check(
+		monitor.execute_semantic_action({"type": "wait_next_window"})["outcome"]
+		== "window_advanced",
+		"locked window advances",
+	)
+	_check(
+		gameplay.window_session.current_window_index == previous_window + 1,
+		"adapter advances exactly one window",
+	)
+	monitor.set_ai_control_active(true)
+	var elapsed: float = gameplay.window_session.elapsed_seconds
+	gameplay._process(5.0)
+	_check(is_equal_approx(gameplay.window_session.elapsed_seconds, elapsed), "AI clock pauses")
+
+	monitor.queue_free()
+	camera.queue_free()
+	environment.queue_free()
+	quit(1 if not failures.is_empty() else 0)
+
+
+func _check(condition: bool, message: String) -> void:
+	if not condition:
+		failures.append(message)
+		push_error(message)

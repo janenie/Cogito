@@ -18,8 +18,11 @@ const ACTION_FIELDS: Dictionary = {
 	"select_ingredient": ["type", "ingredient"],
 	"undo": ["type"],
 	"make": ["type"],
+	"wait_next_window": ["type"],
 }
-const CONVEYOR_ACTIONS: Array[String] = ["select_ingredient", "undo", "make"]
+const CONVEYOR_ACTIONS: Array[String] = [
+	"select_ingredient", "undo", "make", "wait_next_window",
+]
 const CONVEYOR_INGREDIENT_IDS: Array[String] = [
 	"lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
 ]
@@ -128,6 +131,8 @@ func validate_batch(actions: Variant, context: Dictionary) -> Dictionary:
 			return action_validation
 		if actions[index]["type"] == "probe_interaction" and actions.size() != 1:
 			return _invalid("probe_interaction must be the only action")
+		if actions[index]["type"] == "wait_next_window" and actions.size() != 1:
+			return _invalid("wait_next_window must be the only action")
 		if (
 			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui", "make"]
 			and index != actions.size() - 1
@@ -228,7 +233,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"stop":
 			_release_held_actions()
 			return {"status": "stopped", "type": "stop"}
-		"select_ingredient", "undo", "make":
+		"select_ingredient", "undo", "make", "wait_next_window":
 			if semantic_action_provider == null:
 				return {"status": "error", "error": "semantic action provider is unavailable"}
 			return semantic_action_provider.execute_semantic_action(action)

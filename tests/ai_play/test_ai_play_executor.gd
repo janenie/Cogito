@@ -254,6 +254,17 @@ func _test_conveyor_semantic_actions(executor: Node) -> void:
 		"other scenarios reject conveyor action",
 	)
 	executor.active_scenario_id = "conveyor_profit"
+	_assert(
+		executor.validate_batch([{"type": "wait_next_window"}], {}) == {"valid": true},
+		"conveyor wait-next-window validates",
+	)
+	_assert(
+		not executor.validate_batch([
+			{"type": "undo"},
+			{"type": "wait_next_window"},
+		], {}).get("valid", false),
+		"wait-next-window must be the only action",
+	)
 	var emitted: Array = []
 	var collect := func(results: Array) -> void: emitted.append(results.duplicate(true))
 	executor.batch_finished.connect(collect)

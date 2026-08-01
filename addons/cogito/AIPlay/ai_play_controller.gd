@@ -40,6 +40,11 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "garden_task_failed"],
 		["failure", "max_requests"],
 	],
+	"conveyor_profit": [
+		["success", "efficiency_target_reached"],
+		["failure", "efficiency_below_target"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D
@@ -97,6 +102,14 @@ func _ready() -> void:
 		)
 	if "interaction_probe" in _executor:
 		_executor.interaction_probe = _interaction_probe
+	if "active_scenario_id" in _executor:
+		_executor.active_scenario_id = _active_scenario_id
+	if (
+		_terminal_monitor != null
+		and "semantic_action_provider" in _executor
+		and _terminal_monitor.has_method("execute_semantic_action")
+	):
+		_executor.semantic_action_provider = _terminal_monitor
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
@@ -189,6 +202,7 @@ func get_state() -> State:
 
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
+	_set_scenario_ai_control_active(true)
 	_set_ai_mouse_guard(true)
 	_stop_delivery_pending = false
 	_game_finished = false
@@ -207,6 +221,7 @@ func enable_ai() -> void:
 
 func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> void:
 	print("AI_PLAY disabled; reason=%s" % reason)
+	_set_scenario_ai_control_active(false)
 	_set_ai_mouse_guard(false)
 	_capture_generation += 1
 	_state = State.DISABLED
@@ -494,12 +509,18 @@ func _wait_for_render_frame(timeout_msec: int) -> bool:
 
 func _exit_tree() -> void:
 	_capture_generation += 1
+	_set_scenario_ai_control_active(false)
 	_set_ai_mouse_guard(false)
 
 
 func _set_ai_mouse_guard(enabled: bool) -> void:
 	if player != null and player.has_method("set_ai_play_mouse_motion_device"):
 		player.set_ai_play_mouse_motion_device(EXECUTOR_DEVICE_ID if enabled else -1)
+
+
+func _set_scenario_ai_control_active(enabled: bool) -> void:
+	if _terminal_monitor != null and _terminal_monitor.has_method("set_ai_control_active"):
+		_terminal_monitor.set_ai_control_active(enabled)
 
 
 func _on_observation_timer_timeout() -> void:
