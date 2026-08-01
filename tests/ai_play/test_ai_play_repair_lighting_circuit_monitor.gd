@@ -63,6 +63,16 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.control_switch_a == lobby.get_node("GenericSwitch"),
 		"existing red switch is A",
 	)
+	var entrance_spawn: Marker3D = lobby.get_node("AIPlayRoundMarkers/EntranceSpawn")
+	_assert(
+		monitor.panel_spawn == entrance_spawn,
+		"lighting task reuses the established indoor entrance spawn",
+	)
+	_assert(
+		monitor.player.global_position.distance_to(entrance_spawn.global_position) < 0.25,
+		"selected task places the player at the indoor entrance spawn: actual=%s expected=%s"
+		% [monitor.player.global_position, entrance_spawn.global_position],
+	)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
 	_assert(
 		monitor.task_card.readable_content.contains("入口落地灯"),
