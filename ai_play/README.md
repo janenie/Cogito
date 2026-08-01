@@ -83,9 +83,10 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
   -- --ai-play --ai-play-scenario=conveyor_profit
 ```
 
-`conveyor_profit` 的白名单 `briefing` 会返回墙上同样可见的六道固定菜谱，包括完整食材、
-售价和净利润。当前窗口的结构化食材清单、两道候选菜、最优菜、未来供给、随机种子和绝对
-目标金额仍不公开；客户端必须根据 `observe` 截图识别当前可见食材，再与公开菜单比较。
+`conveyor_profit` 的白名单 `briefing` 会返回墙上同样可见的十道固定菜谱，包括十六种食材
+ID、成本、完整配方、售价和净利润，并公开每道菜整局最多成功制作两次的规则。当前窗口的
+结构化食材清单、可行菜、缺失食材、累计次数表、未来供给、随机牌组和绝对目标金额仍不公开；
+客户端必须根据 `observe` 截图识别当前可见食材，与公开菜单比较，并根据 accepted 收据自行记账。
 
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
@@ -247,8 +248,9 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 `success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
 下雨警报会产生 `failure/garden_task_failed`。
 
-`conveyor_profit` 是十窗口经营任务。每个 60 秒窗口固定显示 16 盘食材，并且只能组成恰好
-两种不同利润的菜谱。每个窗口只允许制作一次；合法和非法 MAKE 都会锁定窗口。AI 使用
+`conveyor_profit` 是十窗口经营任务。每个 60 秒窗口固定显示 16 盘食材，每个窗口只允许
+制作一次；成功、非法组合和次数超限的 MAKE 都会锁定窗口。同一道菜整局最多成功制作两次；
+第三次正确提交返回 `recipe_limit_exceeded`，扣除食材成本但没有收入。AI 使用
 `select_ingredient`、`undo`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；等待模型期间
 Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
@@ -287,7 +289,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
 - `conveyor_profit` 只允许 `select_ingredient`、`undo`、`make` 和 `wait_next_window`：选材按
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
-  已经锁定的窗口。托盘最多容纳四项；第 5 次选材返回 `tray_full` 且不改变托盘，调用方可用
+  已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
   `undo` 恢复。四种动作均不得在其他玩法使用。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；

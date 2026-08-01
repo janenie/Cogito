@@ -248,7 +248,8 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
   经济入口。
 - `briefing` 白名单返回墙上同样可见的十道固定菜谱，包括十六种公开食材、成本、售价和
   净利润，并说明同一道菜整局最多成功制作两次。AI 必须根据成功收据自行维护菜谱次数；
-  briefing、HUD、`observe` 和动作结果均不返回累计次数表。
+  briefing、HUD、`observe` 和动作结果均不返回累计次数表。`observe` 只保留当前窗口最近一次
+  制作收据；accepted 和 `recipe_limit_exceeded` 动作结果只额外公开本次 `recipe_id`。
   `observe` 仍不返回当前窗口的结构化食材清单或候选菜；AI 必须根据截图判断当前可见食材，
   再与公开菜单匹配并比较利润。
 - 动作结果不得公开节点、位置、隐藏库存、候选菜、窗口最优菜、未来供应、生成 seed 或
