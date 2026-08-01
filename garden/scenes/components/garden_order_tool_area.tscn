@@ -116,13 +116,15 @@ mesh = SubResource("CanSpoutMesh")
 
 [node name="Label" type="Label3D" parent="WateringCan"]
 position = Vector3(0, 1.05, 0)
-text = "WATER"
-font_size = 54
-outline_size = 10
+text = "浇水壶"
+font_size = 72
+outline_size = 16
 billboard = 1
+no_depth_test = true
 
 [node name="Shovel" type="Node3D" parent="."]
 position = Vector3(-0.9, 1.75, 0.15)
+scale = Vector3(1.2, 1.2, 1.2)
 
 [node name="Handle" type="MeshInstance3D" parent="Shovel"]
 mesh = SubResource("HandleMesh")
@@ -133,13 +135,15 @@ mesh = SubResource("BladeMesh")
 
 [node name="Label" type="Label3D" parent="Shovel"]
 position = Vector3(0, 1.25, 0)
-text = "SHOVEL"
-font_size = 54
-outline_size = 10
+text = "松土铲"
+font_size = 72
+outline_size = 16
 billboard = 1
+no_depth_test = true
 
 [node name="FertilizerSpreader" type="Node3D" parent="."]
 position = Vector3(0.95, 1.55, 0.2)
+scale = Vector3(1.2, 1.2, 1.2)
 
 [node name="Hopper" type="MeshInstance3D" parent="FertilizerSpreader"]
 mesh = SubResource("SpreaderMesh")
@@ -150,10 +154,11 @@ mesh = SubResource("HandleMesh")
 
 [node name="Label" type="Label3D" parent="FertilizerSpreader"]
 position = Vector3(0, 1.15, 0)
-text = "SPREADER"
-font_size = 54
-outline_size = 10
+text = "施肥器"
+font_size = 72
+outline_size = 16
 billboard = 1
+no_depth_test = true
 
 [node name="FertilizerStock" type="Node3D" parent="."]
 position = Vector3(2.7, 1.5, 0.2)
@@ -170,10 +175,11 @@ mesh = SubResource("BagMesh")
 
 [node name="Label" type="Label3D" parent="FertilizerStock"]
 position = Vector3(0, 1.1, 0)
-text = "FERTILIZER 2"
-font_size = 54
-outline_size = 10
+text = "肥料 ×2"
+font_size = 72
+outline_size = 16
 billboard = 1
+no_depth_test = true
 
 [node name="Destination" type="Marker3D" parent="."]
 position = Vector3(0, 0.1, -3.2)

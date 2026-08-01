@@ -259,9 +259,9 @@ theme_override_constants/margin_bottom = 12
 [node name="Title" type="Label" parent="NeighborhoodUI/Panel/Margin/Rows"]
 theme_override_colors/font_color = Color(0.95, 1, 0.92, 1)
 theme_override_font_sizes/font_size = 22
-text = "GARDEN ORDERS · COMMUNITY MAP"
+text = "园艺订单社区"
 
 [node name="Controls" type="Label" parent="NeighborhoodUI/Panel/Margin/Rows"]
 theme_override_colors/font_color = Color(0.84, 0.9, 0.82, 1)
 theme_override_font_sizes/font_size = 15
-text = "WASD move  ·  Shift sprint  ·  Mouse orbit  ·  Esc release"
+text = "WASD 移动 · Shift 加速 · 鼠标旋转视角 · Esc 释放鼠标"

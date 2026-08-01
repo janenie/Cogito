@@ -61,6 +61,15 @@ func _test_tool_area_component() -> void:
 	root.add_child(tool_area)
 	for node_name in ["WateringCan", "Shovel", "FertilizerSpreader", "FertilizerStock"]:
 		_assert(tool_area.get_node_or_null(node_name) != null, "tool area displays %s" % node_name)
+	var labels := [
+		(tool_area.get_node("FertilizerStock/Label") as Label3D).text,
+		(tool_area.get_node("FertilizerSpreader/Label") as Label3D).text,
+		(tool_area.get_node("Shovel/Label") as Label3D).text,
+		(tool_area.get_node("WateringCan/Label") as Label3D).text,
+	]
+	_assert(labels == ["肥料 ×2", "施肥器", "松土铲", "浇水壶"], "tool labels explain each central display in Chinese")
+	_assert(tool_area.get_node_or_null("FertilizerStock/Bag01") != null, "first fertilizer bag remains visible")
+	_assert(tool_area.get_node_or_null("FertilizerStock/Bag02") != null, "second fertilizer bag remains visible")
 	_assert(tool_area.get_node_or_null("Destination") != null, "tool area has a destination marker")
 	_assert(tool_area.get_node_or_null("Shelter/CollisionShape3D") != null, "tool shelter has collision")
 	tool_area.queue_free()
@@ -127,6 +136,12 @@ func _test_complete_neighborhood() -> void:
 	var player := neighborhood.get_node_or_null("GardenOrderPlayer") as Node3D
 	if player != null:
 		_assert(player.global_position.distance_to(Vector3.ZERO) < 3.0, "player starts near the central plaza")
+	var title := neighborhood.get_node_or_null("NeighborhoodUI/Panel/Margin/Rows/Title") as Label
+	var controls := neighborhood.get_node_or_null("NeighborhoodUI/Panel/Margin/Rows/Controls") as Label
+	if title != null:
+		_assert(title.text == "园艺订单社区", "central HUD title is Chinese")
+	if controls != null:
+		_assert(controls.text == "WASD 移动 · Shift 加速 · 鼠标旋转视角 · Esc 释放鼠标", "central HUD controls are Chinese")
 	neighborhood.queue_free()
 	await process_frame
 
