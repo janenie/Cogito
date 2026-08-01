@@ -109,6 +109,25 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"no wall blocks the initial view of the control panel: hit=%s"
 		% sight_hit.get("collider"),
 	)
+	for label_name: String in [
+		"TitleLabel",
+		"SwitchLabelA",
+		"SwitchLabelB",
+		"SwitchLabelC",
+		"SwitchLabelD",
+		"BreakerHeadingLabel",
+		"BreakerEntranceLabel",
+		"BreakerCEOLabel",
+		"BreakerLobbyLabel",
+		"BreakerBreakRoomLabel",
+		"VerifyLabel",
+	]:
+		var panel_label: Label3D = setup.get_node(label_name)
+		_assert(not panel_label.text.is_empty(), "%s has visible text" % label_name)
+		_assert(
+			panel_label.global_position.z > monitor.control_switch_a.global_position.z,
+			"%s stays on the visible face of the panel wall" % label_name,
+		)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
 	_assert(
 		monitor.task_card.readable_content.contains("入口落地灯"),
