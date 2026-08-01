@@ -40,6 +40,17 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "garden_task_failed"],
 		["failure", "max_requests"],
 	],
+	"repair_lighting_circuit": [
+		["success", "circuit_repaired"],
+		["failure", "wrong_breaker"],
+		["failure", "incorrect_circuit_configuration"],
+		["failure", "max_requests"],
+	],
+	"arrange_meeting_briefings": [
+		["success", "meeting_prepared"],
+		["failure", "incorrect_seating_assignment"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D

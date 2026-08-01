@@ -1,0 +1,174 @@
+[gd_scene load_steps=5 format=3 uid="uid://dxwcvsdh2ms8r"]
+
+[ext_resource type="PackedScene" uid="uid://6k5rvlwcpys1" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_switch.tscn" id="1_switch"]
+[ext_resource type="PackedScene" uid="uid://cs6raqlyejqul" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_button.tscn" id="2_button"]
+[ext_resource type="PackedScene" uid="uid://dkundghktg5ol" path="res://addons/cogito/DemoScenes/DemoPrefabs/lamp_round_floor.tscn" id="3_lamp"]
+[ext_resource type="FontFile" uid="uid://bu5on5evfoljs" path="res://addons/cogito/Assets/Fonts/Montserrat/Montserrat-Bold.ttf" id="4_font"]
+
+[node name="RepairLightingCircuitSetup" type="Node3D"]
+process_mode = 4
+visible = false
+
+[node name="TitleLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 2.28, -15.72)
+text = "LIGHTING CONTROL"
+font = ExtResource("4_font")
+font_size = 32
+outline_size = 8
+
+[node name="SwitchLabelA" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.43, 1.1, -15.72)
+text = "A"
+font = ExtResource("4_font")
+font_size = 28
+outline_size = 7
+
+[node name="SwitchLabelB" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.63, 1.1, -15.72)
+text = "B"
+font = ExtResource("4_font")
+font_size = 28
+outline_size = 7
+
+[node name="SwitchLabelC" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.43, 0.64, -15.72)
+text = "C"
+font = ExtResource("4_font")
+font_size = 28
+outline_size = 7
+
+[node name="SwitchLabelD" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.63, 0.64, -15.72)
+text = "D"
+font = ExtResource("4_font")
+font_size = 28
+outline_size = 7
+
+[node name="ControlSwitchB" parent="." instance=ExtResource("1_switch")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 6.93, 1.10623, -15.8447)
+collision_layer = 0
+objects_call_interact = Array[NodePath]([])
+
+[node name="BasicInteraction" parent="ControlSwitchB" index="5"]
+is_disabled = true
+
+[node name="ControlSwitchC" parent="." instance=ExtResource("1_switch")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 5.72934, 0.64623, -15.8447)
+collision_layer = 0
+objects_call_interact = Array[NodePath]([])
+
+[node name="BasicInteraction" parent="ControlSwitchC" index="5"]
+is_disabled = true
+
+[node name="ControlSwitchD" parent="." instance=ExtResource("1_switch")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 6.93, 0.64623, -15.8447)
+collision_layer = 0
+objects_call_interact = Array[NodePath]([])
+
+[node name="BasicInteraction" parent="ControlSwitchD" index="5"]
+is_disabled = true
+
+[node name="BreakerHeadingLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 1.76, -15.72)
+text = "RESET BREAKERS"
+font = ExtResource("4_font")
+font_size = 22
+outline_size = 6
+
+[node name="BreakerEntrance" parent="." instance=ExtResource("2_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 5.17, 1.53, -15.8447)
+collision_layer = 0
+allows_repeated_interaction = false
+
+[node name="BasicInteraction" parent="BreakerEntrance" index="3"]
+is_disabled = true
+
+[node name="BreakerEntranceLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.17, 1.32, -15.72)
+text = "Entrance"
+font = ExtResource("4_font")
+font_size = 15
+outline_size = 5
+
+[node name="BreakerCEO" parent="." instance=ExtResource("2_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 5.93, 1.53, -15.8447)
+collision_layer = 0
+allows_repeated_interaction = false
+
+[node name="BasicInteraction" parent="BreakerCEO" index="3"]
+is_disabled = true
+
+[node name="BreakerCEOLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.93, 1.32, -15.72)
+text = "CEO"
+font = ExtResource("4_font")
+font_size = 15
+outline_size = 5
+
+[node name="BreakerLobby" parent="." instance=ExtResource("2_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 6.69, 1.53, -15.8447)
+collision_layer = 0
+allows_repeated_interaction = false
+
+[node name="BasicInteraction" parent="BreakerLobby" index="3"]
+is_disabled = true
+
+[node name="BreakerLobbyLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.69, 1.32, -15.72)
+text = "Lobby"
+font = ExtResource("4_font")
+font_size = 15
+outline_size = 5
+
+[node name="BreakerBreakRoom" parent="." instance=ExtResource("2_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 7.45, 1.53, -15.8447)
+collision_layer = 0
+allows_repeated_interaction = false
+
+[node name="BasicInteraction" parent="BreakerBreakRoom" index="3"]
+is_disabled = true
+
+[node name="BreakerBreakRoomLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.45, 1.32, -15.72)
+text = "Break Room"
+font = ExtResource("4_font")
+font_size = 15
+outline_size = 5
+
+[node name="VerifyButton" parent="." instance=ExtResource("2_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 6.31, 0.62, -15.8447)
+collision_layer = 0
+allows_repeated_interaction = false
+
+[node name="BasicInteraction" parent="VerifyButton" index="3"]
+is_disabled = true
+
+[node name="VerifyLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 0.4, -15.72)
+text = "VERIFY"
+font = ExtResource("4_font")
+font_size = 20
+outline_size = 6
+
+[node name="PanelSpawn" type="Marker3D" parent="."]
+transform = Transform3D(0.815423, 0, -0.578866, 0, 1, 0, 0.578866, 0, 0.815423, 3, 0.905039, -12)
+
+[node name="TaskCardAnchor" type="Marker3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 4.85, 1.35, -14.2)
+
+[node name="BreakRoomLamp" parent="." instance=ExtResource("3_lamp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, -13)
+collision_layer = 0
+
+[node name="BasicInteraction" parent="BreakRoomLamp" index="8"]
+is_disabled = true
+
+[editable path="ControlSwitchB"]
+[editable path="ControlSwitchC"]
+[editable path="ControlSwitchD"]
+[editable path="BreakerEntrance"]
+[editable path="BreakerCEO"]
+[editable path="BreakerLobby"]
+[editable path="BreakerBreakRoom"]
+[editable path="VerifyButton"]
+[editable path="BreakRoomLamp"]

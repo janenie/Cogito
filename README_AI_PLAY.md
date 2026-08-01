@@ -6,9 +6,10 @@ AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游�
 
 当前黑盒游玩流程支持
 `addons/cogito/DemoScenes/COGITO_3_Lobby.tscn` 中的 `find_contract` 和
-`find_key`、`put_book`、`greet_npc_meeting`，以及导入到当前仓库的
+`find_key`、`put_book`、`greet_npc_meeting`、`repair_lighting_circuit`、
+`arrange_meeting_briefings`，以及导入到当前仓库的
 `dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup` 和
-`garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，共 6 个任务。
+`garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，共 8 个任务。
 MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
 
 ## 1. 准备环境
@@ -177,6 +178,36 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=greet_npc_meeting
 ```
 
+`repair_lighting_circuit` 也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=repair_lighting_circuit
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=repair_lighting_circuit
+```
+
+该任务要求玩家读取任务卡上的四组目标状态，通过往返观察推断入口面板 A～D 与入口、
+CEO 办公室、大厅和休息室灯组的未知映射，找出一条跳闸线路，并在唯一一次断路器选择后
+配置所有灯光、按 Verify 提交。映射、故障线路和回合种子只保存在可信 Godot 运行时，
+不会进入 briefing、MCP 结果或玩家提示。
+
+`arrange_meeting_briefings` 也可以在普通模式下游玩，或接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=arrange_meeting_briefings
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=arrange_meeting_briefings
+```
+
+该任务要求玩家分别在 CEO 办公室、档案室和休息室读取三条关系线索，推断 ATLAS、
+BIRCH、CROWN、DELTA 与会议桌电视侧、门侧、电视对面侧、内墙侧的唯一对应关系。
+资料可在提交前取回调整，Verify 只有一次机会。隐藏排列、候选解和线索生成过程只保存在
+可信 Godot Monitor 中，不会进入 briefing、MCP 结果、玩家提示或日志。
+
 `daily_routine_cleanup` 位于导入的日常清理场景，也可以在普通模式下游玩，或接入 AI：
 
 ```bash
@@ -253,7 +284,12 @@ briefing 只说明最大值 100 次，允许
 的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
 和 `failure/max_requests`；`garden_watering` 的硬上限为 300 次，允许
 `success/garden_tasks_complete`、`failure/garden_task_failed` 和
-`failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
+`failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，允许
+`success/circuit_repaired`、`failure/wrong_breaker`、
+`failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
+`arrange_meeting_briefings` 的硬上限为 200 次，允许 `success/meeting_prepared`、
+`failure/incorrect_seating_assignment` 和 `failure/max_requests`。
+`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
@@ -405,6 +441,7 @@ Godot 成功连接后，MCP Server 会在日志根目录的
 ```bash
 bash tests/check_ai_play_start_script.sh
 bash tests/check_ai_play_mcp_only.sh
+bash tests/check_ai_play_arrange_meeting_briefings_monitor.sh
 git diff --check
 ```
 
