@@ -4,6 +4,7 @@ const HOUSE_SCENE_PATH := "res://garden/scenes/components/garden_order_house.tsc
 const NEIGHBORHOOD_SCENE_PATH := "res://garden/scenes/garden_orders_neighborhood.tscn"
 const PLAYER_SCENE_PATH := "res://garden/scenes/components/garden_order_third_person_player.tscn"
 const TOOL_AREA_SCENE_PATH := "res://garden/scenes/components/garden_order_tool_area.tscn"
+const ROUTE_RULES_TEXT := "路程规则\n工具区 → 任意住宅：10 分钟\n相隔 1 栋：5 分钟\n相隔 2 栋：10 分钟\n相隔 3 栋：15 分钟\n相隔 4–5 栋：20 分钟"
 
 var failures := 0
 
@@ -121,6 +122,8 @@ func _test_complete_neighborhood() -> void:
 		"WorldEnvironment",
 		"Ground",
 		"Roads",
+		"Roads/TravelTimeSigns",
+		"RouteInformation/RulesLabel",
 		"CentralToolArea",
 		"CentralToolArea/Destination",
 		"PlayerSpawn",
@@ -144,7 +147,18 @@ func _test_complete_neighborhood() -> void:
 			_assert(house.get_node_or_null("HouseBody/CollisionShape3D") != null, "%s has collision" % house.name)
 		house_numbers.sort()
 		_assert(house_numbers == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "house numbers cover 1 through 10")
-		_assert(size_counts == {"small": 4, "medium": 3, "large": 3}, "garden sizes use the approved distribution")
+		_assert(size_counts == {"small": 5, "medium": 3, "large": 2}, "garden sizes use the approved distribution")
+		_assert(houses.get_node("House03").get("garden_size") == "large", "House 3 is large")
+		_assert(houses.get_node("House06").get("garden_size") == "large", "House 6 is large")
+		_assert(houses.get_node("House09").get("garden_size") == "small", "House 9 is small")
+	var route_rules := neighborhood.get_node_or_null("RouteInformation/RulesLabel") as Label3D
+	if route_rules != null:
+		_assert(route_rules.text == ROUTE_RULES_TEXT, "central board shows the complete route-cost rules")
+	var travel_time_signs := neighborhood.get_node_or_null("Roads/TravelTimeSigns")
+	if travel_time_signs != null:
+		_assert(travel_time_signs.get_child_count() == 10, "ring road has ten adjacent travel-time signs")
+		for sign in travel_time_signs.get_children():
+			_assert(sign is Label3D and sign.text == "步行 5 分钟", "%s shows the adjacent travel cost" % sign.name)
 	var player := neighborhood.get_node_or_null("GardenOrderPlayer") as Node3D
 	if player != null:
 		_assert(player.global_position.distance_to(Vector3.ZERO) < 3.0, "player starts near the central plaza")
