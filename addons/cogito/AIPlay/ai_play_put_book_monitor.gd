@@ -39,7 +39,6 @@ var _current_target_index := 0
 var _current_carried_book: RigidBody3D = null
 var _completed_books: Array[RigidBody3D] = []
 var _books_carried_once: Dictionary = {}
-var _task_text := ""
 
 
 func _ready() -> void:
@@ -196,9 +195,6 @@ func _place_player_and_task_card() -> void:
 
 
 func _write_task_card() -> void:
-	_task_text = TASK_CONTENT
-	if task_card.get_script() == null:
-		return
 	task_card.set("readable_title", TASK_TITLE)
 	task_card.set("readable_content", TASK_CONTENT)
 	task_card.set("interaction_text", "Read task card")
@@ -209,15 +205,14 @@ func _write_task_card() -> void:
 	if task_card.is_node_ready():
 		var label_title := task_card.get("label_title") as Label
 		var label_content := task_card.get("label_content") as Label
-		if label_title != null:
-			label_title.text = TASK_TITLE
-		if label_content != null:
-			label_content.text = TASK_CONTENT
+		if label_title == null or label_content == null:
+			push_error("AIPlayPutBookMonitor task card is missing readable labels")
+			return
+		label_title.text = TASK_TITLE
+		label_content.text = TASK_CONTENT
 
 
 func _open_archive_door() -> void:
-	if archive_door.get_script() == null:
-		return
 	archive_door.set("is_locked", false)
 	if not bool(archive_door.get("is_open")):
 		archive_door.set("is_open", true)
@@ -298,7 +293,7 @@ func get_round_snapshot() -> Dictionary:
 		"current_target_index": _current_target_index,
 		"carried_book": String(_current_carried_book.name) if _current_carried_book != null else "",
 		"completed": _book_names(_completed_books),
-		"task_text": _task_text,
+		"task_text": String(task_card.get("readable_content")),
 	}
 
 
@@ -326,9 +321,30 @@ func _has_required_nodes() -> bool:
 		if required_node == null:
 			push_error("AIPlayPutBookMonitor is missing required scene node: %s" % required_name)
 			return false
+	if not _has_properties(
+		task_card,
+		["readable_title", "readable_content", "interaction_text", "is_disabled", "label_title", "label_content"],
+	):
+		push_error("AIPlayPutBookMonitor task_card must implement the ReadableComponent contract")
+		return false
+	if not _has_properties(archive_door, ["is_locked", "is_open"]) or not archive_door.has_method("set_state"):
+		push_error("AIPlayPutBookMonitor archive_door must implement the CogitoDoor contract")
+		return false
+	if not game_over_screen.has_method("show_result"):
+		push_error("AIPlayPutBookMonitor game_over_screen must implement show_result")
+		return false
+	return true
+
+
+func _has_properties(node: Node, property_names: Array[String]) -> bool:
+	var available: Dictionary = {}
+	for property: Dictionary in node.get_property_list():
+		available[String(property.get("name", ""))] = true
+	for property_name: String in property_names:
+		if not available.has(property_name):
+			return false
 	return true
 
 
 func show_result(outcome: String, reason: String) -> void:
-	if game_over_screen != null:
-		game_over_screen.call("show_result", outcome, reason)
+	game_over_screen.call("show_result", outcome, reason)

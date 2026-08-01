@@ -6718,31 +6718,25 @@ transform = Transform3D(1, 0, 2.13163e-14, 0, 1, 0, -2.13163e-14, 0, 1, -1, 0, -
 [node name="bookcaseClosedWide4" parent="ARCHIVE" unique_id=792950063 instance=ExtResource("29_rqlpo")]
 transform = Transform3D(1, 0, 2.13163e-14, 0, 1, 0, -2.13163e-14, 0, 1, 1.2, 0, -7.51997)
 
-[node name="books" parent="ARCHIVE" unique_id=585762745 instance=ExtResource("30_yjder")]
+[node name="books" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=585762745 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 3.05588, 1.22094, -1.11634)
 visible = false
-groups = ["put_book_decorative_book"]
 
-[node name="books2" parent="ARCHIVE" unique_id=2040553632 instance=ExtResource("30_yjder")]
+[node name="books2" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=2040553632 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.3711402e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711402e-08, 2.6558802, 1.7036599, -1.5934706)
-groups = ["put_book_decorative_book"]
 
-[node name="books3" parent="ARCHIVE" unique_id=593321889 instance=ExtResource("30_yjder")]
+[node name="books3" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=593321889 instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.65588, 0.742455, -0.693467)
-groups = ["put_book_decorative_book"]
 
-[node name="books5" parent="ARCHIVE" unique_id=1479314314 instance=ExtResource("30_yjder")]
+[node name="books5" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=1479314314 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 0.6504271, 1.603652, -0.49346542)
-groups = ["put_book_decorative_book"]
 
-[node name="books6" parent="ARCHIVE" unique_id=1483841084 instance=ExtResource("30_yjder")]
+[node name="books6" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=1483841084 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.55467, 0.139511, -0.493466)
-groups = ["put_book_decorative_book"]
 
-[node name="books4" parent="ARCHIVE" unique_id=409455667 instance=ExtResource("30_yjder")]
+[node name="books4" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=409455667 instance=ExtResource("30_yjder")]
 transform = Transform3D(-1.31134e-07, -8.74228e-08, -1, 1, -4.37114e-08, -1.31134e-07, -4.37114e-08, -1, 8.74228e-08, 2.80461, 0.165415, -0.123862)
 visible = false
-groups = ["put_book_decorative_book"]
 
 [node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE"]
 
