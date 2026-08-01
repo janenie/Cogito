@@ -1,12 +1,37 @@
 import base64
+import struct
 import threading
 import time
+import zlib
 
 import pytest
 
 from ai_play.config import Config
 from ai_play.game_session import GameSession, SessionError, SessionResult
 from ai_play.trajectory_logger import LogPersistenceError
+
+
+def _depth_png():
+    def chunk(kind, data):
+        checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", checksum)
+        )
+
+    header = struct.pack(">IIBBBBB", 1024, 576, 8, 2, 0, 0, 0)
+    rows = (b"\x00" + b"\xff\xff\xff" * 1024) * 576
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
+
+
+DEPTH_PNG = _depth_png()
 
 
 def observation(observation_id, include_depth=False):
@@ -48,10 +73,9 @@ def observation(observation_id, include_depth=False):
         "last_action_results": [],
     }
     if include_depth:
-        depth_bytes = b"\x89PNG\r\n\x1a\nsession-depthIEND\xaeB`\x82"
         result["depth_image"] = {
             "mime_type": "image/png",
-            "base64": base64.b64encode(depth_bytes).decode("ascii"),
+            "base64": base64.b64encode(DEPTH_PNG).decode("ascii"),
             "width": 1024,
             "height": 576,
             "encoding": "linear_depth_normalized_8bit",

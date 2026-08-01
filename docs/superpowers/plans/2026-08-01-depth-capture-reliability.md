@@ -223,7 +223,7 @@ Re-run the Task 3 command and expect all tests to pass.
 - Consumes: all changes from Tasks 1–3.
 - Produces: evidence that depth rendering, validation, MCP projection, logging, existing observers, session behavior, and source formatting remain correct.
 
-- [ ] **Step 1: Run all Python tests**
+- [x] **Step 1: Run all Python tests**
 
 ```bash
 PYTHONPATH=ai_play/src python3 -m pytest ai_play/tests tests/test_ai_play_codex_orchestrator.py tests/test_ai_play_supervisor.py tests/test_find_contract_awm_comparison.py -q
@@ -231,7 +231,7 @@ PYTHONPATH=ai_play/src python3 -m pytest ai_play/tests tests/test_ai_play_codex_
 
 Expected: all tests pass with zero failures.
 
-- [ ] **Step 2: Run affected Godot headless tests**
+- [x] **Step 2: Run affected Godot headless tests**
 
 ```bash
 godot --headless --path . --script tests/ai_play/test_ai_play_depth_capture.gd
@@ -243,7 +243,7 @@ godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
 
 Expected: every script prints its pass marker and exits 0.
 
-- [ ] **Step 3: Run renderer and editor checks**
+- [x] **Step 3: Run renderer and editor checks**
 
 ```bash
 godot --path . --script tests/ai_play/test_ai_play_depth_capture_rendered.gd
