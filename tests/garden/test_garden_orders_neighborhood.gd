@@ -1,6 +1,8 @@
 extends SceneTree
 
 const HOUSE_SCENE_PATH := "res://garden/scenes/components/garden_order_house.tscn"
+const PLAYER_SCENE_PATH := "res://garden/scenes/components/garden_order_third_person_player.tscn"
+const TOOL_AREA_SCENE_PATH := "res://garden/scenes/components/garden_order_tool_area.tscn"
 
 var failures := 0
 
@@ -11,6 +13,8 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_house_component()
+	await _test_tool_area_component()
+	await _test_third_person_player_component()
 	if failures == 0:
 		print("Garden orders neighborhood tests passed")
 		quit(0)
@@ -39,6 +43,42 @@ func _test_house_component() -> void:
 	_assert(house.get_node_or_null("Garden/GardenWorkPoint") != null, "house has a work marker")
 	_assert(house.get_node_or_null("HouseBody/CollisionShape3D") != null, "house has collision")
 	house.queue_free()
+	await process_frame
+
+
+func _test_tool_area_component() -> void:
+	_assert(ResourceLoader.exists(TOOL_AREA_SCENE_PATH), "tool area component scene exists")
+	if not ResourceLoader.exists(TOOL_AREA_SCENE_PATH):
+		return
+	var packed := load(TOOL_AREA_SCENE_PATH) as PackedScene
+	_assert(packed != null, "tool area component scene loads")
+	if packed == null:
+		return
+	var tool_area := packed.instantiate()
+	root.add_child(tool_area)
+	for node_name in ["WateringCan", "Shovel", "FertilizerSpreader", "FertilizerStock"]:
+		_assert(tool_area.get_node_or_null(node_name) != null, "tool area displays %s" % node_name)
+	_assert(tool_area.get_node_or_null("Destination") != null, "tool area has a destination marker")
+	_assert(tool_area.get_node_or_null("Shelter/CollisionShape3D") != null, "tool shelter has collision")
+	tool_area.queue_free()
+	await process_frame
+
+
+func _test_third_person_player_component() -> void:
+	_assert(ResourceLoader.exists(PLAYER_SCENE_PATH), "third-person player scene exists")
+	if not ResourceLoader.exists(PLAYER_SCENE_PATH):
+		return
+	var packed := load(PLAYER_SCENE_PATH) as PackedScene
+	_assert(packed != null, "third-person player scene loads")
+	if packed == null:
+		return
+	var player := packed.instantiate()
+	root.add_child(player)
+	_assert(player is CharacterBody3D, "inspection player is a character body")
+	_assert(player.get_node_or_null("CollisionShape3D") != null, "player has capsule collision")
+	_assert(player.get_node_or_null("Avatar") != null, "player has a visible avatar")
+	_assert(player.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") != null, "player has a third-person camera")
+	player.queue_free()
 	await process_frame
 
 

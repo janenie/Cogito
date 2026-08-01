@@ -1,0 +1,179 @@
+[gd_scene load_steps=17 format=3]
+
+[sub_resource type="StandardMaterial3D" id="WoodMaterial"]
+albedo_color = Color(0.38, 0.23, 0.12, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="RoofMaterial"]
+albedo_color = Color(0.12, 0.25, 0.18, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="MetalMaterial"]
+albedo_color = Color(0.62, 0.68, 0.72, 1)
+metallic = 0.65
+roughness = 0.32
+
+[sub_resource type="StandardMaterial3D" id="WaterMaterial"]
+albedo_color = Color(0.16, 0.47, 0.88, 1)
+roughness = 0.42
+
+[sub_resource type="StandardMaterial3D" id="FertilizerMaterial"]
+albedo_color = Color(0.92, 0.68, 0.16, 1)
+roughness = 0.76
+
+[sub_resource type="BoxMesh" id="ShelterMesh"]
+material = SubResource("WoodMaterial")
+size = Vector3(8, 0.45, 3)
+
+[sub_resource type="BoxShape3D" id="ShelterShape"]
+size = Vector3(8, 0.45, 3)
+
+[sub_resource type="BoxMesh" id="RoofMesh"]
+material = SubResource("RoofMaterial")
+size = Vector3(9, 0.35, 4)
+
+[sub_resource type="CylinderMesh" id="HandleMesh"]
+material = SubResource("WoodMaterial")
+top_radius = 0.07
+bottom_radius = 0.07
+height = 1.7
+radial_segments = 10
+
+[sub_resource type="BoxMesh" id="BladeMesh"]
+material = SubResource("MetalMaterial")
+size = Vector3(0.52, 0.62, 0.12)
+
+[sub_resource type="SphereMesh" id="CanBodyMesh"]
+material = SubResource("WaterMaterial")
+radius = 0.46
+height = 0.75
+radial_segments = 16
+rings = 8
+
+[sub_resource type="CylinderMesh" id="CanSpoutMesh"]
+material = SubResource("WaterMaterial")
+top_radius = 0.05
+bottom_radius = 0.12
+height = 1.25
+radial_segments = 10
+
+[sub_resource type="BoxMesh" id="SpreaderMesh"]
+material = SubResource("FertilizerMaterial")
+size = Vector3(0.8, 0.65, 0.65)
+
+[sub_resource type="BoxMesh" id="BagMesh"]
+material = SubResource("FertilizerMaterial")
+size = Vector3(0.65, 0.85, 0.35)
+
+[sub_resource type="BoxMesh" id="PostMesh"]
+material = SubResource("WoodMaterial")
+size = Vector3(0.35, 3.3, 0.35)
+
+[sub_resource type="BoxMesh" id="CounterMesh"]
+material = SubResource("WoodMaterial")
+size = Vector3(7.2, 0.2, 1.2)
+
+[node name="GardenOrderToolArea" type="Node3D"]
+
+[node name="Shelter" type="StaticBody3D" parent="."]
+
+[node name="BackWall" type="MeshInstance3D" parent="Shelter"]
+position = Vector3(0, 1.75, 1.35)
+rotation = Vector3(1.5708, 0, 0)
+mesh = SubResource("ShelterMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Shelter"]
+position = Vector3(0, 1.75, 1.35)
+rotation = Vector3(1.5708, 0, 0)
+shape = SubResource("ShelterShape")
+
+[node name="LeftPost" type="MeshInstance3D" parent="Shelter"]
+position = Vector3(-3.7, 1.65, -0.9)
+mesh = SubResource("PostMesh")
+
+[node name="RightPost" type="MeshInstance3D" parent="Shelter"]
+position = Vector3(3.7, 1.65, -0.9)
+mesh = SubResource("PostMesh")
+
+[node name="Roof" type="MeshInstance3D" parent="Shelter"]
+position = Vector3(0, 3.35, 0)
+mesh = SubResource("RoofMesh")
+
+[node name="Counter" type="MeshInstance3D" parent="Shelter"]
+position = Vector3(0, 1.05, 0.35)
+mesh = SubResource("CounterMesh")
+
+[node name="WateringCan" type="Node3D" parent="."]
+position = Vector3(-2.6, 1.55, 0.2)
+
+[node name="Body" type="MeshInstance3D" parent="WateringCan"]
+mesh = SubResource("CanBodyMesh")
+
+[node name="Spout" type="MeshInstance3D" parent="WateringCan"]
+position = Vector3(0.5, 0.15, 0)
+rotation = Vector3(0, 0, -1.12)
+mesh = SubResource("CanSpoutMesh")
+
+[node name="Label" type="Label3D" parent="WateringCan"]
+position = Vector3(0, 1.05, 0)
+text = "WATER"
+font_size = 54
+outline_size = 10
+billboard = 1
+
+[node name="Shovel" type="Node3D" parent="."]
+position = Vector3(-0.9, 1.75, 0.15)
+
+[node name="Handle" type="MeshInstance3D" parent="Shovel"]
+mesh = SubResource("HandleMesh")
+
+[node name="Blade" type="MeshInstance3D" parent="Shovel"]
+position = Vector3(0, -1.02, 0)
+mesh = SubResource("BladeMesh")
+
+[node name="Label" type="Label3D" parent="Shovel"]
+position = Vector3(0, 1.25, 0)
+text = "SHOVEL"
+font_size = 54
+outline_size = 10
+billboard = 1
+
+[node name="FertilizerSpreader" type="Node3D" parent="."]
+position = Vector3(0.95, 1.55, 0.2)
+
+[node name="Hopper" type="MeshInstance3D" parent="FertilizerSpreader"]
+mesh = SubResource("SpreaderMesh")
+
+[node name="Handle" type="MeshInstance3D" parent="FertilizerSpreader"]
+position = Vector3(0, 0.95, 0)
+mesh = SubResource("HandleMesh")
+
+[node name="Label" type="Label3D" parent="FertilizerSpreader"]
+position = Vector3(0, 1.65, 0)
+text = "SPREADER"
+font_size = 54
+outline_size = 10
+billboard = 1
+
+[node name="FertilizerStock" type="Node3D" parent="."]
+position = Vector3(2.7, 1.5, 0.2)
+
+[node name="Bag01" type="MeshInstance3D" parent="FertilizerStock"]
+position = Vector3(-0.34, 0, 0)
+rotation = Vector3(0, 0, -0.12)
+mesh = SubResource("BagMesh")
+
+[node name="Bag02" type="MeshInstance3D" parent="FertilizerStock"]
+position = Vector3(0.34, 0, 0)
+rotation = Vector3(0, 0, 0.12)
+mesh = SubResource("BagMesh")
+
+[node name="Label" type="Label3D" parent="FertilizerStock"]
+position = Vector3(0, 1.1, 0)
+text = "FERTILIZER 2"
+font_size = 54
+outline_size = 10
+billboard = 1
+
+[node name="Destination" type="Marker3D" parent="."]
+position = Vector3(0, 0.1, -3.2)
