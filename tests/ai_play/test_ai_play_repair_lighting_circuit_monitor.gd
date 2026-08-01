@@ -128,6 +128,16 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			panel_label.global_position.z > monitor.control_switch_a.global_position.z,
 			"%s stays on the visible face of the panel wall" % label_name,
 		)
+	var title_label: Label3D = setup.get_node("TitleLabel")
+	var verify_label: Label3D = setup.get_node("VerifyLabel")
+	_assert(
+		is_equal_approx(monitor.verify_button.global_position.x, title_label.global_position.x),
+		"Verify button is centered instead of embedded in the side wall",
+	)
+	_assert(
+		is_equal_approx(verify_label.global_position.x, title_label.global_position.x),
+		"Verify label stays centered with its button",
+	)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
 	_assert(
 		monitor.task_card.readable_content.contains("入口落地灯"),
@@ -146,8 +156,12 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"task card lists break-room target",
 	)
 	for required_instruction: String in [
+		"A～D 与四组灯是一对一未知对应",
+		"必须判断 A、B、C、D 各自控制哪一组灯",
+		"大厅六盏顶灯（右侧高处一排）",
 		"操作步骤",
-		"A～D",
+		"先观察并记住四组灯的当前状态",
+		"每次只操作 A～D 中的一个开关",
 		"指示状态会变化，但灯不会响应",
 		"断路器只能选择一次，选错会立即失败",
 		"确认四组灯均符合目标，再按 Verify 提交",

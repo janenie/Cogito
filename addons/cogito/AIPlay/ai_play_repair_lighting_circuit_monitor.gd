@@ -7,7 +7,7 @@ const TASK_TITLE := "未知照明电路修复"
 const CIRCUIT_LABELS := {
 	"entrance": "入口落地灯",
 	"ceo": "CEO 办公室落地灯",
-	"lobby": "大厅六盏顶灯",
+	"lobby": "大厅六盏顶灯（右侧高处一排）",
 	"break_room": "休息室落地灯",
 }
 
@@ -165,6 +165,10 @@ func _write_task_card(target_states: Dictionary) -> void:
 	var lines: Array[String] = [
 		"任务目标：修复跳闸线路，并将四组照明调整为以下状态。",
 		"",
+		"接线规则：A～D 与四组灯是一对一未知对应。",
+		"必须判断 A、B、C、D 各自控制哪一组灯。",
+		"",
+		"最终目标状态：",
 	]
 	for circuit_id: String in AIPlayLightingCircuitRound.CIRCUIT_IDS:
 		lines.append(
@@ -174,12 +178,15 @@ func _write_task_card(target_states: Dictionary) -> void:
 	lines.append_array([
 		"",
 		"操作步骤：",
-		"1. 操作 A～D，并前往四个区域观察灯光，推断未知对应关系。",
-		"2. 一条线路已跳闸：它的开关指示状态会变化，但灯不会响应。",
-		"3. 确定故障灯组后，按同名 RESET BREAKER。",
+		"1. 先观察并记住四组灯的当前状态。",
+		"2. 每次只操作 A～D 中的一个开关，再巡视四组灯。",
+		"   哪组灯发生变化，该字母就控制哪组灯。",
+		"3. 一条线路已跳闸：它的开关指示状态会变化，但灯不会响应。",
+		"4. 找出三个正常对应关系，用排除法确定故障灯组。",
+		"   确定后按同名 RESET BREAKER。",
 		"   断路器只能选择一次，选错会立即失败。",
-		"4. 复位正确线路后，继续用 A～D 调整全部灯光。",
-		"5. 确认四组灯均符合目标，再按 Verify 提交。",
+		"5. 复位正确线路后，继续用 A～D 调整全部灯光。",
+		"6. 确认四组灯均符合目标，再按 Verify 提交。",
 		"   Verify 只能提交一次，配置错误会立即失败。",
 	])
 	var content := "\n".join(lines)

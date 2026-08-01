@@ -136,7 +136,7 @@ font_size = 15
 outline_size = 5
 
 [node name="VerifyButton" parent="." instance=ExtResource("2_button")]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 7.55, 0.62, -15.8447)
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 6.31, 0.62, -15.8447)
 collision_layer = 0
 allows_repeated_interaction = false
 
@@ -144,7 +144,7 @@ allows_repeated_interaction = false
 is_disabled = true
 
 [node name="VerifyLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.55, 0.4, -15.72)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.31, 0.4, -15.72)
 text = "VERIFY"
 font = ExtResource("4_font")
 font_size = 20
