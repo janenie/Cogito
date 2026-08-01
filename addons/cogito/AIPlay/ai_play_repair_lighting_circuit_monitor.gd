@@ -163,7 +163,7 @@ func _place_player_and_task_card() -> void:
 
 func _write_task_card(target_states: Dictionary) -> void:
 	var lines: Array[String] = [
-		"将四组照明调整为以下目标状态：",
+		"任务目标：修复跳闸线路，并将四组照明调整为以下状态。",
 		"",
 	]
 	for circuit_id: String in AIPlayLightingCircuitRound.CIRCUIT_IDS:
@@ -171,8 +171,17 @@ func _write_task_card(target_states: Dictionary) -> void:
 			"%s：%s"
 			% [CIRCUIT_LABELS[circuit_id], _state_text(target_states[circuit_id])]
 		)
-	lines.append("")
-	lines.append("找出跳闸线路，只选择一次断路器，完成后按 Verify。")
+	lines.append_array([
+		"",
+		"操作步骤：",
+		"1. 操作 A～D，并前往四个区域观察灯光，推断未知对应关系。",
+		"2. 一条线路已跳闸：它的开关指示状态会变化，但灯不会响应。",
+		"3. 确定故障灯组后，按同名 RESET BREAKER。",
+		"   断路器只能选择一次，选错会立即失败。",
+		"4. 复位正确线路后，继续用 A～D 调整全部灯光。",
+		"5. 确认四组灯均符合目标，再按 Verify 提交。",
+		"   Verify 只能提交一次，配置错误会立即失败。",
+	])
 	var content := "\n".join(lines)
 	task_card.readable_title = TASK_TITLE
 	task_card.readable_content = content

@@ -145,6 +145,18 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.task_card.readable_content.contains("休息室落地灯"),
 		"task card lists break-room target",
 	)
+	for required_instruction: String in [
+		"操作步骤",
+		"A～D",
+		"指示状态会变化，但灯不会响应",
+		"断路器只能选择一次，选错会立即失败",
+		"确认四组灯均符合目标，再按 Verify 提交",
+		"配置错误会立即失败",
+	]:
+		_assert(
+			monitor.task_card.readable_content.contains(required_instruction),
+			"task card clearly explains: %s" % required_instruction,
+		)
 
 	monitor.configure_round(7812)
 	var first_snapshot: Dictionary = monitor.get_round_snapshot()
