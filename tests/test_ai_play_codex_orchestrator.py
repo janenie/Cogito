@@ -367,6 +367,14 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "地标的位置、大小与遮挡变化" in instructions
     assert "磁盘" in instructions
     assert "隐藏状态" in instructions
+    assert "青绿色或蓝绿色的独立标志" in instructions
+    assert "同心圆、靶心或旋涡状发光圆环" in instructions
+    assert "每次水平旋转 45 度" in instructions
+    assert "最多覆盖 360 度" in instructions
+    assert "截图没有随公开朝向变化" in instructions
+    assert "用短步靠近" in instructions
+    assert "远距离的 not_found 不能作为排除依据" in instructions
+    assert "读取任务卡前不得离开出生区域" in instructions
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])

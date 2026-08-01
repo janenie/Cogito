@@ -104,8 +104,10 @@ Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；C
 结果提供。隔离玩家的权限 profile 必须启用网络但只 allowlist 字面量 `127.0.0.1`，使 Codex 能
 连接本机 Streamable HTTP MCP 边车；玩家环境必须为大小写代理变量显式设置回环
 `NO_PROXY`。不得使用公网通配符或 `allow_local_binding` 扩大访问范围。
-玩家提示还要求：当公开 `briefing` 指定出生点附近任务卡时，首次观察后应先扫描并探测近处的
-悬浮标志、纸张或文件，确认失败后才能扩大搜索范围。
+高优先级 developer/system instruction 还要求：当公开 `briefing` 指定出生点附近任务卡时，
+把细杆底座上的青绿色/蓝绿色同心发光圆环标志作为最高优先级任务卡候选。玩家留在出生区，
+按 45 度扇区扫描最多 360 度，每次等待与公开朝向一致的新截图；找到标志后短步靠近、对准并
+探测，读卡后才能离开。远距离 `not_found` 不得用于排除候选。
 
 每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
 `~/.codex-cogito-player`，只作为 `auth.json` 的来源；不会读取、合并或保留其 `config.toml`、
