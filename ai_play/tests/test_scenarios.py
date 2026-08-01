@@ -45,8 +45,8 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("find_contract", 120) == 120
     assert scenario_act_request_limit("find_key", 500) == 100
     assert scenario_act_request_limit("find_key", 80) == 80
-    assert scenario_act_request_limit("put_book", 500) == 50
-    assert scenario_act_request_limit("put_book", 35) == 35
+    assert scenario_act_request_limit("put_book", 500) == 150
+    assert scenario_act_request_limit("put_book", 120) == 120
     assert scenario_act_request_limit("greet_npc_meeting", 500) == 100
     assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
     assert scenario_act_request_limit("daily_routine_cleanup", 500) == 150
@@ -106,7 +106,9 @@ def test_terminal_results_are_scenario_specific():
     assert is_allowed_game_over("find_key", "success", "key_picked_up")
     assert not is_allowed_game_over("find_key", "success", "correct_password")
     assert not is_allowed_game_over("find_key", "failure", "wrong_password")
-    assert is_allowed_game_over("put_book", "success", "book_in_box")
+    assert is_allowed_game_over("put_book", "success", "books_in_ceo_office")
+    assert is_allowed_game_over("put_book", "failure", "wrong_book_pickup")
+    assert not is_allowed_game_over("put_book", "success", "book_in_box")
     assert not is_allowed_game_over("put_book", "success", "key_picked_up")
     assert not is_allowed_game_over("put_book", "success", "correct_password")
     assert is_allowed_game_over(

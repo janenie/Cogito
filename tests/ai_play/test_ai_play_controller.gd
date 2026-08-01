@@ -748,6 +748,14 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 
 
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
+	_assert(
+		["success", "books_in_ceo_office"] in AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"],
+		"put_book allows CEO delivery success",
+	)
+	_assert(
+		["failure", "wrong_book_pickup"] in AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"],
+		"put_book allows wrong-pickup failure",
+	)
 	for terminal_case: Dictionary in [
 		{
 			"scenario": "find_contract",
@@ -763,6 +771,16 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"scenario": "find_key",
 			"outcome": "success",
 			"reason": "key_picked_up",
+		},
+		{
+			"scenario": "put_book",
+			"outcome": "success",
+			"reason": "books_in_ceo_office",
+		},
+		{
+			"scenario": "put_book",
+			"outcome": "failure",
+			"reason": "wrong_book_pickup",
 		},
 		{
 			"scenario": "garden_watering",

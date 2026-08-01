@@ -44,9 +44,10 @@ _SCENARIOS = {
     ),
     "put_book": ScenarioDefinition(
         briefing_loader=load_put_book_briefing,
-        max_act_requests=50,
+        max_act_requests=150,
         terminal_results=frozenset({
-            ("success", "book_in_box"),
+            ("success", "books_in_ceo_office"),
+            ("failure", "wrong_book_pickup"),
             ("failure", "max_requests"),
         }),
     ),

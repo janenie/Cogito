@@ -22,8 +22,8 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "max_requests"],
 	],
 	"put_book": [
-		["success", "book_in_box"],
-		["failure", "book_in_wrong_box"],
+		["success", "books_in_ceo_office"],
+		["failure", "wrong_book_pickup"],
 		["failure", "max_requests"],
 	],
 	"greet_npc_meeting": [

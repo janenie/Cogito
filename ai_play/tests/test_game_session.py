@@ -221,10 +221,10 @@ def test_global_limit_can_tighten_find_key_cap():
     assert session.act_request_limit == 75
 
 
-def test_put_book_uses_50_request_hard_cap():
+def test_put_book_uses_150_request_hard_cap():
     session, _ = make_scenario_session("put_book", configured_limit=500)
 
-    assert session.act_request_limit == 50
+    assert session.act_request_limit == 150
 
 
 def test_greet_npc_meeting_uses_100_request_hard_cap():
@@ -237,9 +237,9 @@ def test_greet_npc_meeting_uses_100_request_hard_cap():
 
 
 def test_global_limit_can_tighten_put_book_cap():
-    session, _ = make_scenario_session("put_book", configured_limit=35)
+    session, _ = make_scenario_session("put_book", configured_limit=120)
 
-    assert session.act_request_limit == 35
+    assert session.act_request_limit == 120
 
 
 def test_global_limit_can_tighten_greet_npc_meeting_cap():
@@ -273,7 +273,7 @@ def test_find_key_accepts_only_key_success_terminal():
     assert session.observe(timeout=0.1).game_over == terminal
 
 
-def test_put_book_accepts_only_book_success_terminal():
+def test_put_book_accepts_only_ceo_office_success_terminal():
     session, _ = make_scenario_session("put_book")
     session.receive_observation(observation(7))
     terminal = {
@@ -281,9 +281,25 @@ def test_put_book_accepts_only_book_success_terminal():
         "protocol_version": 4,
         "observation_id": 7,
         "outcome": "success",
-        "reason": "book_in_box",
+        "reason": "books_in_ceo_office",
     }
     session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_put_book_accepts_wrong_book_pickup_failure_terminal():
+    session, _ = make_scenario_session("put_book")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "wrong_book_pickup",
+    }
+
+    session.receive_game_over(terminal)
+
     assert session.observe(timeout=0.1).game_over == terminal
 
 
@@ -386,7 +402,8 @@ def test_logging_failure_rejects_attach_without_controller():
     [
         ("find_contract", "success", "correct_password", "success"),
         ("find_key", "success", "key_picked_up", "success"),
-        ("put_book", "success", "book_in_box", "success"),
+        ("put_book", "success", "books_in_ceo_office", "success"),
+        ("put_book", "failure", "wrong_book_pickup", "failure"),
         (
             "greet_npc_meeting",
             "success",

@@ -32,6 +32,20 @@ func _run_tests() -> void:
 		"任务成功",
 		"已找到办公室钥匙",
 	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"books_in_ceo_office",
+		"任务成功",
+		"三本任务书已按顺序送达 CEO OFFICE",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"wrong_book_pickup",
+		"任务失败",
+		"拿取了错误的书或搬运顺序不正确",
+	)
 	_finish()
 
 
