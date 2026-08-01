@@ -7,6 +7,13 @@ reviews of eligible failed attempts. A later attempt should learn where the
 previous attempt lost time and how to improve without treating a failed route
 as a successful workflow or retaining a randomized answer.
 
+The primary behavior is a reflection loop within one orchestrator session:
+
+```text
+eligible failure -> structured review -> later attempt reads and validates
+the optimization against fresh evidence -> later terminal result is reviewed
+```
+
 ## Motivation
 
 The current memory promotes `workflow`, `landmarks`, and `avoid` after a
@@ -35,6 +42,11 @@ Each accepted review records:
 
 The trusted server supplies the terminal reason from the completed attempt.
 The model cannot declare or override the outcome or reason.
+
+A later attempt must explicitly consider the stored optimizations, state which
+ones fresh briefing and observation evidence support, and adapt its plan only
+when that evidence agrees. Reading a review without considering its
+applicability does not satisfy the reflection goal.
 
 ## Non-goals
 
@@ -148,8 +160,13 @@ The AWM-enabled Codex prompt changes in two places:
 1. After an eligible failure, the player submits only `avoid` plus a structured
    `failure_review`; `workflow` and `landmarks` remain empty.
 2. At the start of a later attempt, the player treats `failure_reviews` as
-   high-level optimization advice. Each optimization still requires support
-   from the latest briefing and observation before use.
+   high-level optimization advice. It identifies which optimizations apply to
+   the new attempt, checks them against the latest briefing and observation,
+   and states how the supported advice changes its plan. Unsupported advice is
+   ignored. Each optimization still requires fresh evidence before use.
+3. After the later terminal result, the player reviews that attempt in turn,
+   allowing repeated eligible failures to refine the bounded set without
+   promoting a failed route.
 
 The prompt should encourage reviews of target classification, navigation,
 interaction selection, and request-budget management. It should not encourage
@@ -187,6 +204,8 @@ MCP and orchestrator tests cover:
 - trusted terminal reason injection;
 - absence of AWM calls and review contents from trajectory logs;
 - prompt requirements for producing and consuming failure reviews;
+- prompt requirements for stating whether fresh evidence supports a stored
+  optimization and how supported advice changes the current plan;
 - unchanged disabled-AWM tool and prompt behavior.
 
 Documentation in `ai_play/README.md` and
@@ -197,10 +216,13 @@ retention, and privacy boundary.
 
 Run the focused workflow-memory, MCP-server, and orchestrator tests first, then
 the affected Python AI Play test suite and `git diff --check`. After automated
-verification, launch one explicitly approved real `find_key` run with AWM,
-`gpt-5.6-sol`, and high reasoning effort.
+verification, launch one explicitly approved `find_key` session with `--runs 2`,
+AWM, `gpt-5.6-sol`, and high reasoning effort.
 
-Because AWM is process-scoped, this fresh one-run invocation starts with empty
-memory. It can validate real tool compatibility and, if the run ends in an
-eligible failure, failure-review submission. It cannot demonstrate consumption
-of a prior review unless a later attempt runs in the same orchestrator process.
+Because AWM is process-scoped, the first run starts with empty memory. If that
+run ends in an eligible failure, the player submits a review; the second run in
+the same orchestrator process must read it, assess its applicability against
+fresh evidence, and report how it changes the plan. If the first run succeeds,
+the two-run session still validates compatibility but cannot demonstrate the
+failure-reflection branch; that limitation must be reported rather than forcing
+or fabricating a failure.
