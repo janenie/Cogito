@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3]
+[gd_scene load_steps=37 format=3]
 
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_environment.gd" id="1_environment"]
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_preview.gd" id="2_preview"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/kitchenSink.glb" id="7_sink"]
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_gameplay.gd" id="8_gameplay"]
 [ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_action_button.gd" id="9_button"]
+[ext_resource type="Script" path="res://conveyor_profit/scripts/recipe_menu_pager.gd" id="10_menu_pager"]
 
 [sub_resource type="StandardMaterial3D" id="FloorMaterial"]
 albedo_color = Color(0.115, 0.13, 0.15, 1)
@@ -215,6 +216,7 @@ speed_meters_per_second = 0.7
 
 [node name="MenuBoard" type="Node3D" parent="Stations"]
 position = Vector3(0, 3.15, 5.05)
+script = ExtResource("10_menu_pager")
 
 [node name="Panel" type="MeshInstance3D" parent="Stations/MenuBoard"]
 mesh = SubResource("PanelMesh")
@@ -227,20 +229,21 @@ font_size = 48
 outline_size = 8
 modulate = Color(1, 0.53, 0.12, 1)
 
-[node name="RecipeStickers" type="Node3D" parent="Stations/MenuBoard"]
+[node name="LegacyRecipeStickers" type="Node3D" parent="Stations/MenuBoard"]
+visible = false
 
-[node name="Salad" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="Salad" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(-3.7, 0.62, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Salad"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Salad"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("SaladTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Salad"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "沙拉  SALAD"
@@ -248,7 +251,7 @@ font_size = 32
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Salad"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "生菜 LETTUCE + 番茄 TOMATO\n蘑菇 MUSHROOM"
@@ -257,7 +260,7 @@ outline_size = 2
 line_spacing = 2.0
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Salad"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Salad"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $7  ·  净利 PROFIT +$3"
@@ -265,18 +268,18 @@ font_size = 22
 outline_size = 2
 modulate = Color(0.19, 0.3, 0.17, 1)
 
-[node name="EggToast" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="EggToast" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(0, 0.62, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/EggToast"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/EggToast"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("EggTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/EggToast"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "鸡蛋吐司  EGG TOAST"
@@ -284,7 +287,7 @@ font_size = 32
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/EggToast"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "面包 BREAD + 鸡蛋 EGG"
@@ -292,7 +295,7 @@ font_size = 28
 outline_size = 2
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/EggToast"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/EggToast"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $8  ·  净利 PROFIT +$4"
@@ -300,18 +303,18 @@ font_size = 22
 outline_size = 2
 modulate = Color(0.32, 0.2, 0.07, 1)
 
-[node name="CheeseToast" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="CheeseToast" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(3.7, 0.62, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/CheeseToast"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/CheeseToast"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("CheeseTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/CheeseToast"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "奶酪吐司  CHEESE TOAST"
@@ -319,7 +322,7 @@ font_size = 29
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/CheeseToast"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "面包 BREAD + 奶酪 CHEESE"
@@ -327,7 +330,7 @@ font_size = 27
 outline_size = 2
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/CheeseToast"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/CheeseToast"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $10  ·  净利 PROFIT +$5"
@@ -335,18 +338,18 @@ font_size = 22
 outline_size = 2
 modulate = Color(0.34, 0.25, 0.06, 1)
 
-[node name="Burger" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="Burger" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(-3.7, -1.08, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Burger"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Burger"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("BurgerTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Burger"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "汉堡  BURGER"
@@ -354,7 +357,7 @@ font_size = 32
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Burger"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "面包 BREAD + 肉 MEAT\n生菜 LETTUCE + 番茄 TOMATO"
@@ -363,7 +366,7 @@ outline_size = 2
 line_spacing = 2.0
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/Burger"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/Burger"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $15  ·  净利 PROFIT +$6"
@@ -371,18 +374,18 @@ font_size = 22
 outline_size = 2
 modulate = Color(0.35, 0.1, 0.08, 1)
 
-[node name="FishSandwich" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="FishSandwich" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(0, -1.08, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/FishSandwich"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/FishSandwich"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("FishTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/FishSandwich"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "鱼肉三明治  FISH SANDWICH"
@@ -390,7 +393,7 @@ font_size = 27
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/FishSandwich"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "面包 BREAD + 鱼 FISH\n生菜 LETTUCE"
@@ -399,7 +402,7 @@ outline_size = 2
 line_spacing = 2.0
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/FishSandwich"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/FishSandwich"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $14  ·  净利 PROFIT +$7"
@@ -407,18 +410,18 @@ font_size = 22
 outline_size = 2
 modulate = Color(0.08, 0.2, 0.34, 1)
 
-[node name="MushroomOmelet" type="Node3D" parent="Stations/MenuBoard/RecipeStickers"]
+[node name="MushroomOmelet" type="Node3D" parent="Stations/MenuBoard/LegacyRecipeStickers"]
 position = Vector3(3.7, -1.08, -0.15)
 
-[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+[node name="Background" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/MushroomOmelet"]
 mesh = SubResource("StickerBackgroundMesh")
 
-[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+[node name="TitleBar" type="MeshInstance3D" parent="Stations/MenuBoard/LegacyRecipeStickers/MushroomOmelet"]
 position = Vector3(0, 0.54, -0.06)
 mesh = SubResource("StickerTitleBarMesh")
 surface_material_override/0 = SubResource("MushroomTitleMaterial")
 
-[node name="Title" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+[node name="Title" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/MushroomOmelet"]
 position = Vector3(0, 0.54, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "蘑菇蛋卷  MUSHROOM OMELET"
@@ -426,7 +429,7 @@ font_size = 27
 outline_size = 4
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+[node name="Ingredients" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/MushroomOmelet"]
 position = Vector3(0, 0.08, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "鸡蛋 EGG + 奶酪 CHEESE\n蘑菇 MUSHROOM"
@@ -435,13 +438,103 @@ outline_size = 2
 line_spacing = 2.0
 modulate = Color(0.08, 0.09, 0.075, 1)
 
-[node name="Economy" type="Label3D" parent="Stations/MenuBoard/RecipeStickers/MushroomOmelet"]
+[node name="Economy" type="Label3D" parent="Stations/MenuBoard/LegacyRecipeStickers/MushroomOmelet"]
 position = Vector3(0, -0.55, -0.09)
 rotation = Vector3(0, 3.14159, 0)
 text = "售价 SALE $14  ·  净利 PROFIT +$7"
 font_size = 22
 outline_size = 2
 modulate = Color(0.23, 0.12, 0.3, 1)
+
+[node name="Pages" type="Node3D" parent="Stations/MenuBoard"]
+
+[node name="Page1" type="Node3D" parent="Stations/MenuBoard/Pages"]
+
+[node name="Card1" type="Node3D" parent="Stations/MenuBoard/Pages/Page1"]
+position = Vector3(-3.7, 0.62, -0.15)
+
+[node name="Card2" type="Node3D" parent="Stations/MenuBoard/Pages/Page1"]
+position = Vector3(0, 0.62, -0.15)
+
+[node name="Card3" type="Node3D" parent="Stations/MenuBoard/Pages/Page1"]
+position = Vector3(3.7, 0.62, -0.15)
+
+[node name="Card4" type="Node3D" parent="Stations/MenuBoard/Pages/Page1"]
+position = Vector3(-1.85, -1.08, -0.15)
+
+[node name="Card5" type="Node3D" parent="Stations/MenuBoard/Pages/Page1"]
+position = Vector3(1.85, -1.08, -0.15)
+
+[node name="Page2" type="Node3D" parent="Stations/MenuBoard/Pages"]
+visible = false
+
+[node name="Card1" type="Node3D" parent="Stations/MenuBoard/Pages/Page2"]
+position = Vector3(-3.7, 0.62, -0.15)
+
+[node name="Card2" type="Node3D" parent="Stations/MenuBoard/Pages/Page2"]
+position = Vector3(0, 0.62, -0.15)
+
+[node name="Card3" type="Node3D" parent="Stations/MenuBoard/Pages/Page2"]
+position = Vector3(3.7, 0.62, -0.15)
+
+[node name="Card4" type="Node3D" parent="Stations/MenuBoard/Pages/Page2"]
+position = Vector3(-1.85, -1.08, -0.15)
+
+[node name="Card5" type="Node3D" parent="Stations/MenuBoard/Pages/Page2"]
+position = Vector3(1.85, -1.08, -0.15)
+
+[node name="PageLabel" type="Label3D" parent="Stations/MenuBoard"]
+position = Vector3(0, 1.62, -0.14)
+rotation = Vector3(0, 3.14159, 0)
+text = "PAGE 1 / 2"
+font_size = 28
+outline_size = 5
+
+[node name="PreviousButton" type="StaticBody3D" parent="Stations/MenuBoard"]
+position = Vector3(-1.35, 1.62, -0.16)
+rotation = Vector3(1.5708, 0, 0)
+collision_layer = 2
+collision_mask = 0
+input_ray_pickable = true
+script = ExtResource("9_button")
+action = "page_previous"
+
+[node name="Mesh" type="MeshInstance3D" parent="Stations/MenuBoard/PreviousButton"]
+mesh = SubResource("ButtonMesh")
+surface_material_override/0 = SubResource("RedMaterial")
+
+[node name="Label" type="Label3D" parent="Stations/MenuBoard/PreviousButton"]
+position = Vector3(0, 0.2, 0)
+rotation = Vector3(-1.5708, 0, 3.14159)
+text = "<"
+font_size = 34
+outline_size = 6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/MenuBoard/PreviousButton"]
+shape = SubResource("ButtonShape")
+
+[node name="NextButton" type="StaticBody3D" parent="Stations/MenuBoard"]
+position = Vector3(1.35, 1.62, -0.16)
+rotation = Vector3(1.5708, 0, 0)
+collision_layer = 2
+collision_mask = 0
+input_ray_pickable = true
+script = ExtResource("9_button")
+action = "page_next"
+
+[node name="Mesh" type="MeshInstance3D" parent="Stations/MenuBoard/NextButton"]
+mesh = SubResource("ButtonMesh")
+surface_material_override/0 = SubResource("GreenMaterial")
+
+[node name="Label" type="Label3D" parent="Stations/MenuBoard/NextButton"]
+position = Vector3(0, 0.2, 0)
+rotation = Vector3(-1.5708, 0, 3.14159)
+text = ">"
+font_size = 34
+outline_size = 6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/MenuBoard/NextButton"]
+shape = SubResource("ButtonShape")
 
 [node name="Tray" type="Node3D" parent="Stations"]
 position = Vector3(0, 0.55, -0.2)
