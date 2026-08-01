@@ -65,13 +65,22 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 	)
 	var entrance_spawn: Marker3D = lobby.get_node("AIPlayRoundMarkers/EntranceSpawn")
 	_assert(
-		monitor.panel_spawn == entrance_spawn,
-		"lighting task reuses the established indoor entrance spawn",
+		monitor.panel_spawn.global_position.distance_to(entrance_spawn.global_position) < 0.01,
+		"lighting task reuses the established indoor entrance position",
 	)
 	_assert(
 		monitor.player.global_position.distance_to(entrance_spawn.global_position) < 0.25,
 		"selected task places the player at the indoor entrance spawn: actual=%s expected=%s"
 		% [monitor.player.global_position, entrance_spawn.global_position],
+	)
+	var panel_direction: Vector3 = (
+		monitor.control_switch_a.global_position - monitor.panel_spawn.global_position
+	).normalized()
+	var spawn_forward: Vector3 = -monitor.panel_spawn.global_basis.z.normalized()
+	_assert(
+		spawn_forward.dot(panel_direction) > 0.95,
+		"indoor spawn faces the lighting control panel: forward=%s target=%s dot=%s"
+		% [spawn_forward, panel_direction, spawn_forward.dot(panel_direction)],
 	)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
 	_assert(
