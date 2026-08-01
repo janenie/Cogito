@@ -13,13 +13,23 @@ ORCHESTRATOR_PATH = REPO_ROOT / "tools" / "ai_play_codex_orchestrator.py"
 
 def load_orchestrator():
     spec = importlib.util.spec_from_file_location(
-        "ai_play_codex_orchestrator",
+        "tools.ai_play_codex_orchestrator",
         ORCHESTRATOR_PATH,
     )
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def test_conveyor_scenario_uses_standalone_scene_by_default():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator.resolve_scene("conveyor_profit", None) == (
+        "conveyor_profit/scenes/conveyor_profit_preview.tscn"
+    )
+    assert orchestrator.resolve_scene("find_key", None) == orchestrator.DEFAULT_SCENE
+    assert orchestrator.resolve_scene("conveyor_profit", "custom.tscn") == "custom.tscn"
 
 
 def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(

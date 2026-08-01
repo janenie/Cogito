@@ -9,7 +9,7 @@ SUPERVISOR_PATH = REPO_ROOT / "tools" / "ai_play_supervisor.py"
 
 def load_supervisor():
     spec = importlib.util.spec_from_file_location(
-        "ai_play_supervisor",
+        "tools.ai_play_supervisor",
         SUPERVISOR_PATH,
     )
     module = importlib.util.module_from_spec(spec)
@@ -26,6 +26,25 @@ def test_parse_game_over_marker_accepts_exact_terminal_line():
     )
 
     assert marker == ("success", "correct_password")
+
+
+def test_game_over_disable_line_waits_for_exact_terminal_marker():
+    supervisor = load_supervisor()
+
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY disabled; reason=game_over:efficiency_target_reached"
+    ) is None
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY_GAME_OVER outcome=success reason=efficiency_target_reached"
+    ) == ("success", "efficiency_target_reached")
+
+
+def test_supervisor_resolves_conveyor_scene_without_override():
+    supervisor = load_supervisor()
+
+    assert supervisor.resolve_scene("conveyor_profit", None) == (
+        "conveyor_profit/scenes/conveyor_profit_preview.tscn"
+    )
 
 
 def test_parse_game_over_marker_rejects_unrelated_output():

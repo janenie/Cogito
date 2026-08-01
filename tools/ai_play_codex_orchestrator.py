@@ -21,6 +21,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
+try:
+    from .ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+except ImportError:
+    from ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SESSION_ROOT = (
@@ -29,7 +34,6 @@ DEFAULT_SESSION_ROOT = (
     else Path("/tmp/cogito_ai_player_runs")
 )
 DEFAULT_CODEX_AUTH_HOME = Path("~/.codex-cogito-player")
-DEFAULT_SCENE = "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
 DEFAULT_WS_HOST = "127.0.0.1"
 DEFAULT_WS_PORT = 8765
 DEFAULT_MCP_PORT = 8766
@@ -718,7 +722,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument("--python-bin", default=sys.executable)
     parser.add_argument("--godot-bin", default="godot")
-    parser.add_argument("--scene", default=DEFAULT_SCENE)
+    parser.add_argument("--scene")
     parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=100000.0)
@@ -779,7 +783,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         python_bin=args.python_bin,
         runs=args.runs,
         scenario=args.scenario,
-        scene=args.scene,
+        scene=resolve_scene(args.scenario, args.scene),
         godot_bin=args.godot_bin,
         max_retries=args.max_retries,
         timeout_seconds=args.timeout_seconds,
