@@ -143,3 +143,17 @@ def test_conveyor_make_must_end_the_batch():
             False,
             "conveyor_profit",
         )
+
+
+def test_wait_next_window_is_conveyor_only_and_solo():
+    action = {"type": "wait_next_window"}
+
+    assert validate_action_batch(
+        [action], set(), False, "conveyor_profit"
+    ) == [action]
+    with pytest.raises(ActionValidationError, match="only action"):
+        validate_action_batch(
+            [{"type": "undo"}, action], set(), False, "conveyor_profit"
+        )
+    with pytest.raises(ActionValidationError, match="scenario"):
+        validate_action_batch([action], set(), False, "find_key")

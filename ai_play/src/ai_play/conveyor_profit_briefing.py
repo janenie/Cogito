@@ -10,11 +10,13 @@ PUBLIC_BRIEFING = {
     "failure_condition": "十分钟结束时低于 80% 利润效率，或达到最大 act 请求数。",
     "rules": [
         "observe 只提供截图和 HUD 级状态；根据画面识别当前食材。",
-        "每个一分钟窗口最多合法制作一道菜，合法制作后等待下一窗口。",
-        "非法组合会消耗托盘食材并扣除成本，但不会锁定当前窗口。",
+        "每个一分钟窗口画面中有十六盘真实可选食材，整批恰好能完成两种净利润不同的菜。",
+        "从公开菜单计算售价减食材成本；每个窗口只允许一次 make。",
+        "合法或非法 make 都会锁定当前窗口；非法组合收入为零并扣除托盘食材成本。",
         "从画面菜单读取配方、售价和成本，比较当前可行菜的净利润后再选择。",
         "select_ingredient 使用固定英文食材名；同名食材由游戏从当前画面内随机选择一个。",
         "undo 撤销托盘最后一种食材；make 按当前托盘制作，且必须位于动作批次末尾。",
+        "完成后单独调用 wait_next_window；未完成的窗口不能跳过。",
         "每次 act 包含一到三个动作；动作后重新 observe，再依据公开结果继续决策。",
     ],
     "ingredient_ids": [
@@ -25,6 +27,7 @@ PUBLIC_BRIEFING = {
         "select_ingredient": {"type": "select_ingredient", "ingredient": "tomato"},
         "undo": {"type": "undo"},
         "make": {"type": "make"},
+        "wait_next_window": {"type": "wait_next_window"},
     },
 }
 

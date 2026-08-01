@@ -25,6 +25,7 @@ ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
     "select_ingredient", "undo", "make",
+    "wait_next_window",
 }
 CONVEYOR_INGREDIENT_IDS = {
     "lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
@@ -32,6 +33,7 @@ CONVEYOR_INGREDIENT_IDS = {
 CONVEYOR_OUTCOMES = {
     "selected", "undone", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
+    "window_not_complete", "window_advanced",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -95,7 +97,7 @@ def validate_action_results(results):
             raise ObservationValidationError("action result status is invalid")
         result_fields = set(result)
         if status == "completed" and result.get("type") in {
-            "select_ingredient", "undo", "make",
+            "select_ingredient", "undo", "make", "wait_next_window",
         }:
             expected = {"status", "type", "outcome"}
             if result["type"] == "select_ingredient":

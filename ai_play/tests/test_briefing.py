@@ -122,7 +122,10 @@ def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state
     assert image_bytes is None
     assert briefing["game_id"] == "conveyor_profit"
     serialized = repr(briefing)
-    for term in ["select_ingredient", "undo", "make", "80%", "一分钟"]:
+    for term in [
+        "select_ingredient", "undo", "make", "wait_next_window",
+        "80%", "一分钟", "十六", "两种", "都会锁定",
+    ]:
         assert term in serialized
     for forbidden in [
         "node_path", "passing_profit", "best_profit", "future_supply",

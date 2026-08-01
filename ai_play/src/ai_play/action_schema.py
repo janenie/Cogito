@@ -26,8 +26,11 @@ ALLOWED_KEYS = {
     "select_ingredient": {"type", "ingredient"},
     "undo": {"type"},
     "make": {"type"},
+    "wait_next_window": {"type"},
 }
-CONVEYOR_ACTIONS = frozenset({"select_ingredient", "undo", "make"})
+CONVEYOR_ACTIONS = frozenset({
+    "select_ingredient", "undo", "make", "wait_next_window",
+})
 CONVEYOR_INGREDIENT_IDS = frozenset({
     "lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
 })
@@ -116,6 +119,8 @@ def validate_action_batch(
     available = set(available_interactions)
     for index, action in enumerate(actions):
         _validate_action(action, available, interface_open, scenario_id)
+        if action["type"] == "wait_next_window" and len(actions) != 1:
+            raise ActionValidationError("wait_next_window must be the only action")
         if action["type"] in {"interact", "enter_digits", "close_ui", "make"}:
             if index != len(actions) - 1:
                 raise ActionValidationError("context-changing action must be last")

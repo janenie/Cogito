@@ -222,6 +222,25 @@ def test_conveyor_semantic_action_results_are_bounded():
             "type": "make",
             "outcome": "window_locked",
         },
+        {
+            "status": "completed",
+            "type": "wait_next_window",
+            "outcome": "window_advanced",
+        },
     ]
 
     assert validate_action_results(results) == results
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["window_not_complete", "window_advanced", "game_finished"],
+)
+def test_wait_next_window_results_are_exact(outcome):
+    result = [{
+        "status": "completed",
+        "type": "wait_next_window",
+        "outcome": outcome,
+    }]
+
+    assert validate_action_results(result) == result
