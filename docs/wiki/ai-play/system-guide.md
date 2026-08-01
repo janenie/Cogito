@@ -40,6 +40,9 @@ Godot 桥的安全边界。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
+- Python 等待动作超时后可用同一 `observation_id` 重试。Godot 若仍在执行该 ID，必须把这个
+  精确合法的重复批次作为恢复信号：取消旧动作并释放输入、返回 cancelled 结果、重新捕获观察，
+  不执行重复批次且不关闭 AI。非法批次、不同 ID 或其他非预期状态仍必须 fail-closed。
 - 公开 briefing 必须说明 `look` 只接受 `direction`（`left`、`right`、`up`、`down`）和
   `degrees`（有限、非布尔、1～45），并明确禁止公开 `yaw`、`pitch` 和正负号；Python 与
   Godot 必须镜像精确字段和边界校验。briefing 还要说明 `move`/`sprint` 的按键持续时间量级，

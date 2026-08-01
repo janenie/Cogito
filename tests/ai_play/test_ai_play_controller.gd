@@ -102,6 +102,7 @@ func _run_tests() -> void:
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
 	await _test_mouse_guard_lifecycle(controller_script)
+	await _test_duplicate_inflight_batch_recovers_without_disabling(controller_script)
 	await _test_find_key_hello_includes_round_request_limit(
 		controller_script
 	)
@@ -129,6 +130,39 @@ func _run_tests() -> void:
 	await _test_teardown_releases_without_late_signal()
 	await _test_bridge_teardown_disconnects()
 	_finish()
+
+
+func _test_duplicate_inflight_batch_recovers_without_disabling(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var batch: Dictionary = {
+		"type": "action_batch",
+		"protocol_version": 3,
+		"observation_id": 17,
+		"actions": [{"type": "probe_interaction", "target_x": 0.5, "target_y": 0.5}],
+	}
+	fixture.bridge.action_batch_received.emit(batch)
+	fixture.bridge.action_batch_received.emit(batch)
+
+	_assert(fixture.executor.execute_calls.size() == 1, "duplicate in-flight batch is not executed")
+	_assert(
+		fixture.executor.cancel_reasons == ["duplicate_action_batch"],
+		"duplicate in-flight batch cancels and releases the timed-out action",
+	)
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.EXECUTING,
+		"duplicate in-flight batch does not disable the controller",
+	)
+	fixture.executor.batch_finished.emit([{
+		"status": "cancelled",
+		"reason": "duplicate_action_batch",
+	}])
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.READY,
+		"cancelled timed-out action returns the controller to ready",
+	)
+	await _free_fixture(fixture)
 
 
 func _test_user_arg_opt_in(controller_script: GDScript) -> void:

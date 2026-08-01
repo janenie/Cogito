@@ -421,7 +421,9 @@ def build_player_prompt(
 12. 失败局只提交 avoid：workflow 和 landmarks 必须为空，不得把未验证路线晋升为经验。
 13. 不要保存图片、图片引用、Base64 或 embedding；不要保存密码、随机答案、绝对坐标、
     逐帧动作序列、文件路径、URL 或内部实现信息。
-14. eligible 更新返回后再等待下一局，并重新从 briefing 开始。"""
+14. 局数以 workflow_memory_read 返回的 completed_runs 为准；stopped、disconnected、shutdown
+    或其他异常重试不算完成一局，也不得自行增加局数。eligible 更新返回后再等待下一局，
+    并重新从 briefing 开始。"""
         decision_memory = (
             "3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。\n"
             "4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"

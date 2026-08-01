@@ -318,6 +318,13 @@ func _capture_observation(results: Array) -> void:
 
 func _on_action_batch_received(batch: Dictionary) -> void:
 	if _state != State.WAITING_FOR_DECISION:
+		if _state == State.EXECUTING and _is_duplicate_inflight_batch(batch):
+			print(
+				"AI_PLAY cancelling timed-out action for observation=%s"
+				% str(batch.get("observation_id"))
+			)
+			_executor.cancel_all("duplicate_action_batch")
+			return
 		if _state == State.DISABLED and _stop_delivery_pending:
 			return
 		_pause_for_error("unexpected_action_batch")
@@ -345,6 +352,24 @@ func _on_action_batch_received(batch: Dictionary) -> void:
 	_pending_observation_id = -1
 	_state = State.EXECUTING
 	_executor.execute_batch(actions, _pending_context)
+
+
+func _is_duplicate_inflight_batch(batch: Dictionary) -> bool:
+	if (
+		not _has_exact_keys(
+			batch,
+			["type", "protocol_version", "observation_id", "actions"],
+		)
+		or batch.get("type") != "action_batch"
+		or batch.get("protocol_version") != PROTOCOL_VERSION
+		or not batch.get("actions") is Array
+	):
+		return false
+	var observation_id: Dictionary = _parse_observation_id(batch.get("observation_id"))
+	return (
+		observation_id["valid"]
+		and observation_id["value"] == _executing_observation_id
+	)
 
 
 func _on_batch_finished(results: Array) -> void:

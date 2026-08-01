@@ -408,6 +408,8 @@ def test_player_prompt_requires_awm_lifecycle(tmp_path):
     assert "终局后调用 workflow_memory_update" in prompt
     assert "成功局" in prompt
     assert "失败局只提交 avoid" in prompt
+    assert "以 workflow_memory_read 返回的 completed_runs 为准" in prompt
+    assert "异常重试不算完成一局" in prompt
     assert "不要保存图片" in prompt
     assert "不要保存密码" in prompt
 

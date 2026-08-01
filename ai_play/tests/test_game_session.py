@@ -852,6 +852,32 @@ def test_act_times_out_and_does_not_leave_an_in_flight_batch():
     assert len(sent) == 1
 
 
+def test_retry_after_action_timeout_accepts_godot_cancellation_and_recovers():
+    session, sent = make_session()
+    session.receive_observation(observation(7))
+    actions = [{"type": "wait", "duration_ms": 50}]
+
+    with pytest.raises(SessionError, match="action_timeout"):
+        session.act(7, actions, timeout=0.01)
+
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(session.act(7, actions, timeout=0.5))
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 2)
+    cancelled = [{"status": "cancelled", "reason": "duplicate_action_batch"}]
+    session.receive_action_results(7, cancelled)
+    session.receive_observation(observation(8))
+    thread.join()
+
+    assert result_holder == [SessionResult(
+        status="ready",
+        observation=observation(8),
+        action_results=cancelled,
+    )]
+
+
 def test_threshold_act_finishes_then_requests_max_requests_game_over():
     session, sent = make_session(max_act_requests=1)
     session.receive_observation(observation(7))
