@@ -121,6 +121,28 @@ func _run_test() -> void:
 	)
 	_assert(not monitor.ceo_door.is_locked, "CEO office door unlocks for put-book")
 
+	var player_body := monitor.player.get_node("Body") as Node3D
+	var player_neck := monitor.player.get_node("Body/Neck") as Node3D
+	var player_head := monitor.player.get_node("Body/Neck/Head") as Node3D
+	var player_camera := monitor.player.get_node("Body/Neck/Head/Eyes/Camera") as Camera3D
+	player_body.rotation.y = 1.1
+	player_neck.rotation.y = -0.7
+	player_head.rotation.x = 0.6
+	monitor.configure_round(73421)
+	var task_card_object: Node3D = monitor.task_card.get_parent_node_3d()
+	var camera_to_card: Vector3 = (
+		(task_card_object.global_position - player_camera.global_position).normalized()
+	)
+	var camera_forward := (-player_camera.global_basis.z).normalized()
+	_assert(
+		camera_forward.dot(camera_to_card) > 0.999,
+		"round setup points the initial camera directly at the task card",
+	)
+	_assert(
+		absf(player_neck.rotation.y) < 0.001,
+		"round setup clears stale free-look rotation",
+	)
+
 	var seen_layouts: Dictionary = {}
 	for seed_value: int in range(1, 129):
 		monitor.configure_round(seed_value)

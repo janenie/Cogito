@@ -203,7 +203,35 @@ func _select_target_books(rng: RandomNumberGenerator) -> void:
 
 func _place_player_and_task_card() -> void:
 	player.global_transform = archive_spawn.global_transform
-	_reparent_to_anchor(task_card.get_parent_node_3d(), archive_task_card_anchor)
+	var task_card_object: Node3D = task_card.get_parent_node_3d()
+	_reparent_to_anchor(task_card_object, archive_task_card_anchor)
+	_face_player_toward(task_card_object.global_position)
+
+
+func _face_player_toward(target_position: Vector3) -> void:
+	var body := player.get_node_or_null("Body") as Node3D
+	var neck := player.get_node_or_null("Body/Neck") as Node3D
+	var head := player.get_node_or_null("Body/Neck/Head") as Node3D
+	var eyes := player.get_node_or_null("Body/Neck/Head/Eyes") as Node3D
+	var camera := player.get_node_or_null("Body/Neck/Head/Eyes/Camera") as Camera3D
+	if body == null or neck == null or head == null or eyes == null or camera == null:
+		push_error("AIPlayPutBookMonitor player is missing its camera rig")
+		return
+	body.rotation = Vector3.ZERO
+	neck.rotation = Vector3.ZERO
+	head.rotation = Vector3.ZERO
+	eyes.rotation = Vector3.ZERO
+	camera.rotation = Vector3.ZERO
+	var flat_direction := target_position - player.global_position
+	flat_direction.y = 0.0
+	if not flat_direction.is_zero_approx():
+		var player_transform := player.global_transform
+		player_transform.basis = Basis.looking_at(flat_direction.normalized(), Vector3.UP)
+		player.global_transform = player_transform
+	var camera_direction := target_position - camera.global_position
+	var horizontal_distance := Vector2(camera_direction.x, camera_direction.z).length()
+	if not camera_direction.is_zero_approx():
+		head.rotation.x = atan2(camera_direction.y, horizontal_distance)
 
 
 func _write_task_card() -> void:
