@@ -107,6 +107,14 @@ billboard = 1
 position = Vector3(0, 0.16, -5.15)
 mesh = SubResource("SoilMesh")
 
+[node name="SizeLabel" type="Label3D" parent="Garden"]
+position = Vector3(0, 1.45, -7.35)
+text = "1号 · 小型花园"
+font_size = 72
+outline_size = 16
+billboard = 1
+no_depth_test = true
+
 [node name="Plants" type="Node3D" parent="Garden"]
 
 [node name="Plant01" parent="Garden/Plants" instance=ExtResource("2_plant_a")]

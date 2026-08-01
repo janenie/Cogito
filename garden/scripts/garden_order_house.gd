@@ -42,6 +42,10 @@ func _refresh_visuals() -> void:
 	var garden_bed := get_node_or_null("Garden/SoilBed") as MeshInstance3D
 	if garden_bed != null:
 		garden_bed.scale.x = _garden_width_scale()
+	var size_label := get_node_or_null("Garden/SizeLabel") as Label3D
+	if size_label != null:
+		size_label.text = "%d号 · %s型花园" % [house_number, _garden_size_chinese()]
+		size_label.modulate = _garden_size_color()
 	var visible_plants := _visible_plant_count()
 	var plants := get_node_or_null("Garden/Plants")
 	if plants != null:
@@ -52,11 +56,11 @@ func _refresh_visuals() -> void:
 func _garden_width_scale() -> float:
 	match garden_size:
 		"medium":
-			return 0.85
+			return 0.875
 		"large":
-			return 1.05
+			return 1.25
 		_:
-			return 0.65
+			return 0.5
 
 
 func _visible_plant_count() -> int:
@@ -67,3 +71,23 @@ func _visible_plant_count() -> int:
 			return 7
 		_:
 			return 3
+
+
+func _garden_size_chinese() -> String:
+	match garden_size:
+		"medium":
+			return "中"
+		"large":
+			return "大"
+		_:
+			return "小"
+
+
+func _garden_size_color() -> Color:
+	match garden_size:
+		"medium":
+			return Color("ffd166")
+		"large":
+			return Color("ff7043")
+		_:
+			return Color("83e377")

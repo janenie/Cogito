@@ -41,6 +41,18 @@ func _test_house_component() -> void:
 	_assert(house.get_script() != null, "house component has a configuration script")
 	_assert(house.call("get_garden_size") == "large", "house exposes its garden size")
 	_assert((house.get_node("AddressLabel") as Label3D).text == "7", "house label follows its number")
+	var size_label := house.get_node_or_null("Garden/SizeLabel") as Label3D
+	_assert(size_label != null, "house garden has a visible size label")
+	var expected_sizes := {
+		"small": {"label": "7号 · 小型花园", "scale": 0.5},
+		"medium": {"label": "7号 · 中型花园", "scale": 0.875},
+		"large": {"label": "7号 · 大型花园", "scale": 1.25},
+	}
+	for size in ["small", "medium", "large"]:
+		house.set("garden_size", size)
+		if size_label != null:
+			_assert(size_label.text == expected_sizes[size]["label"], "%s garden has a Chinese size label" % size)
+		_assert(is_equal_approx((house.get_node("Garden/SoilBed") as MeshInstance3D).scale.x, expected_sizes[size]["scale"]), "%s garden has the approved footprint" % size)
 	_assert(house.get_node_or_null("Garden/Destination") != null, "house has a destination marker")
 	_assert(house.get_node_or_null("Garden/GardenWorkPoint") != null, "house has a work marker")
 	_assert(house.get_node_or_null("HouseBody/CollisionShape3D") != null, "house has collision")
