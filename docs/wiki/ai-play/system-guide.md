@@ -60,8 +60,10 @@ Godot 桥的安全边界。
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
   硬上限是 300，终局只允许 `success/garden_tasks_complete`、
-  `failure/garden_task_failed` 和 `failure/max_requests`。`find_key`、`put_book` 和
-  `greet_npc_meeting` 没有答错失败。
+  `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
+  请求硬上限是 300，终局只允许 `success/circuit_repaired`、
+  `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
+  `failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
   三个工具不计数。第 N 次请求先按正常规则处理，合法玩法终局优先，否则返回
@@ -317,6 +319,38 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 - 已打招呼后，玩家在会议室内关上会议室门产生 `success/meeting_door_closed`。
 - 路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，不得进入公开简报、
   观察或桥协议。
+
+## repair_lighting_circuit 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=repair_lighting_circuit
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=repair_lighting_circuit
+```
+
+- 玩家从入口控制面板和任务卡附近开始；面板包含 A～D 四个未知控制开关、入口、CEO、
+  大厅和休息室四个断路器按钮，以及 Verify 按钮。
+- 四组受控设备分别是入口落地灯、CEO 办公室落地灯、大厅六盏顶灯和休息室落地灯。
+  任务启用时禁用灯自身的直接交互，未选择该任务时普通 Lobby 和既有灯光行为保持不变。
+- 每局用确定性非零回合种子生成 A～D 到四组灯的一对一随机映射、一条跳闸线路以及随机
+  初始和目标状态；初始与目标至少两项不同，故障灯的目标始终为开启。
+- 跳闸线路的开关指示状态仍会变化，但复位前对应灯组不响应。玩家需通过跨区域观察推断
+  三条正常映射，并用排除法找出故障线路。
+- 每局只有一次断路器选择机会；选对后线路立即同步到对应开关的当前状态，选错立即产生
+  `failure/wrong_breaker`。
+- Verify 也是一次性提交：正确复位且四组物理灯光都符合任务卡目标时产生
+  `success/circuit_repaired`；否则产生 `failure/incorrect_circuit_configuration`。
+  终局后的重复交互不会改变结果。
+- A～D 映射、故障线路和回合种子只存在于可信 Godot Monitor，不得进入公开 briefing、
+  MCP 结果、玩家提示、观察或桥协议。
 
 ## daily_routine_cleanup 回合规则
 

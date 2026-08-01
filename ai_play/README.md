@@ -54,6 +54,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=greet_npc_meeting
 ```
 
+未知照明电路修复玩法同样可普通启动，也可显式启用 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=repair_lighting_circuit
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=repair_lighting_circuit
+```
+
 日常清理玩法位于导入的 home daily routine 场景，也可普通启动或接入 AI：
 
 ```bash
@@ -218,6 +228,13 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 先在 1 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
 `success/meeting_door_closed`。
 
+`repair_lighting_circuit` 每局随机生成入口控制面板 A～D 与入口、CEO 办公室、大厅和
+休息室四组灯的一对一映射、一个跳闸线路以及初始和目标状态。玩家从控制面板附近开始，
+读取任务卡上的目标后通过往返观察推断映射；只有一次断路器选择机会，选错会产生
+`failure/wrong_breaker`。复位后须把四组灯配置到目标状态并按 Verify；正确时产生
+`success/circuit_repaired`，否则产生 `failure/incorrect_circuit_configuration`。
+映射、故障线路和回合种子只存在于可信 Godot 运行时，不进入 briefing、MCP 结果或玩家提示。
+
 `daily_routine_cleanup` 是家庭日常清理任务。玩家根据 HUD 目标和可见交互提示，把 4 个
 散落垃圾和冰箱里的过期牛奶扔进客厅垃圾桶，确认冰箱关闭后点击垃圾桶旁边的完成按钮。
 成功产生 `success/cleanup_complete`；任一完成条件未满足时提交会产生
@@ -284,7 +301,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
 为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
-或 `failure/max_requests`。环境变量
+或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 300 次，终局为
+`success/circuit_repaired`、`failure/wrong_breaker`、
+`failure/incorrect_circuit_configuration` 或 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -351,10 +370,10 @@ mcplogs/
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
-  `daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
+  `repair_lighting_circuit`、`daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
-  NPC 路线起点、NPC 路线方向、daily routine 或 garden 内部节点路径、随机下雨时间、
-  随机种子或任务内部知识。
+  NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、daily routine 或 garden 内部
+  节点路径、随机下雨时间、随机种子或任务内部知识。
 
 ## 配置
 
