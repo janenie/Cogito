@@ -149,7 +149,7 @@ position = Vector3(0, 0.95, 0)
 mesh = SubResource("HandleMesh")
 
 [node name="Label" type="Label3D" parent="FertilizerSpreader"]
-position = Vector3(0, 1.65, 0)
+position = Vector3(0, 1.15, 0)
 text = "SPREADER"
 font_size = 54
 outline_size = 10

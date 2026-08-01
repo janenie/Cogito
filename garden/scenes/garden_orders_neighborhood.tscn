@@ -1,0 +1,267 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="PackedScene" path="res://garden/scenes/components/garden_order_house.tscn" id="1_house"]
+[ext_resource type="PackedScene" path="res://garden/scenes/components/garden_order_tool_area.tscn" id="2_tools"]
+[ext_resource type="PackedScene" path="res://garden/scenes/components/garden_order_third_person_player.tscn" id="3_player"]
+[ext_resource type="Texture2D" path="res://addons/cogito/Assets/hdris/kloofendal_48d_partly_cloudy_puresky_2k.hdr" id="4_sky"]
+
+[sub_resource type="PanoramaSkyMaterial" id="SkyMaterial"]
+panorama = ExtResource("4_sky")
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMaterial")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 2
+background_energy_multiplier = 0.9
+sky = SubResource("Sky")
+ambient_light_sky_contribution = 0.45
+ambient_light_energy = 0.8
+tonemap_mode = 3
+
+[sub_resource type="StandardMaterial3D" id="GrassMaterial"]
+albedo_color = Color(0.19, 0.5, 0.22, 1)
+roughness = 0.96
+
+[sub_resource type="BoxMesh" id="GroundMesh"]
+material = SubResource("GrassMaterial")
+size = Vector3(120, 0.2, 120)
+
+[sub_resource type="BoxShape3D" id="GroundShape"]
+size = Vector3(120, 0.2, 120)
+
+[sub_resource type="StandardMaterial3D" id="RoadMaterial"]
+albedo_color = Color(0.24, 0.25, 0.27, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="RoadSegmentMesh"]
+material = SubResource("RoadMaterial")
+size = Vector3(20, 0.08, 7)
+
+[sub_resource type="StandardMaterial3D" id="PathMaterial"]
+albedo_color = Color(0.72, 0.62, 0.46, 1)
+roughness = 0.94
+
+[sub_resource type="BoxMesh" id="RadialPathMesh"]
+material = SubResource("PathMaterial")
+size = Vector3(5, 0.08, 24)
+
+[sub_resource type="StandardMaterial3D" id="PlazaMaterial"]
+albedo_color = Color(0.65, 0.62, 0.55, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="PlazaMesh"]
+material = SubResource("PlazaMaterial")
+top_radius = 12.0
+bottom_radius = 12.0
+height = 0.1
+radial_segments = 48
+
+[sub_resource type="StyleBoxFlat" id="HudPanel"]
+bg_color = Color(0.035, 0.055, 0.04, 0.78)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="GardenOrdersNeighborhood" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.9, -0.65, 0)
+light_color = Color(1, 0.93, 0.8, 1)
+light_energy = 1.15
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="Grass" type="MeshInstance3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+mesh = SubResource("GroundMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.1, 0)
+shape = SubResource("GroundShape")
+
+[node name="Roads" type="Node3D" parent="."]
+
+[node name="Ring01" type="MeshInstance3D" parent="Roads"]
+position = Vector3(0, 0.02, 30)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring02" type="MeshInstance3D" parent="Roads"]
+position = Vector3(17.634, 0.02, 24.271)
+rotation = Vector3(0, 0.628319, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring03" type="MeshInstance3D" parent="Roads"]
+position = Vector3(28.532, 0.02, 9.271)
+rotation = Vector3(0, 1.25664, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring04" type="MeshInstance3D" parent="Roads"]
+position = Vector3(28.532, 0.02, -9.271)
+rotation = Vector3(0, 1.88496, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring05" type="MeshInstance3D" parent="Roads"]
+position = Vector3(17.634, 0.02, -24.271)
+rotation = Vector3(0, 2.51327, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring06" type="MeshInstance3D" parent="Roads"]
+position = Vector3(0, 0.02, -30)
+rotation = Vector3(0, 3.14159, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring07" type="MeshInstance3D" parent="Roads"]
+position = Vector3(-17.634, 0.02, -24.271)
+rotation = Vector3(0, 3.76991, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring08" type="MeshInstance3D" parent="Roads"]
+position = Vector3(-28.532, 0.02, -9.271)
+rotation = Vector3(0, 4.39823, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring09" type="MeshInstance3D" parent="Roads"]
+position = Vector3(-28.532, 0.02, 9.271)
+rotation = Vector3(0, 5.02655, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="Ring10" type="MeshInstance3D" parent="Roads"]
+position = Vector3(-17.634, 0.02, 24.271)
+rotation = Vector3(0, 5.65487, 0)
+mesh = SubResource("RoadSegmentMesh")
+
+[node name="NorthPath" type="MeshInstance3D" parent="Roads"]
+position = Vector3(0, 0.04, -18)
+mesh = SubResource("RadialPathMesh")
+
+[node name="SouthPath" type="MeshInstance3D" parent="Roads"]
+position = Vector3(0, 0.04, 18)
+mesh = SubResource("RadialPathMesh")
+
+[node name="EastPath" type="MeshInstance3D" parent="Roads"]
+position = Vector3(18, 0.04, 0)
+rotation = Vector3(0, 1.5708, 0)
+mesh = SubResource("RadialPathMesh")
+
+[node name="WestPath" type="MeshInstance3D" parent="Roads"]
+position = Vector3(-18, 0.04, 0)
+rotation = Vector3(0, 1.5708, 0)
+mesh = SubResource("RadialPathMesh")
+
+[node name="CentralPlaza" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.03, 0)
+mesh = SubResource("PlazaMesh")
+
+[node name="CentralToolArea" parent="." instance=ExtResource("2_tools")]
+position = Vector3(0, 0, -7)
+rotation = Vector3(0, 3.14159, 0)
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+position = Vector3(0, 0.2, 1.5)
+
+[node name="GardenOrderPlayer" parent="." instance=ExtResource("3_player")]
+position = Vector3(0, 0.2, 1.5)
+
+[node name="Houses" type="Node3D" parent="."]
+
+[node name="House01" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(0, 0, 47)
+house_number = 1
+garden_size = "small"
+accent_color = Color(0.84, 0.38, 0.28, 1)
+
+[node name="House02" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(27.626, 0, 38.023)
+rotation = Vector3(0, 0.628319, 0)
+house_number = 2
+garden_size = "medium"
+accent_color = Color(0.92, 0.64, 0.24, 1)
+
+[node name="House03" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(44.699, 0, 14.524)
+rotation = Vector3(0, 1.25664, 0)
+house_number = 3
+garden_size = "large"
+accent_color = Color(0.41, 0.68, 0.36, 1)
+
+[node name="House04" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(44.699, 0, -14.524)
+rotation = Vector3(0, 1.88496, 0)
+house_number = 4
+garden_size = "small"
+accent_color = Color(0.26, 0.65, 0.68, 1)
+
+[node name="House05" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(27.626, 0, -38.023)
+rotation = Vector3(0, 2.51327, 0)
+house_number = 5
+garden_size = "medium"
+accent_color = Color(0.29, 0.48, 0.78, 1)
+
+[node name="House06" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(0, 0, -47)
+rotation = Vector3(0, 3.14159, 0)
+house_number = 6
+garden_size = "large"
+accent_color = Color(0.48, 0.4, 0.76, 1)
+
+[node name="House07" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(-27.626, 0, -38.023)
+rotation = Vector3(0, 3.76991, 0)
+house_number = 7
+garden_size = "small"
+accent_color = Color(0.72, 0.37, 0.68, 1)
+
+[node name="House08" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(-44.699, 0, -14.524)
+rotation = Vector3(0, 4.39823, 0)
+house_number = 8
+garden_size = "medium"
+accent_color = Color(0.78, 0.42, 0.45, 1)
+
+[node name="House09" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(-44.699, 0, 14.524)
+rotation = Vector3(0, 5.02655, 0)
+house_number = 9
+garden_size = "large"
+accent_color = Color(0.7, 0.57, 0.28, 1)
+
+[node name="House10" parent="Houses" instance=ExtResource("1_house")]
+position = Vector3(-27.626, 0, 38.023)
+rotation = Vector3(0, 5.65487, 0)
+house_number = 10
+garden_size = "small"
+accent_color = Color(0.45, 0.63, 0.34, 1)
+
+[node name="NeighborhoodUI" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="PanelContainer" parent="NeighborhoodUI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 440.0
+offset_bottom = 112.0
+theme_override_styles/panel = SubResource("HudPanel")
+
+[node name="Margin" type="MarginContainer" parent="NeighborhoodUI/Panel"]
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="Rows" type="VBoxContainer" parent="NeighborhoodUI/Panel/Margin"]
+
+[node name="Title" type="Label" parent="NeighborhoodUI/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.95, 1, 0.92, 1)
+theme_override_font_sizes/font_size = 22
+text = "GARDEN ORDERS · COMMUNITY MAP"
+
+[node name="Controls" type="Label" parent="NeighborhoodUI/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.84, 0.9, 0.82, 1)
+theme_override_font_sizes/font_size = 15
+text = "WASD move  ·  Shift sprint  ·  Mouse orbit  ·  Esc release"
