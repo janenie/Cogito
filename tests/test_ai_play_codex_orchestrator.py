@@ -120,7 +120,12 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     assert 'default_permissions = "ai_play_player"' in text
     assert '":minimal" = "read"' in text
     assert '"." = "read"' in text
-    assert "[permissions.ai_play_player.network]\nenabled = false" in text
+    assert "[permissions.ai_play_player.network]\nenabled = true" in text
+    assert (
+        '[permissions.ai_play_player.network.domains]\n"127.0.0.1" = "allow"'
+        in text
+    )
+    assert '"*" = "allow"' not in text
     assert "[windows]" in text
     assert 'sandbox = "elevated"' in text
     assert (
@@ -229,6 +234,8 @@ def test_build_player_env_drops_game_and_secret_environment(tmp_path):
     assert "AI_PLAY_LOG_ROOT" not in env
     assert "PYTHONPATH" not in env
     assert "HTTPS_PROXY" not in env
+    assert env["NO_PROXY"] == "127.0.0.1,localhost"
+    assert env["no_proxy"] == "127.0.0.1,localhost"
 
 
 def test_build_player_env_normalizes_windows_path_casing(tmp_path):
@@ -259,6 +266,40 @@ def test_build_trusted_mcp_env_has_bridge_and_log_but_no_player_credentials(
     assert env["AI_PLAY_LOG_ROOT"] == str(tmp_path / "trusted_mcplogs")
     assert env["PYTHONPATH"] == str(orchestrator.REPO_ROOT / "ai_play" / "src")
     assert "OPENAI_API_KEY" not in env
+
+
+def test_build_supervisor_env_provides_isolated_godot_user_directories(tmp_path):
+    orchestrator = load_orchestrator()
+
+    env = orchestrator.build_supervisor_env(
+        tmp_path / "godot-environment",
+        base_env={
+            "PATH": "/safe-bin",
+            "HOME": "/host-home",
+            "TMPDIR": "/host-tmp",
+            "OPENAI_API_KEY": "secret",
+        },
+    )
+
+    environment_root = tmp_path / "godot-environment"
+    assert env["PATH"] == "/safe-bin"
+    assert env["HOME"] == str(environment_root / "home")
+    assert env["USERPROFILE"] == str(environment_root / "home")
+    assert env["APPDATA"] == str(environment_root / "appdata")
+    assert env["LOCALAPPDATA"] == str(environment_root / "localappdata")
+    assert env["TEMP"] == str(environment_root / "tmp")
+    assert env["TMP"] == str(environment_root / "tmp")
+    assert env["TMPDIR"] == str(environment_root / "tmp")
+    assert "OPENAI_API_KEY" not in env
+    assert all(
+        path.is_dir()
+        for path in (
+            environment_root / "home",
+            environment_root / "appdata",
+            environment_root / "localappdata",
+            environment_root / "tmp",
+        )
+    )
 
 
 def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
@@ -340,6 +381,22 @@ def test_player_prompt_teaches_identical_semantic_look_control(workflow_memory_e
     assert "direction、degrees" in prompt
     assert "不要填写 yaw、pitch" in prompt
     assert "比较当前截图与本会话之前由 observe 返回的截图" in prompt
+
+
+@pytest.mark.parametrize("workflow_memory_enabled", [False, True])
+def test_player_prompt_prioritizes_nearby_task_card_before_leaving_spawn(
+    workflow_memory_enabled,
+):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        workflow_memory_enabled=workflow_memory_enabled,
+    )
+
+    assert "briefing 要求先读取出生点附近任务卡" in prompt
+    assert "离开出生区域前" in prompt
+    assert "单独调用 probe_interaction" in prompt
 
 
 def test_player_prompt_requires_awm_lifecycle(tmp_path):

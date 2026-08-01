@@ -15,6 +15,7 @@ class InputRecorder extends Node:
 
 class FakeCogitoPlayer extends Node3D:
 	var MOUSE_SENS := 0.25
+	var INVERT_Y_AXIS := true
 
 
 func _initialize() -> void:
@@ -387,8 +388,14 @@ func _test_look_angles_scale_for_cogito_player(executor: Node) -> void:
 		"cogito player look yaw is converted from degrees through MOUSE_SENS",
 	)
 	_assert(
+		is_equal_approx(relative.y, 30.0 / 0.25),
+		"inverted Cogito controls preserve semantic pitch direction",
+	)
+	cogito_player.INVERT_Y_AXIS = false
+	relative = executor._look_degrees_to_mouse_relative(45.0, -30.0)
+	_assert(
 		is_equal_approx(relative.y, -30.0 / 0.25),
-		"cogito player look pitch is converted from degrees through MOUSE_SENS",
+		"non-inverted Cogito controls preserve semantic pitch direction",
 	)
 
 	executor.player = null

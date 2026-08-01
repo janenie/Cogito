@@ -62,9 +62,11 @@ Godot 桥的安全边界。
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
 - Godot 执行器必须在可信边界把语义 `look` 映射为内部相机轴，使用 COGITO 的常规输入并用
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
-  不受过滤，停用、错误、终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
-- 需要即时重新观察的动作必须等待 `RenderingServer.frame_post_draw` 后再捕获截图，并在等待后
-  重新检查 capture generation、控制器状态和节点生命周期，防止旧动作、停用或销毁后发送滞后观察。
+  不受过滤；垂直映射必须抵消玩家的反转轴设置，使 `up` / `down` 与最终画面一致。停用、错误、
+  终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
+- 需要即时重新观察的动作必须先留出一个完整输入/处理帧，再等待
+  `RenderingServer.frame_post_draw` 后捕获截图，并在等待后重新检查 capture generation、
+  控制器状态和节点生命周期，防止动作尚未生效、旧动作、停用或销毁后发送滞后观察。
 - `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；结构化结果不得重复 Base64 图片，也不得包含隐藏状态。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
@@ -93,17 +95,23 @@ Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；C
 `briefing`、`workflow_memory_read`、`observe`、`act`、`workflow_memory_update` 五个
 工具。玩家提示词、环境、工作区和临时配置不含
 仓库路径、启动脚本路径、玩法 ID、日志位置或关卡信息；游戏目标只由 `briefing` 的既有白名单
-结果提供。
+结果提供。隔离玩家的权限 profile 必须启用网络但只 allowlist 字面量 `127.0.0.1`，使 Codex 能
+连接本机 Streamable HTTP MCP 边车；玩家环境必须为大小写代理变量显式设置回环
+`NO_PROXY`。不得使用公网通配符或 `allow_local_binding` 扩大访问范围。
+玩家提示还要求：当公开 `briefing` 指定出生点附近任务卡时，首次观察后应先扫描并探测近处的
+悬浮标志、纸张或文件，确认失败后才能扩大搜索范围。
 
 每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
 `~/.codex-cogito-player`，只作为 `auth.json` 的来源；不会读取、合并或保留其 `config.toml`、
 MCP、插件、技能、记忆或会话。临时凭据副本和配置会在所有退出路径删除。工作区根及祖先不能
 位于当前仓库内，也不能含 `.git`、`AGENTS.md` 或 `.codex/config.toml`；日志、截图、轨迹和
 运行配置都不放入或传入玩家侧。
+可信 Godot supervisor 另在本次运行目录中使用隔离的用户、应用数据和临时目录，使
+`user://`、着色器缓存与临时场景状态可写，但不把主机凭据环境传入 Godot。
 
 启动命令必须显式提供 `--model`、`--reasoning-effort` 和（需要覆盖默认值时）
 `--codex-auth-home`。临时配置固定模型、思考强度、唯一 MCP URL、五工具白名单和自定义最小
-权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的网络访问。旧的
+权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的公网访问。旧的
 `--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 都不被接受，不能
 用来放宽此边界。Windows 配置还请求 Codex 原生 `elevated` sandbox；建立失败时应修复本机
 权限环境，而不是降级该 profile。该 profile 对本局临时 `CODEX_HOME` 加显式 deny，禁止模型

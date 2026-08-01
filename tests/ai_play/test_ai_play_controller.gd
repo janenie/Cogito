@@ -873,6 +873,12 @@ func _test_blocked_batch_recaptures_immediately(controller_script: GDScript) -> 
 	RenderingServer.emit_signal("frame_post_draw")
 	await process_frame
 	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"blocked recapture waits one full input frame before rendering",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
 		fixture.observer.capture_count == initial_capture_count + 1,
 		"blocked result triggers immediate deferred recapture",
 	)
@@ -899,6 +905,12 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 		_assert(
 			fixture.observer.capture_count == initial_capture_count,
 			"%s recapture waits for rendering" % action_type,
+		)
+		RenderingServer.emit_signal("frame_post_draw")
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s recapture waits one full input frame before rendering" % action_type,
 		)
 		RenderingServer.emit_signal("frame_post_draw")
 		await process_frame
@@ -938,6 +950,12 @@ func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
 		_assert(
 			fixture.observer.capture_count == initial_capture_count,
 			"%s probe recapture waits for rendering" % outcome,
+		)
+		RenderingServer.emit_signal("frame_post_draw")
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s probe waits one full input frame before rendering" % outcome,
 		)
 		RenderingServer.emit_signal("frame_post_draw")
 		await process_frame

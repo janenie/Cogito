@@ -243,7 +243,14 @@ func _look_degrees_to_mouse_relative(yaw_degrees: float, pitch_degrees: float) -
 		var cogito_sensitivity_value: Variant = player.get("MOUSE_SENS")
 		if typeof(cogito_sensitivity_value) in [TYPE_INT, TYPE_FLOAT]:
 			var cogito_sensitivity := maxf(float(cogito_sensitivity_value), 0.0001)
-			return Vector2(yaw_degrees / cogito_sensitivity, pitch_degrees / cogito_sensitivity)
+			var relative_pitch := pitch_degrees / cogito_sensitivity
+			if (
+				"INVERT_Y_AXIS" in player
+				and typeof(player.get("INVERT_Y_AXIS")) == TYPE_BOOL
+				and bool(player.get("INVERT_Y_AXIS"))
+			):
+				relative_pitch = -relative_pitch
+			return Vector2(yaw_degrees / cogito_sensitivity, relative_pitch)
 	return Vector2(yaw_degrees, pitch_degrees)
 
 

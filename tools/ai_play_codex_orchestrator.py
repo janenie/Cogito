@@ -217,7 +217,10 @@ def write_player_codex_config(
                 '"." = "read"',
                 "",
                 "[permissions.ai_play_player.network]",
-                "enabled = false",
+                "enabled = true",
+                "",
+                "[permissions.ai_play_player.network.domains]",
+                '"127.0.0.1" = "allow"',
                 "",
                 "[mcp_servers.cogito_ai_play]",
                 f"url = {_toml_basic_string(mcp_url)}",
@@ -283,6 +286,8 @@ def build_player_env(
             "LOCALAPPDATA": str(localappdata_dir),
             "TEMP": str(temp_dir),
             "TMP": str(temp_dir),
+            "NO_PROXY": "127.0.0.1,localhost",
+            "no_proxy": "127.0.0.1,localhost",
         }
     )
     return env
@@ -306,9 +311,30 @@ def build_trusted_mcp_env(
 
 
 def build_supervisor_env(
+    environment_root: Path,
     base_env: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    return build_core_env(base_env)
+    root = environment_root.resolve()
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    home_dir = root / "home"
+    appdata_dir = root / "appdata"
+    localappdata_dir = root / "localappdata"
+    temp_dir = root / "tmp"
+    for directory in (home_dir, appdata_dir, localappdata_dir, temp_dir):
+        directory.mkdir(mode=0o700, exist_ok=True)
+    env = build_core_env(base_env)
+    env.update(
+        {
+            "HOME": str(home_dir),
+            "USERPROFILE": str(home_dir),
+            "APPDATA": str(appdata_dir),
+            "LOCALAPPDATA": str(localappdata_dir),
+            "TEMP": str(temp_dir),
+            "TMP": str(temp_dir),
+            "TMPDIR": str(temp_dir),
+        }
+    )
+    return env
 
 
 def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
@@ -449,6 +475,9 @@ def build_player_prompt(
    不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
 7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
    的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
+8. 如果 briefing 要求先读取出生点附近任务卡，首次 observe 后先环顾出生点近处的悬浮标志、
+   纸张或文件；离开出生区域前，优先靠近并对准最可信候选，单独调用 probe_interaction。
+   探测失败后才换候选或扩大搜索，不要先走进远处房间。
 
 每步公开决策记录：
 1. 每一步都先写一段公开决策记录，保持简短，只记录可公开依据，不输出隐藏推理链。
@@ -733,7 +762,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     paths = create_run_paths(session_root)
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
-    supervisor_env = build_supervisor_env()
+    supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
     mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,

@@ -379,6 +379,9 @@ func _on_batch_finished(results: Array) -> void:
 
 
 func _capture_observation_if_current(generation: int, results: Array) -> void:
+	# Synthetic input is delivered after the batch signal. Give the game one full
+	# input/process frame to apply UI and interaction changes before reading pixels.
+	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	if (
 		generation != _capture_generation

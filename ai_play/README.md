@@ -110,11 +110,14 @@ python3 tools/ai_play_codex_orchestrator.py \
 读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
 并通过 `developer_instructions` 给两种模式加载相同的黑盒视觉权限：模型应像人类玩家一样遵循
 `briefing` 规则，并比较当前与本会话先前 `observe` 直接返回的截图，以画面变化推断相对位移、
-转向、遮挡和地标关系。该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
+转向、遮挡和地标关系。若公开规则要求先读出生点附近任务卡，玩家会在离开出生区前优先扫描、
+靠近并探测可见的悬浮标志、纸张或文件。该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
+隔离玩家的网络 profile 只允许字面量 `127.0.0.1`，用于连接编排器启动的本机 MCP HTTP
+边车，并为大小写代理变量显式设置回环 `NO_PROXY`；不允许公网域名，也不启用宽泛的本地网络访问。
 仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
 
 该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许上述
-五个工具；它关闭 Web 搜索、子代理、Codex 内建记忆、登录 shell 和模型生成命令的网络访问。
+五个工具；它关闭 Web 搜索、子代理、Codex 内建记忆、登录 shell 和模型生成命令的公网访问。
 不要传递旧的
 `--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host` 或 `--ws-port`：它们不是此启动器
 接受的参数。在 Windows 上，该配置请求 Codex 的原生 `elevated` sandbox；无法建立该沙箱时应
@@ -129,8 +132,12 @@ python3 tools/ai_play_codex_orchestrator.py \
 <isolated-session-root>/
 └── 20260726-170000/
     ├── player_workspace/   # 创建时为空；orchestrator 不写入游戏产物
+    ├── godot_environment/  # 隔离的 Godot 用户、应用数据与临时目录
     └── trusted_mcplogs/    # 仅可信 MCP 侧可见
 ```
+
+Godot supervisor 使用该隔离环境写入 `user://`、着色器缓存和临时场景状态，不继承主机凭据
+环境。
 
 `127.0.0.1:8765` 是 Godot 固定桥端口；`--mcp-port` 默认是独立的 `8766`，且不能使用 8765。
 启动器会先检查两个端口空闲，启动可信 MCP 边车并等待 HTTP 与桥监听就绪，再启动 Codex，最后
@@ -243,7 +250,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 - `look`：只接受 `{"type":"look","direction":"left|right|up|down","degrees":1..45}`；
   `degrees` 是有限、非布尔的正数。调用方不填写 `yaw`、`pitch` 或正负号；30～45 度适合
-  扫视房间，5～15 度适合微调准星。一次动作只改变一个方向轴。
+  扫视房间，5～15 度适合微调准星。一次动作只改变一个方向轴；Godot 映射会抵消玩家的
+  垂直轴反转设置，因此语义 `up` / `down` 始终与最终画面方向一致。
 - `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
   `duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move` 约等于连续走四分之一秒，
   满强度 `sprint` 约等于连续跑四分之一秒。接近门、桌面或小物体时优先用 100～150ms。
@@ -255,7 +263,8 @@ Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语�
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
 CogitoPlayer 只接受专用合成设备的鼠标移动，Escape 仍是物理紧急停止键；停用或退出后立即恢复
 普通鼠标控制。需要即时重新观察的动作会等待 `RenderingServer.frame_post_draw` 后截图，避免把
-动作前的画面当成动作结果。
+动作前的画面当成动作结果；交互和界面动作还会先留出一个完整输入/处理帧，确保公开界面状态与
+截图来自动作实际生效之后。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
