@@ -96,6 +96,11 @@ def test_round_request_limit_rejects_unapproved_values(
 
 
 def test_terminal_results_are_scenario_specific():
+    assert scenario_registry._SCENARIOS["put_book"].terminal_results == frozenset({
+        ("success", "books_in_ceo_office"),
+        ("failure", "wrong_book_pickup"),
+        ("failure", "max_requests"),
+    })
     assert is_allowed_game_over("find_contract", "success", "correct_password")
     assert is_allowed_game_over("find_contract", "failure", "wrong_password")
     assert not is_allowed_game_over(
@@ -109,6 +114,7 @@ def test_terminal_results_are_scenario_specific():
     assert is_allowed_game_over("put_book", "success", "books_in_ceo_office")
     assert is_allowed_game_over("put_book", "failure", "wrong_book_pickup")
     assert not is_allowed_game_over("put_book", "success", "book_in_box")
+    assert not is_allowed_game_over("put_book", "failure", "book_in_wrong_box")
     assert not is_allowed_game_over("put_book", "success", "key_picked_up")
     assert not is_allowed_game_over("put_book", "success", "correct_password")
     assert is_allowed_game_over(

@@ -749,12 +749,12 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	_assert(
-		["success", "books_in_ceo_office"] in AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"],
-		"put_book allows CEO delivery success",
-	)
-	_assert(
-		["failure", "wrong_book_pickup"] in AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"],
-		"put_book allows wrong-pickup failure",
+		AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"] == [
+			["success", "books_in_ceo_office"],
+			["failure", "wrong_book_pickup"],
+			["failure", "max_requests"],
+		],
+		"put_book has the exact ordered-delivery terminal allowlist",
 	)
 	for terminal_case: Dictionary in [
 		{
@@ -871,6 +871,36 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		"find_key rejects password success",
 	)
 	await _free_fixture(find_key_fixture)
+
+	for obsolete_terminal: Dictionary in [
+		{"outcome": "success", "reason": "book_in_box"},
+		{"outcome": "failure", "reason": "book_in_wrong_box"},
+	]:
+		var put_book_fixture: Dictionary = await _connected_fixture(
+			controller_script,
+			"put_book",
+		)
+		put_book_fixture.terminal_monitor.game_finished.emit(
+			obsolete_terminal.outcome,
+			obsolete_terminal.reason,
+		)
+		_assert(
+			"invalid_game_outcome" in put_book_fixture.executor.cancel_reasons,
+			"put_book rejects obsolete %s/%s through controller validation" % [
+				obsolete_terminal.outcome,
+				obsolete_terminal.reason,
+			],
+		)
+		_assert(
+			put_book_fixture.bridge.sent_packets.filter(
+				func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+			).is_empty(),
+			"put_book does not send obsolete %s/%s terminal packets" % [
+				obsolete_terminal.outcome,
+				obsolete_terminal.reason,
+			],
+		)
+		await _free_fixture(put_book_fixture)
 
 
 func _test_remote_request_limit_terminal(controller_script: GDScript) -> void:
