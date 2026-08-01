@@ -4,7 +4,7 @@
 
 **Goal:** Make every Godot AI Play observation wait for a newly completed render frame before capture.
 
-**Architecture:** Route the normal observation timer through the controller's existing generation-guarded `_capture_observation_if_current()` coroutine. Keep the MCP protocol and AI-visible behavior unchanged; the Godot tool response simply waits until rendering completes.
+**Architecture:** Route the normal observation timer through the controller's generation-guarded `_capture_observation_if_current()` coroutine. Wait up to one second for normal rendering; when a background window produces no `frame_post_draw`, force one main-thread Viewport redraw before capture. Keep the MCP protocol and AI-visible behavior unchanged.
 
 **Tech Stack:** Godot 4.7, GDScript, existing headless controller test harness.
 
@@ -38,6 +38,8 @@ Expected: FAIL because `_on_observation_timer_timeout()` captures immediately.
 
 Change `_on_observation_timer_timeout()` to capture the current generation and schedule `_capture_observation_if_current(generation, _last_results)` instead of calling `_capture_observation()` directly.
 
+Add a bounded render helper used by `_capture_observation_if_current()`: wait at most one second for `frame_post_draw`, disconnect its one-shot callback on timeout, call `RenderingServer.force_draw(false)`, then capture only after rechecking generation/state/lifecycle guards.
+
 - [ ] **Step 2: Run the focused controller test**
 
 Run:
@@ -48,7 +50,11 @@ godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
 
 Expected: PASS.
 
-- [ ] **Step 3: Run rendered behavior tests**
+- [ ] **Step 3: Verify the background-render fallback**
+
+Add a controller regression case that withholds `frame_post_draw` and uses a short test timeout, then asserts one observation is captured instead of hanging. Extend the rendered look test to pause the normal render loop, change the camera, call `force_draw(false)`, and assert the Viewport pixels change.
+
+- [ ] **Step 4: Run rendered behavior tests**
 
 Run:
 
