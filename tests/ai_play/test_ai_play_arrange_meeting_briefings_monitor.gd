@@ -68,6 +68,14 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		)
 	_assert(monitor.seat_interactions.size() == 4, "four seats are active")
 	_assert(monitor.record_readables.size() == 3, "three records are active")
+	_assert(
+		monitor.task_card.get_parent().name == "TaskCard",
+		"task card uses its dedicated paper object",
+	)
+	_assert(
+		monitor.task_card.get_parent().find_children("*", "Sprite3D", true, false).is_empty(),
+		"task card does not reuse the rotating Demo Hint model",
+	)
 	_assert(not monitor.demo_hints.visible, "unrelated Demo Hints are hidden")
 	_assert(
 		monitor.demo_hints.process_mode == Node.PROCESS_MODE_DISABLED,
@@ -82,6 +90,23 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		var hint_object := child as CollisionObject3D
 		_assert(hint_object.collision_layer == 0, "%s hint collision is removed" % child.name)
 		_assert(hint_object.collision_mask == 0, "%s hint mask is removed" % child.name)
+	for child: Node in monitor.demo_hints.find_children("*", "", true, false):
+		if child.name == "ReadableComponent":
+			_assert(child.get("is_disabled") == true, "Demo Hint readable is disabled")
+	for child: Node in lobby.find_children("*", "", true, false):
+		if (
+			child.name != "ReadableComponent"
+			or str(child.get("interaction_text")).strip_edges().to_lower() != "read hint"
+		):
+			continue
+		_assert(child.get("is_disabled") == true, "map Read hint interaction is disabled")
+		var hint_object: Node3D = child.get_parent_node_3d()
+		_assert(hint_object != null and not hint_object.visible, "map Read hint is hidden")
+		var collision_object := hint_object as CollisionObject3D
+		_assert(
+			collision_object == null or collision_object.collision_layer == 0,
+			"map Read hint collision is removed",
+		)
 	for required_text: String in [
 		"CEO 办公室",
 		"CEO OFFICE",
@@ -103,7 +128,12 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			monitor.task_card.readable_content.contains(required_text),
 			"task card explains %s" % required_text,
 		)
-	_assert_large_readable(monitor.task_card, "task card")
+	var task_readable_ui := monitor.task_card.get_node("ReadableUi") as Control
+	task_readable_ui.show()
+	await process_frame
+	await process_frame
+	_assert_task_readable_without_scroll(monitor.task_card)
+	task_readable_ui.hide()
 	for readable: Node in monitor.record_readables:
 		_assert_large_readable(readable, readable.get_parent().name)
 	_assert(
@@ -135,8 +165,8 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			"%s record contains its assigned clue" % record_id,
 		)
 		_assert(
-			interaction_text.contains("读取") and interaction_text.contains("Read"),
-			"%s record interaction is bilingual" % record_id,
+			interaction_text.begins_with("Read "),
+			"%s record interaction is English" % record_id,
 		)
 		_assert(
 			not interaction_text.contains("break_room"),
@@ -257,6 +287,11 @@ func _test_isolation(monitor: Node, setup: Node) -> void:
 	)
 	_assert(monitor.get_round_snapshot().is_empty(), "unselected Monitor has no state")
 	_assert(monitor.get_folder_seat_map().is_empty(), "unselected placement map is empty")
+	_assert(monitor.task_card.is_disabled, "unselected task card stays unreadable")
+	_assert(
+		monitor.task_card.get_parent().collision_layer == 0,
+		"unselected task card collision stays disabled",
+	)
 	_assert(monitor.demo_hints.visible, "unselected Demo Hints stay visible")
 	_assert(
 		monitor.demo_hints.process_mode != Node.PROCESS_MODE_DISABLED,
@@ -310,6 +345,28 @@ func _assert_large_readable(readable: Node, label: String) -> void:
 	_assert(
 		content.get_theme_font_size("normal_font_size") >= 24,
 		"%s content is larger" % label,
+	)
+
+
+func _assert_task_readable_without_scroll(readable: Node) -> void:
+	_assert_large_readable(readable, "task card")
+	var scroll := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var content_container := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	_assert(
+		scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"task card vertical scrolling is disabled",
+	)
+	_assert(not scroll.get_v_scroll_bar().visible, "task card has no visible scrollbar")
+	_assert(
+		content_container.get_combined_minimum_size().y <= scroll.size.y,
+		"task card content fits without clipping (content=%s viewport=%s)" % [
+			content_container.get_combined_minimum_size(),
+			scroll.size,
+		],
 	)
 
 

@@ -234,7 +234,8 @@ grep -q '^scenario_id = "arrange_meeting_briefings"$' "$scene"
 grep -q 'name="ArrangeMeetingBriefingsSetup" parent="\." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")' "$scene"
 grep -q 'setup = NodePath("../../ArrangeMeetingBriefingsSetup")' "$scene"
 grep -q 'player = NodePath("../../Player")' "$scene"
-grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
+grep -A12 '^\[node name="ArrangeMeetingBriefingsMonitor"' "$scene" \
+	| grep -q 'task_card = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCardAnchor/TaskCard/ReadableComponent")'
 grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
 grep -q 'verify_button = NodePath("../../ArrangeMeetingBriefingsSetup/VerifyButton")' "$scene"
 grep -q 'player_spawn = NodePath("../../ArrangeMeetingBriefingsSetup/PlayerSpawn")' "$scene"
@@ -243,7 +244,7 @@ grep -q 'task_card_anchor = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCar
 meeting_setup="addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn"
 test -f "$meeting_setup"
 for node_name in \
-	PlayerSpawn TaskCardAnchor \
+	PlayerSpawn TaskCardAnchor TaskCard \
 	RecordCEO RecordArchive RecordBreakRoom \
 	FolderAtlas FolderBirch FolderCrown FolderDelta \
 	SeatTVSide SeatDoorSide SeatOppositeTV SeatInnerWall \
@@ -314,10 +315,26 @@ grep -q '^collision_layer = 0$' \
 	<<<"$(meeting_setup_node_block VerifyButton)"
 grep -q '^is_disabled = true$' \
 	<<<"$(meeting_setup_child_block BasicInteraction VerifyButton)"
-grep -q '^text = "↻  顺时针 / CLOCKWISE"$' \
+grep -q '^text = "↻  CLOCKWISE"$' \
 	<<<"$(meeting_setup_node_block ClockwiseLabel)"
-grep -q '^text = "任务卡 / TASK CARD"$' \
+grep -q '^text = "TASK CARD"$' \
 	<<<"$(meeting_setup_node_block TaskCardLabel)"
+grep -q '^text = "CEO OFFICE\\nMEETING RECORD"$' \
+	<<<"$(meeting_setup_node_block RecordCEOLabel)"
+grep -q '^text = "ARCHIVE\\nMEETING RECORD"$' \
+	<<<"$(meeting_setup_node_block RecordArchiveLabel)"
+grep -q '^text = "BREAK ROOM\\nMEETING RECORD"$' \
+	<<<"$(meeting_setup_node_block RecordBreakRoomLabel)"
+grep -q '^text = "TV SIDE"$' \
+	<<<"$(meeting_setup_child_block SeatLabel SeatTVSide)"
+grep -q '^text = "DOOR SIDE"$' \
+	<<<"$(meeting_setup_child_block SeatLabel SeatDoorSide)"
+grep -q '^text = "OPPOSITE TV"$' \
+	<<<"$(meeting_setup_child_block SeatLabel SeatOppositeTV)"
+grep -q '^text = "INNER WALL"$' \
+	<<<"$(meeting_setup_child_block SeatLabel SeatInnerWall)"
+grep -q '^text = "VERIFY"$' \
+	<<<"$(meeting_setup_node_block VerifyLabel)"
 
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2
