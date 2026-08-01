@@ -1,19 +1,9 @@
 """Approved public briefing for the find_contract black-box play session."""
 
 from copy import deepcopy
-from pathlib import Path
 
 from .common_briefing_rules import COMMON_CONTROL_RULES
-
-
-MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
-REFERENCE_IMAGE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "find_contract"
-    / "imgs"
-    / "reference_atlas.jpg"
-)
+from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "find_contract",
@@ -24,8 +14,8 @@ PUBLIC_BRIEFING = {
     ),
     "objective": (
         "先读取出生点附近的任务卡，根据任务卡给出的第一处地点开始调查；"
-        "每份合同记录会继续指向下一处地点，读完三份记录后组合本局六位数字密码"
-        "并解锁 ARCHIVE。"
+        "严格按记录 1/3、2/3、3/3 的顺序前进，每份当前记录会继续指向下一处地点；"
+        "读完三份记录后，按最终记录规定的顺序组合本局六位数字密码并解锁 ARCHIVE。"
     ),
     "success_condition": "正确输入本局密码并解锁 ARCHIVE 档案室。",
     "failure_condition": (
@@ -42,8 +32,15 @@ PUBLIC_BRIEFING = {
         "任务卡位于出生点附近；它只给出第一处地点，后续地点由当前合同记录逐步公开。",
         "必须依次调查三个地点并按顺序读取三份合同记录。",
         "任务卡和合同记录可以重复读取；提前找到后续记录不会跳过规定的调查顺序。",
-        "合同记录可能表现为圆形 COGITO Hint、实体文件或书本；CEO OFFICE 的记录是桌面文件，BREAK ROOM 的记录是电视柜顶面的实体文件。",
-        "三份记录按顺序给出日期、版本号和拼接顺序。",
+        (
+            "合同记录可能表现为圆形 COGITO Hint、实体文件或书本；CEO OFFICE 的记录"
+            "是桌面文件，BREAK ROOM 的记录是电视柜顶面的实体文件。"
+        ),
+        "三份记录按顺序给出日期代码（MMDD）、版本代码（VV）和二者的拼接顺序。",
+        (
+            "读完记录 3/3 后再使用 ARCHIVE 密码盘；证据不全时不要输入，"
+            "完成调查后输入错误密码会立即失败。"
+        ),
         "看到疑似可交互物但没有交互提示时，先靠近并使用 probe_interaction 对准它。",
         "交互完成后重新观察画面，再决定下一步动作。",
         "密码证据不足时继续寻找线索，不要盲猜或反复试错。",
@@ -154,14 +151,4 @@ PUBLIC_BRIEFING = {
 
 def load_public_briefing():
     """Return a fresh public briefing and its bounded JPEG reference image."""
-    try:
-        image_bytes = REFERENCE_IMAGE_PATH.read_bytes()
-    except OSError as error:
-        raise RuntimeError("briefing_reference_image_unavailable") from error
-    if (
-        len(image_bytes) > MAX_REFERENCE_IMAGE_BYTES
-        or not image_bytes.startswith(b"\xff\xd8\xff")
-        or not image_bytes.endswith(b"\xff\xd9")
-    ):
-        raise RuntimeError("briefing_reference_image_invalid")
-    return deepcopy(PUBLIC_BRIEFING), image_bytes
+    return deepcopy(PUBLIC_BRIEFING), load_reference_image()

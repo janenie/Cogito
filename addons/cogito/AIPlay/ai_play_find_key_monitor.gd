@@ -81,6 +81,7 @@ func configure_round(seed_value: int = 0) -> void:
 		task_card.get_parent_node_3d(),
 		selected_spawn["card"],
 	)
+	AIPlayReadablePresenter.configure(task_card, true)
 	_write_task_card()
 	_connect_pickup()
 
@@ -151,9 +152,13 @@ func _select_farthest_spawn(rng: RandomNumberGenerator) -> Dictionary:
 
 func _write_task_card() -> void:
 	var content: String = (
-		"办公室里只有一把钥匙。\n\n"
+		"任务目标：根据本局位置线索，找到并拾取办公室里唯一的金色钥匙。\n\n"
+		+ "位置线索："
 		+ LOCATION_TASK_TEXT[_selected_location]
-		+ "\n\n找到并拾取它。"
+		+ "\n\n操作：观察房间文字标识和家具特征；靠近并对准钥匙，"
+		+ "出现拾取提示后执行交互。\n\n"
+		+ "完成条件：必须实际拾取钥匙；只看到钥匙不算完成。"
+		+ "搜索错误区域不会立即失败。"
 	)
 	task_card.readable_title = "寻找办公室钥匙"
 	task_card.readable_content = content

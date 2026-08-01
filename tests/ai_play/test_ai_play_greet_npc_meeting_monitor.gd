@@ -57,6 +57,18 @@ func _run_test() -> void:
 			String(snapshot["task_text"]).contains("NPC"),
 			"task card mentions NPC greeting",
 		)
+		for required_instruction: String in [
+			"任务目标",
+			"操作步骤",
+			"MEETING ROOM",
+			"完成条件",
+			"玩家位于会议室内",
+			"从走廊关门",
+		]:
+			_assert(
+				String(snapshot["task_text"]).contains(required_instruction),
+				"task card clearly explains %s" % required_instruction,
+			)
 		_assert(
 			monitor.player.global_position.distance_to(
 				monitor.task_card.get_parent_node_3d().global_position
@@ -70,6 +82,25 @@ func _run_test() -> void:
 
 	_assert(seen_greetings.size() == 3, "fixed seed sample reaches all greetings")
 	_assert(seen_route_starts.size() >= 3, "fixed seed sample varies NPC start")
+	var task_ui := monitor.task_card.get_node("ReadableUi") as Control
+	var task_scroll := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var task_content_container := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	task_ui.show()
+	await process_frame
+	await process_frame
+	_assert(
+		task_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"greet-NPC task card does not require scrolling",
+	)
+	_assert(
+		task_content_container.get_combined_minimum_size().y <= task_scroll.size.y,
+		"greet-NPC task card content fits without clipping",
+	)
+	task_ui.hide()
 
 	monitor.configure_round(123456)
 	var terminal_results: Array[Dictionary] = []

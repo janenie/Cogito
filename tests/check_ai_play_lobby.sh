@@ -171,12 +171,14 @@ grep -q '^scenario_id = "repair_lighting_circuit"$' "$scene"
 grep -q 'name="RepairLightingCircuitSetup" parent="\." instance=ExtResource("ai_play_repair_lighting_circuit_setup")' "$scene"
 grep -q 'control_switch_a = NodePath("../../GenericSwitch")' "$scene"
 grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
-grep -q 'demo_hints = NodePath("../../DEMO_HINTS")' "$scene"
 grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
 grep -q 'entrance_lamp = NodePath("../../ENTRANCE_AREA/lampRoundFloor")' "$scene"
 grep -q 'ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")' "$scene"
 grep -q 'break_room_lamp = NodePath("../../RepairLightingCircuitSetup/BreakRoomLamp")' "$scene"
 test "$(grep -o 'lampSquareCeiling\(8\|9\|10\|11\|12\|13\)' "$scene" | sort -u | wc -l | tr -d ' ')" -eq 6
+
+grep -q 'func _prepare_lobby_task_presentation()' \
+	addons/cogito/AIPlay/ai_play_controller.gd
 
 setup="addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn"
 test -f "$setup"

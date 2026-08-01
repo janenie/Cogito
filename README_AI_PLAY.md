@@ -43,13 +43,24 @@ AI First Play 使用 stdio：通常应由 Codex、Claude Desktop 或其他 MCP H
 启动 Python 服务，而不是把 `ai_play/start_ai.sh` 当作普通后台服务手动运行。
 MCP 协议独占该进程的标准输入和标准输出。
 
-服务只公开四个工具：
+MCP Server 注册六个工具。直接单局游玩的 Host 应只向玩家模型开放前四个：
 
 - `briefing()`：在 Godot 握手确认玩法后，取得该玩法的公开目标、规则、物体操作说明和
   参考图；应在首次观察前调用一次。
-- `observe()`：取得最新的获准观察和截图。
-- `act(observation_id, actions)`：基于最新观察执行 1～3 个动作，并等待动作结果和下一次观察。
+- `observe()`：取得最新的获准观察和截图；通常只在 `briefing` 后调用一次。
+- `act(observation_id, actions)`：基于最新观察执行 1～3 个动作，并等待动作结果、公开移动反馈
+  和下一次观察；成功后无需再调用 `observe` 刷新画面。
 - `stop()`：结束 MCP 控制会话并释放所有模拟输入；重复调用是安全的。
+- `workflow_memory_read()`：读取当前编排器会话中已经通过校验的抽象流程记忆。
+- `workflow_memory_update(...)`：只在可信终局后提交固定结构的流程候选。
+
+仓库内的教学 Host 和下方 Codex 配置都显式限制为 `briefing`、`observe`、`act`、`stop`；
+工作流记忆工具只供多局 orchestrator 使用。
+
+MCP 的 `act` 输入声明会完整列出每种动作的精确字段、枚举、数值范围以及每批 1～3 个动作
+的限制；Python 和 Godot 仍会分别再次校验。教学 OpenAI Host 还会把声明转换为
+`strict=true` 且所有对象 `additionalProperties=false` 的 Responses function tools，并把
+结构化结果、截图和深度图放在同一个 `function_call_output` 中。
 
 配置中请使用仓库的绝对路径，并把下方的示例路径替换为本机路径。
 
@@ -203,8 +214,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=arrange_meeting_briefings
 ```
 
-该任务要求玩家分别在 CEO 办公室、档案室和休息室读取三条关系线索，推断 ATLAS、
-BIRCH、CROWN、DELTA 与会议桌电视侧、门侧、电视对面侧、内墙侧的唯一对应关系。
+该任务要求玩家分别在 CEO 办公室、档案室和休息室读取三条关系线索，推断李明、王芳、
+陈宇、赵宁与会议桌电视侧、门侧、电视对面侧、内墙侧的唯一对应关系。
 资料可在提交前取回调整，Verify 只有一次机会。隐藏排列、候选解和线索生成过程只保存在
 可信 Godot Monitor 中，不会进入 briefing、MCP 结果、玩家提示或日志。
 
@@ -274,12 +285,14 @@ $env:PYTHONPATH = "ai_play/src"
 9. 放弃本次游玩、无法安全继续或需要退出时调用 MCP 工具 `stop()`。
 
 每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
-不允许或已有动作在途；`briefing`、`observe`、`stop` 不计数。`find_contract` 的硬上限
-为 500 次，允许 `success/correct_password`、`failure/wrong_password` 和
+不允许或已有动作在途；`briefing`、`observe`、`stop` 和工作流记忆工具不计数。
+`find_contract` 的硬上限为 300 次，允许 `success/correct_password`、
+`failure/wrong_password` 和
 `failure/max_requests`；`find_key` 根据本局位置使用 50 或 100 次硬上限，公开
 briefing 只说明最大值 100 次，允许
-`success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 50 次，允许
-`success/book_in_box` 和 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，
+`success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 150 次，允许
+`success/books_in_ceo_office`、`failure/wrong_book_pickup` 和 `failure/max_requests`；
+`greet_npc_meeting` 的硬上限为 100 次，
 允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
 的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
 和 `failure/max_requests`；`garden_watering` 的硬上限为 300 次，允许
@@ -289,11 +302,11 @@ briefing 只说明最大值 100 次，允许
 `failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
 `arrange_meeting_briefings` 的硬上限为 200 次，允许 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 和 `failure/max_requests`。
-`find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。
+`find_key` 和 `greet_npc_meeting` 没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
-`find_key` 只在内部版本 3 握手中发送经过验证的 50/100 上限，不发送所选位置；该上限
+`find_key` 只在内部版本 4 握手中发送经过验证的 50/100 上限，不发送所选位置；该上限
 不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时必须保持一致。
 
 最小的 `act` 参数示例：
@@ -302,8 +315,8 @@ briefing 只说明最大值 100 次，允许
 {
   "observation_id": 12,
   "actions": [
-    {"type": "look", "yaw": 15, "pitch": 0},
-    {"type": "move", "forward": 1, "right": 0, "duration_ms": 500}
+    {"type": "look", "direction": "left", "degrees": 15},
+    {"type": "move", "forward": 0.4, "right": 0, "duration_ms": 100}
   ]
 }
 ```
@@ -316,7 +329,9 @@ briefing 只说明最大值 100 次，允许
 ```text
 先调用一次 briefing，了解公开目标、玩法和物体参考；参考图不代表当前位置。
 随后调用 observe，再使用最新 observation_id 调用 act；一次只进行一个 act 调用。
-每次 act 返回后重新观察和规划，不得使用仓库源码、节点路径、测试、规格、
+每次 act 已返回下一份观察；直接用其中的新截图、状态和 movement_feedback 重新规划，
+不要重复调用 observe。只有 act 未返回观察且会话仍可继续时才再次 observe。
+不得使用仓库源码、节点路径、测试、规格、
 game_script、code_read 或任何隐藏的谜题答案。
 若返回 game_over、stopped 或 disconnected，停止行动。
 若无法安全继续，调用 MCP 的 stop 工具结束控制。
@@ -329,23 +344,22 @@ game_script、code_read 或任何隐藏的谜题答案。
 ### 视角与移动
 
 ```json
-{"type": "look", "yaw": 15, "pitch": -5}
-{"type": "move", "forward": 1, "right": 0, "duration_ms": 500}
-{"type": "sprint", "forward": 1, "right": 0, "duration_ms": 750}
+{"type": "look", "direction": "left", "degrees": 15}
+{"type": "look", "direction": "up", "degrees": 5}
+{"type": "move", "forward": 0.4, "right": 0, "duration_ms": 100}
+{"type": "sprint", "forward": 1, "right": 0, "duration_ms": 250}
 {"type": "jump"}
 {"type": "crouch"}
-{"type": "stop"}
 {"type": "wait", "duration_ms": 500}
 ```
 
-- `look.yaw`：`-45..45`
-- `look.pitch`：`-30..30`
+- `look.direction`：`left`、`right`、`up`、`down`
+- `look.degrees`：`1..45`；不要填写 `yaw`、`pitch` 或正负号
 - `move` / `sprint` 的 `forward`、`right`：`-1..1`
-- `move` / `sprint` 的 `duration_ms`：`50..1000`
+- `move` / `sprint` 的 `duration_ms`：`50..250`
 - `wait.duration_ms`：`50..2000`
 
-动作对象 `{"type":"stop"}` 用于停止游戏中的移动输入；它不同于结束整个 AI
-控制会话的 MCP 工具 `stop()`。
+动作 schema 不包含 `{"type":"stop"}`；需要结束控制时调用 MCP 工具 `stop()`。
 
 ### 交互与界面
 
@@ -368,7 +382,7 @@ game_script、code_read 或任何隐藏的谜题答案。
 ### 批次规则
 
 - 每次 `act` 必须提交 1～3 个动作。
-- `stop`、`interact`、`enter_digits`、`close_ui` 会改变上下文，必须是批次的最后一个动作。
+- `interact`、`enter_digits`、`close_ui` 会改变上下文，必须是批次的最后一个动作。
 - 非法批次会被 Python 拒绝，不会向 Godot 注入输入；Godot 还会再次验证合法批次。
 
 ## 6. 状态与常见问题

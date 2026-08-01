@@ -53,6 +53,7 @@ func _finish() -> void:
 	if failures.is_empty():
 		print("Daily routine AI Play monitor test passed")
 		quit(0)
+		return
 	for failure: String in failures:
 		push_error(failure)
 	quit(1)

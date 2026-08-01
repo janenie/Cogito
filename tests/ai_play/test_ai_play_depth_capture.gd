@@ -22,6 +22,11 @@ func _run() -> void:
 			"depth encoding is declared",
 		)
 		_assert(payload["near_meters"] < payload["far_meters"], "depth range is ordered")
+		_assert(
+			is_equal_approx(payload["near_meters"], 0.05)
+			and is_equal_approx(payload["far_meters"], 20.0),
+			"depth range is tuned for local navigation",
+		)
 		var image := Image.new()
 		_assert(
 			image.load_png_from_buffer(

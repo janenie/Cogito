@@ -70,6 +70,7 @@ func _activate_task() -> void:
 		break_room_lamp.collision_layer = 3
 	_connect_signals()
 	_place_player_and_task_card()
+	AIPlayReadablePresenter.configure(task_card, true)
 	configure_round(round_seed)
 
 

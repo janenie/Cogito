@@ -13,6 +13,14 @@ from mcp.types import CallToolResult, ImageContent, TextContent
 from .bridge_server import start
 from .config import Config
 from .game_session import GameSession, SessionError
+from .mcp_tool_schema import (
+    ActionBatchInput,
+    AvoidInput,
+    LandmarksInput,
+    ObservationIdInput,
+    PublicText,
+    WorkflowInput,
+)
 from .scenarios import load_scenario_briefing
 from .trajectory_logger import (
     LogPersistenceError,
@@ -169,7 +177,13 @@ async def briefing() -> CallToolResult:
 
 @mcp.tool()
 async def observe() -> CallToolResult:
-    """Read the latest approved observation. The first image is the colour JPEG screenshot; the second image is the depth PNG, where darker pixels are nearer and white is the far limit or unavailable-depth fallback."""
+    """Read the latest approved observation and local-navigation images.
+
+    Use once after briefing; each successful act already returns the next
+    observation. The first image is the colour JPEG screenshot. The second image
+    is a depth PNG where darker pixels are nearer and white is 20 metres or
+    unavailable depth.
+    """
     if not _configured():
         return _error("server_not_ready")
     token, log_error = _begin_logged_call("observe", {})
@@ -191,8 +205,15 @@ async def observe() -> CallToolResult:
 
 
 @mcp.tool()
-async def act(observation_id: int, actions: list[dict]) -> CallToolResult:
-    """Execute one validated batch of one to three player actions."""
+async def act(
+    observation_id: ObservationIdInput,
+    actions: ActionBatchInput,
+) -> CallToolResult:
+    """Execute one typed batch and return the next observation.
+
+    probe_interaction must be alone. interact, enter_digits, and close_ui must
+    be last and match the current interface context.
+    """
     if not _configured():
         return _error("server_not_ready")
     request = {
@@ -258,10 +279,10 @@ async def workflow_memory_read() -> CallToolResult:
 
 @mcp.tool()
 async def workflow_memory_update(
-    goal_pattern: str,
-    workflow: list[dict],
-    landmarks: list[dict],
-    avoid: list[str],
+    goal_pattern: PublicText,
+    workflow: WorkflowInput,
+    landmarks: LandmarksInput,
+    avoid: AvoidInput,
 ) -> CallToolResult:
     """Promote a validated workflow candidate after a trusted terminal result."""
     if not _configured() or workflow_memory is None:

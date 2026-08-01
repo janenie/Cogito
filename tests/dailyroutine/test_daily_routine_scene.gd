@@ -225,6 +225,9 @@ func _hud_explains_rules(scene: Node) -> bool:
 		and content.contains("客厅垃圾桶") \
 		and content.contains("4 个散落垃圾") \
 		and content.contains("冰箱关闭") \
+		and content.contains("已扔 5/5") \
+		and content.contains("手上为空") \
+		and content.contains("条件不全会立即失败") \
 		and content.contains("完成任务")
 
 func _furniture_blockers_are_configured(scene: Node) -> bool:

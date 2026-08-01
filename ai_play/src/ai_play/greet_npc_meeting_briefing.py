@@ -1,19 +1,9 @@
 """Approved public briefing for the greet_npc_meeting black-box play session."""
 
 from copy import deepcopy
-from pathlib import Path
 
 from .common_briefing_rules import COMMON_CONTROL_RULES
-
-
-MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
-REFERENCE_IMAGE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "find_contract"
-    / "imgs"
-    / "reference_atlas.jpg"
-)
+from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "greet_npc_meeting",
@@ -34,7 +24,11 @@ PUBLIC_BRIEFING = {
         "NPC 会移动；需要主动观察和寻找，不能假设 NPC 固定在某处。",
         "打招呼必须先完成；没有打招呼前，关上会议室门不会完成任务。",
         "看到 NPC 但没有交互提示时，靠近后使用 probe_interaction 调整对准。",
-        "打招呼后进入会议室，确认会议室门处于关闭状态。",
+        "问候成功后沿 MEETING ROOM 文字标牌前往会议室；会议室门开局已打开并解锁。",
+        (
+            "玩家必须先完整进入会议室，再转身对准门板或把手关门；"
+            "从走廊一侧关门或只进入房间都不会完成任务。"
+        ),
     ],
     "reference_image": (
         "随简报返回的图片只用于识别常见交互物类别，不代表本局 NPC 位置、"
@@ -61,7 +55,9 @@ PUBLIC_BRIEFING = {
         },
         {
             "id": "operable_door",
-            "meaning": "会议室门可以打开或关闭；完成问候后需要在会议室内关上会议室门。",
+            "meaning": (
+                "MEETING ROOM 标牌指向目标房间；完成问候后，需要进入房间并从室内关门。"
+            ),
             "actions": {
                 "probe_interaction": "对准门或把手寻找提示。",
                 "interact": "按当前提示打开或关闭门。",
@@ -72,14 +68,4 @@ PUBLIC_BRIEFING = {
 
 
 def load_greet_npc_meeting_briefing():
-    try:
-        image_bytes = REFERENCE_IMAGE_PATH.read_bytes()
-    except OSError as error:
-        raise RuntimeError("briefing_reference_image_unavailable") from error
-    if (
-        len(image_bytes) > MAX_REFERENCE_IMAGE_BYTES
-        or not image_bytes.startswith(b"\xff\xd8\xff")
-        or not image_bytes.endswith(b"\xff\xd9")
-    ):
-        raise RuntimeError("briefing_reference_image_invalid")
-    return deepcopy(PUBLIC_BRIEFING), image_bytes
+    return deepcopy(PUBLIC_BRIEFING), load_reference_image()

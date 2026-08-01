@@ -59,6 +59,7 @@ func _finish() -> void:
 	if failures.is_empty():
 		print("Home player furniture collision test passed")
 		quit(0)
+		return
 	for failure: String in failures:
 		push_error(failure)
 	quit(1)

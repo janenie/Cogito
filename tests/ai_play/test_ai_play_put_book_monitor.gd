@@ -161,10 +161,13 @@ func _run_test() -> void:
 		var task_text := String(monitor.task_card.get("readable_content"))
 		_assert(task_text.contains("档案室（ARCHIVE）"), "task card pairs the archive name with its sign")
 		_assert(task_text.contains("CEO OFFICE"), "task card names CEO OFFICE")
-		_assert(task_text.contains("只搬运这三本"), "task card clearly excludes ordinary books")
+		_assert(task_text.contains("只把其中 3 本"), "task card clearly excludes ordinary books")
+		_assert(task_text.contains("操作步骤"), "task card separates the operation sequence")
 		_assert(task_text.contains("①低层 → ②中层 → ③高层"), "task card shows the exact order")
 		_assert(task_text.contains("青色“书籍放置点”"), "task card identifies the destination")
-		_assert(task_text.contains("送达后再拿下一本"), "task card explains one-book pacing")
+		_assert(task_text.contains("送达后再返回拿下一本"), "task card explains one-book pacing")
+		_assert(task_text.contains("完成条件"), "task card states success conditions")
+		_assert(task_text.contains("失败条件"), "task card states immediate failure conditions")
 		_assert(not task_text.contains("跳"), "task card removes jump rule")
 		_assert(not task_text.contains("蹲"), "task card removes crouch rule")
 		_assert(not task_text.contains("纸箱"), "task card removes box rule")
@@ -212,6 +215,25 @@ func _run_test() -> void:
 		task_label_content != null and task_label_content.text == monitor.TASK_CONTENT,
 		"task card renders the ordered-delivery instructions",
 	)
+	var task_ui := monitor.task_card.get_node("ReadableUi") as Control
+	var task_scroll := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var task_content_container := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	task_ui.show()
+	await process_frame
+	await process_frame
+	_assert(
+		task_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"put-book task card does not require scrolling",
+	)
+	_assert(
+		task_content_container.get_combined_minimum_size().y <= task_scroll.size.y,
+		"put-book task card content fits without clipping",
+	)
+	task_ui.hide()
 	monitor.configure_round(73421)
 	var second_snapshot: Dictionary = monitor.get_round_snapshot()
 	_assert(first_snapshot["books"] == second_snapshot["books"], "same seed reproduces books")

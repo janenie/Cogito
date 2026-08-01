@@ -35,6 +35,7 @@ func _finish() -> void:
 	if failures.is_empty():
 		print("Home AI Play interaction probe test passed")
 		quit(0)
+		return
 	for failure: String in failures:
 		push_error(failure)
 	quit(1)

@@ -98,6 +98,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_round_finished = false
 	keypad.passcode = LOCKED_PASSCODE
 	_place_player_and_task_card(spawn_index)
+	AIPlayReadablePresenter.configure(task_card, true)
 	_place_clues()
 	_write_round_documents()
 	_update_interaction_gates()
@@ -239,12 +240,14 @@ func _write_round_documents() -> void:
 		task_card,
 		"本局档案室任务卡",
 		(
-			"ARCHIVE 使用 6 位数字密码。\n\n"
-			+ "你需要依次前往三个地点，查找并读取三份合同记录。"
-			+ "后两处地点不会预先公开，找到当前记录后才能得知下一处地点。\n\n"
-			+ "第一个地点：%s\n\n"
-			+ "记录可能是圆形 COGITO Hint、实体文件或者书本。"
-			+ "任务卡和找到的记录都可以重复读取。"
+			"任务目标：按顺序读取三份合同记录，组合本局 6 位数字密码并解锁 ARCHIVE。\n\n"
+			+ "调查流程：\n"
+			+ "1. 从下方第一处地点开始；当前记录会公开下一处地点。\n"
+			+ "2. 必须按记录 1/3 → 2/3 → 3/3 的顺序阅读，不能提前跳步。\n"
+			+ "3. 记录可能是圆形 COGITO Hint、实体文件或书本，均可重复读取。\n\n"
+			+ "第一处地点：%s\n\n"
+			+ "提交规则：三份记录分别给出日期代码、版本代码和拼接顺序。"
+			+ "读完记录 3/3 后再使用 ARCHIVE 密码盘；提交错误密码会立即失败。"
 		) % _selected_route[0],
 		"Read task card",
 	)

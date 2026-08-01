@@ -61,6 +61,17 @@ func _run_test() -> void:
 			snapshot["task_text"] in monitor.task_card.readable_content,
 			"visible task card contains only the selected location clue",
 		)
+		for required_instruction: String in [
+			"任务目标",
+			"位置线索",
+			"操作",
+			"完成条件",
+			"只看到钥匙不算完成",
+		]:
+			_assert(
+				monitor.task_card.readable_content.contains(required_instruction),
+				"task card clearly explains %s" % required_instruction,
+			)
 		_assert(
 			lobby.find_children(
 				"Pickup_Key",
@@ -92,6 +103,25 @@ func _run_test() -> void:
 		seen_locations.size() == monitor.LOCATION_IDS.size(),
 		"fixed seed sample reaches all five key locations",
 	)
+	var task_ui := monitor.task_card.get_node("ReadableUi") as Control
+	var task_scroll := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var task_content_container := monitor.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	task_ui.show()
+	await process_frame
+	await process_frame
+	_assert(
+		task_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"find-key task card does not require scrolling",
+	)
+	_assert(
+		task_content_container.get_combined_minimum_size().y <= task_scroll.size.y,
+		"find-key task card content fits without clipping",
+	)
+	task_ui.hide()
 
 	monitor.configure_round(123456)
 	var terminal_results: Array[Dictionary] = []

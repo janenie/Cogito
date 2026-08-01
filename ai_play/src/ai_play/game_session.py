@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+import math
 import time
 from threading import Condition, Lock
 
@@ -34,6 +35,7 @@ class SessionResult:
     observation: dict | None = None
     action_results: list[dict] | None = None
     game_over: dict | None = None
+    movement_feedback: dict | None = None
 
 
 class GameSession:
@@ -381,6 +383,7 @@ class GameSession:
         return self._request_limit_result(
             deadline,
             result.action_results or [],
+            result.movement_feedback,
         )
 
     def _execute_act(self, observation_id, actions, deadline):
@@ -443,13 +446,19 @@ class GameSession:
                     raise SessionError("action_timeout")
                 self._condition.wait(timeout=remaining)
 
-    def _request_limit_result(self, deadline, action_results):
+    def _request_limit_result(
+        self,
+        deadline,
+        action_results,
+        movement_feedback=None,
+    ):
         with self._condition:
             if self._game_over is not None:
                 return SessionResult(
                     status="game_over",
                     action_results=deepcopy(action_results),
                     game_over=deepcopy(self._game_over),
+                    movement_feedback=deepcopy(movement_feedback),
                 )
 
             observation_id = self._pending_observation_id
@@ -491,6 +500,7 @@ class GameSession:
                         status="game_over",
                         action_results=deepcopy(results),
                         game_over=deepcopy(self._game_over),
+                        movement_feedback=deepcopy(movement_feedback),
                     )
                 if self._state in {"stopped", "disconnected"}:
                     raise SessionError(self._state)
@@ -569,6 +579,10 @@ class GameSession:
             "game_over": deepcopy(result.game_over),
             "observation": None,
         }
+        if result.movement_feedback is not None:
+            payload["movement_feedback"] = deepcopy(
+                result.movement_feedback
+            )
         image_bytes = None
         depth_image_bytes = None
         if result.observation is not None:
@@ -627,6 +641,11 @@ class GameSession:
     def _complete_turn_locked(self):
         observation = self._pending_next_observation
         results = self._pending_results or []
+        movement_feedback = _movement_feedback(
+            self._latest_observation,
+            observation,
+            results,
+        )
         self._latest_observation = observation
         self._clear_pending_locked()
         self._state = "ready"
@@ -635,6 +654,7 @@ class GameSession:
             status="ready",
             observation=deepcopy(observation),
             action_results=deepcopy(results),
+            movement_feedback=movement_feedback,
         )
 
     def _complete_terminal_turn_locked(self):
@@ -764,6 +784,28 @@ def _deadline(timeout):
 
 def _remaining(deadline):
     return deadline - time.monotonic()
+
+
+def _movement_feedback(previous, current, results):
+    movement_results = [
+        result
+        for result in results
+        if result.get("type") in {"move", "sprint"}
+    ]
+    if not movement_results or previous is None or current is None:
+        return None
+    previous_position = previous["player"]["position"]
+    current_position = current["player"]["position"]
+    delta_x = float(current_position[0]) - float(previous_position[0])
+    delta_z = float(current_position[2]) - float(previous_position[2])
+    return {
+        "planar_delta_meters": [round(delta_x, 3), round(delta_z, 3)],
+        "distance_moved_meters": round(math.hypot(delta_x, delta_z), 3),
+        "blocked": any(
+            result["status"] == "blocked"
+            for result in movement_results
+        ),
+    }
 
 
 def _require_observation_id(value, optional=False):

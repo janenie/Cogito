@@ -19,7 +19,7 @@ func _run() -> void:
 	var camera := Camera3D.new()
 	camera.near = 0.05
 	camera.far = 4000.0
-	camera.position = Vector3(0.0, 0.0, 1000.5)
+	camera.position = Vector3(0.0, 0.0, 5.5375)
 	var gameplay_environment := Environment.new()
 	gameplay_environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 	gameplay_environment.tonemap_exposure = 4.0
@@ -30,7 +30,7 @@ func _run() -> void:
 
 	var foreground := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(500.0, 500.0, 1.0)
+	box.size = Vector3(2.5, 2.5, 1.0)
 	foreground.mesh = box
 	var foreground_material := StandardMaterial3D.new()
 	foreground_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -113,7 +113,7 @@ func _run() -> void:
 		)
 		_assert(corner_depth > 0.9, "background reaches the far depth value")
 
-	camera.position = Vector3(0.0, 0.0, 2000.5)
+	camera.position = Vector3(0.0, 0.0, 10.525)
 	camera.look_at(Vector3.ZERO)
 	var second_payload: Dictionary = capture.capture(camera, 96, 54)
 	var second_image := Image.new()

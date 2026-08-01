@@ -1,19 +1,9 @@
 """Approved public briefing for the find_key black-box play session."""
 
 from copy import deepcopy
-from pathlib import Path
 
 from .common_briefing_rules import COMMON_CONTROL_RULES
-
-
-MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
-REFERENCE_IMAGE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "find_contract"
-    / "imgs"
-    / "reference_atlas.jpg"
-)
+from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "find_key",
@@ -27,14 +17,17 @@ PUBLIC_BRIEFING = {
         "找到并拾取场景中唯一的目标钥匙。"
     ),
     "success_condition": "成功拾取办公室中唯一的目标钥匙。",
-    "failure_condition": "最多允许 100 次 act 请求；达到上限仍未拾取钥匙则失败。",
+    "failure_condition": (
+        "本局根据目标位置采用 50 或 100 次 act 请求上限；达到当前上限仍未拾取钥匙则失败。"
+    ),
     "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容和动作结果寻找钥匙。",
         "任务卡位于出生点附近并可重复读取。",
         "任务卡描述的是环境特征；需要主动探索并理解家具与房间的空间关系。",
+        "优先利用 ARCHIVE、MEETING ROOM 等可见房间标牌建立方向，再按线索核对家具。",
         "看到疑似钥匙但没有交互提示时，靠近后使用 probe_interaction 调整对准。",
         "只有成功执行 Pickup 才算完成；仅看到钥匙不算成功。",
-        "错误区域和其他拾取物不会直接导致失败，应调整搜索策略。",
+        "错误区域和其他拾取物不会直接导致失败；排除一个区域后应换方向搜索，避免原地重复。",
     ],
     "reference_image": (
         "随简报返回的图片只用于识别常见交互物类别，不代表本局钥匙位置、"
@@ -71,14 +64,4 @@ PUBLIC_BRIEFING = {
 
 
 def load_find_key_briefing():
-    try:
-        image_bytes = REFERENCE_IMAGE_PATH.read_bytes()
-    except OSError as error:
-        raise RuntimeError("briefing_reference_image_unavailable") from error
-    if (
-        len(image_bytes) > MAX_REFERENCE_IMAGE_BYTES
-        or not image_bytes.startswith(b"\xff\xd8\xff")
-        or not image_bytes.endswith(b"\xff\xd9")
-    ):
-        raise RuntimeError("briefing_reference_image_invalid")
-    return deepcopy(PUBLIC_BRIEFING), image_bytes
+    return deepcopy(PUBLIC_BRIEFING), load_reference_image()

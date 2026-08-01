@@ -5,11 +5,15 @@ signal game_finished(outcome: String, reason: String)
 
 const TASK_TITLE := "按低→中→高搬运 3 本任务书"
 const TASK_CONTENT := (
-	"任务目标：档案室（ARCHIVE）中分散在三组书架上的 6 本书里，只有 3 本带“任务书”标记；只搬运这三本。\n\n"
-	+ "搬运顺序：先比较三本任务书所在层，必须严格按 ①低层 → ②中层 → ③高层。"
-	+ "每次只能拿一本，当前一本送达后再拿下一本。\n\n"
-	+ "目的地：把每本任务书送到 CEO OFFICE 的青色“书籍放置点”。"
-	+ "拿起普通书，或提前拿中层/高层任务书，都会立即失败。"
+	"任务目标：档案室（ARCHIVE）三组书架上共有 6 本书；"
+	+ "只把其中 3 本带“任务书”标记的书送到 CEO OFFICE。\n\n"
+	+ "操作步骤：\n"
+	+ "1. 找齐三本任务书并比较它们所在的书架层级。\n"
+	+ "2. 必须严格按 ①低层 → ②中层 → ③高层 搬运。\n"
+	+ "3. 每次只拿一本，送到 CEO OFFICE 的青色“书籍放置点”；"
+	+ "确认当前一本送达后再返回拿下一本。\n\n"
+	+ "完成条件：三本任务书全部按顺序送达。\n"
+	+ "失败条件：拿起普通书，或提前拿中层/高层任务书，会立即失败。"
 )
 const ROUND_BOOK_COUNT := 6
 const TARGET_BOOK_COUNT := 3
@@ -91,6 +95,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_place_round_books(selected_slots)
 	_select_target_books(rng)
 	_place_player_and_task_card()
+	AIPlayReadablePresenter.configure(task_card as ReadableComponent, true)
 	_write_task_card()
 	_open_archive_door()
 	_activate_destination()

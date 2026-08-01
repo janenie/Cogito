@@ -28,7 +28,7 @@ MCP Host / MCP Client
 ai_play Python 进程
   │
   │ WebSocket：127.0.0.1:8765
-  │ Cogito 自定义桥协议，protocol_version = 3
+  │ Cogito 自定义桥协议，protocol_version = 4
   ▼
 Godot AIPlayController
   ├─ Observer：生成截图和公开状态
@@ -42,7 +42,7 @@ Godot AIPlayController
 | 传输 | stdin/stdout | 在两个本地进程之间传递字节 |
 | 消息格式 | JSON-RPC 2.0 | 表示请求、响应、通知和错误 |
 | 应用协议 | MCP | 定义 `initialize`、`tools/list`、`tools/call` 等方法 |
-| 游戏桥协议 | Cogito protocol v2 | 定义 `observation`、`action_batch`、`game_over` 等游戏消息 |
+| 游戏桥协议 | Cogito protocol v4 | 定义 `observation`、`action_batch`、`game_over` 等游戏消息 |
 
 可以把它类比成寄快递：
 
@@ -233,7 +233,7 @@ MCP 规定“工具如何被发现和调用”，但不规定必须使用哪个�
 | 模型 | 由外部 Host 选择 | 根据截图和状态决定是否调用工具 |
 | MCP Host | `tutorial/ai_play_api_host.py` 或其他外部客户端 | 管理模型、MCP Client 和对话循环 |
 | MCP Client | Host 中的 `ClientSession` | 与 MCP Server 初始化、列工具、调用工具 |
-| MCP Server | `ai_play.mcp_server` | 暴露四个工具并执行调用 |
+| MCP Server | `ai_play.mcp_server` | 注册六个工具并执行调用；教学 Host 只向玩家开放四个单局工具 |
 | 游戏 | Godot Lobby | 产生观察、校验动作、执行输入、判断终局 |
 
 因此 API Key 只可能由使用模型 API 的 Host 持有。`ai_play` MCP Server 本身不需要，也
@@ -265,7 +265,7 @@ Client 首先发出 `initialize`：
 ```
 
 这里的 `protocolVersion` 是 MCP 版本。它是日期字符串，不是 Cogito WebSocket 桥的
-`protocol_version: 3`。
+`protocol_version: 4`。
 
 Server 返回双方将使用的版本、Server 能力和实现信息。字段细节可能随 SDK 版本和启用
 能力略有不同：
@@ -321,9 +321,10 @@ Client 请求工具列表：
 }
 ```
 
-Server 返回工具声明。以下只完整展开 `act`：
+Server 返回工具声明。以下以 JSONC 摘要展示 `act`；实际声明的 `$defs` 会分别完整列出
+十种动作的精确字段、枚举和范围：
 
-```json
+```jsonc
 {
   "jsonrpc": "2.0",
   "id": 2,
@@ -347,18 +348,27 @@ Server 返回工具声明。以下只完整展开 `act`：
       },
       {
         "name": "act",
-        "description": "Execute one validated batch of one to three player actions.",
+        "description": "Execute one typed batch of one to three actions and return the next observation.",
         "inputSchema": {
           "type": "object",
           "properties": {
             "observation_id": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "actions": {
               "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
               "items": {
-                "type": "object",
-                "additionalProperties": true
+                "anyOf": [
+                  {"$ref": "#/$defs/LookAction"},
+                  {"$ref": "#/$defs/MoveAction"},
+                  {"$ref": "#/$defs/SprintAction"}
+                  // 其余 jump、crouch、interact、enter_digits、
+                  // close_ui、wait、probe_interaction 定义从略
+                ]
               }
             }
           },
@@ -386,8 +396,11 @@ docstring：
 
 ```python
 @mcp.tool()
-async def act(observation_id: int, actions: list[dict]) -> CallToolResult:
-    """Execute one validated batch of one to three player actions."""
+async def act(
+    observation_id: ObservationIdInput,
+    actions: ActionBatchInput,
+) -> CallToolResult:
+    """Execute one typed batch of one to three actions and return the next observation."""
 ```
 
 教程 Host 中对应：
@@ -396,8 +409,11 @@ async def act(observation_id: int, actions: list[dict]) -> CallToolResult:
 listed = await mcp_session.list_tools()
 ```
 
-Host 随后把 MCP `Tool` 声明转换成模型 API 的 function tools。模型看到的是转换后的工具
-定义，不会直接写 stdio 报文。
+Host 随后把 MCP `Tool` 声明转换成模型 API 的 function tools：递归移除 SDK 标题，把单值
+`const` 规范化为 `enum`，为每个对象补全 `required` 与
+`additionalProperties: false`，并设置 `strict: true`。模型看到的是转换后的工具定义，
+不会直接写 stdio 报文。工具结果有图片时，Host 把结构化 JSON、JPEG 和 PNG 一起放进与
+原 `call_id` 关联的 `function_call_output`，不再新增一条伪造的 user 图片消息。
 
 ### 5.3 调用工具
 
@@ -448,14 +464,19 @@ Client 调用 `act`：
           "type": "wait"
         }
       ],
+      "movement_feedback": {
+        "planar_delta_meters": [0.0, -0.25],
+        "distance_moved_meters": 0.25,
+        "blocked": false
+      },
       "game_over": null,
       "observation": {
         "observation_id": 8,
         "captured_at_ms": 123456,
         "image": {
           "mime_type": "image/jpeg",
-          "width": 768,
-          "height": 432
+          "width": 1024,
+          "height": 576
         },
         "player": {},
         "interface": {},
@@ -471,7 +492,9 @@ Client 调用 `act`：
 `player`、`interface` 和 `bindings` 在这里只为缩短示例而省略，真实结果会通过完整
 schema 校验后返回。
 
-截图通过 MCP `ImageContent` 返回；结构化观察只保留图片类型和尺寸，不重复 Base64。
+截图和深度图通过 MCP `ImageContent` 返回；结构化观察只保留图片元数据，不重复 Base64。
+`movement_feedback` 仅由前后两份公开玩家位置计算，便于判断短步是否实际移动或被门框阻挡，
+不会公开碰撞体、节点或隐藏导航状态。
 
 ### 5.4 工具业务错误和 JSON-RPC 错误的区别
 
@@ -529,7 +552,7 @@ Python 包位于 `ai_play/src/ai_play/`。
 mcp = FastMCP("Cogito AI Play", json_response=True)
 ```
 
-然后用装饰器注册四个工具：
+然后用装饰器注册六个工具。教学 Host 使用显式 allowlist，只把前四个单局工具交给玩家模型：
 
 ```python
 @mcp.tool()
@@ -541,11 +564,27 @@ async def observe() -> CallToolResult:
     ...
 
 @mcp.tool()
-async def act(observation_id: int, actions: list[dict]) -> CallToolResult:
+async def act(
+    observation_id: ObservationIdInput,
+    actions: ActionBatchInput,
+) -> CallToolResult:
     ...
 
 @mcp.tool()
 async def stop() -> CallToolResult:
+    ...
+
+@mcp.tool()
+async def workflow_memory_read() -> CallToolResult:
+    ...
+
+@mcp.tool()
+async def workflow_memory_update(
+    goal_pattern: PublicText,
+    workflow: WorkflowInput,
+    landmarks: LandmarksInput,
+    avoid: AvoidInput,
+) -> CallToolResult:
     ...
 ```
 
@@ -622,7 +661,7 @@ Upgrade 握手；连接成功后，库会把数据组织成一条条文本或二
 ```json
 {
   "type": "action_batch",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 7,
   "actions": [
     {
@@ -652,7 +691,7 @@ Upgrade 握手；连接成功后，库会把数据组织成一条条文本或二
 | --- | --- | --- |
 | 连接对象 | MCP Host 与 Python 子进程 | Python 与独立运行的 Godot |
 | 怎样建立 | Host 启动子进程并连接标准流 | Python 监听端口，Godot 主动连接 |
-| 消息协议 | MCP，编码为 JSON-RPC | Cogito 自定义 JSON 协议 v3 |
+| 消息协议 | MCP，编码为 JSON-RPC | Cogito 自定义 JSON 协议 v4 |
 | 消息方向 | 双向 | 双向 |
 | 本项目用途 | 发现和调用 MCP 工具 | 交换观察、动作、停止和终局 |
 | 网络范围 | 本地进程管道，不使用端口 | 只允许 `127.0.0.1:8765` |
@@ -667,7 +706,7 @@ WebSocket 连接本身建立后，Cogito 还会进行一次应用层握手。God
 ```json
 {
   "type": "hello",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "scenario_id": "find_contract"
 }
 ```
@@ -677,7 +716,7 @@ Python 校验后返回：
 ```json
 {
   "type": "hello",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "scenario_id": "find_contract"
 }
 ```
@@ -685,11 +724,11 @@ Python 校验后返回：
 要区分这两个步骤：
 
 1. WebSocket Upgrade 握手确认“网络连接和 WebSocket 协议可用”；
-2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v3，并声明当前玩法”。
+2. `hello` JSON 确认“连接者理解 Cogito 游戏桥协议 v4，并声明当前玩法”。
 
 如果 `hello` 缺失、超时、字段多余、版本不匹配或 `scenario_id` 未进入公开玩法
-白名单，Python 会拒绝把这个连接挂到 `GameSession`。旧的 v3 客户端省略
-`scenario_id` 时兼容为 `find_contract`。
+白名单，Python 会拒绝把这个连接挂到 `GameSession`。版本 4 客户端省略
+`scenario_id` 时默认使用 `find_contract`。
 
 连接正常时，一小段典型时序是：
 
@@ -697,8 +736,8 @@ Python 校验后返回：
 Python Bridge                     Godot
      │                              │
      │<── 建立 WebSocket 连接 ──────│
-     │<── hello, v3, scenario ──────│
-     │─── hello, v3, scenario ─────>│
+     │<── hello, v4, scenario ──────│
+     │─── hello, v4, scenario ─────>│
      │<── observation 7 ────────────│
      │─── action_batch for 7 ──────>│
      │<── action_results for 7 ─────│
@@ -812,15 +851,17 @@ Python 校验通过后 Godot 仍会再次校验。Python 是第一道边界，Go
 - 最多两个获准交互；
 - 允许公开的运行时按键绑定；
 - 动作结果；
-- 768×432、最大 2 MiB 的 JPEG。
+- 1024×576、最大 2 MiB 的 JPEG；
+- 1024×576、0.05～20 米的 8 位线性深度 PNG，20 米外和背景为白色。
 
 `prepare_mcp_observation()` 还把图片 Base64 从结构化 JSON 中移除，返回：
 
 ```python
-public_observation, image_bytes
+public_observation, image_bytes, depth_image_bytes
 ```
 
-`mcp_server.py` 再把二者分别放进 `structuredContent` 和 `ImageContent`。
+`mcp_server.py` 再把结构化数据放进 `structuredContent`，两张图片分别放进按固定顺序排列的
+`ImageContent`。
 
 ### 6.6 `scenarios.py` 与 `briefing.py`：按白名单选择公开简报
 
@@ -924,14 +965,14 @@ Godot 送来的内部桥消息类似：
 ```json
 {
   "type": "observation",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 7,
   "captured_at_ms": 123456,
   "image": {
     "mime_type": "image/jpeg",
     "base64": "<JPEG Base64>",
-    "width": 768,
-    "height": 432
+    "width": 1024,
+    "height": 576
   },
   "player": {},
   "interface": {},
@@ -945,6 +986,9 @@ Godot 送来的内部桥消息类似：
 
 最终 `mcp_server.py` 把观察转换成 MCP `CallToolResult`，FastMCP 再生成与原请求具有相同
 JSON-RPC `id` 的响应。
+
+正常玩家只需在 `briefing` 后调用一次 `observe()`。成功的 `act()` 已同步返回下一份观察；
+再次 `observe()` 只会取得当前缓存观察，通常会重复传输同一组图片。
 
 ## 9. 一次 `act()` 的完整链路
 
@@ -968,7 +1012,7 @@ stdio 上的 MCP 请求：
           "type": "move",
           "forward": 1,
           "right": 0,
-          "duration_ms": 500
+          "duration_ms": 100
         }
       ]
     }
@@ -989,7 +1033,8 @@ stdio 上的 MCP 请求：
 然后 `action_schema.py` 检查动作本身。
 
 如果 ID 已经过期，Python 返回 `stale_observation`，不会向 Godot 发送任何输入。
-虽然没有产生输入，这次调用仍然计入 `AI_PLAY_MAX_ACT_REQUESTS`。默认上限是 500。
+虽然没有产生输入，这次调用仍然计入 `AI_PLAY_MAX_ACT_REQUESTS`。默认配置上限是 500，
+但 `find_contract` 的玩法硬上限为 300，因此实际取两者较小值。
 
 ### 第三步：Python 发送内部桥消息
 
@@ -998,14 +1043,14 @@ stdio 上的 MCP 请求：
 ```json
 {
   "type": "action_batch",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 7,
   "actions": [
     {
       "type": "move",
       "forward": 1,
       "right": 0,
-      "duration_ms": 500
+      "duration_ms": 100
     }
   ]
 }
@@ -1030,7 +1075,7 @@ Godot 的 `AIPlayController` 验证消息字段、协议版本和观察 ID。`AI
 ```json
 {
   "type": "action_results",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 7,
   "results": [
     {
@@ -1048,7 +1093,7 @@ Godot 的 `AIPlayController` 验证消息字段、协议版本和观察 ID。`AI
 ```json
 {
   "type": "observation",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 8,
   "...": "其余公开观察字段"
 }
@@ -1065,11 +1110,12 @@ Godot 的 `AIPlayController` 验证消息字段、协议版本和观察 ID。`AI
 
 ### 第七步：返回 MCP 响应
 
-Python 把动作结果、观察 8 和截图放进 `CallToolResult`。FastMCP 使用原请求 ID `20`
-返回 JSON-RPC 响应。
+Python 把动作结果、由观察 7 和 8 的公开位置差计算出的 `movement_feedback`、观察 8、截图
+和深度图放进 `CallToolResult`。FastMCP 使用原请求 ID `20` 返回 JSON-RPC 响应。
 
 因此对 MCP Client 来说，`act()` 是一次等待到“动作执行结束并得到下一观察”的同步工具
-调用；内部实际上经历了多条 WebSocket 消息。
+调用；内部实际上经历了多条 WebSocket 消息。Client 应直接用观察 8 规划下一步，不要再
+调用 `observe()` 重传同一帧。
 
 ## 10. `stop`、Escape、断线和终局
 
@@ -1080,7 +1126,7 @@ MCP Client 调用 `stop` 后，Python 发给 Godot：
 ```json
 {
   "type": "stop_request",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 7,
   "reason": "mcp_stop"
 }
@@ -1126,14 +1172,14 @@ failure + wrong_password
 ```json
 {
   "type": "end_game",
-  "protocol_version": 3,
+  "protocol_version": 4,
   "observation_id": 8,
   "outcome": "failure",
   "reason": "max_requests"
 }
 ```
 
-这不是第五个 MCP 工具，模型不能主动调用它。Godot 严格验证字段、结果组合和观察 ID，
+这不是 MCP 工具，模型不能主动调用它。Godot 严格验证字段、结果组合和观察 ID，
 然后复用原有终局路径：取消并释放输入、显示“达到最大步长”、暂停场景，再返回普通
 `game_over/failure/max_requests`。如果当前确实没有观察，`observation_id` 可以是
 `null`；否则必须匹配当前待决或在途观察。
@@ -1222,7 +1268,7 @@ MCP stdio 的端口。
 不是：
 
 - MCP：`protocolVersion: "2025-11-25"`；
-- Cogito 内部桥：`protocol_version: 3`。
+- Cogito 内部桥：`protocol_version: 4`。
 
 它们属于不同协议层，不能互换。
 

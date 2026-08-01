@@ -1,19 +1,9 @@
 """Approved public briefing for the put_book black-box play session."""
 
 from copy import deepcopy
-from pathlib import Path
 
 from .common_briefing_rules import COMMON_CONTROL_RULES
-
-
-MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
-REFERENCE_IMAGE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "find_contract"
-    / "imgs"
-    / "reference_atlas.jpg"
-)
+from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "put_book",
@@ -42,6 +32,10 @@ PUBLIC_BRIEFING = {
         (
             "一次搬运一本：将当前书送到 CEO OFFICE 的青色书籍放置点并确认送达后，"
             "再返回搬下一本。"
+        ),
+        (
+            "正确任务书在放置点外提前放下不会完成当前步骤；可以重新拿起并继续送达，"
+            "不要因此改拿下一层的书。"
         ),
         "拿起普通书或顺序错误的任务书会立即失败；仅观察或探测交互不会失败。",
         "本任务不要求跳跃或下蹲才能拿到书。",
@@ -100,14 +94,4 @@ PUBLIC_BRIEFING = {
 
 
 def load_put_book_briefing():
-    try:
-        image_bytes = REFERENCE_IMAGE_PATH.read_bytes()
-    except OSError as error:
-        raise RuntimeError("briefing_reference_image_unavailable") from error
-    if (
-        len(image_bytes) > MAX_REFERENCE_IMAGE_BYTES
-        or not image_bytes.startswith(b"\xff\xd8\xff")
-        or not image_bytes.endswith(b"\xff\xd9")
-    ):
-        raise RuntimeError("briefing_reference_image_invalid")
-    return deepcopy(PUBLIC_BRIEFING), image_bytes
+    return deepcopy(PUBLIC_BRIEFING), load_reference_image()

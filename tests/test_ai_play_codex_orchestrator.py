@@ -105,7 +105,8 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
     assert 'model = "gpt-test"' in text
     assert 'model_reasoning_effort = "high"' in text
     assert "developer_instructions = " in text
-    assert "比较当前截图与本会话之前由 observe 返回的截图" in text
+    assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in text
+    assert "不要为了刷新画面重复调用 observe" in text
     assert "像人类玩家一样" in text
     assert 'url = "http://127.0.0.1:8766/mcp"' in text
     assert (
@@ -325,6 +326,18 @@ def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
     assert "find_contract" not in prompt
     assert "ai_play_run_config.json" not in prompt
     assert str(orchestrator.REPO_ROOT) not in prompt
+    for scenario_specific_hint in (
+        "花园",
+        "中央广场",
+        "水壶",
+        "向日葵",
+        "绣球花",
+        "兰花",
+        "草坪",
+        "门铃",
+        "密码",
+    ):
+        assert scenario_specific_hint not in prompt
 
 
 def test_blackbox_prompt_waits_for_all_runs_without_log_access(tmp_path):
@@ -349,7 +362,7 @@ def test_blackbox_prompt_requires_public_step_memory(tmp_path):
     assert "每一步都先写一段公开决策记录" in prompt
     assert "当前 goal 是什么" in prompt
     assert "workflow memory" in prompt
-    assert "最新 observe 截图显示了什么" in prompt
+    assert "最新 observe 或 act 截图显示了什么" in prompt
     assert "主动 Keep 这份 memory" in prompt
 
 
@@ -360,7 +373,7 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
 
     assert "briefing" in instructions
     assert "游戏规则" in instructions
-    assert "比较当前截图与本会话之前由 observe 返回的截图" in instructions
+    assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in instructions
     assert "相对位移、转向、遮挡变化和地标关系" in instructions
     assert '{"type":"look","direction":"left","degrees":30}' in instructions
     assert "不要填写 yaw、pitch 或正负号" in instructions
@@ -386,7 +399,9 @@ def test_player_prompt_teaches_identical_semantic_look_control(workflow_memory_e
 
     assert "direction、degrees" in prompt
     assert "不要填写 yaw、pitch" in prompt
-    assert "比较当前截图与本会话之前由 observe 返回的截图" in prompt
+    assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in prompt
+    assert "成功的 act 返回下一份观察" in prompt
+    assert "movement_feedback" in prompt
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])
@@ -432,7 +447,7 @@ def test_player_prompt_requires_awm_lifecycle(tmp_path):
     assert "以 workflow_memory_read 返回的 completed_runs 为准" in prompt
     assert "异常重试不算完成一局" in prompt
     assert "不要保存图片" in prompt
-    assert "不要保存密码" in prompt
+    assert "不要保存局内具体答案" in prompt
 
 
 def test_player_prompt_without_awm_uses_only_in_context_notes():

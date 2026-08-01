@@ -53,7 +53,7 @@ Godot 桥的安全边界。
   实际移动力度（上限为 1）。Godot 执行器必须补偿 Input Map 的移动死区，各场景玩家移动层
   不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
   `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
-  50～100ms，并在每步后重新观察。
+  50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
 - `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
   `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
   50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
@@ -72,8 +72,9 @@ Godot 桥的安全边界。
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
   `failure/max_requests`。`find_key` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
-  的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
-  三个工具不计数。第 N 次请求先按正常规则处理，合法玩法终局优先，否则返回
+  的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
+  `briefing`、`observe`、MCP `stop()` 和工作流记忆工具不计数。第 N 次请求先按正常规则
+  处理，合法玩法终局优先，否则返回
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
 - Godot 执行器必须在可信边界把语义 `look` 映射为内部相机轴，使用 COGITO 的常规输入并用
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
@@ -82,7 +83,16 @@ Godot 桥的安全边界。
 - 需要即时重新观察的动作必须先留出一个完整输入/处理帧，再等待
   `RenderingServer.frame_post_draw` 后捕获截图，并在等待后重新检查 capture generation、
   控制器状态和节点生命周期，防止动作尚未生效、旧动作、停用或销毁后发送滞后观察。
-- `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；观察成功时图片顺序为截图 JPEG、深度 PNG。结构化结果只保留 `image` 和 `depth_image` 的元数据，不得重复任一图片的 Base64，也不得包含隐藏状态。深度图是 1024×576 的 `linear_depth_normalized_8bit` 同视角不透明 3D 几何可视化，范围固定为 0.05～4000 米（近黑、远/背景白）；HUD、2D UI 和透明物体没有独立可靠深度。
+- `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；成功的 `act` 已携带下一份观察，
+  玩家不得为刷新同一帧重复调用 `observe`。观察成功时图片顺序为截图 JPEG、深度 PNG。
+  结构化结果只保留 `image` 和 `depth_image` 的元数据，不得重复任一图片的 Base64，也不得
+  包含隐藏状态。深度图是 1024×576 的 `linear_depth_normalized_8bit` 同视角不透明 3D
+  几何可视化，固定使用面向局部门口导航的 0.05～20 米范围（近黑，20 米外/背景白）；HUD、
+  2D UI 和透明物体没有独立可靠深度。`act` 可额外返回仅由前后公开玩家位置计算的
+  `movement_feedback`，字段为平面位移、实际距离和是否受阻，不得加入碰撞体或节点信息。
+- MCP `act` 工具声明必须以精确联合 schema 列出每种动作的字段、枚举和范围；服务端仍以
+  Python 与 Godot 双重校验为准。教学 Responses Host 使用 `strict=true` 和封闭对象 schema，
+  并把结构化结果与图片关联在同一个 `function_call_output` 中。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
@@ -327,7 +337,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 - 玩家固定从入口开始，任务卡位于出生点附近。
 - NPC 沿会议室到休息室方向的既有路线循环移动；每局随机选择路线起点和方向。
 - 每局从 `你好`、`要去开会了么？`、`hi` 中随机选择一种问候语作为 NPC 交互提示。
-- 只有玩家在 1 米以内和 NPC 成功交互后，才记录为已打招呼。
+- 只有玩家在 1.8 米以内和 NPC 成功交互后，才记录为已打招呼。
 - 会议室门在本玩法开始时打开并解锁；未打招呼前，进入会议室或关门不会成功。
 - 已打招呼后，玩家在会议室内关上会议室门产生 `success/meeting_door_closed`。
 - 路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，不得进入公开简报、
@@ -382,8 +392,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 - 玩家从入口任务卡附近开始。CEO 办公室、档案室和休息室各有一份世界内会议记录；
-  briefing 和任务卡只公开调查区域与操作规则，不公开本局线索原文。该任务会隐藏普通 Lobby
-  的 Demo Hint；任务卡弹框在单屏内完整显示，不需要滚动。
+  briefing 和任务卡只公开调查区域与操作规则，不公开本局线索原文。控制器会为所有非
+  `find_contract` 的 Lobby 玩法统一隐藏默认 Demo Hint，保留当前玩法任务卡；长任务卡使用
+  共享的大尺寸单屏布局完整显示，不需要滚动。
 - 李明、王芳、陈宇、赵宁四位参会者的可搬运资料位于会议室电视侧桌。会议桌四个放置位按
   电视侧、门侧、电视对面侧、内墙侧区分，桌面 `↻ CLOCKWISE` 标识定义顺时针方向。世界内
   环境标签统一使用英文，人物资料标签保留两字中文姓名。

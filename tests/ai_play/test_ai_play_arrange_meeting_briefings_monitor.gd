@@ -38,7 +38,7 @@ func _run_test() -> void:
 	if _is_selected_scenario():
 		await _test_selected(lobby, monitor, setup)
 	else:
-		_test_isolation(monitor, setup)
+		_test_isolation(lobby, monitor, setup)
 
 	await _cleanup(lobby)
 	_finish()
@@ -100,12 +100,13 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.task_card.interaction_text == "Read task card",
 		"shared icon exposes the task-card interaction",
 	)
-	_assert(not monitor.demo_hints.visible, "unrelated Demo Hints are hidden")
+	var demo_hints := lobby.get_node("DEMO_HINTS") as Node3D
+	_assert(not demo_hints.visible, "unrelated Demo Hints are hidden")
 	_assert(
-		monitor.demo_hints.process_mode == Node.PROCESS_MODE_DISABLED,
+		demo_hints.process_mode == Node.PROCESS_MODE_DISABLED,
 		"unrelated Demo Hints stop processing",
 	)
-	for child: Node in monitor.demo_hints.find_children(
+	for child: Node in demo_hints.find_children(
 		"*",
 		"CollisionObject3D",
 		true,
@@ -114,7 +115,7 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		var hint_object := child as CollisionObject3D
 		_assert(hint_object.collision_layer == 0, "%s hint collision is removed" % child.name)
 		_assert(hint_object.collision_mask == 0, "%s hint mask is removed" % child.name)
-	for child: Node in monitor.demo_hints.find_children("*", "", true, false):
+	for child: Node in demo_hints.find_children("*", "", true, false):
 		if child.name == "ReadableComponent":
 			_assert(child.get("is_disabled") == true, "Demo Hint readable is disabled")
 	for child: Node in lobby.find_children("*", "", true, false):
@@ -305,7 +306,7 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 	)
 
 
-func _test_isolation(monitor: Node, setup: Node) -> void:
+func _test_isolation(lobby: Node, monitor: Node, setup: Node) -> void:
 	_assert(not setup.visible, "unselected setup stays hidden")
 	_assert(
 		setup.process_mode == Node.PROCESS_MODE_DISABLED,
@@ -313,9 +314,10 @@ func _test_isolation(monitor: Node, setup: Node) -> void:
 	)
 	_assert(monitor.get_round_snapshot().is_empty(), "unselected Monitor has no state")
 	_assert(monitor.get_folder_seat_map().is_empty(), "unselected placement map is empty")
-	_assert(monitor.demo_hints.visible, "unselected Demo Hints stay visible")
+	var demo_hints := lobby.get_node("DEMO_HINTS") as Node3D
+	_assert(demo_hints.visible, "unselected Demo Hints stay visible")
 	_assert(
-		monitor.demo_hints.process_mode != Node.PROCESS_MODE_DISABLED,
+		demo_hints.process_mode != Node.PROCESS_MODE_DISABLED,
 		"unselected Demo Hints keep normal processing",
 	)
 	for folder: RigidBody3D in monitor.folder_nodes:

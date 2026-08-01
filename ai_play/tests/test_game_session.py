@@ -80,7 +80,7 @@ def observation(observation_id, include_depth=False):
             "height": 576,
             "encoding": "linear_depth_normalized_8bit",
             "near_meters": 0.05,
-            "far_meters": 4000.0,
+            "far_meters": 20.0,
         }
     return result
 
@@ -793,6 +793,44 @@ def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
         observation=observation(8),
         action_results=wait_action_results(),
     )]
+
+
+def test_act_reports_public_planar_movement_feedback():
+    session, sent = make_session()
+    before = observation(7)
+    before["player"]["position"] = [1.0, 0.0, 2.0]
+    session.receive_observation(before)
+    actions = [{
+        "type": "move",
+        "forward": 0.25,
+        "right": 0.0,
+        "duration_ms": 50,
+    }]
+    result_holder = []
+
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            session.act(7, actions, timeout=0.5)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+
+    results = [{"status": "blocked", "type": "move"}]
+    after = observation(8)
+    after["player"]["position"] = [1.03, 0.0, 2.04]
+    session.receive_action_results(7, results)
+    session.receive_observation(after)
+    thread.join()
+
+    result = result_holder[0]
+    assert result.movement_feedback == {
+        "planar_delta_meters": [0.03, 0.04],
+        "distance_moved_meters": 0.05,
+        "blocked": True,
+    }
+    payload, _, _ = session.to_mcp_payload(result)
+    assert payload["movement_feedback"] == result.movement_feedback
 
 
 def test_act_rejects_second_in_flight_batch():

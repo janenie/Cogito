@@ -19,7 +19,6 @@ const RECORD_INTERACTION_TEXT := {
 @export var setup: Node3D
 @export var player: Node3D
 @export var task_card: ReadableComponent
-@export var demo_hints: Node3D
 @export var game_over_screen: AIPlayGameOverScreen
 @export var record_readables: Array[ReadableComponent] = []
 @export var folder_nodes: Array[RigidBody3D] = []
@@ -68,10 +67,9 @@ func _activate_task() -> void:
 	_connect_signals()
 	_set_records_enabled(true)
 	_place_player_and_task_card()
-	_disable_demo_hints()
-	_configure_readable_ui(task_card, true)
+	AIPlayReadablePresenter.configure(task_card, true)
 	for readable: ReadableComponent in record_readables:
-		_configure_readable_ui(readable)
+		AIPlayReadablePresenter.configure(readable)
 	configure_round(round_seed)
 
 
@@ -227,69 +225,6 @@ func _place_player_and_task_card() -> void:
 	card_object.transform = Transform3D.IDENTITY
 
 
-func _disable_demo_hints() -> void:
-	demo_hints.visible = false
-	demo_hints.process_mode = Node.PROCESS_MODE_DISABLED
-	var scene_root: Node = self
-	while scene_root.get_parent() != null and scene_root.get_parent() != get_tree().root:
-		scene_root = scene_root.get_parent()
-	for child: Node in scene_root.find_children("*", "", true, false):
-		var readable := child as ReadableComponent
-		if (
-			readable == null
-			or readable == task_card
-			or readable.interaction_text.strip_edges().to_lower() != "read hint"
-		):
-			continue
-		readable.is_disabled = true
-		var hint_object := readable.get_parent_node_3d()
-		if hint_object != null:
-			hint_object.visible = false
-		var collision_object := hint_object as CollisionObject3D
-		if collision_object != null:
-			collision_object.collision_layer = 0
-			collision_object.collision_mask = 0
-	for child: Node in demo_hints.find_children("*", "CollisionObject3D", true, false):
-		var collision_object := child as CollisionObject3D
-		collision_object.collision_layer = 0
-		collision_object.collision_mask = 0
-
-
-func _configure_readable_ui(
-	readable: ReadableComponent,
-	disable_scrolling: bool = false,
-) -> void:
-	var readable_ui := readable.get_node_or_null("ReadableUi") as Control
-	var scroll := readable.get_node_or_null(
-		"ReadableUi/Bindings/ScrollContainer"
-	) as ScrollContainer
-	var title := readable.get_node_or_null(
-		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableTitle"
-	) as Label
-	var content := readable.get_node_or_null(
-		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableContent"
-	) as RichTextLabel
-	var popup_half_width: float = 500.0 if disable_scrolling else 440.0
-	var popup_half_height: float = 430.0 if disable_scrolling else 360.0
-	var text_width: float = 900.0 if disable_scrolling else 760.0
-	if readable_ui != null:
-		readable_ui.offset_left = -popup_half_width
-		readable_ui.offset_top = -popup_half_height
-		readable_ui.offset_right = popup_half_width
-		readable_ui.offset_bottom = popup_half_height
-	if scroll != null:
-		scroll.custom_minimum_size = Vector2(text_width, 0.0)
-		if disable_scrolling:
-			scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-			scroll.follow_focus = false
-	if title != null:
-		title.custom_minimum_size = Vector2(text_width, 0.0)
-		title.add_theme_font_size_override("font_size", 42)
-	if content != null:
-		content.custom_minimum_size = Vector2(text_width, 0.0)
-		content.add_theme_font_size_override("normal_font_size", 24)
-
-
 func _set_records_enabled(enabled: bool) -> void:
 	for readable: ReadableComponent in record_readables:
 		readable.is_disabled = not enabled
@@ -406,7 +341,6 @@ func _has_required_nodes() -> bool:
 		setup,
 		player,
 		task_card,
-		demo_hints,
 		game_over_screen,
 		verify_button,
 		player_spawn,

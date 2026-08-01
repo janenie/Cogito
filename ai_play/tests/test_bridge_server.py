@@ -110,7 +110,7 @@ def _observation(observation_id=7, include_depth=False):
             "height": 576,
             "encoding": "linear_depth_normalized_8bit",
             "near_meters": 0.05,
-            "far_meters": 4000.0,
+            "far_meters": 20.0,
         }
     return observation
 
@@ -221,7 +221,7 @@ def test_bridge_routes_depth_image_to_game_session():
         "height": 576,
         "encoding": "linear_depth_normalized_8bit",
         "near_meters": 0.05,
-        "far_meters": 4000.0,
+        "far_meters": 20.0,
     }
 
 

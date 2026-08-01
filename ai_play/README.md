@@ -129,7 +129,7 @@ python3 tools/ai_play_codex_orchestrator.py \
 `--codex-auth-home` 默认是 `~/.codex-cogito-player`，只作为 `auth.json` 的来源：启动器既不
 读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
 并通过 `developer_instructions` 给两种模式加载相同的黑盒视觉权限：模型应像人类玩家一样遵循
-`briefing` 规则，并比较当前与本会话先前 `observe` 直接返回的截图，以画面变化推断相对位移、
+`briefing` 规则，并比较当前与本会话先前 `observe` 或 `act` 直接返回的截图，以画面变化推断相对位移、
 转向、遮挡和地标关系。若公开规则要求先读出生点附近任务卡，玩家会在离开出生区前优先扫描、
 靠近并探测可见的悬浮标志、纸张或文件。该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
 隔离玩家的网络 profile 只允许字面量 `127.0.0.1`，用于连接编排器启动的本机 MCP HTTP
@@ -238,7 +238,7 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 
 `greet_npc_meeting` 每局让 NPC 沿会议室到休息室方向的既有路线循环移动，并随机选择
 NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，任务卡位于出生点附近。玩家必须
-先在 1 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
+先在 1.8 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
 `success/meeting_door_closed`。
 
 `repair_lighting_circuit` 每局随机生成入口控制面板 A～D 与入口、CEO 办公室、大厅和
@@ -248,7 +248,7 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 `success/circuit_repaired`，否则产生 `failure/incorrect_circuit_configuration`。
 映射、故障线路和回合种子只存在于可信 Godot 运行时，不进入 briefing、MCP 结果或玩家提示。
 
-`arrange_meeting_briefings` 每局随机生成 ATLAS、BIRCH、CROWN、DELTA 到会议桌电视侧、
+`arrange_meeting_briefings` 每局随机生成李明、王芳、陈宇、赵宁到会议桌电视侧、
 门侧、电视对面侧和内墙侧的一对一排列，以及三条合并后唯一、缺少任意一条都不唯一的关系
 线索。线索分别写入 CEO 办公室、档案室和休息室的世界内记录。玩家调查后把四份可搬运资料
 吸附到对应席位，提交前可以取回调整；一次性 Verify 正确时产生
@@ -280,8 +280,12 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   和参考图谱；应在首个 `observe` 前调用一次。
 - `workflow_memory_read()`：读取当前 orchestrator 会话中已经通过终局资格和内容校验的
   抽象工作流；第一局返回 `version: 0` 和 `memory: null`。
-- `observe()`：等待并返回最新获准观察、截图和当前 3D 画面的深度图。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
-- `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
+- `observe()`：等待并返回最新获准观察、截图和当前 3D 画面的深度图。通常只在
+  `briefing` 后调用一次；已有观察会立即返回，未连接、断线、停止或终局会返回对应状态。
+- `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。
+  工具声明使用十种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
+  `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
+  不要再调用 `observe` 获取同一帧。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid)`：在可信终局后提交一次
   固定结构候选；工具不接受调用方提供的胜负结果。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
@@ -297,7 +301,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   是满强度，0.2～0.4 适合精细对位。`duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move`
   约等于连续走四分之一秒，满强度 `sprint` 约等于连续跑四分之一秒。接近普通目标时优先用
   100～150ms；穿过狭窄门口或贴近门框时优先用单轴 0.2～0.4、50～100ms，并在每步后
-  重新观察，不要连续使用满强度 250ms。Godot 执行器会补偿项目 Input Map 的移动死区，
+  使用 `act` 返回的新观察和 `movement_feedback` 修正，不要连续使用满强度 250ms。
+  `movement_feedback` 只包含公开位置可推导出的平面位移、实际移动距离和受阻标记。
+  Godot 执行器会补偿项目 Input Map 的移动死区，
   各场景玩家移动层会保留补偿后的向量长度，确保 MCP 幅值不会被死区或归一化吞掉；移动受阻
   判定阈值也会随请求力度缩放，避免把有效的精细小步误报为 `blocked`。
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
@@ -345,8 +351,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `image/png`。结构化 `observation.image` 与 `observation.depth_image` 只保留元数据；
 运行时截图和深度图统一缩放为 1024×576；深度图的 `encoding` 为
 `linear_depth_normalized_8bit`，并公开
-`near_meters=0.05`、`far_meters=4000.0`。它是同视角不透明 3D 几何的归一化线性深度
-可视化（近处较黑、远处/背景较白）；HUD、其他 2D UI 及透明物体没有独立的可靠深度。
+`near_meters=0.05`、`far_meters=20.0`。它是面向室内和门口导航的同视角不透明 3D
+几何归一化线性深度可视化（近处较黑，20 米外和背景为白）；较短范围让 8 位灰度能分辨
+精细站位变化。HUD、其他 2D UI 及透明物体没有独立的可靠深度。
 Godot 和 Python 桥的单包上限为 8 MiB，用于容纳带有两张 Base64 图片的观察 JSON。
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取

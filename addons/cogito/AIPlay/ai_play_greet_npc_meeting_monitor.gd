@@ -7,8 +7,13 @@ const TASK_TITLE := "先打招呼再去会议室"
 const GREETING_PHRASES: Array[String] = ["你好", "要去开会了么？", "hi"]
 const GREETING_DISTANCE := 1.8
 const TASK_CONTENT := (
-	"先找到正在办公室里走动的 NPC，在近距离和他打招呼。\n\n"
-	+ "打过招呼以后，进入会议室，并把会议室门关上。"
+	"任务目标：先向办公室里走动的 NPC 打招呼，再进入会议室并从室内关门。\n\n"
+	+ "操作步骤：\n"
+	+ "1. NPC 会持续走动；主动观察并靠近他。\n"
+	+ "2. 对准 NPC，出现问候提示后执行交互，确认已经完成打招呼。\n"
+	+ "3. 沿 MEETING ROOM 标牌找到会议室；进入房间后转身关上会议室门。\n\n"
+	+ "完成条件：问候已完成、玩家位于会议室内、会议室门处于关闭状态。\n"
+	+ "顺序要求：必须先打招呼；从走廊关门或只进入房间都不会完成任务。"
 )
 
 @export var scenario_id: String = "greet_npc_meeting"
@@ -64,6 +69,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_selected_route_direction = -1 if rng.randi_range(0, 1) == 0 else 1
 	_configure_npc()
 	_place_player_and_task_card()
+	AIPlayReadablePresenter.configure(task_card, true)
 	_write_task_card()
 	_open_meeting_door()
 

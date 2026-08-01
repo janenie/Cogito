@@ -98,7 +98,7 @@ def valid_depth_image():
         "height": 576,
         "encoding": "linear_depth_normalized_8bit",
         "near_meters": 0.05,
-        "far_meters": 4000.0,
+        "far_meters": 20.0,
     }
 
 
@@ -169,7 +169,7 @@ def test_prepare_mcp_observation_separates_depth_png_from_structured_state():
         "height": 576,
         "encoding": "linear_depth_normalized_8bit",
         "near_meters": 0.05,
-        "far_meters": 4000.0,
+        "far_meters": 20.0,
     }
     assert "base64" not in public["depth_image"]
     assert "base64" in observation["depth_image"]

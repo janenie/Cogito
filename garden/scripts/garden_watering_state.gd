@@ -2,6 +2,15 @@ class_name GardenWateringState
 extends Node
 
 const GardenGame1Rules = preload("res://garden/scripts/garden_game1_rules.gd")
+const WATERING_TASK_TEXT := (
+	"目标：用中央广场的 4 个满水壶，浇完向日葵房和绣球花房各 2 块草坪；"
+	+ "兰花房草坪不要浇。每个水壶只能浇 1 块草坪。"
+)
+const RAIN_TASK_TEXT := "下雨了：雨停前到兰花房按门铃报警。"
+const TASK_RULE_SUMMARY := (
+	"另一目标：等待 HUD 天气显示下雨，并在雨停前按兰花房门铃。"
+	+ "浇错目标、按错门铃、未下雨时按铃或错过雨期都会失败。"
+)
 
 @export var player_path: NodePath
 @export var refill_station_path: NodePath
@@ -422,11 +431,9 @@ func _update_ui() -> void:
 		elif game1_rules.is_complete():
 			_task_label.text = "任务成功：浇水和下雨警报都完成了。"
 		elif game1_rules.rain_active and not game1_rules.alarm_pressed:
-			_task_label.text = "任务：下雨了。雨停前给有兰花的房子按门铃报警。"
-		elif has_can:
-			_task_label.text = "任务：%s" % _current_objective_text()
+			_task_label.text = RAIN_TASK_TEXT
 		else:
-			_task_label.text = "任务：看游戏时间，以游戏时间为准。08:29-17:00 内，除了兰花花园，其他两个花园都要浇水。"
+			_task_label.text = WATERING_TASK_TEXT
 	if _hint_label != null:
 		_hint_label.text = "F：拿水壶 / 浇草坪 / 按下雨警报"
 	if _message_label != null:
@@ -772,11 +779,11 @@ func _invalid_watering_message(house_number: int) -> String:
 
 func _current_objective_text() -> String:
 	if game1_rules.rain_active and not game1_rules.alarm_pressed:
-		return "下雨了，雨停前给有兰花的房子按门铃报警。"
-	return "除了兰花所在的花园，其他两个花园都要浇水。每个花园有2个草坪，每个水壶只能浇1个草坪。"
+		return RAIN_TASK_TEXT
+	return WATERING_TASK_TEXT
 
 func _rule_summary_text() -> String:
-	return "浇完花会显示水量充足。每个屋都有门铃；雨会不定时出现但会在15:00前下，雨停前给兰花房报警。"
+	return TASK_RULE_SUMMARY
 
 func _house_display_name(house_number: int) -> String:
 	match house_number:

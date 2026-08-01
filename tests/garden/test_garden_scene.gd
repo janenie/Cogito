@@ -39,6 +39,7 @@ func _test_vertical_slice_scene() -> void:
 	_assert((scene.get_node_or_null("WorldEnvironment") as WorldEnvironment).environment != null, "scene has sky environment")
 	_assert(scene.get_node_or_null("GardenUI/Panel/Margin/Rows/TaskLabel") != null, "scene has task label")
 	_assert(_task_label_hides_solution(scene), "task label does not reveal watering house numbers")
+	_assert(_hud_explains_complete_task(scene), "garden HUD explains targets, actions, and failure risks")
 	_assert(scene.get_node_or_null("GardenUI/Panel/Margin/Rows/TimeLabel") != null, "scene has time label")
 	_test_hud_time_updates_with_game_time(scene)
 	_assert(scene.get_node_or_null("GardenUI/Panel/Margin/Rows/WeatherLabel") != null, "scene has weather label")
@@ -283,6 +284,24 @@ func _task_label_hides_solution(scene: Node) -> bool:
 	if task_label == null:
 		return false
 	return not task_label.text.contains("房屋一") and not task_label.text.contains("房屋二") and not task_label.text.contains("房屋三")
+
+func _hud_explains_complete_task(scene: Node) -> bool:
+	var task_label := scene.get_node_or_null(
+		"GardenUI/Panel/Margin/Rows/TaskLabel"
+	) as Label
+	var message_label := scene.get_node_or_null(
+		"GardenUI/Panel/Margin/Rows/MessageLabel"
+	) as Label
+	if task_label == null or message_label == null:
+		return false
+	return task_label.text.contains("4 个满水壶") \
+		and task_label.text.contains("向日葵房") \
+		and task_label.text.contains("绣球花房") \
+		and task_label.text.contains("兰花房草坪不要浇") \
+		and task_label.text.contains("每个水壶只能浇 1 块") \
+		and message_label.text.contains("天气显示下雨") \
+		and message_label.text.contains("兰花房门铃") \
+		and message_label.text.contains("都会失败")
 
 func _has_white_ui_text(scene: Node) -> bool:
 	for path in [

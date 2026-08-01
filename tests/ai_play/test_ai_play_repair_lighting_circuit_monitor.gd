@@ -59,6 +59,12 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		setup.process_mode == Node.PROCESS_MODE_INHERIT,
 		"selected setup processing is enabled",
 	)
+	var demo_hints := lobby.get_node("DEMO_HINTS") as Node3D
+	_assert(not demo_hints.visible, "unrelated Demo Hints are hidden")
+	_assert(
+		demo_hints.process_mode == Node.PROCESS_MODE_DISABLED,
+		"unrelated Demo Hints stop processing",
+	)
 	_assert(
 		monitor.control_switch_a == lobby.get_node("GenericSwitch"),
 		"existing red switch is A",
@@ -171,6 +177,12 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			monitor.task_card.readable_content.contains(required_instruction),
 			"task card clearly explains: %s" % required_instruction,
 		)
+	var task_readable_ui := monitor.task_card.get_node("ReadableUi") as Control
+	task_readable_ui.show()
+	await process_frame
+	await process_frame
+	_assert_task_readable_without_scroll(monitor.task_card)
+	task_readable_ui.hide()
 
 	monitor.configure_round(7812)
 	var first_snapshot: Dictionary = monitor.get_round_snapshot()
@@ -300,6 +312,42 @@ func _test_isolation(lobby: Node, monitor: Node, setup: Node) -> void:
 			button.get_node("BasicInteraction").is_disabled,
 			"%s interaction stays disabled" % button.name,
 		)
+
+
+func _assert_task_readable_without_scroll(readable: Node) -> void:
+	var readable_ui := readable.get_node("ReadableUi") as Control
+	var scroll := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var content_container := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	var title := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableTitle"
+	) as Label
+	var content := readable.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer/ReadableContent"
+	) as RichTextLabel
+	_assert(readable_ui.size.x >= 1000.0, "task card popup is wider")
+	_assert(readable_ui.size.y >= 860.0, "task card popup is taller")
+	_assert(scroll.custom_minimum_size.x >= 900.0, "task card text area is wider")
+	_assert(title.get_theme_font_size("font_size") >= 42, "task title is larger")
+	_assert(
+		content.get_theme_font_size("normal_font_size") >= 24,
+		"task content is larger",
+	)
+	_assert(
+		scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"task card vertical scrolling is disabled",
+	)
+	_assert(not scroll.get_v_scroll_bar().visible, "task card has no visible scrollbar")
+	_assert(
+		content_container.get_combined_minimum_size().y <= scroll.size.y,
+		"task card content fits without clipping (content=%s viewport=%s)" % [
+			content_container.get_combined_minimum_size(),
+			scroll.size,
+		],
+	)
 
 
 func _first_non_fault_circuit(fault_circuit: String) -> String:

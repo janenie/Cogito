@@ -98,7 +98,7 @@ class FakeReadySession:
                     "height": 576,
                     "encoding": "linear_depth_normalized_8bit",
                     "near_meters": 0.05,
-                    "far_meters": 4000.0,
+                    "far_meters": 20.0,
                 },
             }
             image_bytes = b"\xff\xd8\xffmcp-image\xff\xd9"
@@ -199,6 +199,48 @@ def test_mcp_exposes_only_game_tools():
                 "workflow_memory_read",
                 "workflow_memory_update",
             ]
+
+    asyncio.run(run())
+
+
+def test_act_tool_schema_declares_each_action_shape_and_bounds():
+    async def run():
+        async with create_connected_server_and_client_session(
+            mcp_server.mcp,
+            raise_exceptions=True,
+        ) as client:
+            tools = await client.list_tools()
+            act_tool = next(tool for tool in tools.tools if tool.name == "act")
+            schema = act_tool.inputSchema
+            actions = schema["properties"]["actions"]
+            assert actions["minItems"] == 1
+            assert actions["maxItems"] == 3
+            references = actions["items"]["anyOf"]
+            definitions = schema["$defs"]
+            action_types = {
+                definitions[item["$ref"].rsplit("/", 1)[-1]][
+                    "properties"
+                ]["type"]["const"]
+                for item in references
+            }
+            assert action_types == {
+                "look",
+                "move",
+                "sprint",
+                "jump",
+                "crouch",
+                "interact",
+                "enter_digits",
+                "close_ui",
+                "wait",
+                "probe_interaction",
+            }
+            move = definitions["MoveAction"]
+            assert move["additionalProperties"] is False
+            assert move["properties"]["forward"]["minimum"] == -1
+            assert move["properties"]["forward"]["maximum"] == 1
+            assert move["properties"]["duration_ms"]["minimum"] == 50
+            assert move["properties"]["duration_ms"]["maximum"] == 250
 
     asyncio.run(run())
 
@@ -304,7 +346,7 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
                 "height": 576,
                 "encoding": "linear_depth_normalized_8bit",
                 "near_meters": 0.05,
-                "far_meters": 4000.0,
+                "far_meters": 20.0,
             }
             images = [item for item in result.content if isinstance(item, ImageContent)]
             assert [item.mimeType for item in images] == ["image/jpeg", "image/png"]

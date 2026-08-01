@@ -125,8 +125,51 @@ func _ready() -> void:
 	if _active_scenario_id.is_empty():
 		push_error("AI_PLAY requested scenario is invalid or unavailable")
 		return
+	_prepare_lobby_task_presentation.call_deferred()
 	if auto_start or _should_enable_for_user_args(user_args):
 		enable_ai()
+
+
+func _prepare_lobby_task_presentation() -> void:
+	if _active_scenario_id == DEFAULT_SCENARIO_ID or _terminal_monitor == null:
+		return
+	var scene_root := get_parent() as Node3D
+	if scene_root == null:
+		return
+	var demo_hints := scene_root.get_node_or_null("DEMO_HINTS") as Node3D
+	if demo_hints == null:
+		return
+	var task_card: Node = null
+	if "task_card" in _terminal_monitor:
+		task_card = _terminal_monitor.get("task_card") as Node
+	demo_hints.visible = false
+	demo_hints.process_mode = Node.PROCESS_MODE_DISABLED
+	for child: Node in scene_root.find_children("*", "", true, false):
+		if (
+			child == task_card
+			or not "interaction_text" in child
+			or not "is_disabled" in child
+			or str(child.get("interaction_text")).strip_edges().to_lower()
+			!= "read hint"
+		):
+			continue
+		child.set("is_disabled", true)
+		var hint_object: Node3D = child.get_parent_node_3d()
+		if hint_object != null:
+			hint_object.visible = false
+		var collision_object := hint_object as CollisionObject3D
+		if collision_object != null:
+			collision_object.collision_layer = 0
+			collision_object.collision_mask = 0
+	for child: Node in demo_hints.find_children(
+		"*",
+		"CollisionObject3D",
+		true,
+		false,
+	):
+		var collision_object := child as CollisionObject3D
+		collision_object.collision_layer = 0
+		collision_object.collision_mask = 0
 
 
 func _should_enable_for_user_args(user_args: Array) -> bool:

@@ -76,6 +76,17 @@ func _run_test() -> void:
 				and "书本" in task_content,
 			"task card explains the possible clue forms",
 		)
+		for required_instruction: String in [
+			"任务目标",
+			"调查流程",
+			"记录 1/3 → 2/3 → 3/3",
+			"提交规则",
+			"提交错误密码会立即失败",
+		]:
+			_assert(
+				task_content.contains(required_instruction),
+				"task card clearly explains %s" % required_instruction,
+			)
 		var ceo_step: int = generated["route"].find("CEO OFFICE")
 		if ceo_step >= 0:
 			_assert(
@@ -122,6 +133,25 @@ func _run_test() -> void:
 	_assert(seen_routes.size() == 3, "seed sample reaches all approved routes")
 	_assert(seen_spawns.size() == 3, "seed sample reaches all approved spawns")
 	_assert(seen_orders.size() == 2, "seed sample reaches both password orders")
+	var task_ui := terminal.task_card.get_node("ReadableUi") as Control
+	var task_scroll := terminal.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer"
+	) as ScrollContainer
+	var task_content_container := terminal.task_card.get_node(
+		"ReadableUi/Bindings/ScrollContainer/VBoxContainer"
+	) as VBoxContainer
+	task_ui.show()
+	await process_frame
+	await process_frame
+	_assert(
+		task_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+		"find-contract task card does not require scrolling",
+	)
+	_assert(
+		task_content_container.get_combined_minimum_size().y <= task_scroll.size.y,
+		"find-contract task card content fits without clipping",
+	)
+	task_ui.hide()
 
 	terminal.configure_round(123456)
 	_assert(keypad.passcode == terminal.LOCKED_PASSCODE, "keypad starts gated")

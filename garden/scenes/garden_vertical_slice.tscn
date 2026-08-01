@@ -1686,7 +1686,7 @@ text = "水壶：未拿起"
 [node name="TaskLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1397968296]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "任务：看游戏时间，以游戏时间为准。08:29-17:00 内，除了兰花花园，其他两个花园都要浇水。"
+text = "目标：用中央广场的 4 个满水壶，浇完向日葵房和绣球花房各 2 块草坪；兰花房草坪不要浇。每个水壶只能浇 1 块草坪。"
 autowrap_mode = 3
 
 [node name="HintLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1859795511]
@@ -1697,7 +1697,7 @@ text = "F：拿水壶 / 浇草坪 / 按下雨警报"
 [node name="MessageLabel" type="Label" parent="GardenUI/Panel/Margin/Rows" unique_id=1276292921]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "浇完花会显示水量充足。每个屋都有门铃；雨会不定时出现但会在15:00前下，雨停前给兰花房报警。"
+text = "另一目标：等待 HUD 天气显示下雨，并在雨停前按兰花房门铃。浇错目标、按错门铃、未下雨时按铃或错过雨期都会失败。"
 autowrap_mode = 3
 
 [node name="AIPlayController" parent="." node_paths=PackedStringArray("player") instance=ExtResource("10_ai_play_controller")]

@@ -4,7 +4,7 @@ extends Node
 const DEPTH_SHADER: Shader = preload("res://addons/cogito/AIPlay/ai_play_depth_map.gdshader")
 const DEPTH_CAPTURE_LAYER: int = 1 << 19
 const NEAR_METERS: float = 0.05
-const FAR_METERS: float = 4000.0
+const FAR_METERS: float = 20.0
 const DEPTH_ENCODING := "linear_depth_normalized_8bit"
 
 var _depth_viewport: SubViewport

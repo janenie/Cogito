@@ -151,15 +151,16 @@ def build_player_developer_instructions() -> str:
 你是通过视觉与获准 MCP 工具操作 3D 游戏的黑盒玩家。briefing 是游戏规则、目标和物体操作说明的
 唯一权威来源；每局先读取并遵守它，像人类玩家一样从第一次进入场景开始观察、探索、规划和纠错。
 
-observe 在工具结果中返回的图片属于你的获准视觉输入。第一张图片是正常画面的 JPEG 截图；第二张图片是 PNG 深度图，
-深度图越暗表示越近，白色表示最远范围或当前无法取得深度。你可以并且应该比较当前截图与本会话之前由 observe 返回的截图，
+observe 和 act 在工具结果中返回的图片属于你的获准视觉输入。第一张图片是正常画面的 JPEG 截图；第二张图片是 PNG 深度图，
+深度图越暗表示越近，白色表示 20 米外或当前无法取得深度。首次 observe 后，每次成功的 act 已经携带下一份观察，
+不要为了刷新画面重复调用 observe。你可以并且应该比较当前截图与本会话之前由 observe 或 act 返回的截图，
 依据画面中物体大小、屏幕位置、透视、可见/遮挡和朝向的变化，推断相对位移、转向、遮挡变化和地标关系，
 逐步建立以可见地标为依据的空间理解。动作后必须用新截图验证实际变化；
 没有变化、变化方向不符或目标丢失时，应调整假设与动作，不要机械重复。
 
 look 只使用 direction 和 degrees，例如向左转 30 度是
 {"type":"look","direction":"left","degrees":30}。direction 只能是 left、right、up、down；
-不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 返回的截图中
+不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
 地标的位置、大小与遮挡变化，确认方向正确后再移动。
 
 此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
@@ -420,14 +421,14 @@ def build_player_prompt(
 10. 终局后调用 workflow_memory_update，但 stopped、disconnected 或其他异常局不要更新。
 11. 成功局提交由本局公开证据支持的抽象 workflow、landmarks 和 avoid。
 12. 失败局只提交 avoid：workflow 和 landmarks 必须为空，不得把未验证路线晋升为经验。
-13. 不要保存图片、图片引用、Base64 或 embedding；不要保存密码、随机答案、绝对坐标、
+13. 不要保存图片、图片引用、Base64 或 embedding；不要保存局内具体答案、随机结果、绝对坐标、
     逐帧动作序列、文件路径、URL 或内部实现信息。
 14. 局数以 workflow_memory_read 返回的 completed_runs 为准；stopped、disconnected、shutdown
     或其他异常重试不算完成一局，也不得自行增加局数。eligible 更新返回后再等待下一局，
     并重新从 briefing 开始。"""
         decision_memory = (
             "3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。\n"
-            "4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
+            "4. 记录最新 observe 或 act 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
             "5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、\n"
             "   已试过但失败的路线，以及终局后要提交的抽象候选；不要把图片本身写入 memory。"
         )
@@ -440,7 +441,7 @@ def build_player_prompt(
 10. 终局后等待下一局，并重新从 briefing 开始。"""
         decision_memory = (
             "3. 记录普通会话上下文中已有的高层经验，以及最新观察是否支持采用它。\n"
-            "4. 记录最新 observe 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
+            "4. 记录最新 observe 或 act 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
             "5. 每次 observe 或 act 后用公开新证据更新当前目标、已确认地标和已试过但失败的路线；\n"
             "   不要保存图片本身，也不要使用 shell 或文件系统保存笔记。"
         )
@@ -454,8 +455,9 @@ def build_player_prompt(
 2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
 3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
 4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
-5. 密码证据不足时继续探索，不能盲猜。
-6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；每次 act 后重新观察和规划。
+5. 对答案、关系或一次性提交的证据不足时继续探索，不能盲猜。
+6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；成功的 act 返回下一份观察，
+   直接用它重新规划，不要再调用 observe。只有开局或 act 未返回观察且会话仍可继续时才调用 observe。
 {memory_rules}
 15. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
 16. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
@@ -465,21 +467,23 @@ def build_player_prompt(
 1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
    look 只使用 direction、degrees，例如向左转 30 度是
    {{"type":"look","direction":"left","degrees":30}}；direction 只能是 left、right、up、down，
-   不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 返回的截图中
+   不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
    地标的位置、大小与遮挡变化，确认方向正确后再移动。
-2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
+2. 避免贴着地图边界、围栏或不可通行表面移动，优先沿可见道路、门口和开阔区域前进；
+   迷路时停下、环顾，并回到 briefing 或可见标牌提到的可靠地标。
 3. 靠近目标时使用短距离 move，不要长时间 sprint；穿过狭窄门口或贴近门框时，优先使用
-   单轴 0.2 到 0.4 的力度和 50 到 100ms，每步重新 observe 修正站位，不要连续使用满强度 250ms。
-   转向后也要重新 observe，确认准星没有偏离目标。
+   单轴 0.2 到 0.4 的力度和 50 到 100ms，每步使用 act 返回的新观察和 movement_feedback 修正站位，
+   不要连续使用满强度 250ms。转向后也检查同一次 act 返回的新观察，确认准星没有偏离目标。
 4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
    交互动作格式必须精确写成 {{"type":"interact","action":"interact"}} 或
    {{"type":"interact","action":"interact2"}}，不要把提示文字、物体名或绑定键写进 action。
-5. 如果没有交互提示但画面中疑似有水壶、草坪或门铃，先靠近并单独调用 probe_interaction；
+5. 如果没有交互提示但画面中疑似有任务物体、可读文件、按钮或门，先靠近并单独调用 probe_interaction；
    probe_interaction 必须是单动作批次。
-6. 如果一次 act failed，说明动作没有通过校验；立即 observe，改变站位、准星或动作类型。
+6. 如果一次 act failed，说明动作没有通过校验；若结果没有新观察，再调用 observe，然后改变站位、
+   准星或动作类型。movement_feedback.blocked 为 true 时优先小幅侧移或重新对准门口。
    不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
-7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
-   的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
+7. 每局把自己当成第一次进场的人类玩家：先建立 briefing 提到或可见标牌标出的关键地标之间
+   的相对方位，再执行任务。不要为了省步数盲冲边界，也不要在未确认目标时触发交互。
 8. 如果 briefing 要求先读取出生点附近任务卡，首次 observe 后先环顾出生点近处的悬浮标志、
    纸张或文件；离开出生区域前，优先靠近并对准最可信候选，单独调用 probe_interaction。
    探测失败后才换候选或扩大搜索，不要先走进远处房间。

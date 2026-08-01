@@ -1,19 +1,9 @@
 """Approved public briefing for the meeting-briefing arrangement scenario."""
 
 from copy import deepcopy
-from pathlib import Path
 
 from .common_briefing_rules import COMMON_CONTROL_RULES
-
-
-MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024
-REFERENCE_IMAGE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "find_contract"
-    / "imgs"
-    / "reference_atlas.jpg"
-)
+from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "arrange_meeting_briefings",
@@ -79,14 +69,4 @@ PUBLIC_BRIEFING = {
 
 
 def load_arrange_meeting_briefings_briefing():
-    try:
-        image_bytes = REFERENCE_IMAGE_PATH.read_bytes()
-    except OSError as error:
-        raise RuntimeError("briefing_reference_image_unavailable") from error
-    if (
-        len(image_bytes) > MAX_REFERENCE_IMAGE_BYTES
-        or not image_bytes.startswith(b"\xff\xd8\xff")
-        or not image_bytes.endswith(b"\xff\xd9")
-    ):
-        raise RuntimeError("briefing_reference_image_invalid")
-    return deepcopy(PUBLIC_BRIEFING), image_bytes
+    return deepcopy(PUBLIC_BRIEFING), load_reference_image()

@@ -5,7 +5,7 @@ render_mode unshaded, depth_draw_never, cull_disabled, fog_disabled;
 
 uniform sampler2D depth_texture : source_color, hint_depth_texture, repeat_disable, filter_nearest;
 uniform float near_meters = 0.05;
-uniform float far_meters = 4000.0;
+uniform float far_meters = 20.0;
 
 
 float srgb_to_linear(float channel) {

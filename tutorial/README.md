@@ -4,9 +4,13 @@
 
 1. 通过 stdio 启动 `ai_play/start_ai.sh`。
 2. 从 MCP Server 读取 `briefing`、`observe`、`act`、`stop` 的工具定义。
-3. 把这些定义转换成 OpenAI Responses API 的 function tools。
-4. 执行模型发出的工具调用，并把 MCP 返回的 JSON 和图片送回模型。
+3. 把这些定义转换成 `strict=true`、封闭对象的 OpenAI Responses API function tools。
+4. 执行模型发出的工具调用，并把 MCP 返回的 JSON 和图片关联到同一个
+   `function_call_output` 后送回模型。
 5. 重复上述循环，直到 agent 结束、游戏结束或达到回合上限。
+
+MCP Server 还注册了供多局 orchestrator 使用的两个工作流记忆工具；本示例使用显式
+allowlist，不会把它们交给单局玩家模型。
 
 API Key 只由这个 Host 读取，不会传给 MCP Server 或 Godot。
 
@@ -53,8 +57,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_contract
 ```
 
-看到游戏窗口后，回到 Host 终端按 Enter。Agent 会先调用 `briefing()`，再进入
-`observe()` / `act()` 循环。
+看到游戏窗口后，回到 Host 终端按 Enter。Agent 会先调用 `briefing()` 和一次
+`observe()`；后续每次 `act()` 自带下一份观察，不再为同一帧重复调用 `observe()`。
 
 按 `Ctrl-C` 可以中止 Host。Godot 中的物理 `Escape` 键始终是紧急停止方式。
 
