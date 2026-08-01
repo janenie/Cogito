@@ -213,7 +213,7 @@ func _write_task_card() -> void:
 		card_object.collision_layer = 2
 	if task_card.is_node_ready():
 		var label_title := task_card.get("label_title") as Label
-		var label_content := task_card.get("label_content") as Label
+		var label_content := task_card.get("label_content") as RichTextLabel
 		if label_title == null or label_content == null:
 			push_error("AIPlayPutBookMonitor task card is missing readable labels")
 			return
@@ -319,8 +319,29 @@ func _try_complete_destination_book(book: RigidBody3D = null) -> void:
 		return
 	if not _books_carried_once.has(book):
 		return
-	if book in destination_area.get_overlapping_bodies():
+	if _destination_contains_book(book):
 		_complete_current_delivery(book)
+
+
+func _destination_contains_book(book: RigidBody3D) -> bool:
+	if book in destination_area.get_overlapping_bodies():
+		return true
+	for child: Node in destination_area.get_children():
+		if not child is CollisionShape3D:
+			continue
+		var collision_shape := child as CollisionShape3D
+		if collision_shape.disabled or not collision_shape.shape is BoxShape3D:
+			continue
+		var box := collision_shape.shape as BoxShape3D
+		var local_book_position := collision_shape.global_transform.affine_inverse() * book.global_position
+		var half_size := box.size * 0.5
+		if (
+			absf(local_book_position.x) <= half_size.x
+			and absf(local_book_position.y) <= half_size.y
+			and absf(local_book_position.z) <= half_size.z
+		):
+			return true
+	return false
 
 
 func _physics_process(_delta: float) -> void:
@@ -347,6 +368,7 @@ func _on_book_carry_state_changed(
 	elif _current_carried_book == book:
 		_current_carried_book = null
 		_update_book_pickup_gate()
+		_try_complete_destination_book(book)
 
 
 func _finish_round(outcome: String, reason: String) -> void:

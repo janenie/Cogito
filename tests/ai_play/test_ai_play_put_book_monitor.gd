@@ -144,6 +144,18 @@ func _run_test() -> void:
 
 	monitor.configure_round(73421)
 	var first_snapshot: Dictionary = monitor.get_round_snapshot()
+	var task_label_title := monitor.task_card.get("label_title") as Label
+	var task_label_content := monitor.task_card.get("label_content") as RichTextLabel
+	_assert(task_label_title != null, "task card exposes its rendered title label")
+	_assert(task_label_content != null, "task card exposes its rendered content label")
+	_assert(
+		task_label_title != null and task_label_title.text == monitor.TASK_TITLE,
+		"task card renders the ordered-delivery title",
+	)
+	_assert(
+		task_label_content != null and task_label_content.text == monitor.TASK_CONTENT,
+		"task card renders the ordered-delivery instructions",
+	)
 	monitor.configure_round(73421)
 	var second_snapshot: Dictionary = monitor.get_round_snapshot()
 	_assert(first_snapshot["books"] == second_snapshot["books"], "same seed reproduces books")
@@ -284,13 +296,19 @@ func _run_test() -> void:
 	_assert(terminal_results.is_empty(), "empty destination interaction leaves the round active")
 
 	expected_carry.carry(player_interaction)
-	expected.global_position = monitor.destination_area.global_position
+	var destination_shape := monitor.destination_area.get_node("CollisionShape3D") as CollisionShape3D
+	expected.global_position = destination_shape.global_position
 	PhysicsServer3D.body_set_state(
 		expected.get_rid(),
 		PhysicsServer3D.BODY_STATE_TRANSFORM,
 		expected.global_transform,
 	)
 	expected_carry.leave()
+	PhysicsServer3D.body_set_state(
+		expected.get_rid(),
+		PhysicsServer3D.BODY_STATE_TRANSFORM,
+		expected.global_transform,
+	)
 	await physics_frame
 	await physics_frame
 	_assert(monitor._current_target_index == 1, "physical destination drop advances one tier")
