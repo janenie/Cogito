@@ -63,6 +63,8 @@ Godot 桥的安全边界。
   `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
   请求硬上限是 100，终局只允许 `success/circuit_repaired`、
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
+  `failure/max_requests`；`arrange_meeting_briefings` 的请求硬上限是 200，终局只允许
+  `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
   `failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
@@ -351,6 +353,38 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   终局后的重复交互不会改变结果。
 - A～D 映射、故障线路和回合种子只存在于可信 Godot Monitor，不得进入公开 briefing、
   MCP 结果、玩家提示、观察或桥协议。
+
+## arrange_meeting_briefings 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=arrange_meeting_briefings
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=arrange_meeting_briefings
+```
+
+- 玩家从入口任务卡附近开始。CEO 办公室、档案室和休息室各有一份世界内会议记录；
+  briefing 和任务卡只公开调查区域与操作规则，不公开本局线索原文。
+- 四份可搬运资料 ATLAS、BIRCH、CROWN、DELTA 位于会议室电视侧桌。会议桌四个放置位按
+  电视侧、门侧、电视对面侧、内墙侧区分，桌面 `↻ CLOCKWISE` 标识定义顺时针方向。
+- 每局枚举四份资料的 24 种一对一排列，并生成三条与隐藏答案一致的关系线索。三条合并后
+  只有一个合法答案，删除任意一条后至少有两个合法答案；同一非零种子产生相同排列、线索
+  和三处记录分配。
+- 手持任务资料与空放置位交互会自动释放、冻结并精确吸附；每席最多一份，已占用席位拒绝
+  新资料。已放资料在提交前可重新拿起，此时可信 `folder_id → seat_id` 映射立即清除旧位置。
+- Verify 只允许一次提交。四席完整且可信映射与隐藏答案一致时产生
+  `success/meeting_prepared`；任一资料缺失或位置错误时产生
+  `failure/incorrect_seating_assignment`。终局冻结资料、放置位和 Verify，重复或延迟事件幂等。
+- 隐藏排列、候选解集合、生成过程、线索分配和回合种子只存在于可信 Godot Monitor，不得
+  进入公开 briefing、MCP 结果、玩家提示、观察、桥协议或轨迹日志。未选择本任务时，新增
+  记录、资料、放置位、标签和 Verify 全部保持隐藏且无碰撞、无处理，不改变普通 Lobby。
 
 ## daily_routine_cleanup 回合规则
 

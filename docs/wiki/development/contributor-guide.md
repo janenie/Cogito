@@ -94,6 +94,8 @@ godot --headless --path . --script tests/ai_play/test_ai_play_observer.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_interaction_probe.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_lighting_circuit_round.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_meeting_briefing_round.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_meeting_seat_interaction.gd
 godot --headless --path . --script tests/ai_play/test_cogito_keypad_result.gd
 godot --headless --path . --script tests/garden/test_garden_ai_play.gd
 godot --headless --path . --script tests/garden/test_garden_game1.gd
@@ -126,6 +128,7 @@ MCP/Godot 停止标识按 `failure/stopped` 计入该局并继续后续局数。
 ```bash
 bash tests/check_ai_play_lobby.sh
 bash tests/check_ai_play_repair_lighting_circuit_monitor.sh
+bash tests/check_ai_play_arrange_meeting_briefings_monitor.sh
 bash tests/check_ai_play_garden.sh
 bash tests/check_ai_play_start_script.sh
 bash tests/check_friendly_human_npc.sh

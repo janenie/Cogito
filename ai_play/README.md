@@ -64,6 +64,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=repair_lighting_circuit
 ```
 
+会议席位与资料分发玩法同样可普通启动，也可显式启用 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play-scenario=arrange_meeting_briefings
+
+godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
+  -- --ai-play --ai-play-scenario=arrange_meeting_briefings
+```
+
 日常清理玩法位于导入的 home daily routine 场景，也可普通启动或接入 AI：
 
 ```bash
@@ -235,6 +245,14 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 `success/circuit_repaired`，否则产生 `failure/incorrect_circuit_configuration`。
 映射、故障线路和回合种子只存在于可信 Godot 运行时，不进入 briefing、MCP 结果或玩家提示。
 
+`arrange_meeting_briefings` 每局随机生成 ATLAS、BIRCH、CROWN、DELTA 到会议桌电视侧、
+门侧、电视对面侧和内墙侧的一对一排列，以及三条合并后唯一、缺少任意一条都不唯一的关系
+线索。线索分别写入 CEO 办公室、档案室和休息室的世界内记录。玩家调查后把四份可搬运资料
+吸附到对应席位，提交前可以取回调整；一次性 Verify 正确时产生
+`success/meeting_prepared`，缺失或摆错时产生 `failure/incorrect_seating_assignment`。
+隐藏排列、候选解集合、线索分配和回合种子只存在于可信 Godot Monitor，不进入 briefing、
+MCP 结果、玩家提示或轨迹日志。
+
 `daily_routine_cleanup` 是家庭日常清理任务。玩家根据 HUD 目标和可见交互提示，把 4 个
 散落垃圾和冰箱里的过期牛奶扔进客厅垃圾桶，确认冰箱关闭后点击垃圾桶旁边的完成按钮。
 成功产生 `success/cleanup_complete`；任一完成条件未满足时提交会产生
@@ -303,7 +321,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
 或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，终局为
 `success/circuit_repaired`、`failure/wrong_breaker`、
-`failure/incorrect_circuit_configuration` 或 `failure/max_requests`。环境变量
+`failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
+`arrange_meeting_briefings` 的硬上限为 200 次，终局为 `success/meeting_prepared`、
+`failure/incorrect_seating_assignment` 或 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -370,10 +390,11 @@ mcplogs/
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
-  `repair_lighting_circuit`、`daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
+  `repair_lighting_circuit`、`arrange_meeting_briefings`、`daily_routine_cleanup` 和
+  `garden_watering` 的运行时终局事件和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
-  NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、daily routine 或 garden 内部
-  节点路径、随机下雨时间、随机种子或任务内部知识。
+  NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、会议资料隐藏排列或候选解、
+  daily routine 或 garden 内部节点路径、随机下雨时间、随机种子或任务内部知识。
 
 ## 配置
 
@@ -389,7 +410,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50/100、50、100、150、300、100 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50/100、50、100、150、300、100、200 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。
