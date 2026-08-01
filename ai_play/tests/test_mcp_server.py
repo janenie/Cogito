@@ -312,6 +312,26 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
     asyncio.run(run())
 
 
+def test_observe_tool_description_explains_screenshot_and_depth_images(monkeypatch):
+    configure_server(monkeypatch)
+
+    async def run():
+        async with create_connected_server_and_client_session(
+            mcp_server.mcp,
+            raise_exceptions=True,
+        ) as client:
+            tools = await client.list_tools()
+            observe_tool = next(tool for tool in tools.tools if tool.name == "observe")
+            assert "first image" in observe_tool.description
+            assert "JPEG" in observe_tool.description
+            assert "second image" in observe_tool.description
+            assert "PNG" in observe_tool.description
+            assert "darker" in observe_tool.description
+            assert "white" in observe_tool.description
+
+    asyncio.run(run())
+
+
 def test_observe_logs_request_result_and_exact_image(monkeypatch):
     logger = RecordingTrajectoryLogger()
     configure_server(monkeypatch, logger=logger)

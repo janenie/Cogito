@@ -169,7 +169,7 @@ async def briefing() -> CallToolResult:
 
 @mcp.tool()
 async def observe() -> CallToolResult:
-    """Read the latest approved game observation and screenshot."""
+    """Read the latest approved observation. The first image is the colour JPEG screenshot; the second image is the depth PNG, where darker pixels are nearer and white is the far limit or unavailable-depth fallback."""
     if not _configured():
         return _error("server_not_ready")
     token, log_error = _begin_logged_call("observe", {})

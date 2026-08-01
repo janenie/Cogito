@@ -188,13 +188,13 @@ Expected: all schema tests pass, including the genuine PNG projection and every 
 - Consumes: MCP tool metadata and the generated isolated-player developer instructions.
 - Produces: descriptions that identify image 1 as colour JPEG, image 2 as depth PNG, and dark/white depth semantics.
 
-- [ ] **Step 1: Add prompt and tool-description tests**
+- [x] **Step 1: Add prompt and tool-description tests**
 
 Extend the orchestrator instruction test with literal assertions for `第一张图片`, `第二张图片`, `JPEG`, `PNG`, `越暗表示越近`, and `白色`. Add an MCP client test that calls `list_tools()`, finds `observe`, and asserts the same image ordering and depth semantics in its description.
 
 The production mutation this catches is reverting either public description to the old screenshot-only wording.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run:
 
@@ -204,11 +204,11 @@ PYTHONPATH=ai_play/src python3 -m pytest ai_play/tests/test_mcp_server.py tests/
 
 Expected: new description assertions fail against the current screenshot-only text.
 
-- [ ] **Step 3: Update public descriptions minimally**
+- [x] **Step 3: Update public descriptions minimally**
 
 Update the `observe` docstring and the isolated-player instructions. State that the first image is the normal JPEG screenshot, the second is the PNG depth image, darker pixels are nearer, and white represents the far limit or unavailable-depth fallback. Preserve the existing visual-only security restrictions.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Re-run the Task 3 command and expect all tests to pass.
 

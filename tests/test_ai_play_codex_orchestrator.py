@@ -365,6 +365,12 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert '{"type":"look","direction":"left","degrees":30}' in instructions
     assert "不要填写 yaw、pitch 或正负号" in instructions
     assert "地标的位置、大小与遮挡变化" in instructions
+    assert "第一张图片" in instructions
+    assert "JPEG" in instructions
+    assert "第二张图片" in instructions
+    assert "PNG" in instructions
+    assert "越暗表示越近" in instructions
+    assert "白色" in instructions
     assert "磁盘" in instructions
     assert "隐藏状态" in instructions
 
