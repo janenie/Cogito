@@ -202,7 +202,9 @@ MCP and orchestrator tests cover:
 
 - the optional tool argument and returned snapshot shape;
 - trusted terminal reason injection;
-- absence of AWM calls and review contents from trajectory logs;
+- absence of AWM calls and model-authored review fields from trajectory logs;
+  the trusted terminal reason may continue to appear independently in the
+  existing attempt result;
 - prompt requirements for producing and consuming failure reviews;
 - prompt requirements for stating whether fresh evidence supports a stored
   optimization and how supported advice changes the current plan;
@@ -226,3 +228,8 @@ fresh evidence, and report how it changes the plan. If the first run succeeds,
 the two-run session still validates compatibility but cannot demonstrate the
 failure-reflection branch; that limitation must be reported rather than forcing
 or fabricating a failure.
+
+When the failure-reflection branch occurs, retain console evidence of the first
+update's accepted `failure_reviews` count, the second read's returned review,
+and the player's public applicability statement. Do not add those fields to the
+trusted trajectory schema solely to make validation easier.
