@@ -62,7 +62,15 @@ def png_chunk(kind, data):
     )
 
 
-def depth_png(width=1024, height=576, idat_data=None, raw_rows=None):
+def depth_png(
+    width=1024,
+    height=576,
+    idat_data=None,
+    raw_rows=None,
+    include_srgb=True,
+    before_idat_chunks=(),
+    after_idat_chunks=(),
+):
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     rows = raw_rows or b"".join(
         b"\x00" + b"\xff\xff\xff" * width for _unused_row in range(height)
@@ -71,7 +79,10 @@ def depth_png(width=1024, height=576, idat_data=None, raw_rows=None):
     return (
         b"\x89PNG\r\n\x1a\n"
         + png_chunk(b"IHDR", ihdr)
+        + (png_chunk(b"sRGB", b"\x00") if include_srgb else b"")
+        + b"".join(png_chunk(kind, data) for kind, data in before_idat_chunks)
         + png_chunk(b"IDAT", compressed)
+        + b"".join(png_chunk(kind, data) for kind, data in after_idat_chunks)
         + png_chunk(b"IEND", b"")
     )
 
@@ -177,6 +188,29 @@ def test_depth_image_rejects_invalid_chunk_crc():
     corrupt_png = bytearray(VALID_DEPTH_PNG)
     corrupt_png[29] ^= 0x01
     observation["depth_image"]["base64"] = base64.b64encode(corrupt_png).decode("ascii")
+
+    with pytest.raises(ObservationValidationError, match="PNG"):
+        validate_observation(observation)
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"before_idat_chunks": ((b"PLTE", b"\x00"),)},
+        {"before_idat_chunks": ((b"vpag", b"private"),)},
+        {"before_idat_chunks": ((b"sRGB", b"\x00"),)},
+        {
+            "include_srgb": False,
+            "before_idat_chunks": ((b"sRGB", b"\x04"),),
+        },
+        {"after_idat_chunks": ((b"tRNS", b"\x00"),)},
+    ],
+)
+def test_depth_image_rejects_non_contract_or_misordered_chunks(chunks):
+    observation = valid_observation_with_depth_image()
+    observation["depth_image"]["base64"] = base64.b64encode(
+        depth_png(**chunks)
+    ).decode("ascii")
 
     with pytest.raises(ObservationValidationError, match="PNG"):
         validate_observation(observation)

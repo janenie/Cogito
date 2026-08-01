@@ -88,9 +88,8 @@ def _validate_depth_png(data):
     offset = len(PNG_SIGNATURE)
     chunk_index = 0
     saw_ihdr = False
-    saw_plte = False
+    saw_srgb = False
     idat_chunks = []
-    idat_ended = False
     saw_iend = False
 
     try:
@@ -129,12 +128,17 @@ def _validate_depth_png(data):
                 ):
                     _invalid_depth_png()
                 saw_ihdr = True
-            elif chunk_type == b"PLTE":
-                if not saw_ihdr or saw_plte or idat_chunks:
+            elif chunk_type == b"sRGB":
+                if (
+                    not saw_ihdr
+                    or saw_srgb
+                    or idat_chunks
+                    or chunk_data not in (b"\x00", b"\x01", b"\x02", b"\x03")
+                ):
                     _invalid_depth_png()
-                saw_plte = True
+                saw_srgb = True
             elif chunk_type == b"IDAT":
-                if not saw_ihdr or idat_ended:
+                if not saw_ihdr:
                     _invalid_depth_png()
                 idat_chunks.append(chunk_data)
             elif chunk_type == b"IEND":
@@ -144,10 +148,7 @@ def _validate_depth_png(data):
                 offset = chunk_end
                 break
             else:
-                if idat_chunks:
-                    idat_ended = True
-                if chunk_type[0] & 0x20 == 0:
-                    _invalid_depth_png()
+                _invalid_depth_png()
 
             offset = chunk_end
             chunk_index += 1
