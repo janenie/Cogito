@@ -264,6 +264,12 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 		) == "find_contract",
 		"explicit allowlisted scenario id parses",
 	)
+	_assert(
+		controller.get_requested_scenario_id(
+			["--ai-play-scenario=arrange_meeting_briefings"]
+		) == "arrange_meeting_briefings",
+		"meeting briefing scenario id parses",
+	)
 	for args: Array in [
 		["--ai-play-scenario="],
 		["--ai-play-scenario=FindContract"],
@@ -789,6 +795,16 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"outcome": "failure",
 			"reason": "incorrect_circuit_configuration",
 		},
+		{
+			"scenario": "arrange_meeting_briefings",
+			"outcome": "success",
+			"reason": "meeting_prepared",
+		},
+		{
+			"scenario": "arrange_meeting_briefings",
+			"outcome": "failure",
+			"reason": "incorrect_seating_assignment",
+		},
 	]:
 		var fixture: Dictionary = await _connected_fixture(
 			controller_script,
@@ -868,6 +884,34 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		"find_contract rejects lighting-circuit success",
 	)
 	await _free_fixture(circuit_fixture)
+
+	var meeting_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_contract",
+	)
+	meeting_fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"meeting_prepared",
+	)
+	_assert(
+		"invalid_game_outcome" in meeting_fixture.executor.cancel_reasons,
+		"find_contract rejects meeting-briefing success",
+	)
+	await _free_fixture(meeting_fixture)
+
+	var meeting_cross_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"arrange_meeting_briefings",
+	)
+	meeting_cross_fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"circuit_repaired",
+	)
+	_assert(
+		"invalid_game_outcome" in meeting_cross_fixture.executor.cancel_reasons,
+		"meeting briefing rejects lighting-circuit success",
+	)
+	await _free_fixture(meeting_cross_fixture)
 
 	var find_key_fixture: Dictionary = await _connected_fixture(
 		controller_script,

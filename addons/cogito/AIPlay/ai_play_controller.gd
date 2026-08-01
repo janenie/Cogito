@@ -46,6 +46,11 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "incorrect_circuit_configuration"],
 		["failure", "max_requests"],
 	],
+	"arrange_meeting_briefings": [
+		["success", "meeting_prepared"],
+		["failure", "incorrect_seating_assignment"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D

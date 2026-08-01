@@ -53,6 +53,20 @@ func _run_tests() -> void:
 		"任务失败",
 		"照明配置不正确",
 	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"meeting_prepared",
+		"任务成功",
+		"会议资料已正确分发",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"incorrect_seating_assignment",
+		"任务失败",
+		"会议资料席位不正确",
+	)
 	_finish()
 
 
