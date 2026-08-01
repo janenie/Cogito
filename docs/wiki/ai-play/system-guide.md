@@ -153,7 +153,8 @@ Codex 内建 memories，也不跨 orchestrator 复用。每局的固定调用顺
 `workflow_memory_read`、`observe`/`act`，终局后再调用一次 `workflow_memory_update`。
 `GameSession` 的真实 attempt 生命周期决定晋升资格：成功局可以晋升抽象 workflow、相对地标和
 avoid，正常失败局只能晋升 avoid；stopped、disconnected、shutdown、异常和未终局 attempt
-不得晋升。每个终局 attempt 最多消费一次，调用方不提供也不能伪造 outcome。
+不得晋升，也不计入公开的 `completed_runs`，由 supervisor 重试且不占用 `--runs` 的有效局次数。
+每个终局 attempt 最多消费一次，调用方不提供也不能伪造 outcome。
 
 AWM 只保存固定结构、受长度和内容校验的语言化程序性记忆。图片可以参与玩家当局判断，但不会
 作为图片、引用、Base64 或 embedding 存入 memory；密码、随机答案、绝对坐标、逐帧动作、路径

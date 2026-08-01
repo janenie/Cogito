@@ -181,7 +181,8 @@ supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“�
 `briefing`，再调用 `workflow_memory_read`，随后才用 `observe`/`act` 游玩；终局后调用一次
 `workflow_memory_update` 提交固定结构的抽象流程。服务端依据 `GameSession` 的真实终局决定
 晋升范围：成功局可以合并 workflow、地标关系和避坑规则，正常失败局只能合并避坑规则；
-stopped、disconnected、MCP shutdown、异常退出和未终局局次不学习。调用方不能自行声明胜负。
+stopped、disconnected、MCP shutdown、异常退出和未终局局次不学习，也不计入
+`completed_runs`；它们由 supervisor 重试，不占用 `--runs` 的有效局次数。调用方不能自行声明胜负。
 
 AWM 只保存经过严格字段、长度和内容校验的语言化程序性记忆。运行时截图可以作为玩家提炼经验
 的依据，但 memory 不保存图片、图片引用、Base64、embedding、逐帧动作、坐标、随机密码或其他

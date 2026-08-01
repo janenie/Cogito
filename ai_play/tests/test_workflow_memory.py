@@ -99,7 +99,9 @@ def test_ineligible_attempt_does_not_learn(status):
     with pytest.raises(WorkflowMemoryError, match="attempt_not_eligible"):
         memory.update(valid_candidate())
 
-    assert memory.read("find_contract")["version"] == 0
+    snapshot = memory.read("find_contract")
+    assert snapshot["version"] == 0
+    assert snapshot["completed_runs"] == 0
 
 
 def test_ineligible_attempt_does_not_block_a_later_success():
@@ -110,6 +112,7 @@ def test_ineligible_attempt_does_not_block_a_later_success():
     memory.finish_attempt("success", "correct_password")
 
     assert memory.update(valid_candidate())["version"] == 1
+    assert memory.read("find_contract")["completed_runs"] == 1
 
 
 def test_completed_attempt_can_update_after_next_attempt_starts():

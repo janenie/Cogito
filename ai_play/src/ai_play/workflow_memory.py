@@ -117,7 +117,10 @@ class SessionWorkflowMemory:
                 "scope": "current_orchestrator_session",
                 "scenario": scenario_id,
                 "version": self._version,
-                "completed_runs": len(self._completed),
+                "completed_runs": sum(
+                    attempt.status in _ELIGIBLE_STATUSES
+                    for attempt in self._completed
+                ),
                 "memory": deepcopy(snapshot),
             }
 
