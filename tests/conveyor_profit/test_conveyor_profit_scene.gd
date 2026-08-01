@@ -1,6 +1,7 @@
 extends SceneTree
 
 const SCENE_PATH := "res://conveyor_profit/scenes/conveyor_profit_environment.tscn"
+const PREVIEW_PATH := "res://conveyor_profit/scenes/conveyor_profit_preview.tscn"
 
 var failures: Array[String] = []
 
@@ -50,6 +51,25 @@ func _run_test() -> void:
 				int(candidates[0]["profit"]) != int(candidates[1]["profit"]),
 				"active candidate dish profits differ",
 			)
+
+	var preview := (load(PREVIEW_PATH) as PackedScene).instantiate()
+	root.add_child(preview)
+	await process_frame
+	var controller := preview.get_node_or_null("AIPlayController")
+	_check(controller != null, "preview embeds AI Play controller")
+	if controller != null:
+		_check(not controller.auto_start, "AI Play remains explicitly enabled")
+		_check(controller.has_node("ConveyorProfitMonitor"), "conveyor monitor is wired")
+		var monitor: Node = controller.get_node_or_null("ConveyorProfitMonitor")
+		if monitor != null and "gameplay" in monitor:
+			_check(
+				monitor.gameplay == preview.get_node("Environment/Gameplay"),
+				"monitor controls the preview gameplay",
+			)
+		var observer: Node = controller.get_node_or_null("Observer")
+		_check(observer != null, "conveyor observer is wired")
+		_check(observer is ConveyorAIPlayObserver, "preview uses the fixed-camera observer")
+	preview.queue_free()
 
 	environment.queue_free()
 	quit(1 if not failures.is_empty() else 0)

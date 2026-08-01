@@ -1,6 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" path="res://conveyor_profit/scenes/conveyor_profit_environment.tscn" id="1_environment"]
+[ext_resource type="PackedScene" path="res://conveyor_profit/scenes/conveyor_ai_play_controller.tscn" id="2_ai_play"]
+[ext_resource type="Script" path="res://conveyor_profit/scripts/conveyor_ai_play_monitor.gd" id="3_ai_monitor"]
 
 [sub_resource type="Environment" id="Environment_preview"]
 background_mode = 1
@@ -47,3 +49,11 @@ light_color = Color(1, 0.67, 0.38, 1)
 light_energy = 5.0
 omni_range = 10.0
 shadow_enabled = true
+
+[node name="AIPlayController" parent="." instance=ExtResource("2_ai_play")]
+
+[node name="ConveyorProfitMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("gameplay", "camera")]
+script = ExtResource("3_ai_monitor")
+scenario_id = "conveyor_profit"
+gameplay = NodePath("../../Environment/Gameplay")
+camera = NodePath("../../Camera")

@@ -110,6 +110,12 @@ func _ready() -> void:
 		and _terminal_monitor.has_method("execute_semantic_action")
 	):
 		_executor.semantic_action_provider = _terminal_monitor
+	if (
+		_terminal_monitor != null
+		and "gameplay" in _observer
+		and "gameplay" in _terminal_monitor
+	):
+		_observer.gameplay = _terminal_monitor.gameplay
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
