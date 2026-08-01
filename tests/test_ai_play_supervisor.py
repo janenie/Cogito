@@ -54,6 +54,14 @@ def test_parse_game_over_marker_treats_disconnection_as_failed_attempt():
     assert supervisor.parse_game_over_marker(
         "AI_PLAY disabled; reason=bridge_disconnected"
     ) == ("failure", "bridge_disconnected")
+
+
+def test_parse_game_over_marker_retries_nonterminal_controller_disable():
+    supervisor = load_supervisor()
+
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY disabled; reason=unexpected_action_batch"
+    ) == ("abnormal", "unexpected_action_batch")
     assert supervisor.parse_game_over_marker(
         "AI_PLAY WebSocket disconnected; reason=connection_closed"
     ) == ("failure", "bridge_disconnected")

@@ -50,7 +50,7 @@ def parse_game_over_marker(line: str) -> tuple[str, str] | None:
         reason = match.group(1)
         if reason in STOPPED_REASONS:
             return "failure", reason if reason != "mcp_stop" else "stopped"
-        return None
+        return "abnormal", reason
     match = AI_PLAY_DISCONNECTED_RE.match(line.strip())
     if match is not None:
         return "failure", "bridge_disconnected"

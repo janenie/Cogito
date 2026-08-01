@@ -169,7 +169,8 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将带有该标识的进程退出计为一局完成；未看到标识的提前退出、超时或连接异常
-按异常局处理并有限重试。若玩家 Codex 或人工 Escape 通过 MCP/Godot 停止控制，Godot
+按异常局处理并有限重试。控制器因协议或执行错误输出的其他 `AI_PLAY disabled` 也属于异常局，
+supervisor 会终止该 Godot 并重试，而不是让玩家永久等待断开的观察。若玩家 Codex 或人工 Escape 通过 MCP/Godot 停止控制，Godot
 输出 `AI_PLAY disabled; reason=mcp_stop` 或 `AI_PLAY disabled; reason=escape_stop` 时，
 supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。

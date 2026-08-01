@@ -185,7 +185,8 @@ AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
 supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
-处理并有限重试。若外部 MCP 客户端调用 `stop` 或人工 Escape 触发 Godot 停止控制，
+处理并有限重试。控制器因协议或执行错误产生的其他 `AI_PLAY disabled` 标识也必须触发异常
+重试，不能让玩家永久等待断开的观察。若外部 MCP 客户端调用 `stop` 或人工 Escape 触发 Godot 停止控制，
 Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 `AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
 `failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
