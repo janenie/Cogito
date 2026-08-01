@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 import ai_play.scenarios as scenario_registry
@@ -53,6 +55,12 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
     assert scenario_act_request_limit("garden_watering", 500) == 300
     assert scenario_act_request_limit("garden_watering", 200) == 200
+
+
+def test_readme_lists_the_put_book_150_request_cap_in_scenario_order():
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
+
+    assert "自身的 300、50/100、150、100、150、300 次硬上限" in readme
 
 
 def test_find_key_round_request_limits_are_allowlisted():
