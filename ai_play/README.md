@@ -242,7 +242,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   和参考图谱；应在首个 `observe` 前调用一次。
 - `workflow_memory_read()`：读取当前 orchestrator 会话中已经通过终局资格和内容校验的
   抽象工作流；第一局返回 `version: 0` 和 `memory: null`。
-- `observe()`：等待并返回最新获准观察。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
+- `observe()`：等待并返回最新获准观察、截图和当前 3D 画面的深度图。已有观察会立即返回；未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。调用同步等待 Godot 返回动作结果和下一次观察，或返回终局/停止状态。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid)`：在可信终局后提交一次
   固定结构候选；工具不接受调用方提供的胜负结果。
@@ -292,9 +292,14 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 ## 结果与隐私边界
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
-截图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
-运行时观察截图统一缩放为 1024x576 JPEG；Godot 和 Python 桥的单包上限为 8 MiB，
-用于容纳包含截图 Base64 的观察 JSON。
+截图、深度图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+观察成功时，`observe` 和 `act` 的图片顺序固定为截图 `image/jpeg`，再是深度图
+`image/png`。结构化 `observation.image` 与 `observation.depth_image` 只保留元数据；
+运行时截图和深度图统一缩放为 1024×576；深度图的 `encoding` 为
+`linear_depth_normalized_8bit`，并公开
+`near_meters=0.05`、`far_meters=4000.0`。它是同视角不透明 3D 几何的归一化线性深度
+可视化（近处较黑、远处/背景较白）；HUD、其他 2D UI 及透明物体没有独立的可靠深度。
+Godot 和 Python 桥的单包上限为 8 MiB，用于容纳带有两张 Base64 图片的观察 JSON。
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取
 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
@@ -302,10 +307,10 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 启用 AI Play 后，MCP Server 会在 Godot 成功连接时开始保存本地游玩轨迹。日志只记录
-`observe`、`act`、`stop` 的请求、获准公开的结构化结果和工具返回的 JPEG；不记录
-`briefing`、图片 Base64、提示词、令牌、模型上下文、隐藏状态或仓库文件。MCP Host
-是否另行保存工具结果不属于本服务的控制范围。终局时 Godot 可在本地显示结果画面，
-MCP 同步返回受限的终局状态。
+`observe`、`act`、`stop` 的请求、获准公开的结构化结果和工具返回的截图 JPEG；深度 PNG
+只在当前 MCP 响应中返回，不写入轨迹目录。不记录 `briefing`、图片 Base64、提示词、令牌、
+模型上下文、隐藏状态或仓库文件。MCP Host 是否另行保存工具结果不属于本服务的控制范围。
+终局时 Godot 可在本地显示结果画面，MCP 同步返回受限的终局状态。
 
 ## 本地轨迹日志
 

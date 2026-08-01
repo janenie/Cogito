@@ -84,13 +84,19 @@ def configure_transport(options: ServerOptions) -> str:
     return options.transport
 
 
-def _result(payload, image_bytes=None):
+def _result(payload, image_bytes=None, depth_image_bytes=None):
     content = []
     if image_bytes is not None:
         content.append(ImageContent(
             type="image",
             data=base64.b64encode(image_bytes).decode("ascii"),
             mimeType="image/jpeg",
+        ))
+    if depth_image_bytes is not None:
+        content.append(ImageContent(
+            type="image",
+            data=base64.b64encode(depth_image_bytes).decode("ascii"),
+            mimeType="image/png",
         ))
     return CallToolResult(
         content=content,
@@ -176,10 +182,10 @@ async def observe() -> CallToolResult:
         )
     except SessionError as error:
         return _complete_logged_call(token, _error(str(error)))
-    payload, image_bytes = game_session.to_mcp_payload(result)
+    payload, image_bytes, depth_image_bytes = game_session.to_mcp_payload(result)
     return _complete_logged_call(
         token,
-        _result(payload, image_bytes),
+        _result(payload, image_bytes, depth_image_bytes),
         image_bytes,
     )
 
@@ -205,10 +211,10 @@ async def act(observation_id: int, actions: list[dict]) -> CallToolResult:
         )
     except SessionError as error:
         return _complete_logged_call(token, _error(str(error)))
-    payload, image_bytes = game_session.to_mcp_payload(result)
+    payload, image_bytes, depth_image_bytes = game_session.to_mcp_payload(result)
     return _complete_logged_call(
         token,
-        _result(payload, image_bytes),
+        _result(payload, image_bytes, depth_image_bytes),
         image_bytes,
     )
 
@@ -228,7 +234,7 @@ async def stop() -> CallToolResult:
         )
     except SessionError as error:
         return _complete_logged_call(token, _error(str(error)))
-    payload, _ = game_session.to_mcp_payload(result)
+    payload, _, _ = game_session.to_mcp_payload(result)
     return _complete_logged_call(token, _result(payload))
 
 

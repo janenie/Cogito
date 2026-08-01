@@ -50,6 +50,25 @@ def valid_observation_with_jpeg_base64():
     }
 
 
+def valid_depth_image():
+    depth_bytes = b"\x89PNG\r\n\x1a\ndepth-mapIEND\xaeB`\x82"
+    return {
+        "mime_type": "image/png",
+        "base64": base64.b64encode(depth_bytes).decode("ascii"),
+        "width": 1024,
+        "height": 576,
+        "encoding": "linear_depth_normalized_8bit",
+        "near_meters": 0.05,
+        "far_meters": 4000.0,
+    }
+
+
+def valid_observation_with_depth_image():
+    observation = valid_observation_with_jpeg_base64()
+    observation["depth_image"] = valid_depth_image()
+    return observation
+
+
 @pytest.mark.parametrize("outcome", ["aligned", "not_found"])
 def test_probe_result_accepts_completed_outcome(outcome):
     results = [{
@@ -85,7 +104,7 @@ def test_probe_result_rejects_invalid_fields(patch):
 def test_prepare_mcp_observation_removes_base64_from_structured_state():
     observation = valid_observation_with_jpeg_base64()
 
-    public, image_bytes = prepare_mcp_observation(observation)
+    public, image_bytes, depth_image_bytes = prepare_mcp_observation(observation)
 
     assert public["image"] == {
         "mime_type": "image/jpeg",
@@ -93,8 +112,28 @@ def test_prepare_mcp_observation_removes_base64_from_structured_state():
         "height": 576,
     }
     assert image_bytes == b"\xff\xd8\xffjpeg-bytes\xff\xd9"
+    assert depth_image_bytes is None
     assert "base64" not in public["image"]
     assert "base64" in observation["image"]
+
+
+def test_prepare_mcp_observation_separates_depth_png_from_structured_state():
+    observation = valid_observation_with_depth_image()
+
+    public, image_bytes, depth_image_bytes = prepare_mcp_observation(observation)
+
+    assert image_bytes == b"\xff\xd8\xffjpeg-bytes\xff\xd9"
+    assert depth_image_bytes == b"\x89PNG\r\n\x1a\ndepth-mapIEND\xaeB`\x82"
+    assert public["depth_image"] == {
+        "mime_type": "image/png",
+        "width": 1024,
+        "height": 576,
+        "encoding": "linear_depth_normalized_8bit",
+        "near_meters": 0.05,
+        "far_meters": 4000.0,
+    }
+    assert "base64" not in public["depth_image"]
+    assert "base64" in observation["depth_image"]
 
 
 def test_prepare_mcp_observation_validates_before_projection():
@@ -103,6 +142,23 @@ def test_prepare_mcp_observation_validates_before_projection():
 
     with pytest.raises(ObservationValidationError, match="base64"):
         prepare_mcp_observation(observation)
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"mime_type": "image/jpeg"},
+        {"encoding": "raw_depth"},
+        {"near_meters": 4000.0},
+        {"far_meters": 0.05},
+    ],
+)
+def test_depth_image_rejects_invalid_metadata(patch):
+    observation = valid_observation_with_depth_image()
+    observation["depth_image"].update(patch)
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
 
 
 def test_home_routine_observation_fields_are_public_and_bounded():
@@ -116,7 +172,7 @@ def test_home_routine_observation_fields_are_public_and_bounded():
         "failed": False,
     }
 
-    public, _image_bytes = prepare_mcp_observation(observation)
+    public, _image_bytes, _depth_image_bytes = prepare_mcp_observation(observation)
 
     assert public["routine"] == observation["routine"]
 
@@ -136,7 +192,7 @@ def test_garden_observation_fields_are_public_and_bounded():
         "failed": False,
     }
 
-    public, _image_bytes = prepare_mcp_observation(observation)
+    public, _image_bytes, _depth_image_bytes = prepare_mcp_observation(observation)
 
     assert public["garden"] == observation["garden"]
 

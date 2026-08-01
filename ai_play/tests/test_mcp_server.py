@@ -83,6 +83,7 @@ class FakeReadySession:
             "observation": result.observation,
         }
         image_bytes = None
+        depth_image_bytes = None
         if result.observation is not None:
             payload["observation"] = {
                 **result.observation,
@@ -91,9 +92,18 @@ class FakeReadySession:
                     "width": 1024,
                     "height": 576,
                 },
+                "depth_image": {
+                    "mime_type": "image/png",
+                    "width": 1024,
+                    "height": 576,
+                    "encoding": "linear_depth_normalized_8bit",
+                    "near_meters": 0.05,
+                    "far_meters": 4000.0,
+                },
             }
             image_bytes = b"\xff\xd8\xffmcp-image\xff\xd9"
-        return payload, image_bytes
+            depth_image_bytes = b"\x89PNG\r\n\x1a\nmcp-depthIEND\xaeB`\x82"
+        return payload, image_bytes, depth_image_bytes
 
 
 def fake_ready_session():
@@ -288,7 +298,16 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
                 "width": 1024,
                 "height": 576,
             }
-            assert any(isinstance(item, ImageContent) for item in result.content)
+            assert result.structuredContent["observation"]["depth_image"] == {
+                "mime_type": "image/png",
+                "width": 1024,
+                "height": 576,
+                "encoding": "linear_depth_normalized_8bit",
+                "near_meters": 0.05,
+                "far_meters": 4000.0,
+            }
+            images = [item for item in result.content if isinstance(item, ImageContent)]
+            assert [item.mimeType for item in images] == ["image/jpeg", "image/png"]
 
     asyncio.run(run())
 
@@ -505,7 +524,8 @@ def test_act_returns_synchronous_action_results_and_next_image(monkeypatch):
             assert result.structuredContent["action_results"] == [
                 {"status": "completed", "type": "wait"},
             ]
-            assert any(isinstance(item, ImageContent) for item in result.content)
+            images = [item for item in result.content if isinstance(item, ImageContent)]
+            assert [item.mimeType for item in images] == ["image/jpeg", "image/png"]
 
     asyncio.run(run())
 

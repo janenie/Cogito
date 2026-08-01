@@ -9,7 +9,7 @@ from ai_play.game_session import GameSession, SessionError, SessionResult
 from ai_play.trajectory_logger import LogPersistenceError
 
 
-def observation(observation_id):
+def observation(observation_id, include_depth=False):
     image_bytes = b"\xff\xd8\xffsession-image\xff\xd9"
     bindings = {
         "forward": "W",
@@ -23,7 +23,7 @@ def observation(observation_id):
         "interact2": "F",
         "menu": "Escape",
     }
-    return {
+    result = {
         "observation_id": observation_id,
         "captured_at_ms": observation_id * 10,
         "image": {
@@ -47,6 +47,18 @@ def observation(observation_id):
         "bindings": bindings,
         "last_action_results": [],
     }
+    if include_depth:
+        depth_bytes = b"\x89PNG\r\n\x1a\nsession-depthIEND\xaeB`\x82"
+        result["depth_image"] = {
+            "mime_type": "image/png",
+            "base64": base64.b64encode(depth_bytes).decode("ascii"),
+            "width": 1024,
+            "height": 576,
+            "encoding": "linear_depth_normalized_8bit",
+            "near_meters": 0.05,
+            "far_meters": 4000.0,
+        }
+    return result
 
 
 class RecordingLogger:
@@ -1143,12 +1155,17 @@ def test_detach_wakes_pending_action_without_fabricating_success():
 
 def test_to_mcp_payload_separates_image_bytes_from_structured_observation():
     session, _ = make_session()
-    result = SessionResult(status="ready", observation=observation(7))
+    result = SessionResult(
+        status="ready",
+        observation=observation(7, include_depth=True),
+    )
 
-    payload, image_bytes = session.to_mcp_payload(result)
+    payload, image_bytes, depth_image_bytes = session.to_mcp_payload(result)
 
     assert "base64" not in payload["observation"]["image"]
+    assert "base64" not in payload["observation"]["depth_image"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
+    assert depth_image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 def _call_and_capture(function, *args):

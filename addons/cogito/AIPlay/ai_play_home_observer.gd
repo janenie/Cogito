@@ -8,6 +8,7 @@ const APPROVED_ACTIONS: Array[String] = [
 const IMAGE_WIDTH: int = 1024
 const IMAGE_HEIGHT: int = 576
 const MAX_JSON_DEPTH: int = 16
+const DepthCapture = preload("res://addons/cogito/AIPlay/ai_play_depth_capture.gd")
 
 @export var player: Node3D
 @export var manager: Node
@@ -15,12 +16,14 @@ const MAX_JSON_DEPTH: int = 16
 
 var bindings: Dictionary = {}
 var _observation_id: int = 0
+var _depth_capture = null
 
 
 func capture_observation(last_results: Array) -> Dictionary:
 	_observation_id += 1
 	bindings = get_bindings()
 	var image := _capture_image()
+	var depth_image := _capture_depth_image()
 	var orientation := _orientation()
 	return {
 		"observation_id": _observation_id,
@@ -31,6 +34,7 @@ func capture_observation(last_results: Array) -> Dictionary:
 			"width": IMAGE_WIDTH,
 			"height": IMAGE_HEIGHT,
 		},
+		"depth_image": depth_image,
 		"player": {
 			"position": [player.position.x, player.position.y, player.position.z],
 			"yaw_degrees": orientation.x,
@@ -97,6 +101,22 @@ func _capture_image() -> Image:
 	var image := get_viewport().get_texture().get_image()
 	image.resize(IMAGE_WIDTH, IMAGE_HEIGHT, Image.INTERPOLATE_LANCZOS)
 	return image
+
+
+func _capture_depth_image() -> Dictionary:
+	if _depth_capture == null or not is_instance_valid(_depth_capture):
+		_depth_capture = DepthCapture.new()
+		add_child(_depth_capture)
+	return _depth_capture.capture(_active_camera(), IMAGE_WIDTH, IMAGE_HEIGHT)
+
+
+func _active_camera() -> Camera3D:
+	if player != null and "camera" in player:
+		var active_camera := player.get("camera") as Camera3D
+		if active_camera != null:
+			return active_camera
+	var viewport := get_viewport()
+	return viewport.get_camera_3d() if viewport != null else null
 
 
 func _orientation() -> Vector2:
