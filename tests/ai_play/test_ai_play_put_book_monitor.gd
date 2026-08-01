@@ -20,6 +20,37 @@ func _run_test() -> void:
 
 	var lobby: Node = lobby_scene.instantiate()
 	root.add_child(lobby)
+	var slot_root: Node3D = lobby.get_node_or_null("ARCHIVE/PutBookShelfSlots")
+	_assert(slot_root != null, "archive exposes put-book shelf slots")
+	var slots: Array[Marker3D] = []
+	if slot_root != null:
+		for child: Node in slot_root.get_children():
+			if child is Marker3D:
+				slots.append(child as Marker3D)
+	_assert(slots.size() == 9, "three shelves expose three height slots each")
+
+	var seen_layouts: Dictionary = {}
+	var seen_slot_ids: Dictionary = {}
+	for seed_value: int in range(1, 129):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var selected := AIPlayPutBookLayout.select_slots(slots, rng)
+		_assert(selected.size() == 6, "layout selects six slots")
+		_assert(_count_tier(selected, "low") == 2, "layout has two low slots")
+		_assert(_count_tier(selected, "middle") == 2, "layout has two middle slots")
+		_assert(_count_tier(selected, "high") == 2, "layout has two high slots")
+		for shelf_name: String in ["open_a", "open_b", "open_c"]:
+			_assert(_count_shelf(selected, shelf_name) == 2, "layout balances shelf books")
+		var layout_ids: Array[String] = []
+		for slot: Marker3D in selected:
+			var id := AIPlayPutBookLayout.slot_id(slot)
+			layout_ids.append(id)
+			seen_slot_ids[id] = true
+		layout_ids.sort()
+		seen_layouts["|".join(layout_ids)] = true
+
+	_assert(seen_layouts.size() > 1, "seed sample produces multiple layouts")
+	_assert(seen_slot_ids.size() == slots.size(), "seed sample reaches every slot")
 	await process_frame
 
 	var monitor: Node = lobby.get_node_or_null(
@@ -259,6 +290,22 @@ func _round_has_posture(monitor: Node, posture: String) -> bool:
 		if monitor._book_posture_by_instance.get(book) == posture:
 			return true
 	return false
+
+
+func _count_tier(slots: Array[Marker3D], tier: String) -> int:
+	var count := 0
+	for slot: Marker3D in slots:
+		if AIPlayPutBookLayout.height_tier(slot) == tier:
+			count += 1
+	return count
+
+
+func _count_shelf(slots: Array[Marker3D], shelf_name: String) -> int:
+	var count := 0
+	for slot: Marker3D in slots:
+		if AIPlayPutBookLayout.shelf_id(slot) == shelf_name:
+			count += 1
+	return count
 
 
 func _box_position_is_in_candidate_set(monitor: Node, position: Vector3) -> bool:

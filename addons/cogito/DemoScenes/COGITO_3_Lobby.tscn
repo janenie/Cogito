@@ -6746,6 +6746,62 @@ transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.554
 transform = Transform3D(-1.31134e-07, -8.74228e-08, -1, 1, -4.37114e-08, -1.31134e-07, -4.37114e-08, -1, 8.74228e-08, 2.80461, 0.165415, -0.123862)
 visible = false
 
+[node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE"]
+
+[node name="OpenA_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -0.18)
+metadata/slot_id = "open_a_low"
+metadata/shelf_id = "open_a"
+metadata/height_tier = "low"
+
+[node name="OpenA_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -0.18)
+metadata/slot_id = "open_a_middle"
+metadata/shelf_id = "open_a"
+metadata/height_tier = "middle"
+
+[node name="OpenA_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -0.18)
+metadata/slot_id = "open_a_high"
+metadata/shelf_id = "open_a"
+metadata/height_tier = "high"
+
+[node name="OpenB_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -0.98)
+metadata/slot_id = "open_b_low"
+metadata/shelf_id = "open_b"
+metadata/height_tier = "low"
+
+[node name="OpenB_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -0.98)
+metadata/slot_id = "open_b_middle"
+metadata/shelf_id = "open_b"
+metadata/height_tier = "middle"
+
+[node name="OpenB_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -0.98)
+metadata/slot_id = "open_b_high"
+metadata/shelf_id = "open_b"
+metadata/height_tier = "high"
+
+[node name="OpenC_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -1.78)
+metadata/slot_id = "open_c_low"
+metadata/shelf_id = "open_c"
+metadata/height_tier = "low"
+
+[node name="OpenC_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -1.78)
+metadata/slot_id = "open_c_middle"
+metadata/shelf_id = "open_c"
+metadata/height_tier = "middle"
+
+[node name="OpenC_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -1.78)
+metadata/slot_id = "open_c_high"
+metadata/shelf_id = "open_c"
+metadata/height_tier = "high"
+
 [node name="PutBook_CarryableBook" parent="ARCHIVE" unique_id=2144803197 instance=ExtResource("carryable_books")]
 process_mode = 4
 visible = false
