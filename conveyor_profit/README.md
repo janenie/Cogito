@@ -10,13 +10,21 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
 
 ## Controls and rules
 
-- Left-click a moving ingredient to place it on the tray. The belt replenishes that slot from a finite supply.
-- Left-click **UNDO** to return the last tray ingredient to the remaining supply.
-- Left-click **MAKE** to consume the tray. Exact recipes earn their sale price; invalid combinations earn nothing but still pay every selected ingredient cost.
+- Left-click a moving ingredient to place it on the tray. The belt immediately replenishes the selected slot, so all sixteen positions remain occupied.
+- Left-click **UNDO** to remove the last tray ingredient.
+- Left-click **MAKE** to consume the tray. Exact recipes earn their sale price; invalid combinations earn nothing but still pay every selected ingredient cost. Either result consumes the window's only make opportunity.
 - The wall menu uses six bilingual full-name recipe stickers, so no ingredient abbreviations need to be memorized.
-- Net profit is revenue minus consumed ingredient cost. Reach `$100` to win; the run ends in failure when the remaining ingredients can no longer reach the target.
-- The default seed is `1337`. Every generated batch is finite and contains at least `$120` attainable recipe profit before player mistakes.
+- A run contains ten 60-second windows. Each window's sixteen plates support exactly two distinct recipes with unequal net profit and no third recipe type.
+- Net profit is revenue minus consumed ingredient cost. The final result succeeds at 80% or more of the hidden theoretical maximum across all ten windows.
+- The default seed is `1337`. The constrained window generator is deterministic for a fixed seed.
 
-Every human click enters through the ingredient's real 3D hit area. There is no semantic choose-by-name action. Lobby registration, the allowlisted `conveyor_profit` MCP scenario, and its public observer/terminal are the next milestone; no external MCP client is used by this standalone scene.
+Every human click enters through the ingredient's real 3D hit area. The same standalone scene also contains an explicitly disabled-by-default AI Play controller. Start it with:
+
+```bash
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play --ai-play-scenario=conveyor_profit
+```
+
+The allowlisted MCP scenario exposes only the public briefing, screenshot/HUD observation, and four semantic actions: `select_ingredient`, `undo`, `make`, and `wait_next_window`. AI selection chooses a currently visible matching plate through the same gameplay/economy path; it does not expose supply generation, candidate recipes, per-window optimum, future windows, seed, or target amount. While the external model is deciding, Godot pauses the window clock. After a make locks a window, `wait_next_window` advances exactly one window without making the AI wait for wall-clock time.
 
 The food visuals are selected from Kenney Food Kit 2.0 under CC0. See [SOURCE.md](assets/kenney_food_kit/SOURCE.md) for exact file mappings and [LICENSE.txt](assets/kenney_food_kit/LICENSE.txt) for the bundled license.

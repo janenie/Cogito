@@ -74,6 +74,15 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   -- --ai-play --ai-play-scenario=garden_watering
 ```
 
+回转带利润玩法位于独立经营场景，也可普通启动或显式接入 AI：
+
+```bash
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
+
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play --ai-play-scenario=conveyor_profit
+```
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -163,6 +172,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_contract --ai-play-exit-on-game-over
 ```
 
+`conveyor_profit` 是独立场景：orchestrator 和 supervisor 在没有显式传入 `--scene` 时会自动
+选择 `conveyor_profit/scenes/conveyor_profit_preview.tscn`；其他玩法仍默认使用 Lobby。
+
 `--ai-play-exit-on-game-over` 只有在同一启动参数中包含精确的 `--ai-play` 时才会生效。
 合法终局会输出固定标识：
 
@@ -231,6 +243,12 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 `success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
 下雨警报会产生 `failure/garden_task_failed`。
 
+`conveyor_profit` 是十窗口经营任务。每个 60 秒窗口固定显示 16 盘食材，并且只能组成恰好
+两种不同利润的菜谱。每个窗口只允许制作一次；合法和非法 MAKE 都会锁定窗口。AI 使用
+`select_ingredient`、`undo`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；等待模型期间
+Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
+`success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
+
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
 stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
@@ -263,6 +281,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
+- `conveyor_profit` 只允许 `select_ingredient`、`undo`、`make` 和 `wait_next_window`：选材按
+  固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
+  已经锁定的窗口。四种动作均不得在其他玩法使用。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
@@ -288,7 +309,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
 为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
-或 `failure/max_requests`。环境变量
+或 `failure/max_requests`；`conveyor_profit` 的硬上限为 300 次，终局为
+`success/efficiency_target_reached`、`failure/efficiency_below_target` 或
+`failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -356,7 +379,7 @@ mcplogs/
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
-  `daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
+  `daily_routine_cleanup`、`garden_watering` 和 `conveyor_profit` 的运行时终局事件和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
   NPC 路线起点、NPC 路线方向、daily routine 或 garden 内部节点路径、随机下雨时间、
   随机种子或任务内部知识。
@@ -375,7 +398,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50、50、100、150、300、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。
