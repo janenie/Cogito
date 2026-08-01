@@ -159,6 +159,7 @@ func _run_test() -> void:
 		_assert(_snapshot_tier_count(snapshot, "high") == 2, "snapshot has two high books")
 		_assert(_target_tiers(snapshot) == ["low", "middle", "high"], "targets are ordered low to high")
 		var task_text := String(monitor.task_card.get("readable_content"))
+		_assert(task_text.contains("档案室（ARCHIVE）"), "task card pairs the archive name with its sign")
 		_assert(task_text.contains("CEO OFFICE"), "task card names CEO OFFICE")
 		_assert(task_text.contains("只搬运这三本"), "task card clearly excludes ordinary books")
 		_assert(task_text.contains("①低层 → ②中层 → ③高层"), "task card shows the exact order")
