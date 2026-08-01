@@ -29,6 +29,19 @@ func _run_test() -> void:
 		await process_frame
 		_finish()
 		return
+	_assert(
+		monitor.LOCATION_IDS == [
+			"laptop_desk",
+			"archive_sofa",
+			"meeting_table",
+			"tv_coffee_table",
+		],
+		"find_key exposes exactly the four non-cubicle locations",
+	)
+	_assert(
+		lobby.get_node_or_null("FindKeyMarkers/DesktopDeskAnchor") == null,
+		"Lobby does not retain the removed desktop key anchor",
+	)
 
 	var seen_locations: Array[String] = []
 	for seed_value: int in range(1, 129):
@@ -81,7 +94,7 @@ func _run_test() -> void:
 
 	_assert(
 		seen_locations.size() == monitor.LOCATION_IDS.size(),
-		"fixed seed sample reaches all five key locations",
+		"fixed seed sample reaches all four key locations",
 	)
 
 	monitor.configure_round(123456)
