@@ -42,10 +42,13 @@ func _run_test() -> void:
 		for shelf_name: String in ["open_a", "open_b", "open_c"]:
 			_assert(_count_shelf(selected_slots, shelf_name) == 2, "layout balances shelf books")
 		var selected_ids: Array[String] = []
+		var unique_selected_ids: Dictionary = {}
 		for slot: Marker3D in selected_slots:
 			var slot_id := AIPlayPutBookLayout.slot_id(slot)
 			selected_ids.append(slot_id)
+			unique_selected_ids[slot_id] = true
 			seen_slot_ids[slot_id] = true
+		_assert(unique_selected_ids.size() == 6, "layout selects six unique slot IDs")
 		selected_ids.sort()
 		seen_slot_layouts["|".join(selected_ids)] = true
 	_assert(seen_slot_layouts.size() > 1, "seed sample produces multiple layouts")
