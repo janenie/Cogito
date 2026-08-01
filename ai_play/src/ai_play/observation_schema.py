@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import math
+import re
 
 
 class ObservationValidationError(ValueError):
@@ -19,10 +20,18 @@ OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
     "bindings", "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "conveyor"}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
+    "select_ingredient", "undo", "make",
+}
+CONVEYOR_INGREDIENT_IDS = {
+    "lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
+}
+CONVEYOR_OUTCOMES = {
+    "selected", "undone", "accepted", "invalid_combo",
+    "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -35,6 +44,12 @@ def _exact(value, fields, label):
 def _integer(value, label):
     if type(value) is not int or not 0 <= value <= 9_007_199_254_740_991:
         raise ObservationValidationError(f"{label} must be a safe nonnegative integer")
+    return value
+
+
+def _signed_integer(value, label):
+    if type(value) is not int or not -9_007_199_254_740_991 <= value <= 9_007_199_254_740_991:
+        raise ObservationValidationError(f"{label} must be a safe integer")
     return value
 
 
@@ -72,13 +87,32 @@ def validate_action_results(results):
     safe_results = []
     for result in results:
         if not isinstance(result, dict) or not set(result).issubset(
-            {"status", "type", "error", "reason", "outcome", "scan_steps"}
+            {"status", "type", "error", "reason", "outcome", "scan_steps", "ingredient"}
         ) or "status" not in result:
             raise ObservationValidationError("action result has invalid fields")
         status = _text(result["status"], "result status", 16, allow_empty=False)
         if status not in {"completed", "cancelled", "error", "blocked", "stopped"}:
             raise ObservationValidationError("action result status is invalid")
         result_fields = set(result)
+        if status == "completed" and result.get("type") in {
+            "select_ingredient", "undo", "make",
+        }:
+            expected = {"status", "type", "outcome"}
+            if result["type"] == "select_ingredient":
+                expected.add("ingredient")
+            if result_fields != expected or result.get("outcome") not in CONVEYOR_OUTCOMES:
+                raise ObservationValidationError("conveyor result fields are invalid")
+            safe_result = {
+                "status": status,
+                "type": result["type"],
+                "outcome": result["outcome"],
+            }
+            if result["type"] == "select_ingredient":
+                if result.get("ingredient") not in CONVEYOR_INGREDIENT_IDS:
+                    raise ObservationValidationError("conveyor result ingredient is invalid")
+                safe_result["ingredient"] = result["ingredient"]
+            safe_results.append(safe_result)
+            continue
         if status == "completed" and result.get("type") == "probe_interaction":
             if result_fields != {"status", "type", "outcome", "scan_steps"}:
                 raise ObservationValidationError("probe result fields are invalid")
@@ -262,6 +296,46 @@ def validate_observation(value):
             "failed": garden["failed"],
         }
 
+    safe_conveyor = None
+    if "conveyor" in value:
+        conveyor = value["conveyor"]
+        _exact(
+            conveyor,
+            {
+                "total_time", "window", "window_time", "dish",
+                "net_profit", "tray", "finished",
+            },
+            "conveyor",
+        )
+        if type(conveyor["finished"]) is not bool:
+            raise ObservationValidationError("conveyor finished must be boolean")
+        tray = conveyor["tray"]
+        if (
+            not isinstance(tray, list)
+            or len(tray) > 4
+            or any(item not in CONVEYOR_INGREDIENT_IDS for item in tray)
+        ):
+            raise ObservationValidationError("conveyor tray is invalid")
+        for clock_field in ("total_time", "window_time"):
+            clock = _text(conveyor[clock_field], f"conveyor {clock_field}", 5, allow_empty=False)
+            if re.fullmatch(r"[0-9]{2}:[0-9]{2}", clock) is None or int(clock[3:]) > 59:
+                raise ObservationValidationError(f"conveyor {clock_field} is invalid")
+        window = _text(conveyor["window"], "conveyor window", 7, allow_empty=False)
+        dish = _text(conveyor["dish"], "conveyor dish", 5, allow_empty=False)
+        if re.fullmatch(r"[0-9]{1,2} / [0-9]{1,2}", window) is None:
+            raise ObservationValidationError("conveyor window is invalid")
+        if re.fullmatch(r"[0-9] / [0-9]", dish) is None:
+            raise ObservationValidationError("conveyor dish is invalid")
+        safe_conveyor = {
+            "total_time": conveyor["total_time"],
+            "window": window,
+            "window_time": conveyor["window_time"],
+            "dish": dish,
+            "net_profit": _signed_integer(conveyor["net_profit"], "conveyor net_profit"),
+            "tray": list(tray),
+            "finished": conveyor["finished"],
+        }
+
     safe = {
         "observation_id": _integer(value["observation_id"], "observation_id"),
         "captured_at_ms": _integer(value["captured_at_ms"], "captured_at_ms"),
@@ -290,6 +364,8 @@ def validate_observation(value):
         safe["routine"] = safe_routine
     if safe_garden is not None:
         safe["garden"] = safe_garden
+    if safe_conveyor is not None:
+        safe["conveyor"] = safe_conveyor
     return safe
 
 

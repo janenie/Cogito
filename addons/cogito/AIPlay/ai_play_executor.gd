@@ -15,7 +15,14 @@ const ACTION_FIELDS: Dictionary = {
 	"close_ui": ["type"],
 	"wait": ["type", "duration_ms"],
 	"stop": ["type"],
+	"select_ingredient": ["type", "ingredient"],
+	"undo": ["type"],
+	"make": ["type"],
 }
+const CONVEYOR_ACTIONS: Array[String] = ["select_ingredient", "undo", "make"]
+const CONVEYOR_INGREDIENT_IDS: Array[String] = [
+	"lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
+]
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
@@ -28,6 +35,8 @@ const MOVE_MAX_DURATION_MS: float = 250.0
 
 var held_actions: Dictionary = {}
 var interaction_probe: Node
+var semantic_action_provider: Node
+var active_scenario_id: String = ""
 var _cancel_generation: int = 0
 
 
@@ -48,6 +57,8 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 	var action_type: String = action_type_value
 	if not _has_exact_fields(action_dictionary, ACTION_FIELDS[action_type]):
 		return _invalid("action has invalid fields")
+	if action_type in CONVEYOR_ACTIONS and active_scenario_id != "conveyor_profit":
+		return _invalid("action is not allowed for this scenario")
 
 	match action_type:
 		"look":
@@ -100,6 +111,10 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 		"close_ui":
 			if context.get("interface_open", false) != true:
 				return _invalid("close_ui requires an open interface")
+		"select_ingredient":
+			var ingredient: Variant = action_dictionary["ingredient"]
+			if not ingredient is String or ingredient not in CONVEYOR_INGREDIENT_IDS:
+				return _invalid("ingredient is not allowed")
 
 	return {"valid": true}
 
@@ -114,7 +129,7 @@ func validate_batch(actions: Variant, context: Dictionary) -> Dictionary:
 		if actions[index]["type"] == "probe_interaction" and actions.size() != 1:
 			return _invalid("probe_interaction must be the only action")
 		if (
-			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui"]
+			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui", "make"]
 			and index != actions.size() - 1
 		):
 			return _invalid("context-changing action must be last")
@@ -213,6 +228,10 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"stop":
 			_release_held_actions()
 			return {"status": "stopped", "type": "stop"}
+		"select_ingredient", "undo", "make":
+			if semantic_action_provider == null:
+				return {"status": "error", "error": "semantic action provider is unavailable"}
+			return semantic_action_provider.execute_semantic_action(action)
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
