@@ -116,6 +116,28 @@ def test_garden_watering_briefing_is_public_and_bounded():
         assert forbidden not in serialized
 
 
+def test_repair_lighting_circuit_briefing_is_public_and_bounded():
+    briefing, image_bytes = load_scenario_briefing("repair_lighting_circuit")
+
+    assert briefing["game_id"] == "repair_lighting_circuit"
+    assert "任务卡" in briefing["objective"]
+    assert "300 次 act 请求" in briefing["failure_condition"]
+    assert "一次" in repr(briefing)
+    assert image_bytes.startswith(b"\xff\xd8\xff")
+    assert image_bytes.endswith(b"\xff\xd9")
+    assert len(image_bytes) <= 2 * 1024 * 1024
+    serialized = repr(briefing)
+    for forbidden in [
+        "round_seed",
+        "LIGHTS_CEILING_WALL",
+        "lampSquareCeiling8",
+        "fault_circuit",
+        "control_mapping",
+        "NodePath",
+    ]:
+        assert forbidden not in serialized
+
+
 def test_all_scenario_briefings_include_shared_control_rules():
     for scenario_id in [
         "find_contract",
@@ -124,6 +146,7 @@ def test_all_scenario_briefings_include_shared_control_rules():
         "greet_npc_meeting",
         "daily_routine_cleanup",
         "garden_watering",
+        "repair_lighting_circuit",
     ]:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:
@@ -138,6 +161,7 @@ def test_all_scenario_briefings_teach_look_based_spatial_estimation():
         "greet_npc_meeting",
         "daily_routine_cleanup",
         "garden_watering",
+        "repair_lighting_circuit",
     ]:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
@@ -160,6 +184,7 @@ def test_all_scenario_briefings_explain_action_parameter_scale():
         "greet_npc_meeting",
         "daily_routine_cleanup",
         "garden_watering",
+        "repair_lighting_circuit",
     ]:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])

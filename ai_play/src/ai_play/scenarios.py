@@ -11,6 +11,9 @@ from .find_key_briefing import load_find_key_briefing
 from .garden_watering_briefing import load_garden_watering_briefing
 from .greet_npc_meeting_briefing import load_greet_npc_meeting_briefing
 from .put_book_briefing import load_put_book_briefing
+from .repair_lighting_circuit_briefing import (
+    load_repair_lighting_circuit_briefing,
+)
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
@@ -73,6 +76,16 @@ _SCENARIOS = {
         terminal_results=frozenset({
             ("success", "garden_tasks_complete"),
             ("failure", "garden_task_failed"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "repair_lighting_circuit": ScenarioDefinition(
+        briefing_loader=load_repair_lighting_circuit_briefing,
+        max_act_requests=300,
+        terminal_results=frozenset({
+            ("success", "circuit_repaired"),
+            ("failure", "wrong_breaker"),
+            ("failure", "incorrect_circuit_configuration"),
             ("failure", "max_requests"),
         }),
     ),

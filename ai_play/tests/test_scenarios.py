@@ -20,6 +20,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "greet_npc_meeting",
         "daily_routine_cleanup",
         "garden_watering",
+        "repair_lighting_circuit",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
@@ -27,6 +28,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert is_supported_scenario("greet_npc_meeting")
     assert is_supported_scenario("daily_routine_cleanup")
     assert is_supported_scenario("garden_watering")
+    assert is_supported_scenario("repair_lighting_circuit")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -53,6 +55,8 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
     assert scenario_act_request_limit("garden_watering", 500) == 300
     assert scenario_act_request_limit("garden_watering", 200) == 200
+    assert scenario_act_request_limit("repair_lighting_circuit", 500) == 300
+    assert scenario_act_request_limit("repair_lighting_circuit", 240) == 240
 
 
 def test_find_key_round_request_limits_are_allowlisted():
@@ -134,6 +138,21 @@ def test_terminal_results_are_scenario_specific():
         "failure",
         "garden_task_failed",
     )
+    assert is_allowed_game_over(
+        "repair_lighting_circuit",
+        "success",
+        "circuit_repaired",
+    )
+    assert is_allowed_game_over(
+        "repair_lighting_circuit",
+        "failure",
+        "wrong_breaker",
+    )
+    assert is_allowed_game_over(
+        "repair_lighting_circuit",
+        "failure",
+        "incorrect_circuit_configuration",
+    )
     assert not is_allowed_game_over(
         "greet_npc_meeting",
         "success",
@@ -156,6 +175,16 @@ def test_terminal_results_are_scenario_specific():
         "garden_watering",
         "failure",
         "max_requests",
+    )
+    assert is_allowed_game_over(
+        "repair_lighting_circuit",
+        "failure",
+        "max_requests",
+    )
+    assert not is_allowed_game_over(
+        "find_contract",
+        "success",
+        "circuit_repaired",
     )
     assert not is_allowed_game_over(
         "daily_routine_cleanup",
