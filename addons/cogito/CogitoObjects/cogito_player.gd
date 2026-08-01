@@ -20,6 +20,7 @@ signal mouse_movement(relative_mouse_movement:Vector2)
 @export var player_hud : NodePath
 # Used for handling input when UI is open/displayed
 var is_showing_ui : bool
+var _ai_play_mouse_motion_device: int = -1
 ## Toggle printing debug messages or not. Works with the CogitoSceneManager
 @export var is_logging : bool
 
@@ -362,8 +363,16 @@ func _on_pause_menu_resume():
 	_on_resume_movement()
 
 
+func set_ai_play_mouse_motion_device(device_id: int) -> void:
+	_ai_play_mouse_motion_device = device_id
+
+
+func _accepts_mouse_motion(event: InputEventMouseMotion) -> bool:
+	return _ai_play_mouse_motion_device < 0 or event.device == _ai_play_mouse_motion_device
+
+
 func _input(event):
-	if event is InputEventMouseMotion and !is_movement_paused:
+	if event is InputEventMouseMotion and _accepts_mouse_motion(event) and !is_movement_paused:
 		var look_movement: Vector2 = Vector2(0.0,0.0)
 		
 		#If players sitting & look marker is present, use sittable look handling

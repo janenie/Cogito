@@ -101,6 +101,7 @@ func _run_tests() -> void:
 	_test_exit_on_game_over_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
+	await _test_mouse_guard_lifecycle(controller_script)
 	await _test_find_key_hello_includes_round_request_limit(
 		controller_script
 	)
@@ -420,6 +421,36 @@ func _test_enable_and_hello(controller_script: GDScript) -> void:
 			},
 			"hello identifies the active scenario",
 		)
+	await _free_fixture(fixture)
+
+
+func _test_mouse_guard_lifecycle(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _make_fixture(controller_script)
+	_assert(
+		fixture.player._ai_play_mouse_motion_device == -1,
+		"AI mouse guard starts disabled",
+	)
+	fixture.controller.enable_ai()
+	_assert(
+		fixture.player._ai_play_mouse_motion_device == fixture.controller.EXECUTOR_DEVICE_ID,
+		"enabling AI accepts only the executor mouse device",
+	)
+	fixture.bridge.disconnected.emit("test_reconnect")
+	_assert(
+		fixture.player._ai_play_mouse_motion_device == fixture.controller.EXECUTOR_DEVICE_ID,
+		"transient reconnect keeps the AI mouse guard",
+	)
+	fixture.controller.disable_ai("test_disable")
+	_assert(
+		fixture.player._ai_play_mouse_motion_device == -1,
+		"disabling AI restores human mouse motion",
+	)
+	fixture.controller.enable_ai()
+	fixture.controller._exit_tree()
+	_assert(
+		fixture.player._ai_play_mouse_motion_device == -1,
+		"controller teardown restores human mouse motion",
+	)
 	await _free_fixture(fixture)
 
 
@@ -836,6 +867,12 @@ func _test_blocked_batch_recaptures_immediately(controller_script: GDScript) -> 
 	)
 	await process_frame
 	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"blocked recapture waits for rendering",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
 		fixture.observer.capture_count == initial_capture_count + 1,
 		"blocked result triggers immediate deferred recapture",
 	)
@@ -858,6 +895,12 @@ func _test_context_change_recaptures_immediately(controller_script: GDScript) ->
 			fixture.observer.capture_count == initial_capture_count,
 			"%s recapture is deferred" % action_type,
 		)
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s recapture waits for rendering" % action_type,
+		)
+		RenderingServer.emit_signal("frame_post_draw")
 		await process_frame
 		_assert(
 			fixture.observer.capture_count == initial_capture_count + 1,
@@ -887,6 +930,16 @@ func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
 			"scan_steps": 2 if outcome == "aligned" else 9,
 		}])
 		_assert(fixture.timer.is_stopped(), "%s probe does not start interval timer" % outcome)
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s probe recapture is deferred" % outcome,
+		)
+		await process_frame
+		_assert(
+			fixture.observer.capture_count == initial_capture_count,
+			"%s probe recapture waits for rendering" % outcome,
+		)
+		RenderingServer.emit_signal("frame_post_draw")
 		await process_frame
 		_assert(
 			fixture.observer.capture_count == initial_capture_count + 1,

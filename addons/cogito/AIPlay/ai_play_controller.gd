@@ -185,6 +185,7 @@ func get_state() -> State:
 
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
+	_set_ai_mouse_guard(true)
 	_stop_delivery_pending = false
 	_game_finished = false
 	_reconnect_remaining = -1.0
@@ -200,6 +201,7 @@ func enable_ai() -> void:
 
 func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> void:
 	print("AI_PLAY disabled; reason=%s" % reason)
+	_set_ai_mouse_guard(false)
 	_capture_generation += 1
 	_state = State.DISABLED
 	_pending_observation_id = -1
@@ -361,6 +363,7 @@ func _on_batch_finished(results: Array) -> void:
 	_last_results = results.duplicate(true)
 	if _contains_stopped_result(results):
 		_capture_generation += 1
+		_set_ai_mouse_guard(false)
 		_state = State.DISABLED
 		_pending_observation_id = -1
 		_reconnect_remaining = -1.0
@@ -376,6 +379,7 @@ func _on_batch_finished(results: Array) -> void:
 
 
 func _capture_observation_if_current(generation: int, results: Array) -> void:
+	await RenderingServer.frame_post_draw
 	if (
 		generation != _capture_generation
 		or _state != State.READY
@@ -388,6 +392,12 @@ func _capture_observation_if_current(generation: int, results: Array) -> void:
 
 func _exit_tree() -> void:
 	_capture_generation += 1
+	_set_ai_mouse_guard(false)
+
+
+func _set_ai_mouse_guard(enabled: bool) -> void:
+	if player != null and player.has_method("set_ai_play_mouse_motion_device"):
+		player.set_ai_play_mouse_motion_device(EXECUTOR_DEVICE_ID if enabled else -1)
 
 
 func _on_observation_timer_timeout() -> void:
