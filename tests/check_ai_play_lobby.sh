@@ -226,6 +226,96 @@ done
 grep -q '^collision_layer = 0$' <<<"$(setup_node_block BreakRoomLamp)"
 grep -q '^is_disabled = true$' <<<"$(setup_interaction_block BreakRoomLamp)"
 
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_monitor.gd"' "$scene"
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn"' "$scene"
+grep -q 'name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController"' "$scene"
+grep -q '^scenario_id = "arrange_meeting_briefings"$' "$scene"
+grep -q 'name="ArrangeMeetingBriefingsSetup" parent="\." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")' "$scene"
+grep -q 'setup = NodePath("../../ArrangeMeetingBriefingsSetup")' "$scene"
+grep -q 'player = NodePath("../../Player")' "$scene"
+grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
+grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
+grep -q 'verify_button = NodePath("../../ArrangeMeetingBriefingsSetup/VerifyButton")' "$scene"
+grep -q 'player_spawn = NodePath("../../ArrangeMeetingBriefingsSetup/PlayerSpawn")' "$scene"
+grep -q 'task_card_anchor = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCardAnchor")' "$scene"
+
+meeting_setup="addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn"
+test -f "$meeting_setup"
+for node_name in \
+	PlayerSpawn TaskCardAnchor \
+	RecordCEO RecordArchive RecordBreakRoom \
+	FolderAtlas FolderBirch FolderCrown FolderDelta \
+	SeatTVSide SeatDoorSide SeatOppositeTV SeatInnerWall \
+	ClockwiseLabel VerifyButton VerifyLabel
+do
+	grep -q "name=\"$node_name\"" "$meeting_setup"
+done
+grep -A4 '^\[node name="ArrangeMeetingBriefingsSetup"' "$meeting_setup" \
+	| grep -q '^process_mode = 4$'
+grep -A4 '^\[node name="ArrangeMeetingBriefingsSetup"' "$meeting_setup" \
+	| grep -q '^visible = false$'
+
+meeting_setup_node_block() {
+	local meeting_node_name="$1"
+	awk -v meeting_node_name="$meeting_node_name" '
+		/^\[node / {
+			if (capture) exit
+			capture = ($0 ~ ("^\\[node name=\"" meeting_node_name "\""))
+		}
+		capture { print }
+	' "$meeting_setup"
+}
+
+meeting_setup_child_block() {
+	local child_name="$1"
+	local parent_name="$2"
+	awk -v child_name="$child_name" -v parent_name="$parent_name" '
+		/^\[node / {
+			if (capture) exit
+			capture = ($0 ~ ("^\\[node name=\"" child_name "\"") && $0 ~ ("parent=\"" parent_name "\""))
+		}
+		capture { print }
+	' "$meeting_setup"
+}
+
+for record_name in RecordCEO RecordArchive RecordBreakRoom
+do
+	grep -q '^collision_layer = 0$' \
+		<<<"$(meeting_setup_node_block "$record_name")"
+	grep -q '^is_disabled = true$' \
+		<<<"$(meeting_setup_child_block ReadableComponent "$record_name")"
+done
+
+for folder_name in FolderAtlas FolderBirch FolderCrown FolderDelta
+do
+	folder_block="$(meeting_setup_node_block "$folder_name")"
+	grep -q '^process_mode = 4$' <<<"$folder_block"
+	grep -q '^collision_layer = 0$' <<<"$folder_block"
+	grep -q '^collision_mask = 0$' <<<"$folder_block"
+	grep -q '^is_disabled = true$' \
+		<<<"$(meeting_setup_child_block CarryableComponent "$folder_name")"
+	grep -q '^text = "\(ATLAS\|BIRCH\|CROWN\|DELTA\)"$' \
+		<<<"$(meeting_setup_child_block NameLabel "$folder_name")"
+done
+
+for seat_name in SeatTVSide SeatDoorSide SeatOppositeTV SeatInnerWall
+do
+	seat_block="$(meeting_setup_node_block "$seat_name")"
+	grep -q '^collision_layer = 0$' <<<"$seat_block"
+	grep -q '^collision_mask = 0$' <<<"$seat_block"
+	grep -q '^is_disabled = true$' \
+		<<<"$(meeting_setup_child_block SeatInteraction "$seat_name")"
+	grep -q 'name="SnapAnchor" type="Marker3D" parent=' \
+		<<<"$(meeting_setup_child_block SnapAnchor "$seat_name")"
+done
+
+grep -q '^collision_layer = 0$' \
+	<<<"$(meeting_setup_node_block VerifyButton)"
+grep -q '^is_disabled = true$' \
+	<<<"$(meeting_setup_child_block BasicInteraction VerifyButton)"
+grep -q '^text = "↻  CLOCKWISE"$' \
+	<<<"$(meeting_setup_node_block ClockwiseLabel)"
+
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2
 	exit 1

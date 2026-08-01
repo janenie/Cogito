@@ -115,6 +115,8 @@
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd" id="ai_play_greet_npc_meeting_monitor"]
 [ext_resource type="Script" uid="uid://unpf5slxcrdm" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd" id="ai_play_repair_lighting_circuit_monitor"]
 [ext_resource type="PackedScene" uid="uid://dxwcvsdh2ms8r" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn" id="ai_play_repair_lighting_circuit_setup"]
+[ext_resource type="Script" uid="uid://dqxvbsfjl3j1l" path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_monitor.gd" id="ai_play_arrange_meeting_briefings_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn" id="ai_play_arrange_meeting_briefings_setup"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/carryable_books.tscn" id="carryable_books"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="ripped_page_a_readable"]
 
@@ -3298,6 +3300,8 @@ step_height_camera_lerp = 1.5
 
 [node name="RepairLightingCircuitSetup" parent="." instance=ExtResource("ai_play_repair_lighting_circuit_setup")]
 
+[node name="ArrangeMeetingBriefingsSetup" parent="." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")]
+
 [node name="AIPlayController" parent="." unique_id=875272983 node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
 player = NodePath("../Player")
 
@@ -3398,6 +3402,21 @@ entrance_lamp = NodePath("../../ENTRANCE_AREA/lampRoundFloor")
 ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")
 lobby_lamps = [NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling8"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling9"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling10"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling11"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling12"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling13")]
 break_room_lamp = NodePath("../../RepairLightingCircuitSetup/BreakRoomLamp")
+
+[node name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "record_readables", "folder_nodes", "seat_interactions", "seat_snap_anchors", "verify_button", "player_spawn", "task_card_anchor")]
+script = ExtResource("ai_play_arrange_meeting_briefings_monitor")
+scenario_id = "arrange_meeting_briefings"
+setup = NodePath("../../ArrangeMeetingBriefingsSetup")
+player = NodePath("../../Player")
+task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
+game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
+record_readables = [NodePath("../../ArrangeMeetingBriefingsSetup/RecordCEO/ReadableComponent"), NodePath("../../ArrangeMeetingBriefingsSetup/RecordArchive/ReadableComponent"), NodePath("../../ArrangeMeetingBriefingsSetup/RecordBreakRoom/ReadableComponent")]
+folder_nodes = [NodePath("../../ArrangeMeetingBriefingsSetup/FolderAtlas"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderBirch"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderCrown"), NodePath("../../ArrangeMeetingBriefingsSetup/FolderDelta")]
+seat_interactions = [NodePath("../../ArrangeMeetingBriefingsSetup/SeatTVSide/SeatInteraction"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatDoorSide/SeatInteraction"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatOppositeTV/SeatInteraction"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatInnerWall/SeatInteraction")]
+seat_snap_anchors = [NodePath("../../ArrangeMeetingBriefingsSetup/SeatTVSide/SnapAnchor"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatDoorSide/SnapAnchor"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatOppositeTV/SnapAnchor"), NodePath("../../ArrangeMeetingBriefingsSetup/SeatInnerWall/SnapAnchor")]
+verify_button = NodePath("../../ArrangeMeetingBriefingsSetup/VerifyButton")
+player_spawn = NodePath("../../ArrangeMeetingBriefingsSetup/PlayerSpawn")
+task_card_anchor = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCardAnchor")
 
 [node name="QUESTS" type="Node3D" parent="." unique_id=2115615126]
 

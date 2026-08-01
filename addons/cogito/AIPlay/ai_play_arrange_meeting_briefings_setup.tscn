@@ -1,0 +1,331 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/carryable_books.tscn" id="1_books"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="2_record"]
+[ext_resource type="PackedScene" uid="uid://cs6raqlyejqul" path="res://addons/cogito/DemoScenes/DemoPrefabs/generic_button.tscn" id="3_button"]
+[ext_resource type="Script" uid="uid://dmeh01c5ccjqc" path="res://addons/cogito/CogitoObjects/cogito_object.gd" id="4_object"]
+[ext_resource type="Script" uid="uid://ojqqk6cb5qs" path="res://addons/cogito/AIPlay/ai_play_meeting_seat_interaction.gd" id="5_seat_interaction"]
+[ext_resource type="FontFile" uid="uid://bu5on5evfoljs" path="res://addons/cogito/Assets/Fonts/Montserrat/Montserrat-Bold.ttf" id="6_font"]
+
+[sub_resource type="StandardMaterial3D" id="SeatMaterial"]
+albedo_color = Color(0.08, 0.62, 0.78, 0.72)
+transparency = 1
+emission_enabled = true
+emission = Color(0.03, 0.28, 0.36, 1)
+emission_energy_multiplier = 0.7
+
+[sub_resource type="BoxMesh" id="SeatMesh"]
+material = SubResource("SeatMaterial")
+size = Vector3(0.62, 0.035, 0.42)
+
+[sub_resource type="BoxShape3D" id="SeatShape"]
+size = Vector3(0.72, 0.16, 0.54)
+
+[node name="ArrangeMeetingBriefingsSetup" type="Node3D"]
+process_mode = 4
+visible = false
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3.03073, 0.905039, -17.9321)
+
+[node name="TaskCardAnchor" type="Marker3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 2.2, 1.2, -16.7)
+
+[node name="TaskCardLabel" type="Label3D" parent="TaskCardAnchor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 0, 0)
+billboard = 1
+text = "TASK CARD"
+font = ExtResource("6_font")
+font_size = 18
+outline_size = 6
+
+[node name="RecordCEO" parent="." instance=ExtResource("2_record")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -6.15, 3.46, -11.4)
+collision_layer = 0
+cogito_name = "MeetingRecordCEO"
+display_name = "CEO meeting record"
+
+[node name="ReadableComponent" parent="RecordCEO" index="2"]
+is_disabled = true
+interaction_text = "Read CEO meeting record"
+readable_title = "Inactive meeting record"
+readable_content = "This record is available only during its task."
+
+[node name="RecordCEOLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.15, 3.75, -11.4)
+billboard = 1
+text = "CEO MEETING RECORD"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 6
+
+[node name="RecordArchive" parent="." instance=ExtResource("2_record")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -5.35, 0.92, 9.85)
+collision_layer = 0
+cogito_name = "MeetingRecordArchive"
+display_name = "Archive meeting record"
+
+[node name="ReadableComponent" parent="RecordArchive" index="2"]
+is_disabled = true
+interaction_text = "Read archive meeting record"
+readable_title = "Inactive meeting record"
+readable_content = "This record is available only during its task."
+
+[node name="RecordArchiveLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.35, 1.22, 9.85)
+billboard = 1
+text = "ARCHIVE MEETING RECORD"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 6
+
+[node name="RecordBreakRoom" parent="." instance=ExtResource("2_record")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -1, 0.9, -11.5)
+collision_layer = 0
+cogito_name = "MeetingRecordBreakRoom"
+display_name = "Break Room meeting record"
+
+[node name="ReadableComponent" parent="RecordBreakRoom" index="2"]
+is_disabled = true
+interaction_text = "Read Break Room meeting record"
+readable_title = "Inactive meeting record"
+readable_content = "This record is available only during its task."
+
+[node name="RecordBreakRoomLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.2, -11.5)
+billboard = 1
+text = "BREAK ROOM MEETING RECORD"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 6
+
+[node name="FolderAtlas" parent="." instance=ExtResource("1_books")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.91, 13.85)
+process_mode = 4
+collision_layer = 0
+collision_mask = 0
+cogito_name = "MeetingBriefingAtlas"
+display_name = "ATLAS meeting briefing"
+
+[node name="CarryableComponent" parent="FolderAtlas" index="4"]
+is_disabled = true
+
+[node name="NameLabel" type="Label3D" parent="FolderAtlas"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
+billboard = 1
+text = "ATLAS"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 7
+
+[node name="FolderBirch" parent="." instance=ExtResource("1_books")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.25, 0.91, 14.15)
+process_mode = 4
+collision_layer = 0
+collision_mask = 0
+cogito_name = "MeetingBriefingBirch"
+display_name = "BIRCH meeting briefing"
+
+[node name="CarryableComponent" parent="FolderBirch" index="4"]
+is_disabled = true
+
+[node name="NameLabel" type="Label3D" parent="FolderBirch"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
+billboard = 1
+text = "BIRCH"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 7
+
+[node name="FolderCrown" parent="." instance=ExtResource("1_books")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.91, 14.85)
+process_mode = 4
+collision_layer = 0
+collision_mask = 0
+cogito_name = "MeetingBriefingCrown"
+display_name = "CROWN meeting briefing"
+
+[node name="CarryableComponent" parent="FolderCrown" index="4"]
+is_disabled = true
+
+[node name="NameLabel" type="Label3D" parent="FolderCrown"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
+billboard = 1
+text = "CROWN"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 7
+
+[node name="FolderDelta" parent="." instance=ExtResource("1_books")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.25, 0.91, 15.15)
+process_mode = 4
+collision_layer = 0
+collision_mask = 0
+cogito_name = "MeetingBriefingDelta"
+display_name = "DELTA meeting briefing"
+
+[node name="CarryableComponent" parent="FolderDelta" index="4"]
+is_disabled = true
+
+[node name="NameLabel" type="Label3D" parent="FolderDelta"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
+billboard = 1
+text = "DELTA"
+font = ExtResource("6_font")
+font_size = 20
+outline_size = 7
+
+[node name="SeatTVSide" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.68, 0.94, 14.55)
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("4_object")
+cogito_name = "MeetingSeatTVSide"
+display_name = "TV side briefing seat"
+custom_aabb = AABB(-0.36, -0.08, -0.27, 0.72, 0.24, 0.54)
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="SeatTVSide"]
+mesh = SubResource("SeatMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SeatTVSide"]
+shape = SubResource("SeatShape")
+
+[node name="SeatLabel" type="Label3D" parent="SeatTVSide"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+billboard = 1
+text = "TV SIDE"
+font = ExtResource("6_font")
+font_size = 14
+outline_size = 6
+
+[node name="SnapAnchor" type="Marker3D" parent="SeatTVSide"]
+
+[node name="SeatInteraction" type="Node3D" parent="SeatTVSide"]
+script = ExtResource("5_seat_interaction")
+is_disabled = true
+seat_id = "tv_side"
+
+[node name="SeatDoorSide" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 3.15, 0.94, 13.92)
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("4_object")
+cogito_name = "MeetingSeatDoorSide"
+display_name = "Door side briefing seat"
+custom_aabb = AABB(-0.36, -0.08, -0.27, 0.72, 0.24, 0.54)
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="SeatDoorSide"]
+mesh = SubResource("SeatMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SeatDoorSide"]
+shape = SubResource("SeatShape")
+
+[node name="SeatLabel" type="Label3D" parent="SeatDoorSide"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+billboard = 1
+text = "DOOR SIDE"
+font = ExtResource("6_font")
+font_size = 14
+outline_size = 6
+
+[node name="SnapAnchor" type="Marker3D" parent="SeatDoorSide"]
+
+[node name="SeatInteraction" type="Node3D" parent="SeatDoorSide"]
+script = ExtResource("5_seat_interaction")
+is_disabled = true
+seat_id = "door_side"
+
+[node name="SeatOppositeTV" type="StaticBody3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.62, 0.94, 14.55)
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("4_object")
+cogito_name = "MeetingSeatOppositeTV"
+display_name = "Opposite TV briefing seat"
+custom_aabb = AABB(-0.36, -0.08, -0.27, 0.72, 0.24, 0.54)
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="SeatOppositeTV"]
+mesh = SubResource("SeatMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SeatOppositeTV"]
+shape = SubResource("SeatShape")
+
+[node name="SeatLabel" type="Label3D" parent="SeatOppositeTV"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+billboard = 1
+text = "OPPOSITE TV"
+font = ExtResource("6_font")
+font_size = 14
+outline_size = 6
+
+[node name="SnapAnchor" type="Marker3D" parent="SeatOppositeTV"]
+
+[node name="SeatInteraction" type="Node3D" parent="SeatOppositeTV"]
+script = ExtResource("5_seat_interaction")
+is_disabled = true
+seat_id = "opposite_tv"
+
+[node name="SeatInnerWall" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 3.15, 0.94, 15.18)
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("4_object")
+cogito_name = "MeetingSeatInnerWall"
+display_name = "Inner wall briefing seat"
+custom_aabb = AABB(-0.36, -0.08, -0.27, 0.72, 0.24, 0.54)
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="SeatInnerWall"]
+mesh = SubResource("SeatMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SeatInnerWall"]
+shape = SubResource("SeatShape")
+
+[node name="SeatLabel" type="Label3D" parent="SeatInnerWall"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+billboard = 1
+text = "INNER WALL"
+font = ExtResource("6_font")
+font_size = 14
+outline_size = 6
+
+[node name="SnapAnchor" type="Marker3D" parent="SeatInnerWall"]
+
+[node name="SeatInteraction" type="Node3D" parent="SeatInnerWall"]
+script = ExtResource("5_seat_interaction")
+is_disabled = true
+seat_id = "inner_wall"
+
+[node name="ClockwiseLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.15, 1.55, 14.55)
+billboard = 1
+text = "↻  CLOCKWISE"
+font = ExtResource("6_font")
+font_size = 18
+outline_size = 7
+
+[node name="VerifyButton" parent="." instance=ExtResource("3_button")]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 4.9, 1.25, 12.1)
+collision_layer = 0
+allows_repeated_interaction = false
+usable_interaction_text = "Verify meeting arrangement"
+unusable_interaction_text = "Submitted"
+has_been_used_hint = "Verify has already been used"
+
+[node name="BasicInteraction" parent="VerifyButton" index="3"]
+is_disabled = true
+
+[node name="VerifyLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 1.48, 12.23)
+text = "VERIFY"
+font = ExtResource("6_font")
+font_size = 24
+outline_size = 7
+
+[editable path="RecordCEO"]
+[editable path="RecordArchive"]
+[editable path="RecordBreakRoom"]
+[editable path="FolderAtlas"]
+[editable path="FolderBirch"]
+[editable path="FolderCrown"]
+[editable path="FolderDelta"]
+[editable path="VerifyButton"]
