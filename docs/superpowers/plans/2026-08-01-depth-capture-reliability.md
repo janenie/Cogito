@@ -31,7 +31,7 @@
 - Consumes: `AIPlayDepthCapture.capture(source_camera: Camera3D, width: int, height: int) -> Dictionary`
 - Produces: a valid depth payload whose PNG contains nearer geometry darker than far background, and an internal capture viewport sized to the requested output.
 
-- [ ] **Step 1: Write the renderer-backed failing test**
+- [x] **Step 1: Write the renderer-backed failing test**
 
 Create a graphical `SceneTree` test that skips only when `DisplayServer.get_name() == "headless"`, adds a real `Node3D`, `Camera3D`, and centered `MeshInstance3D` cube to the root viewport, then calls `capture(camera, 96, 54)`. Decode the PNG and assert literal behaviors:
 
@@ -46,7 +46,7 @@ _assert(depth_viewport.size == Vector2i(96, 54), "capture renders at requested s
 
 The production mutation this catches is an invalid shader, `own_world_3d = true`, reversed near/far output, or rendering at the source viewport size.
 
-- [ ] **Step 2: Run the graphical test and verify RED**
+- [x] **Step 2: Run the graphical test and verify RED**
 
 Run:
 
@@ -56,7 +56,7 @@ godot --path . --script tests/ai_play/test_ai_play_depth_capture_rendered.gd
 
 Expected: exit 1 because the current shader fails compilation and/or the returned image contains no foreground depth; the requested-size assertion also fails when the root viewport is not 96×54.
 
-- [ ] **Step 3: Apply the minimum rendering fixes**
+- [x] **Step 3: Apply the minimum rendering fixes**
 
 In the shader, use valid entry-point declarations:
 
@@ -80,7 +80,7 @@ _depth_viewport.world_3d = world
 
 Keep the dedicated capture layer. Remove `RenderingServer.force_sync()` only if repeated graphical runs still read the current frame using `force_draw(false)` plus `get_image()`.
 
-- [ ] **Step 4: Verify GREEN and fallback compatibility**
+- [x] **Step 4: Verify GREEN and fallback compatibility**
 
 Run each graphical command three times to catch stale readback, then run the fallback test:
 

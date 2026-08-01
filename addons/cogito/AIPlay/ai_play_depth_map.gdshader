@@ -8,13 +8,13 @@ uniform float near_meters = 0.05;
 uniform float far_meters = 4000.0;
 
 
-func vertex() {
+void vertex() {
 	// Godot 4.3+ uses reversed Z, so the clip-space near plane is 1.0.
 	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
 }
 
 
-func fragment() {
+void fragment() {
 	float raw_depth = textureLod(depth_texture, SCREEN_UV, 0.0).r;
 	vec3 ndc;
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY

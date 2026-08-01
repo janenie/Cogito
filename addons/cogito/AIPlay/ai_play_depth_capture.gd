@@ -28,12 +28,7 @@ func capture(source_camera: Camera3D, width: int, height: int) -> Dictionary:
 	if not _ensure_capture_viewport(world):
 		return _fallback_payload(width, height)
 
-	var source_rect := source_viewport.get_visible_rect()
-	var source_size := Vector2i(
-		maxi(2, int(source_rect.size.x)),
-		maxi(2, int(source_rect.size.y)),
-	)
-	_depth_viewport.size = source_size
+	_depth_viewport.size = Vector2i(maxi(2, width), maxi(2, height))
 	_sync_camera(source_camera)
 
 	# The quad shares the scene World3D, so hide its dedicated layer from the
@@ -43,13 +38,11 @@ func capture(source_camera: Camera3D, width: int, height: int) -> Dictionary:
 	_depth_overlay.visible = true
 	_depth_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	RenderingServer.force_draw(false)
-	RenderingServer.force_sync()
 	var depth_image := _depth_viewport.get_texture().get_image()
 	_depth_overlay.visible = false
 	source_camera.cull_mask = source_cull_mask
 	if depth_image == null or depth_image.get_width() <= 0 or depth_image.get_height() <= 0:
 		return _fallback_payload(width, height)
-	depth_image.resize(width, height, Image.INTERPOLATE_NEAREST)
 	depth_image.convert(Image.FORMAT_RGB8)
 	var png := depth_image.save_png_to_buffer()
 	if png.is_empty():
@@ -69,7 +62,7 @@ func _ensure_capture_viewport(world: World3D) -> bool:
 
 	_depth_viewport = SubViewport.new()
 	_depth_viewport.name = "AIPlayDepthViewport"
-	_depth_viewport.own_world_3d = true
+	_depth_viewport.own_world_3d = false
 	_depth_viewport.world_3d = world
 	_depth_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_depth_viewport.transparent_bg = false
