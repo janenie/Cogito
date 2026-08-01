@@ -8,11 +8,12 @@ class ActionValidationError(ValueError):
     """Raised when an action is outside the safe action schema."""
 
 
-LOOK_MAX_DEGREES = 15
+LOOK_DIRECTIONS = {"left", "right", "up", "down"}
+LOOK_MAX_DEGREES = 45
 MOVE_MAX_DURATION_MS = 250
 
 ALLOWED_KEYS = {
-    "look": {"type", "yaw", "pitch"},
+    "look": {"type", "direction", "degrees"},
     "move": {"type", "forward", "right", "duration_ms"},
     "sprint": {"type", "forward", "right", "duration_ms"},
     "jump": {"type"},
@@ -51,13 +52,9 @@ def _validate_action(action, available_interactions, interface_open):
         raise ActionValidationError("action has invalid fields")
 
     if action_type == "look":
-        _require_number(action["yaw"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "yaw")
-        _require_number(
-            action["pitch"],
-            -LOOK_MAX_DEGREES,
-            LOOK_MAX_DEGREES,
-            "pitch",
-        )
+        if action["direction"] not in LOOK_DIRECTIONS:
+            raise ActionValidationError("look direction is not allowed")
+        _require_number(action["degrees"], 1, LOOK_MAX_DEGREES, "degrees")
     elif action_type in {"move", "sprint"}:
         _require_number(action["forward"], -1, 1, "forward")
         _require_number(action["right"], -1, 1, "right")

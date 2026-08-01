@@ -7,7 +7,7 @@ from ai_play.action_schema import ActionValidationError, validate_action_batch
 
 def test_validate_action_batch_accepts_current_safe_actions():
     actions = [
-        {"type": "look", "yaw": 5, "pitch": -2},
+        {"type": "look", "direction": "left", "degrees": 5},
         {"type": "move", "forward": 1, "right": 0, "duration_ms": 100},
         {"type": "interact", "action": "interact"},
     ]
@@ -30,7 +30,7 @@ def test_validate_action_batch_rejects_unavailable_interaction():
         [{"type": "wait", "duration_ms": 50}] * 4,
         [{"type": "made_up"}],
         [{"type": "stop"}],
-        [{"type": "look", "yaw": 0}],
+        [{"type": "look", "direction": "left"}],
         [{"type": "move", "forward": 0, "right": 0, "duration_ms": 100, "extra": 1}],
     ],
 )
@@ -42,21 +42,32 @@ def test_validate_action_batch_rejects_invalid_shape(actions):
 @pytest.mark.parametrize(
     "action",
     [
-        {"type": "look", "yaw": -15.1, "pitch": 0},
-        {"type": "look", "yaw": 15.1, "pitch": 0},
-        {"type": "look", "yaw": 0, "pitch": -15.1},
-        {"type": "look", "yaw": 0, "pitch": 15.1},
-        {"type": "look", "yaw": math.inf, "pitch": 0},
+        {"type": "look", "yaw": -15, "pitch": 0},
+        {"type": "look", "direction": "north", "degrees": 10},
+        {"type": "look", "direction": "left", "degrees": 0},
+        {"type": "look", "direction": "left", "degrees": 45.1},
+        {"type": "look", "direction": "left", "degrees": math.inf},
         {"type": "move", "forward": -1.1, "right": 0, "duration_ms": 50},
         {"type": "move", "forward": 0, "right": 0, "duration_ms": 251},
         {"type": "sprint", "forward": 0, "right": 0, "duration_ms": 251},
-        {"type": "look", "yaw": True, "pitch": 0},
+        {"type": "look", "direction": "left", "degrees": True},
         {"type": "enter_digits", "digits": "12A"},
     ],
 )
 def test_validate_action_batch_rejects_unsafe_action_values(action):
     with pytest.raises(ActionValidationError):
         validate_action_batch([action], {"interact"}, False)
+
+
+@pytest.mark.parametrize("direction", ["left", "right", "up", "down"])
+@pytest.mark.parametrize("degrees", [1, 45])
+def test_validate_action_batch_accepts_semantic_look_directions(
+    direction,
+    degrees,
+):
+    action = {"type": "look", "direction": direction, "degrees": degrees}
+
+    assert validate_action_batch([action], set(), False) == [action]
 
 
 @pytest.mark.parametrize(

@@ -59,7 +59,7 @@ def test_validate_action_batch_rejects_invalid_semantic_look(action):
         validate_action_batch([action], set(), False)
 ```
 
-Update `test_all_scenario_briefings_teach_look_based_spatial_estimation` to require `direction`, `degrees`, all four direction names, screenshot comparison, and the absence of public `yaw`/`pitch` instructions.
+Update `test_all_scenario_briefings_teach_look_based_spatial_estimation` to require `direction`, `degrees`, all four direction names, screenshot comparison, and an explicit prohibition on public `yaw`/`pitch` fields.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 

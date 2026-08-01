@@ -142,8 +142,11 @@ def test_all_scenario_briefings_teach_look_based_spatial_estimation():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
         assert "look" in serialized_rules
-        assert "yaw" in serialized_rules
-        assert "pitch" in serialized_rules
+        assert "direction" in serialized_rules
+        assert "degrees" in serialized_rules
+        assert "left、right、up、down" in serialized_rules
+        assert "上一张截图" in serialized_rules
+        assert "不要填写 yaw、pitch 或正负号" in serialized_rules
         assert "测距" in serialized_rules
         assert "probe_interaction" in serialized_rules
         assert "避免碰撞" in serialized_rules
@@ -161,7 +164,7 @@ def test_all_scenario_briefings_explain_action_parameter_scale():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
         assert "角度单位是度" in serialized_rules
-        assert "15 度适合扫视房间" in serialized_rules
+        assert "30 到 45 度适合扫视房间" in serialized_rules
         assert "duration_ms 是按住移动键的毫秒数" in serialized_rules
         assert "250ms 满强度 move 约等于连续走四分之一秒" in serialized_rules
         assert "满强度 sprint 约等于连续跑四分之一秒" in serialized_rules
