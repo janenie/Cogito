@@ -48,7 +48,17 @@ def test_put_book_registry_loads_bounded_public_briefing():
     assert "150" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
-    for required in ["六本", "任务书", "低层", "中层", "高层", "CEO OFFICE", "一次搬运一本"]:
+    for required in [
+        "六本",
+        "只搬运",
+        "任务书",
+        "低层",
+        "中层",
+        "高层",
+        "CEO OFFICE",
+        "青色",
+        "一次搬运一本",
+    ]:
         assert required in serialized
     for obsolete in ["目标纸箱", "最近", "jump", "crouch", "高处或低处"]:
         assert obsolete not in serialized

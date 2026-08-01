@@ -46,6 +46,10 @@ func _run_test() -> void:
 			if child is Marker3D:
 				slots.append(child as Marker3D)
 	_assert(slots.size() == 9, "three shelves expose three height slots each")
+	_assert(
+		_shelf_groups_are_spatially_separated(slots, 1.25),
+		"the three shelf groups are visibly separated across the archive",
+	)
 	var seen_slot_ids: Dictionary = {}
 	var seen_slot_layouts: Dictionary = {}
 	for seed_value: int in range(1, 129):
@@ -56,7 +60,7 @@ func _run_test() -> void:
 		_assert(_count_tier(selected_slots, "low") == 2, "layout has two low slots")
 		_assert(_count_tier(selected_slots, "middle") == 2, "layout has two middle slots")
 		_assert(_count_tier(selected_slots, "high") == 2, "layout has two high slots")
-		for shelf_name: String in ["open_a", "open_b", "open_c"]:
+		for shelf_name: String in ["left_wide", "center_wide", "right_open"]:
 			_assert(_count_shelf(selected_slots, shelf_name) == 2, "layout balances shelf books")
 		var selected_ids: Array[String] = []
 		var unique_selected_ids: Dictionary = {}
@@ -134,6 +138,10 @@ func _run_test() -> void:
 		_assert(_target_tiers(snapshot) == ["low", "middle", "high"], "targets are ordered low to high")
 		var task_text := String(monitor.task_card.get("readable_content"))
 		_assert(task_text.contains("CEO OFFICE"), "task card names CEO OFFICE")
+		_assert(task_text.contains("只搬运这三本"), "task card clearly excludes ordinary books")
+		_assert(task_text.contains("①低层 → ②中层 → ③高层"), "task card shows the exact order")
+		_assert(task_text.contains("青色“书籍放置点”"), "task card identifies the destination")
+		_assert(task_text.contains("送达后再拿下一本"), "task card explains one-book pacing")
 		_assert(not task_text.contains("跳"), "task card removes jump rule")
 		_assert(not task_text.contains("蹲"), "task card removes crouch rule")
 		_assert(not task_text.contains("纸箱"), "task card removes box rule")
@@ -309,6 +317,32 @@ func _run_test() -> void:
 	_assert(monitor._current_carried_book == expected, "expected target becomes the carried book")
 	_assert(monitor._books_carried_once.has(expected), "actual pickup is recorded")
 	_assert(player_interaction.carried_object == expected_carry, "correct pickup uses real player carry state")
+	_assert(expected.freeze, "correctly carried task book uses stable frozen follow")
+	_assert(
+		expected.collision_layer == 0 and expected.collision_mask == 0,
+		"carried task book cannot collide with walls or the player",
+	)
+	_assert(
+		is_equal_approx(expected_carry.carry_distance_offset, -0.75),
+		"task book is held close enough to remain controllable while walking",
+	)
+	var player_before_walk: Transform3D = monitor.player.global_transform
+	monitor.player.global_position += Vector3(1.4, 0.0, -0.8)
+	monitor._physics_process(0.016)
+	var expected_follow_position: Vector3 = player_interaction.get_carryable_destination_point(
+		monitor.BOOK_CARRY_DISTANCE_OFFSET
+	)
+	_assert(expected_carry.is_being_carried, "walking does not drop the carried task book")
+	_assert(
+		expected.global_position.distance_to(expected_follow_position) < 0.001,
+		"carried task book follows the player without lag or flying away",
+	)
+	_assert(
+		expected.linear_velocity.length() < 0.001 and expected.angular_velocity.length() < 0.001,
+		"stable carry does not accumulate launch velocity",
+	)
+	monitor.player.global_transform = player_before_walk
+	monitor._physics_process(0.016)
 	for book: RigidBody3D in monitor._active_books:
 		var carry_component: Variant = monitor._carry_component_for_book(book)
 		_assert(
@@ -320,6 +354,11 @@ func _run_test() -> void:
 	_assert(terminal_results.is_empty(), "outside drop remains recoverable")
 	_assert(monitor._current_carried_book == null, "outside drop clears carried book")
 	_assert(player_interaction.carried_object == null, "outside drop clears real player carry state")
+	_assert(not expected.freeze, "outside drop restores task book physics")
+	_assert(
+		expected.collision_layer == 3 and expected.collision_mask == 3,
+		"outside drop restores task book collisions",
+	)
 	for book: RigidBody3D in monitor._active_books:
 		_assert(
 			not monitor._carry_component_for_book(book).is_disabled,
@@ -458,6 +497,32 @@ func _count_shelf(slots: Array[Marker3D], shelf_name: String) -> int:
 		if AIPlayPutBookLayout.shelf_id(slot) == shelf_name:
 			count += 1
 	return count
+
+
+func _shelf_groups_are_spatially_separated(
+	slots: Array[Marker3D],
+	minimum_distance: float,
+) -> bool:
+	var positions_by_shelf: Dictionary = {}
+	for slot: Marker3D in slots:
+		var shelf := AIPlayPutBookLayout.shelf_id(slot)
+		if not positions_by_shelf.has(shelf):
+			positions_by_shelf[shelf] = []
+		(positions_by_shelf[shelf] as Array).append(slot.global_position)
+	if positions_by_shelf.size() != 3:
+		return false
+	var centers: Array[Vector3] = []
+	for positions_value: Variant in positions_by_shelf.values():
+		var positions := positions_value as Array
+		var center := Vector3.ZERO
+		for position_value: Variant in positions:
+			center += position_value as Vector3
+		centers.append(center / float(positions.size()))
+	for first_index: int in range(centers.size()):
+		for second_index: int in range(first_index + 1, centers.size()):
+			if centers[first_index].distance_to(centers[second_index]) < minimum_distance:
+				return false
+	return true
 
 
 func _display_slots_clear_book_bounds(

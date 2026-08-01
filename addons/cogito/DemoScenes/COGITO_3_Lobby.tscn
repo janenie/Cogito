@@ -6745,58 +6745,58 @@ visible = false
 
 [node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE"]
 
-[node name="OpenA_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -0.18)
-metadata/slot_id = "open_a_low"
-metadata/shelf_id = "open_a"
+[node name="LeftWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 0.22, -0.38)
+metadata/slot_id = "left_wide_low"
+metadata/shelf_id = "left_wide"
 metadata/height_tier = "low"
 
-[node name="OpenA_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -0.18)
-metadata/slot_id = "open_a_middle"
-metadata/shelf_id = "open_a"
+[node name="LeftWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 0.7, -0.38)
+metadata/slot_id = "left_wide_middle"
+metadata/shelf_id = "left_wide"
 metadata/height_tier = "middle"
 
-[node name="OpenA_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -0.18)
-metadata/slot_id = "open_a_high"
-metadata/shelf_id = "open_a"
+[node name="LeftWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 1.18, -0.38)
+metadata/slot_id = "left_wide_high"
+metadata/shelf_id = "left_wide"
 metadata/height_tier = "high"
 
-[node name="OpenB_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="CenterWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 0.22, -0.38)
+metadata/slot_id = "center_wide_low"
+metadata/shelf_id = "center_wide"
+metadata/height_tier = "low"
+
+[node name="CenterWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 0.7, -0.38)
+metadata/slot_id = "center_wide_middle"
+metadata/shelf_id = "center_wide"
+metadata/height_tier = "middle"
+
+[node name="CenterWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 1.18, -0.38)
+metadata/slot_id = "center_wide_high"
+metadata/shelf_id = "center_wide"
+metadata/height_tier = "high"
+
+[node name="RightOpen_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -0.98)
-metadata/slot_id = "open_b_low"
-metadata/shelf_id = "open_b"
+metadata/slot_id = "right_open_low"
+metadata/shelf_id = "right_open"
 metadata/height_tier = "low"
 
-[node name="OpenB_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="RightOpen_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -0.98)
-metadata/slot_id = "open_b_middle"
-metadata/shelf_id = "open_b"
+metadata/slot_id = "right_open_middle"
+metadata/shelf_id = "right_open"
 metadata/height_tier = "middle"
 
-[node name="OpenB_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="RightOpen_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -0.98)
-metadata/slot_id = "open_b_high"
-metadata/shelf_id = "open_b"
-metadata/height_tier = "high"
-
-[node name="OpenC_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -1.78)
-metadata/slot_id = "open_c_low"
-metadata/shelf_id = "open_c"
-metadata/height_tier = "low"
-
-[node name="OpenC_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -1.78)
-metadata/slot_id = "open_c_middle"
-metadata/shelf_id = "open_c"
-metadata/height_tier = "middle"
-
-[node name="OpenC_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
-transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -1.78)
-metadata/slot_id = "open_c_high"
-metadata/shelf_id = "open_c"
+metadata/slot_id = "right_open_high"
+metadata/shelf_id = "right_open"
 metadata/height_tier = "high"
 
 [node name="PutBook_CarryableBook" parent="ARCHIVE" unique_id=2144803197 instance=ExtResource("carryable_books")]

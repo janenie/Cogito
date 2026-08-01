@@ -3,18 +3,20 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const TASK_TITLE := "将任务书送到 CEO OFFICE"
+const TASK_TITLE := "按低→中→高搬运 3 本任务书"
 const TASK_CONTENT := (
-	"档案室的多个书架上共有六本可搬运的书，其中三本带有“任务书”标记。\n\n"
-	+ "请根据它们所在书架的高度，严格按照低层、中层、高层的顺序，一次搬运一本。\n\n"
-	+ "把三本任务书依次送到 CEO OFFICE 内标有“书籍放置点”的位置。拿起普通书或顺序错误的任务书会立即失败。"
+	"任务目标：档案室分散在三组书架上的 6 本书中，只有 3 本带“任务书”标记；只搬运这三本。\n\n"
+	+ "搬运顺序：先比较三本任务书所在层，必须严格按 ①低层 → ②中层 → ③高层。"
+	+ "每次只能拿一本，当前一本送达后再拿下一本。\n\n"
+	+ "目的地：把每本任务书送到 CEO OFFICE 的青色“书籍放置点”。"
+	+ "拿起普通书，或提前拿中层/高层任务书，都会立即失败。"
 )
 const ROUND_BOOK_COUNT := 6
 const TARGET_BOOK_COUNT := 3
 const HEIGHT_TIERS: Array[String] = ["low", "middle", "high"]
-const BOOK_CARRY_DISTANCE_OFFSET := 0.0
-const BOOK_CARRYING_VELOCITY_MULTIPLIER := 18.0
-const BOOK_DROP_DISTANCE := 100.0
+const BOOK_CARRY_DISTANCE_OFFSET := -0.75
+const BOOK_CARRYING_VELOCITY_MULTIPLIER := 12.0
+const BOOK_DROP_DISTANCE := 2.5
 const ASSISTED_DROP_RANGE := 2.0
 
 @export var scenario_id: String = "put_book"
@@ -170,6 +172,7 @@ func _place_round_books(selected_slots: Array[Marker3D]) -> void:
 			carry_component.carry_distance_offset = BOOK_CARRY_DISTANCE_OFFSET
 			carry_component.carrying_velocity_multiplier = BOOK_CARRYING_VELOCITY_MULTIPLIER
 			carry_component.drop_distance = BOOK_DROP_DISTANCE
+			carry_component.enable_manual_rotating = false
 			carry_component.is_disabled = false
 			var callback := Callable(self, "_on_book_carry_state_changed").bind(book, carry_component)
 			if carry_component.has_signal("carry_state_changed") and not (
@@ -354,6 +357,10 @@ func _destination_contains_book(book: RigidBody3D) -> bool:
 func _physics_process(_delta: float) -> void:
 	if _round_finished:
 		return
+	if _current_carried_book != null:
+		var carry_component: Variant = _carry_component_for_book(_current_carried_book)
+		if carry_component != null and carry_component.is_being_carried:
+			_stabilize_carried_book(_current_carried_book)
 	_try_complete_destination_book(_expected_target_book())
 
 
@@ -370,9 +377,10 @@ func _on_book_carry_state_changed(
 			return
 		_current_carried_book = book
 		_books_carried_once[book] = true
-		_snap_book_to_carry_position(book)
+		_stabilize_carried_book(book)
 		_update_book_pickup_gate()
 	elif _current_carried_book == book:
+		_restore_dropped_book_physics(book)
 		_current_carried_book = null
 		_update_book_pickup_gate()
 		_try_complete_destination_book(book)
@@ -419,6 +427,25 @@ func _snap_book_to_carry_position(book: RigidBody3D = null) -> void:
 		target_book.global_position = destination
 		target_book.linear_velocity = Vector3.ZERO
 		target_book.angular_velocity = Vector3.ZERO
+
+
+func _stabilize_carried_book(book: RigidBody3D) -> void:
+	if book == null:
+		return
+	book.freeze = true
+	book.collision_layer = 0
+	book.collision_mask = 0
+	_snap_book_to_carry_position(book)
+
+
+func _restore_dropped_book_physics(book: RigidBody3D) -> void:
+	if book == null:
+		return
+	book.linear_velocity = Vector3.ZERO
+	book.angular_velocity = Vector3.ZERO
+	book.collision_layer = 3
+	book.collision_mask = 3
+	book.freeze = false
 
 
 func _player_interaction_component() -> Variant:
