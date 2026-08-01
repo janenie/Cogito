@@ -11,6 +11,7 @@ var _depth_viewport: SubViewport
 var _depth_camera: Camera3D
 var _depth_overlay: MeshInstance3D
 var _depth_material: ShaderMaterial
+var _depth_environment: Environment
 
 
 func capture(source_camera: Camera3D, width: int, height: int) -> Dictionary:
@@ -31,16 +32,15 @@ func capture(source_camera: Camera3D, width: int, height: int) -> Dictionary:
 	_depth_viewport.size = Vector2i(maxi(2, width), maxi(2, height))
 	_sync_camera(source_camera)
 
-	# The quad shares the scene World3D, so hide its dedicated layer from the
-	# player's camera while the renderer refreshes both viewports.
-	var source_cull_mask := source_camera.cull_mask
-	source_camera.cull_mask = source_cull_mask & ~DEPTH_CAPTURE_LAYER
+	# The quad shares the scene World3D, so hide its dedicated layer from every
+	# other camera while the renderer refreshes all active viewports.
+	var masked_cameras := _mask_capture_layer_from_other_cameras(world)
 	_depth_overlay.visible = true
 	_depth_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	RenderingServer.force_draw(false)
 	var depth_image := _depth_viewport.get_texture().get_image()
 	_depth_overlay.visible = false
-	source_camera.cull_mask = source_cull_mask
+	_restore_camera_masks(masked_cameras)
 	if depth_image == null or depth_image.get_width() <= 0 or depth_image.get_height() <= 0:
 		return _fallback_payload(width, height)
 	depth_image.convert(Image.FORMAT_RGB8)
@@ -57,6 +57,7 @@ func _ensure_capture_viewport(world: World3D) -> bool:
 		_depth_camera = null
 		_depth_overlay = null
 		_depth_material = null
+		_depth_environment = null
 	if _depth_viewport != null:
 		return true
 
@@ -71,6 +72,12 @@ func _ensure_capture_viewport(world: World3D) -> bool:
 	_depth_camera = Camera3D.new()
 	_depth_camera.name = "AIPlayDepthCamera"
 	_depth_viewport.add_child(_depth_camera)
+	_depth_environment = Environment.new()
+	_depth_environment.background_mode = Environment.BG_COLOR
+	_depth_environment.background_color = Color.BLACK
+	_depth_environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	_depth_environment.tonemap_exposure = 1.0
+	_depth_camera.environment = _depth_environment
 
 	_depth_overlay = MeshInstance3D.new()
 	_depth_overlay.name = "AIPlayDepthOverlay"
@@ -91,6 +98,33 @@ func _ensure_capture_viewport(world: World3D) -> bool:
 	return true
 
 
+func _mask_capture_layer_from_other_cameras(world: World3D) -> Array[Dictionary]:
+	var masked_cameras: Array[Dictionary] = []
+	var tree := get_tree()
+	if tree == null:
+		return masked_cameras
+	for node: Node in tree.root.find_children("*", "Camera3D", true, false):
+		var camera := node as Camera3D
+		if (
+			camera == null
+			or camera == _depth_camera
+			or not camera.is_inside_tree()
+			or camera.get_world_3d() != world
+			or camera.cull_mask & DEPTH_CAPTURE_LAYER == 0
+		):
+			continue
+		masked_cameras.append({"camera": camera, "cull_mask": camera.cull_mask})
+		camera.cull_mask &= ~DEPTH_CAPTURE_LAYER
+	return masked_cameras
+
+
+func _restore_camera_masks(masked_cameras: Array[Dictionary]) -> void:
+	for entry: Dictionary in masked_cameras:
+		var camera: Camera3D = entry["camera"]
+		if is_instance_valid(camera):
+			camera.cull_mask = entry["cull_mask"]
+
+
 func _sync_camera(source_camera: Camera3D) -> void:
 	_depth_camera.global_transform = source_camera.global_transform
 	_depth_camera.projection = source_camera.projection
@@ -102,8 +136,6 @@ func _sync_camera(source_camera: Camera3D) -> void:
 	_depth_camera.far = source_camera.far
 	_depth_camera.h_offset = source_camera.h_offset
 	_depth_camera.v_offset = source_camera.v_offset
-	_depth_camera.environment = source_camera.environment
-	_depth_camera.attributes = source_camera.attributes
 	_depth_camera.cull_mask = source_camera.cull_mask | DEPTH_CAPTURE_LAYER
 	_depth_camera.make_current()
 

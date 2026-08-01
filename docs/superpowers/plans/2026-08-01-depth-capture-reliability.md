@@ -158,7 +158,7 @@ Add protocol constants and a private validator. It must:
 4. require first/unique IHDR with literal tuple `(1024, 576, 8, 2, 0, 0, 0)`;
 5. collect one consecutive IDAT sequence;
 6. require zero-length IEND at the exact end of input;
-7. reject unsupported critical chunks;
+7. allow at most one CRC-valid `sRGB` chunk with rendering intent `0..3` before IDAT, matching Godot output, and reject every other non-contract chunk;
 8. decompress IDAT with `zlib.decompressobj()`, requiring `eof`, no unused/unconsumed data, and exactly `576 * (1 + 1024 * 3)` bytes;
 9. require each scanline filter byte to be in `0..4`.
 
@@ -211,6 +211,37 @@ Update the `observe` docstring and the isolated-player instructions. State that 
 - [x] **Step 4: Verify GREEN**
 
 Re-run the Task 3 command and expect all tests to pass.
+
+---
+
+### Task 3.5: Isolate capture color management and other cameras
+
+**Files:**
+- Modify: `tests/ai_play/test_ai_play_depth_capture_rendered.gd`
+- Modify: `addons/cogito/AIPlay/ai_play_depth_map.gdshader`
+- Modify: `addons/cogito/AIPlay/ai_play_depth_capture.gd`
+
+**Interfaces:**
+- Consumes: shared-world depth rendering through a camera with arbitrary gameplay post-processing.
+- Produces: byte-linear normalized depth that is independent of gameplay exposure, without exposing the depth overlay to any other active camera.
+
+- [x] **Step 1: Add review-regression tests and verify RED**
+
+Place a large foreground face exactly 1000 metres from the camera and give the source camera a non-default ACES/exposure environment. Assert the center output is `0.25 ± 2/255`. Add a second active viewport/camera with default layer visibility, compare its center color before and during depth capture, and assert it remains unchanged.
+
+Run `godot --path . --script tests/ai_play/test_ai_play_depth_capture_rendered.gd` and expect failures for nonlinear depth and spectator-camera contamination.
+
+- [x] **Step 2: Use controlled depth color management**
+
+Give the depth camera a dedicated linear-tonemap, exposure-1 environment instead of copying the gameplay environment/attributes. In the shader, convert desired byte-normalized sRGB values to linear light before assigning `ALBEDO`, except on renderers where `OUTPUT_IS_SRGB` says shader output already uses sRGB.
+
+- [x] **Step 3: Mask the capture layer from every non-depth camera**
+
+Before `force_draw(false)`, collect all in-tree `Camera3D` nodes that share the source `World3D`, clear the capture bit from their cull masks, then restore every original mask immediately after readback. Exclude the dedicated depth camera.
+
+- [x] **Step 4: Verify GREEN**
+
+Run the renderer-backed test three times and expect exact linear depth, unchanged spectator output, restored masks, and exit 0 each time.
 
 ---
 

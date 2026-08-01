@@ -8,6 +8,13 @@ uniform float near_meters = 0.05;
 uniform float far_meters = 4000.0;
 
 
+float srgb_to_linear(float channel) {
+	return channel <= 0.04045
+		? channel / 12.92
+		: pow((channel + 0.055) / 1.055, 2.4);
+}
+
+
 void vertex() {
 	// Godot 4.3+ uses reversed Z, so the clip-space near plane is 1.0.
 	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
@@ -30,5 +37,8 @@ void fragment() {
 		0.0,
 		1.0
 	);
-	ALBEDO = vec3(normalized_depth);
+	float output_depth = OUTPUT_IS_SRGB
+		? normalized_depth
+		: srgb_to_linear(normalized_depth);
+	ALBEDO = vec3(output_depth);
 }
