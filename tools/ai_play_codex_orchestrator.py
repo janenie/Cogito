@@ -156,6 +156,11 @@ observe 在工具结果中返回的截图属于你的获准视觉输入。你可
 逐步建立以可见地标为依据的空间理解。动作后必须用新截图验证实际变化；
 没有变化、变化方向不符或目标丢失时，应调整假设与动作，不要机械重复。
 
+look 只使用 direction 和 degrees，例如向左转 30 度是
+{"type":"look","direction":"left","degrees":30}。direction 只能是 left、right、up、down；
+不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 返回的截图中
+地标的位置、大小与遮挡变化，确认方向正确后再移动。
+
 此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
 embedding、轨迹文件、仓库内容、场景源码或隐藏状态，也不得使用 shell、文件系统、搜索或网络扩展信息源。
 只输出简短、可公开的决策依据，不输出隐藏推理链。
@@ -429,6 +434,10 @@ def build_player_prompt(
 
 像人一样玩：
 1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
+   look 只使用 direction、degrees，例如向左转 30 度是
+   {{"type":"look","direction":"left","degrees":30}}；direction 只能是 left、right、up、down，
+   不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 返回的截图中
+   地标的位置、大小与遮挡变化，确认方向正确后再移动。
 2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
 3. 靠近目标时使用短距离 move，不要长时间 sprint；转向后重新 observe，确认准星没有偏离目标。
 4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。

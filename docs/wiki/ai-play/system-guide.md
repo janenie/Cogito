@@ -40,9 +40,10 @@ Godot 桥的安全边界。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `3` 的 `protocol_version` 规范化为整数 `3`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
-- 公开 briefing 必须说明 `look` 的角度单位和 `move`/`sprint` 的按键持续时间量级，
-  让黑盒玩家知道何时用扫视、微调和小步移动；`look` 单次最大 15 度，
-  `move`/`sprint` 单次最大 250ms。
+- 公开 briefing 必须说明 `look` 只接受 `direction`（`left`、`right`、`up`、`down`）和
+  `degrees`（有限、非布尔、1～45），并明确禁止公开 `yaw`、`pitch` 和正负号；Python 与
+  Godot 必须镜像精确字段和边界校验。briefing 还要说明 `move`/`sprint` 的按键持续时间量级，
+  让黑盒玩家知道何时用扫视、微调和小步移动；`move`/`sprint` 单次最大 250ms。
 - `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
   `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
   50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
@@ -59,7 +60,11 @@ Godot 桥的安全边界。
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
   三个工具不计数。第 N 次请求先按正常规则处理，合法玩法终局优先，否则返回
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
-- Godot 执行器必须使用 COGITO 的常规输入、用专用设备 ID 标记合成事件，并在所有退出路径中释放持续按下的移动输入。
+- Godot 执行器必须在可信边界把语义 `look` 映射为内部相机轴，使用 COGITO 的常规输入并用
+  专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
+  不受过滤，停用、错误、终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
+- 需要即时重新观察的动作必须等待 `RenderingServer.frame_post_draw` 后再捕获截图，并在等待后
+  重新检查 capture generation、控制器状态和节点生命周期，防止旧动作、停用或销毁后发送滞后观察。
 - `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；结构化结果不得重复 Base64 图片，也不得包含隐藏状态。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受

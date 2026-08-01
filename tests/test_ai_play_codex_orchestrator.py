@@ -321,8 +321,25 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "游戏规则" in instructions
     assert "比较当前截图与本会话之前由 observe 返回的截图" in instructions
     assert "相对位移、转向、遮挡变化和地标关系" in instructions
+    assert '{"type":"look","direction":"left","degrees":30}' in instructions
+    assert "不要填写 yaw、pitch 或正负号" in instructions
+    assert "地标的位置、大小与遮挡变化" in instructions
     assert "磁盘" in instructions
     assert "隐藏状态" in instructions
+
+
+@pytest.mark.parametrize("workflow_memory_enabled", [False, True])
+def test_player_prompt_teaches_identical_semantic_look_control(workflow_memory_enabled):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        workflow_memory_enabled=workflow_memory_enabled,
+    )
+
+    assert "direction、degrees" in prompt
+    assert "不要填写 yaw、pitch" in prompt
+    assert "比较当前截图与本会话之前由 observe 返回的截图" in prompt
 
 
 def test_player_prompt_requires_awm_lifecycle(tmp_path):

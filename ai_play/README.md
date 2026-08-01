@@ -241,8 +241,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 动作批次使用现有安全白名单：
 
-- `look`：`yaw` 在 -15～15，`pitch` 在 -15～15；`yaw` 为正向右转、为负向左转，
-  `pitch` 为正向下看、为负向上看。单位是度；15 度适合扫视房间，5～10 度适合微调准星。
+- `look`：只接受 `{"type":"look","direction":"left|right|up|down","degrees":1..45}`；
+  `degrees` 是有限、非布尔的正数。调用方不填写 `yaw`、`pitch` 或正负号；30～45 度适合
+  扫视房间，5～15 度适合微调准星。一次动作只改变一个方向轴。
 - `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
   `duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move` 约等于连续走四分之一秒，
   满强度 `sprint` 约等于连续跑四分之一秒。接近门、桌面或小物体时优先用 100～150ms。
@@ -250,7 +251,11 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
 
-Python 会先校验批次，Godot 会再次校验。上下文变化动作必须是批次最后一个动作；非法批次不会产生 Godot 输入。
+Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
+上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
+CogitoPlayer 只接受专用合成设备的鼠标移动，Escape 仍是物理紧急停止键；停用或退出后立即恢复
+普通鼠标控制。需要即时重新观察的动作会等待 `RenderingServer.frame_post_draw` 后截图，避免把
+动作前的画面当成动作结果。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
