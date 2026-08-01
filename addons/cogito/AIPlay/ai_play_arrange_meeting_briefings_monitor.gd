@@ -222,6 +222,9 @@ func _write_task_card() -> void:
 
 func _place_player_and_task_card() -> void:
 	player.global_transform = player_spawn.global_transform
+	var card_object := task_card.get_parent_node_3d()
+	card_object.reparent(task_card_anchor, false)
+	card_object.transform = Transform3D.IDENTITY
 
 
 func _disable_demo_hints() -> void:
@@ -301,7 +304,7 @@ func _set_play_interactions_enabled(enabled: bool) -> void:
 			Node.PROCESS_MODE_INHERIT if enabled else Node.PROCESS_MODE_DISABLED
 		)
 		folder.collision_layer = 3 if enabled else 0
-		folder.collision_mask = 3 if enabled else 0
+		folder.collision_mask = 1 if enabled else 0
 		var carry: CogitoCarryableComponent = _carry_component(folder)
 		if carry != null:
 			carry.is_disabled = not enabled
@@ -309,8 +312,8 @@ func _set_play_interactions_enabled(enabled: bool) -> void:
 		interaction.is_disabled = not enabled
 		var seat := interaction.get_parent() as CollisionObject3D
 		if seat != null:
-			seat.collision_layer = 3 if enabled else 0
-			seat.collision_mask = 3 if enabled else 0
+			seat.collision_layer = 2 if enabled else 0
+			seat.collision_mask = 0
 	verify_button.collision_layer = 3 if enabled else 0
 	var verify_interaction := verify_button.get_node_or_null("BasicInteraction")
 	if verify_interaction != null:
@@ -344,6 +347,10 @@ func _on_folder_carry_state_changed(
 ) -> void:
 	if not _task_active or _round_finished or not is_being_carried:
 		return
+	var folder_index: int = AIPlayMeetingBriefingRound.FOLDER_IDS.find(folder_id)
+	if folder_index >= 0:
+		folder_nodes[folder_index].linear_velocity = Vector3.ZERO
+		folder_nodes[folder_index].angular_velocity = Vector3.ZERO
 	_clear_folder_placement(folder_id)
 
 

@@ -234,8 +234,7 @@ grep -q '^scenario_id = "arrange_meeting_briefings"$' "$scene"
 grep -q 'name="ArrangeMeetingBriefingsSetup" parent="\." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")' "$scene"
 grep -q 'setup = NodePath("../../ArrangeMeetingBriefingsSetup")' "$scene"
 grep -q 'player = NodePath("../../Player")' "$scene"
-grep -A12 '^\[node name="ArrangeMeetingBriefingsMonitor"' "$scene" \
-	| grep -q 'task_card = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCardAnchor/TaskCard/ReadableComponent")'
+grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
 grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
 grep -q 'verify_button = NodePath("../../ArrangeMeetingBriefingsSetup/VerifyButton")' "$scene"
 grep -q 'player_spawn = NodePath("../../ArrangeMeetingBriefingsSetup/PlayerSpawn")' "$scene"
@@ -244,7 +243,7 @@ grep -q 'task_card_anchor = NodePath("../../ArrangeMeetingBriefingsSetup/TaskCar
 meeting_setup="addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn"
 test -f "$meeting_setup"
 for node_name in \
-	PlayerSpawn TaskCardAnchor TaskCard \
+	PlayerSpawn TaskCardAnchor \
 	RecordCEO RecordArchive RecordBreakRoom \
 	FolderAtlas FolderBirch FolderCrown FolderDelta \
 	SeatTVSide SeatDoorSide SeatOppositeTV SeatInnerWall \

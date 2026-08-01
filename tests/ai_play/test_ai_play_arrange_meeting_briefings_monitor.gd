@@ -66,15 +66,39 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			folder.process_mode == Node.PROCESS_MODE_INHERIT,
 			"%s processing is active" % folder.name,
 		)
+		_assert(folder.collision_mask == 1, "%s ignores interaction markers" % folder.name)
+		var carry: Node = folder.get_node("CarryableComponent")
+		_assert(
+			carry.get("carrying_velocity_multiplier") <= 5.0,
+			"%s uses a stable carrying speed" % folder.name,
+		)
 	_assert(monitor.seat_interactions.size() == 4, "four seats are active")
+	for interaction: Node in monitor.seat_interactions:
+		var seat := interaction.get_parent() as CollisionObject3D
+		_assert(seat.collision_layer == 2, "%s stays interaction-only" % seat.name)
+		_assert(seat.collision_mask == 0, "%s has no physics mask" % seat.name)
+	for folder: RigidBody3D in monitor.folder_nodes:
+		var folder_position := Vector2(folder.global_position.x, folder.global_position.z)
+		for interaction: Node in monitor.seat_interactions:
+			var seat_position_3d: Vector3 = interaction.get_parent_node_3d().global_position
+			var seat_position := Vector2(seat_position_3d.x, seat_position_3d.z)
+			_assert(
+				folder_position.distance_to(seat_position) >= 1.0,
+				"%s starts clear of %s" % [folder.name, interaction.get_parent().name],
+			)
 	_assert(monitor.record_readables.size() == 3, "three records are active")
+	var task_card_object: Node = monitor.task_card.get_parent()
 	_assert(
-		monitor.task_card.get_parent().name == "TaskCard",
-		"task card uses its dedicated paper object",
+		task_card_object.get_parent() == monitor.task_card_anchor,
+		"shared Lobby task icon moves to the meeting task-card anchor",
 	)
 	_assert(
-		monitor.task_card.get_parent().find_children("*", "Sprite3D", true, false).is_empty(),
-		"task card does not reuse the rotating Demo Hint model",
+		task_card_object.find_children("*", "Sprite3D", true, false).size() == 3,
+		"task card retains the original three-layer rotating icon",
+	)
+	_assert(
+		monitor.task_card.interaction_text == "Read task card",
+		"shared icon exposes the task-card interaction",
 	)
 	_assert(not monitor.demo_hints.visible, "unrelated Demo Hints are hidden")
 	_assert(
@@ -224,6 +248,8 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 
 	_hold_folder(monitor, player_interaction, "atlas")
 	_assert(monitor.get_folder_seat_map().is_empty(), "taking folder clears trusted map")
+	_assert(atlas.linear_velocity.is_zero_approx(), "taking placed folder clears linear speed")
+	_assert(atlas.angular_velocity.is_zero_approx(), "taking placed folder clears angular speed")
 	var moved: Dictionary = monitor.place_carried_folder(
 		"door_side",
 		player_interaction,
@@ -287,11 +313,6 @@ func _test_isolation(monitor: Node, setup: Node) -> void:
 	)
 	_assert(monitor.get_round_snapshot().is_empty(), "unselected Monitor has no state")
 	_assert(monitor.get_folder_seat_map().is_empty(), "unselected placement map is empty")
-	_assert(monitor.task_card.is_disabled, "unselected task card stays unreadable")
-	_assert(
-		monitor.task_card.get_parent().collision_layer == 0,
-		"unselected task card collision stays disabled",
-	)
 	_assert(monitor.demo_hints.visible, "unselected Demo Hints stay visible")
 	_assert(
 		monitor.demo_hints.process_mode != Node.PROCESS_MODE_DISABLED,
