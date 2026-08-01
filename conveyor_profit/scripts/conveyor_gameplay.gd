@@ -7,15 +7,23 @@ const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
 const PROFIT_SESSION := preload("res://conveyor_profit/scripts/profit_session.gd")
 const PROFIT_WINDOW_SESSION := preload("res://conveyor_profit/scripts/profit_window_session.gd")
 const WINDOW_SUPPLY_GENERATOR := preload("res://conveyor_profit/scripts/window_supply_generator.gd")
-const MAX_TRAY_INGREDIENTS: int = 4
+const MAX_TRAY_INGREDIENTS: int = 5
 
 const MODEL_PATHS := {
 	"lettuce": "res://conveyor_profit/assets/kenney_food_kit/models/lettuce.glb",
 	"tomato": "res://conveyor_profit/assets/kenney_food_kit/models/tomato.glb",
+	"carrot": "res://conveyor_profit/assets/kenney_food_kit/models/carrot.glb",
+	"avocado": "res://conveyor_profit/assets/kenney_food_kit/models/avocado.glb",
+	"sausage": "res://conveyor_profit/assets/kenney_food_kit/models/sausage.glb",
 	"bread": "res://conveyor_profit/assets/kenney_food_kit/models/bread.glb",
 	"egg": "res://conveyor_profit/assets/kenney_food_kit/models/egg.glb",
 	"mushroom": "res://conveyor_profit/assets/kenney_food_kit/models/mushroom.glb",
+	"onion": "res://conveyor_profit/assets/kenney_food_kit/models/onion.glb",
+	"pumpkin": "res://conveyor_profit/assets/kenney_food_kit/models/pumpkin.glb",
 	"cheese": "res://conveyor_profit/assets/kenney_food_kit/models/cheese.glb",
+	"bacon": "res://conveyor_profit/assets/kenney_food_kit/models/bacon.glb",
+	"broccoli": "res://conveyor_profit/assets/kenney_food_kit/models/broccoli.glb",
+	"corn": "res://conveyor_profit/assets/kenney_food_kit/models/corn.glb",
 	"fish": "res://conveyor_profit/assets/kenney_food_kit/models/fish.glb",
 	"meat": "res://conveyor_profit/assets/kenney_food_kit/models/meat.glb",
 }
@@ -43,6 +51,7 @@ var _semantic_random := RandomNumberGenerator.new()
 var _ai_control_active: bool = false
 var _window_refill_pool: Array[String] = []
 var _refill_index: int = 0
+var _last_receipt: Dictionary = {}
 
 
 func initialize(
@@ -69,11 +78,9 @@ func initialize(
 	_undo_button = undo_button
 	session = PROFIT_SESSION.new()
 	_semantic_random.seed = supply_seed
-	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(supply_seed, window_count)
-	var best_profits: Array[int] = []
-	for window: Dictionary in window_supplies:
-		best_profits.append(int(window["best_profit"]))
-	window_session = PROFIT_WINDOW_SESSION.new(best_profits, window_seconds)
+	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(supply_seed, 10)
+	window_count = window_supplies.size()
+	window_session = PROFIT_WINDOW_SESSION.new(window_supplies, window_seconds)
 	_make_button.activated.connect(_on_action_requested)
 	_undo_button.activated.connect(_on_action_requested)
 	_load_window(0)
@@ -117,6 +124,7 @@ func get_public_state() -> Dictionary:
 		"dish": "1 / 1" if window_session.dish_made else "0 / 1",
 		"net_profit": session.get_profit(),
 		"tray": session.selected_ingredients.duplicate(),
+		"last_receipt": _last_receipt.duplicate(true),
 		"finished": window_session.is_terminal(),
 	}
 
@@ -152,20 +160,30 @@ func request_make() -> Dictionary:
 		return {"outcome": "game_finished"}
 	if window_session.dish_made:
 		return {"outcome": "window_locked"}
+	var counts_before: Dictionary = session.get_recipe_counts()
 	var result: Dictionary = session.make()
 	if not result.get("accepted", false):
 		return {"outcome": "tray_empty"}
 	_clear_tray_visuals()
 	var recipe_id := String(result.get("recipe_id", ""))
+	var make_outcome := String(result.get("outcome", "invalid_combo"))
 	var outcome: String = window_session.record_make(
 		recipe_id,
-		int(result.get("dish_profit", 0)),
+		make_outcome,
+		counts_before,
 	)
-	if outcome in ["accepted", "invalid_combo"]:
+	if outcome in ["accepted", "invalid_combo", "recipe_limit_exceeded"]:
 		_set_input_enabled(false)
 		var message := "WINDOW COMPLETE · INVALID COMBO · COST CHARGED"
 		if outcome == "accepted":
 			message = "WINDOW COMPLETE · SOLD %s" % recipe_id.replace("_", " ").to_upper()
+		elif outcome == "recipe_limit_exceeded":
+			message = "WINDOW COMPLETE · RECIPE LIMIT EXCEEDED · COST CHARGED"
+		_last_receipt = {
+			"outcome": outcome,
+			"recipe_id": recipe_id,
+			"profit": session.get_profit(),
+		}
 		_update_public_display(message)
 	return {"outcome": outcome, "recipe_id": recipe_id, "profit": session.get_profit()}
 
@@ -356,6 +374,7 @@ func _set_input_enabled(value: bool) -> void:
 
 
 func _load_window(index: int) -> void:
+	_last_receipt = {}
 	_window_refill_pool.assign(window_supplies[index]["ingredients"])
 	pending_supply.assign(_window_refill_pool)
 	_refill_index = 0

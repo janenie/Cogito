@@ -45,7 +45,7 @@ func _run_test() -> void:
 		},
 		"monitor exposes only the public selected ingredient",
 	)
-	for _index: int in 3:
+	for _index: int in 4:
 		ingredient_id = String(path.get_child(0).get_meta("ingredient_id", ""))
 		_check(
 			monitor.execute_semantic_action({
@@ -66,7 +66,7 @@ func _run_test() -> void:
 		},
 		"monitor exposes a recoverable full-tray result without hidden fields",
 	)
-	_check(gameplay.get_selected_count() == 4, "monitor cannot grow the tray past four items")
+	_check(gameplay.get_selected_count() == 5, "monitor cannot grow the tray past five items")
 	_check(
 		monitor.execute_semantic_action({"type": "wait_next_window"}) == {
 			"status": "completed",
@@ -86,6 +86,32 @@ func _run_test() -> void:
 		gameplay.window_session.current_window_index == previous_window + 1,
 		"adapter advances exactly one window",
 	)
+	var catalog: GDScript = load("res://conveyor_profit/scripts/recipe_catalog.gd")
+	var available: Array[String] = []
+	for follower: Node in path.get_children():
+		if follower.visible and follower.get_meta("available", false):
+			available.append(String(follower.get_meta("ingredient_id", "")))
+	var recipes: Array[Dictionary] = catalog.attainable_single_dishes(available)
+	_check(not recipes.is_empty(), "advanced window has a public feasible recipe")
+	if not recipes.is_empty():
+		var recipe: Dictionary = recipes[0]
+		for required_id: String in recipe["ingredients"]:
+			_check(
+				monitor.execute_semantic_action({
+					"type": "select_ingredient",
+					"ingredient": required_id,
+				})["outcome"] == "selected",
+				"monitor selects %s for an exact recipe" % required_id,
+			)
+		_check(
+			monitor.execute_semantic_action({"type": "make"}) == {
+				"status": "completed",
+				"type": "make",
+				"outcome": "accepted",
+				"recipe_id": recipe["id"],
+			},
+			"accepted make exposes the current recipe receipt",
+		)
 	monitor.set_ai_control_active(true)
 	var elapsed: float = gameplay.window_session.elapsed_seconds
 	gameplay._process(5.0)

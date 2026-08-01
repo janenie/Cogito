@@ -41,6 +41,8 @@ func execute_semantic_action(action: Dictionary) -> Dictionary:
 	}
 	if action_type == "select_ingredient" and result.has("ingredient"):
 		public_result["ingredient"] = String(result["ingredient"])
+	if action_type == "make" and not String(result.get("recipe_id", "")).is_empty():
+		public_result["recipe_id"] = String(result["recipe_id"])
 	return public_result
 
 

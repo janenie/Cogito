@@ -24,13 +24,21 @@ func _run_test() -> void:
 	_check(gameplay.get_profit() == 0, "initial profit is zero")
 	_check(gameplay.get_selected_count() == 0, "initial tray is empty")
 	_check(gameplay.get_remaining_count() > 0, "finite supply is available")
+	var initial_catalog: GDScript = load("res://conveyor_profit/scripts/recipe_catalog.gd")
+	for ingredient_id: String in initial_catalog.INGREDIENT_IDS:
+		_check(
+			gameplay.MODEL_PATHS.has(ingredient_id)
+			and ResourceLoader.exists(String(gameplay.MODEL_PATHS[ingredient_id])),
+			"%s has a loadable belt model" % ingredient_id,
+		)
 	var public_state: Dictionary = gameplay.get_public_state()
 	for field: String in [
-		"total_time", "window", "window_time", "dish", "net_profit", "tray", "finished",
+		"total_time", "window", "window_time", "dish", "net_profit", "tray", "last_receipt", "finished",
 	]:
 		_check(public_state.has(field), "public state contains %s" % field)
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",
+		"deck_id", "recipe_counts", "missing_ingredient", "theoretical_profit", "optimal_route",
 	]:
 		_check(not public_state.has(hidden_field), "public state hides %s" % hidden_field)
 
@@ -109,24 +117,25 @@ func _run_test() -> void:
 			== "ingredient_not_available",
 			"semantic action rejects an ingredient outside the rendered view",
 		)
-		while gameplay.get_selected_count() < 4:
+		while gameplay.get_selected_count() < 5:
 			var refill_follower := path.get_child(0) as PathFollow3D
 			var refill_result: Dictionary = gameplay._select_by_selection_id(
 				int(refill_follower.get_meta("selection_id", -1)),
 			)
-			_check(refill_result["outcome"] == "selected", "tray accepts up to four items")
-		var fifth_follower := path.get_child(0) as PathFollow3D
+			_check(refill_result["outcome"] == "selected", "tray accepts up to five items")
+		var sixth_follower := path.get_child(0) as PathFollow3D
 		_check(
 			gameplay._select_by_selection_id(
-				int(fifth_follower.get_meta("selection_id", -1)),
+				int(sixth_follower.get_meta("selection_id", -1)),
 			)["outcome"] == "tray_full",
-			"fifth ingredient is rejected with a recoverable result",
+			"sixth ingredient is rejected with a recoverable result",
 		)
-		_check(gameplay.get_selected_count() == 4, "full tray remains bounded to four items")
+		_check(gameplay.get_selected_count() == 5, "full tray remains bounded to five items")
 		var invalid_result: Dictionary = gameplay.request_make()
 		_check(invalid_result["outcome"] == "invalid_combo", "invalid combo settles")
 		_check(gameplay.get_profit() < profit_before_invalid, "invalid combo deducts cost")
 		_check(gameplay.window_session.dish_made, "invalid combo locks window")
+		_check(gameplay.get_public_state()["last_receipt"]["outcome"] == "invalid_combo", "current receipt is public")
 		_check(gameplay.request_make()["outcome"] == "window_locked", "invalid retry is rejected")
 		var status_label := environment.get_node("HUD/StatusLabel") as Label
 		_check(status_label.text.contains("WINDOW COMPLETE"), "HUD marks completed window")
@@ -148,7 +157,43 @@ func _run_test() -> void:
 		)
 		gameplay.set_ai_control_active(false)
 
+	var quota_environment := (load(SCENE_PATH) as PackedScene).instantiate()
+	root.add_child(quota_environment)
+	await process_frame
+	var quota_gameplay := quota_environment.get_node("Gameplay")
+	var quota_path := quota_environment.get_node("Architecture/Conveyor/IngredientPath") as Path3D
+	var quota_ids := _available_ingredient_ids(quota_path)
+	var quota_recipes: Array[Dictionary] = catalog.attainable_single_dishes(quota_ids)
+	_check(not quota_recipes.is_empty(), "quota fixture has a feasible current recipe")
+	if not quota_recipes.is_empty():
+		var quota_recipe: Dictionary = quota_recipes[0]
+		for _attempt: int in 2:
+			for ingredient_id: String in quota_recipe["ingredients"]:
+				quota_gameplay.session.select_ingredient(ingredient_id)
+			quota_gameplay.session.make()
+		for ingredient_id: String in quota_recipe["ingredients"]:
+			var interactable := _find_interactable(quota_path, ingredient_id)
+			_check(interactable != null, "quota recipe ingredient %s is visible" % ingredient_id)
+			if interactable != null:
+				interactable.select()
+		var profit_before_quota: int = quota_gameplay.get_profit()
+		var quota_result: Dictionary = quota_gameplay.request_make()
+		_check(quota_result["outcome"] == "recipe_limit_exceeded", "third make reports quota failure")
+		_check(quota_result["recipe_id"] == quota_recipe["id"], "quota result names attempted recipe")
+		_check(quota_gameplay.get_profit() < profit_before_quota, "quota failure charges ingredient cost")
+		_check(quota_gameplay.window_session.dish_made, "quota failure locks the current window")
+		_check(
+			quota_gameplay.get_public_state()["last_receipt"].get("outcome", "")
+			== "recipe_limit_exceeded",
+			"quota failure becomes the current public receipt",
+		)
+		_check(
+			quota_gameplay.session.get_recipe_counts()[quota_recipe["id"]] == 2,
+			"quota failure leaves trusted count at two",
+		)
+
 	camera.queue_free()
+	quota_environment.queue_free()
 	environment.queue_free()
 	quit(1 if not failures.is_empty() else 0)
 

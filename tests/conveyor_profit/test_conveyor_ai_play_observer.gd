@@ -35,12 +35,13 @@ func _run_test() -> void:
 	public_keys.sort()
 	_check(
 		public_keys == [
-			"dish", "finished", "net_profit", "total_time", "tray", "window", "window_time",
+			"dish", "finished", "last_receipt", "net_profit", "total_time", "tray", "window", "window_time",
 		],
 		"observer exposes only HUD-level conveyor fields",
 	)
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",
+		"deck_id", "recipe_counts", "missing_ingredient", "theoretical_profit", "optimal_route",
 	]:
 		_check(not public_state.has(hidden_field), "observer hides %s" % hidden_field)
 
