@@ -17,7 +17,7 @@
 - Only `-- --ai-play-scenario=repair_lighting_circuit` selects the gameplay; only an additional `--ai-play` enables MCP control.
 - Keep mapping, fault circuit, seed, initial state, target generation, node paths, and correct breaker out of briefing, observations, bridge packets, logs, and player prompts.
 - The public target is shown only on the in-world task card.
-- The hard limit is exactly 300 `act` requests; `AI_PLAY_MAX_ACT_REQUESTS` may only reduce it.
+- The hard limit is exactly 100 `act` requests; `AI_PLAY_MAX_ACT_REQUESTS` may only reduce it.
 - Allow exactly `success/circuit_repaired`, `failure/wrong_breaker`, `failure/incorrect_circuit_configuration`, and `failure/max_requests` for this scenario.
 - Do not extend trajectory, observation, bridge, or workflow-memory schemas for reasoning metrics.
 - Do not run a real external model or MCP acceptance session without separate user approval for screenshots, tokens, cost, and trajectory persistence.
@@ -65,7 +65,7 @@
 **Interfaces:**
 
 - Consumes: `COMMON_CONTROL_RULES`, `ScenarioDefinition`, and `ai_play/assets/find_contract/imgs/reference_atlas.jpg`.
-- Produces: `load_repair_lighting_circuit_briefing() -> tuple[dict, bytes]`; registry entry `repair_lighting_circuit` with cap 300 and four legal terminal pairs.
+- Produces: `load_repair_lighting_circuit_briefing() -> tuple[dict, bytes]`; registry entry `repair_lighting_circuit` with cap 100 and four legal terminal pairs.
 
 - [ ] **Step 1: Write failing registry and briefing tests**
 
@@ -74,8 +74,8 @@ Extend `test_scenario_registry_exposes_only_allowlisted_scenarios()` so the orde
 
 ```python
 assert is_supported_scenario("repair_lighting_circuit")
-assert scenario_act_request_limit("repair_lighting_circuit", 500) == 300
-assert scenario_act_request_limit("repair_lighting_circuit", 240) == 240
+assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
+assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
 assert is_allowed_game_over(
     "repair_lighting_circuit", "success", "circuit_repaired"
 )
@@ -103,7 +103,7 @@ def test_repair_lighting_circuit_briefing_is_public_and_bounded():
 
     assert briefing["game_id"] == "repair_lighting_circuit"
     assert "任务卡" in briefing["objective"]
-    assert "300 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
     assert "一次" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     assert image_bytes.endswith(b"\xff\xd9")
@@ -168,7 +168,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "正确线路已复位，四组灯全部符合任务卡目标，并按下 Verify。",
     "failure_condition": (
-        "断路器只能选择一次，选错立即失败；错误 Verify 立即失败；最多允许 300 次 act 请求。"
+        "断路器只能选择一次，选错立即失败；错误 Verify 立即失败；最多允许 100 次 act 请求。"
     ),
     "rules": COMMON_CONTROL_RULES + [
         "第一步一定要找到并读取面板附近的任务卡；任务卡可重复阅读。",
@@ -233,7 +233,7 @@ Import `load_repair_lighting_circuit_briefing` and append this `ScenarioDefiniti
 ```python
 "repair_lighting_circuit": ScenarioDefinition(
     briefing_loader=load_repair_lighting_circuit_briefing,
-    max_act_requests=300,
+    max_act_requests=100,
     terminal_results=frozenset({
         ("success", "circuit_repaired"),
         ("failure", "wrong_breaker"),
@@ -959,7 +959,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=repair_lighting_circuit
 ```
 
-Document the 300-request cap, the task-card target, unknown A–D mapping, one tripped circuit, one breaker choice,
+Document the 100-request cap, the task-card target, unknown A–D mapping, one tripped circuit, one breaker choice,
 Verify behavior, and exact terminal pairs. State that mapping/fault/seed remain trusted and never enter briefing or
 MCP results.
 

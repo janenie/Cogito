@@ -301,7 +301,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
 为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
-或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 300 次，终局为
+或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，终局为
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
@@ -389,7 +389,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50/100、50、100、150、300、100 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

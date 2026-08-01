@@ -149,13 +149,13 @@ AI 控制。该任务不改变 AI Play 的显式启用或 Escape 紧急停止边
 ## 公开 briefing 和安全边界
 
 新增显式注册的 `repair_lighting_circuit_briefing.py` loader，并在 `ai_play.scenarios` 中将
-玩法硬上限设为 300 次 `act` 请求。briefing 只公开：
+玩法硬上限设为 100 次 `act` 请求。briefing 只公开：
 
 - 这是需要读取出生点附近任务卡的照明诊断任务；
 - 控制面板、四个区域、一次断路器机会和 Verify 的可见规则；
 - 正常开关与故障开关的可观察行为差异；
 - 通用移动、观察、探测和交互方法；
-- 最多 300 次 `act` 请求。
+- 最多 100 次 `act` 请求。
 
 briefing 复用现有、受大小限制的 Lobby 交互参考图，不新增美术资源，并明确参考图不代表本局
 映射、故障或目标。它不得包含场景路径、节点名、内部类名、seed、映射、故障答案、当前开关
@@ -205,9 +205,9 @@ Lobby 场景与静态检查覆盖：
 Python 和跨层测试覆盖：
 
 - `supported_scenario_ids()` 显式包含新 ID，未知 ID 继续拒绝；
-- briefing 使用正确 game ID、300 次上限、共享控制规则和有效受限 JPEG；
+- briefing 使用正确 game ID、100 次上限、共享控制规则和有效受限 JPEG；
 - briefing 序列化结果不含 seed、mapping、fault、节点路径或其他隐藏答案；
-- 场景请求硬上限为 300，环境配置只能收紧；
+- 场景请求硬上限为 100，环境配置只能收紧；
 - 三个任务终局和 `max_requests` 只对本场景合法；
 - Controller 的场景选择、终局白名单和终局幂等与 Python 保持一致。
 
@@ -219,5 +219,5 @@ Python 和跨层测试覆盖：
 ## 文档同步
 
 同步更新仓库根 `README_AI_PLAY.md`、`ai_play/README.md` 和
-`docs/wiki/ai-play/system-guide.md`，增加玩法启动命令、300 次上限、公开规则、终局原因和隐藏
+`docs/wiki/ai-play/system-guide.md`，增加玩法启动命令、100 次上限、公开规则、终局原因和隐藏
 状态边界。若验证命令新增专用 Godot 脚本，也同步更新开发者验证清单。

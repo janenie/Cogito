@@ -268,7 +268,7 @@ briefing 只说明最大值 100 次，允许
 的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
 和 `failure/max_requests`；`garden_watering` 的硬上限为 300 次，允许
 `success/garden_tasks_complete`、`failure/garden_task_failed` 和
-`failure/max_requests`；`repair_lighting_circuit` 的硬上限为 300 次，允许
+`failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，允许
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
 `find_key`、`put_book` 和 `greet_npc_meeting` 都没有答错失败。

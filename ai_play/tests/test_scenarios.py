@@ -55,8 +55,8 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
     assert scenario_act_request_limit("garden_watering", 500) == 300
     assert scenario_act_request_limit("garden_watering", 200) == 200
-    assert scenario_act_request_limit("repair_lighting_circuit", 500) == 300
-    assert scenario_act_request_limit("repair_lighting_circuit", 240) == 240
+    assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
+    assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
 
 
 def test_find_key_round_request_limits_are_allowlisted():

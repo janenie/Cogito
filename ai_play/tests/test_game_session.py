@@ -221,6 +221,15 @@ def test_garden_watering_uses_scenario_request_cap():
     assert session.act_request_limit == 300
 
 
+def test_repair_lighting_circuit_uses_100_request_hard_cap():
+    session, _ = make_scenario_session(
+        "repair_lighting_circuit",
+        configured_limit=500,
+    )
+
+    assert session.act_request_limit == 100
+
+
 def test_find_key_accepts_only_key_success_terminal():
     session, _ = make_scenario_session("find_key")
     session.receive_observation(observation(7))

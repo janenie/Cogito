@@ -61,7 +61,7 @@ Godot 桥的安全边界。
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
   硬上限是 300，终局只允许 `success/garden_tasks_complete`、
   `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
-  请求硬上限是 300，终局只允许 `success/circuit_repaired`、
+  请求硬上限是 100，终局只允许 `success/circuit_repaired`、
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
   `failure/max_requests`。`find_key`、`put_book` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`

@@ -81,7 +81,7 @@ _SCENARIOS = {
     ),
     "repair_lighting_circuit": ScenarioDefinition(
         briefing_loader=load_repair_lighting_circuit_briefing,
-        max_act_requests=300,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "circuit_repaired"),
             ("failure", "wrong_breaker"),

@@ -121,7 +121,7 @@ def test_repair_lighting_circuit_briefing_is_public_and_bounded():
 
     assert briefing["game_id"] == "repair_lighting_circuit"
     assert "任务卡" in briefing["objective"]
-    assert "300 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
     assert "一次" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     assert image_bytes.endswith(b"\xff\xd9")
