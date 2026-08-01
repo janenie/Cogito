@@ -25,6 +25,7 @@ func capture_observation(last_results: Array) -> Dictionary:
 		# so automated tests can validate the wire shape; production requires a real viewport.
 		image = Image.create(IMAGE_WIDTH, IMAGE_HEIGHT, false, Image.FORMAT_RGB8)
 	else:
+		RenderingServer.force_draw(false)
 		image = get_viewport().get_texture().get_image()
 		image.resize(IMAGE_WIDTH, IMAGE_HEIGHT, Image.INTERPOLATE_LANCZOS)
 

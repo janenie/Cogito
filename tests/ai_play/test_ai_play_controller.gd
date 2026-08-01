@@ -109,6 +109,7 @@ func _run_tests() -> void:
 	await _test_action_batch_requires_exact_mcp_fields(controller_script)
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
+	await _test_async_terminal_uses_completed_action_observation_id(controller_script)
 	await _test_terminal_outcomes(controller_script)
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
@@ -146,6 +147,12 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 			["--ai-play-scenario=find_contract"]
 		) == "find_contract",
 		"explicit allowlisted scenario id parses",
+	)
+	_assert(
+		controller.get_requested_scenario_id(
+			["--ai-play-scenario=loop_staircase_anomaly"]
+		) == "loop_staircase_anomaly",
+		"loop staircase scenario id parses",
 	)
 	for args: Array in [
 		["--ai-play-scenario="],
@@ -565,6 +572,42 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	await _free_fixture(fixture)
 
 
+func _test_async_terminal_uses_completed_action_observation_id(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"loop_staircase_anomaly",
+	)
+	fixture.bridge.action_batch_received.emit({
+		"type": "action_batch",
+		"protocol_version": 3,
+		"observation_id": 17,
+		"actions": [{"type": "press_key", "key": "space"}],
+	})
+	var results: Array = [{"status": "completed", "type": "press_key"}]
+	fixture.executor.batch_finished.emit(results)
+	fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"correct_floor_selected",
+	)
+
+	var packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+	_assert(
+		packets.size() == 1,
+		"async terminal after action_results emits one game_over packet",
+	)
+	if packets.size() == 1:
+		_assert(packets[0] == {
+			"type": "game_over",
+			"protocol_version": 3,
+			"observation_id": 17,
+			"outcome": "success",
+			"reason": "correct_floor_selected",
+		}, "async terminal uses the completed action observation id")
+	await _free_fixture(fixture)
+
+
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	for terminal_case: Dictionary in [
 		{
@@ -591,6 +634,26 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"scenario": "garden_watering",
 			"outcome": "failure",
 			"reason": "garden_task_failed",
+		},
+		{
+			"scenario": "loop_staircase_anomaly",
+			"outcome": "success",
+			"reason": "correct_floor_selected",
+		},
+		{
+			"scenario": "loop_staircase_anomaly",
+			"outcome": "failure",
+			"reason": "wrong_floor_selected",
+		},
+		{
+			"scenario": "laboratory_experiment",
+			"outcome": "success",
+			"reason": "experiment_completed",
+		},
+		{
+			"scenario": "laboratory_experiment",
+			"outcome": "failure",
+			"reason": "experiment_attempts_exhausted",
 		},
 	]:
 		var fixture: Dictionary = await _connected_fixture(

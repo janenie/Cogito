@@ -61,6 +61,12 @@ def test_probe_result_accepts_completed_outcome(outcome):
     assert validate_action_results(results) == results
 
 
+def test_press_key_result_accepts_completed_action_type():
+    results = [{"status": "completed", "type": "press_key"}]
+
+    assert validate_action_results(results) == results
+
+
 @pytest.mark.parametrize(
     "patch",
     [
@@ -166,6 +172,110 @@ def test_garden_observation_rejects_invalid_public_state(field, value):
         "failed": False,
     }
     observation["garden"][field] = value
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
+
+
+def valid_laboratory_state():
+    return {
+        "objective": "Produce a safe, stable circuit and keep the experiment lamp lit.",
+        "protocol": "stable_conduction",
+        "environment": "high_humidity",
+        "attempts_used": 1,
+        "attempts_limit": 3,
+        "battery_installed": "beta",
+        "selected_sample": "b",
+        "sample_state": "wet",
+        "metal_bar_installed": True,
+        "setup_ready": True,
+        "experiment_running": False,
+        "last_power": "normal",
+        "last_current": "safe",
+        "last_stability": "stable",
+        "last_temperature": "safe",
+        "last_lamp": "stable",
+        "completed": False,
+        "failed": False,
+    }
+
+
+def test_laboratory_observation_fields_are_public_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["laboratory"] = valid_laboratory_state()
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert public["laboratory"] == observation["laboratory"]
+
+
+def test_loop_staircase_observation_fields_are_public_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["staircase"] = {
+        "objective": "Find the true exit floor.",
+        "current_floor": 7,
+        "current_floor_label": "7F",
+        "current_loop": 4,
+        "total_loops": 5,
+        "final_unlocked": True,
+        "completed": False,
+        "failed": False,
+    }
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert public["staircase"] == observation["staircase"]
+    assert "lamp_color" not in public["staircase"]
+    assert "wall_marker" not in public["staircase"]
+    assert "box_count" not in public["staircase"]
+
+
+@pytest.mark.parametrize("hidden_field", ["lamp_color", "wall_marker", "box_count"])
+def test_loop_staircase_observation_rejects_visual_clue_fields(hidden_field):
+    observation = valid_observation_with_jpeg_base64()
+    observation["staircase"] = {
+        "objective": "Find the true exit floor.",
+        "current_floor": 7,
+        "current_floor_label": "7F",
+        "current_loop": 4,
+        "total_loops": 5,
+        "final_unlocked": True,
+        "completed": False,
+        "failed": False,
+        hidden_field: "hidden",
+    }
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("protocol", "hidden_protocol"),
+        ("environment", "storm"),
+        ("attempts_used", 4),
+        ("attempts_limit", 4),
+        ("battery_installed", "delta"),
+        ("selected_sample", "d"),
+        ("sample_state", "frozen"),
+        ("last_current", "secret"),
+        ("completed", 1),
+    ],
+)
+def test_laboratory_observation_rejects_invalid_public_state(field, value):
+    observation = valid_observation_with_jpeg_base64()
+    observation["laboratory"] = valid_laboratory_state()
+    observation["laboratory"][field] = value
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
+
+
+def test_laboratory_observation_rejects_hidden_solution_fields():
+    observation = valid_observation_with_jpeg_base64()
+    observation["laboratory"] = valid_laboratory_state()
+    observation["laboratory"]["round_seed"] = 123
 
     with pytest.raises(ObservationValidationError):
         validate_observation(observation)

@@ -20,7 +20,9 @@ ALLOWED_KEYS = {
     "wait": {"type", "duration_ms"},
     "stop": {"type"},
     "probe_interaction": {"type", "target_x", "target_y"},
+    "press_key": {"type", "key"},
 }
+ALLOWED_PRESS_KEYS = {"up", "down", "space"}
 
 
 def _require_number(value, lower, upper, field):
@@ -81,6 +83,10 @@ def _validate_action(action, available_interactions, interface_open):
             raise ActionValidationError(
                 "probe_interaction requires a closed interface"
             )
+    elif action_type == "press_key":
+        key = action["key"]
+        if not isinstance(key, str) or key not in ALLOWED_PRESS_KEYS:
+            raise ActionValidationError("press_key key is not allowed")
 
 
 def validate_action_batch(actions, available_interactions, interface_open):

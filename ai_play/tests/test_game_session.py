@@ -205,7 +205,13 @@ def test_global_limit_can_tighten_greet_npc_meeting_cap():
 def test_garden_watering_uses_scenario_request_cap():
     session, _ = make_scenario_session("garden_watering")
 
-    assert session.act_request_limit == 300
+    assert session.act_request_limit == 80
+
+
+def test_loop_staircase_anomaly_uses_scenario_request_cap():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+
+    assert session.act_request_limit == 160
 
 
 def test_find_key_accepts_only_key_success_terminal():
@@ -261,6 +267,34 @@ def test_garden_watering_accepts_garden_success_terminal():
         "observation_id": 7,
         "outcome": "success",
         "reason": "garden_tasks_complete",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_loop_staircase_anomaly_accepts_correct_floor_terminal():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "correct_floor_selected",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_loop_staircase_anomaly_accepts_wrong_floor_terminal():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 3,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "wrong_floor_selected",
     }
     session.receive_game_over(terminal)
     assert session.observe(timeout=0.1).game_over == terminal
@@ -348,6 +382,12 @@ def test_logging_failure_rejects_attach_without_controller():
             "garden_watering",
             "success",
             "garden_tasks_complete",
+            "success",
+        ),
+        (
+            "loop_staircase_anomaly",
+            "success",
+            "correct_floor_selected",
             "success",
         ),
         ("find_contract", "failure", "wrong_password", "failure"),

@@ -15,6 +15,16 @@ def test_validate_action_batch_accepts_current_safe_actions():
     assert validate_action_batch(actions, {"interact"}, False) == actions
 
 
+def test_validate_action_batch_accepts_loop_staircase_key_presses():
+    actions = [
+        {"type": "press_key", "key": "up"},
+        {"type": "press_key", "key": "down"},
+        {"type": "press_key", "key": "space"},
+    ]
+
+    assert validate_action_batch(actions, set(), False) == actions
+
+
 def test_validate_action_batch_rejects_unavailable_interaction():
     actions = [{"type": "interact", "action": "interact2"}]
 
@@ -47,6 +57,8 @@ def test_validate_action_batch_rejects_invalid_shape(actions):
         {"type": "move", "forward": 0, "right": 0, "duration_ms": 1001},
         {"type": "look", "yaw": True, "pitch": 0},
         {"type": "enter_digits", "digits": "12A"},
+        {"type": "press_key", "key": "escape"},
+        {"type": "press_key", "key": 1},
     ],
 )
 def test_validate_action_batch_rejects_unsafe_action_values(action):

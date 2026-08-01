@@ -18,9 +18,25 @@ const BATTERY_LABELS: Array[String] = ["alpha", "beta", "gamma"]
 const SAMPLE_LABELS: Array[String] = ["a", "b", "c"]
 const TREATMENTS: Array[String] = ["dry", "wet", "heated"]
 const OBJECTIVES := {
-	"stable_conduction": "Produce a safe, stable circuit and keep the experiment lamp lit.",
-	"moisture_safety": "Complete the moisture test with safe current and a stable lamp.",
-	"thermal_tolerance": "Complete the heated test without dangerous temperature or instability.",
+	"stable_conduction": "让回路保持安全稳定，并使实验灯持续点亮。",
+	"moisture_safety": "完成湿润测试，使电流安全且实验灯稳定点亮。",
+	"thermal_tolerance": "完成加热测试，同时避免危险温度和回路不稳定。",
+}
+const PROTOCOL_NAMES_ZH := {
+	"stable_conduction": "稳定导电实验",
+	"moisture_safety": "湿润安全实验",
+	"thermal_tolerance": "耐热实验",
+}
+const OBJECTIVES_ZH := {
+	"stable_conduction": "让回路保持安全稳定，并使实验灯持续点亮。",
+	"moisture_safety": "完成湿润测试，使电流安全且实验灯稳定点亮。",
+	"thermal_tolerance": "完成加热测试，同时避免危险温度和回路不稳定。",
+}
+const ENVIRONMENT_NAMES_ZH := {
+	"standard": "标准环境",
+	"high_humidity": "高湿环境",
+	"limited_cooling": "散热受限",
+	"power_fluctuation": "电源波动",
 }
 
 @export_range(0.0, 10.0, 0.1) var stability_seconds := 3.0
@@ -28,6 +44,7 @@ const OBJECTIVES := {
 
 var state := State.READY
 var round_data: Dictionary = {}
+var round_seed := 0
 var attempts_used := 0
 var battery_installed := "none"
 var selected_sample := "none"
@@ -51,12 +68,13 @@ func _ready() -> void:
 
 func start_round(seed_value: int) -> void:
 	_round_generation += 1
+	round_seed = seed_value
 	round_data = Cases.build_round(seed_value)
 	state = State.READY
 	attempts_used = 0
 	battery_installed = "none"
 	selected_sample = "none"
-	sample_state = "dry"
+	sample_state = "none"
 	metal_bar_installed = false
 	last_result = {}
 	result_history.clear()
@@ -67,7 +85,7 @@ func start_round(seed_value: int) -> void:
 
 
 func select_battery(label: String) -> void:
-	if state != State.READY or label not in BATTERY_LABELS:
+	if state != State.READY or label not in BATTERY_LABELS + ["none"]:
 		return
 	battery_installed = label
 	status_code = "setup_changed"
@@ -75,7 +93,7 @@ func select_battery(label: String) -> void:
 
 
 func select_sample(label: String) -> void:
-	if state != State.READY or label not in SAMPLE_LABELS:
+	if state != State.READY or label not in SAMPLE_LABELS + ["none"]:
 		return
 	selected_sample = label
 	status_code = "setup_changed"
@@ -83,7 +101,7 @@ func select_sample(label: String) -> void:
 
 
 func select_treatment(treatment: String) -> void:
-	if state != State.READY or treatment not in TREATMENTS:
+	if state != State.READY or treatment not in TREATMENTS + ["none"]:
 		return
 	sample_state = treatment
 	status_code = "setup_changed"
@@ -136,15 +154,19 @@ func reset_setup() -> void:
 		return
 	battery_installed = "none"
 	selected_sample = "none"
-	sample_state = "dry"
+	sample_state = "none"
 	metal_bar_installed = false
 	status_code = "ready"
 	public_state_changed.emit()
 
 
+func is_setup_editable() -> bool:
+	return state == State.READY
+
+
 func ai_play_public_state() -> Dictionary:
 	return {
-		"objective": OBJECTIVES.get(round_data.get("protocol", ""), "Complete the experiment safely."),
+		"objective": OBJECTIVES.get(round_data.get("protocol", ""), "安全完成实验。"),
 		"protocol": round_data.get("protocol", "stable_conduction"),
 		"environment": round_data.get("environment", "standard"),
 		"attempts_used": attempts_used,
@@ -166,11 +188,21 @@ func ai_play_public_state() -> Dictionary:
 
 
 func task_card_text() -> String:
-	return "%s\nEnvironment: %s\n%s\n%s" % [
-		OBJECTIVES.get(round_data.get("protocol", ""), "Complete the experiment safely."),
-		round_data.get("environment", "standard").replace("_", " ").capitalize(),
-		round_data.get("clues", ["", ""])[0],
-		round_data.get("clues", ["", ""])[1],
+	return (
+		"实验：%s\n目标：%s\n环境：%s\n\n"
+		+ "游戏规则\n"
+		+ "1. 在附近两个实验区域寻找电池、样本、处理模块和金属棒。\n"
+		+ "2. 对准材料按一下 E 拿取（无需按住），带回起点放入对应插槽。\n"
+		+ "3. 把四种材料带回起点插槽，组装完整后会自动分析。\n"
+		+ "4. 只有完整配置的自动分析才消耗机会，最多 3 次。\n"
+		+ "5. 根据电流、稳定性、温度和灯光结果更换单个组件。\n\n"
+		+ "本局已知条件\n• %s\n• %s"
+	) % [
+		PROTOCOL_NAMES_ZH.get(round_data.get("protocol", ""), "实验协议"),
+		OBJECTIVES_ZH.get(round_data.get("protocol", ""), "安全完成实验。"),
+		ENVIRONMENT_NAMES_ZH.get(round_data.get("environment", ""), "标准环境"),
+		round_data.get("clues_zh", ["", ""])[0],
+		round_data.get("clues_zh", ["", ""])[1],
 	]
 
 
@@ -178,6 +210,7 @@ func _setup_ready() -> bool:
 	return (
 		battery_installed in BATTERY_LABELS
 		and selected_sample in SAMPLE_LABELS
+		and sample_state in TREATMENTS
 		and metal_bar_installed
 	)
 
@@ -186,7 +219,6 @@ func _reset_after_failed_experiment() -> void:
 	state = State.RESETTING
 	status_code = "resetting"
 	public_state_changed.emit()
-	sample_state = "dry"
 	state = State.READY
 	status_code = "retry_ready"
 	public_state_changed.emit()

@@ -15,10 +15,16 @@ const ACTION_FIELDS: Dictionary = {
 	"close_ui": ["type"],
 	"wait": ["type", "duration_ms"],
 	"stop": ["type"],
+	"press_key": ["type", "key"],
 }
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
+const PRESS_KEYCODES: Dictionary = {
+	"up": KEY_UP,
+	"down": KEY_DOWN,
+	"space": KEY_SPACE,
+}
 
 @export var player: Node3D
 @export_range(0.01, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
@@ -95,6 +101,10 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 		"close_ui":
 			if context.get("interface_open", false) != true:
 				return _invalid("close_ui requires an open interface")
+		"press_key":
+			var key: Variant = action_dictionary["key"]
+			if not key is String or not PRESS_KEYCODES.has(key):
+				return _invalid("press_key key is not allowed")
 
 	return {"valid": true}
 
@@ -188,7 +198,15 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"jump", "crouch":
 			_emit_action_pair(action_type)
 		"interact":
-			_emit_action_pair(action["action"])
+			if (
+				player != null
+				and "player_interaction_component" in player
+				and player.player_interaction_component != null
+				and player.player_interaction_component.has_method("_handle_interaction")
+			):
+				await player.player_interaction_component._handle_interaction(action["action"])
+			else:
+				_emit_action_pair(action["action"])
 		"probe_interaction":
 			if interaction_probe == null:
 				return {"status": "error", "error": "interaction probe is unavailable"}
@@ -208,6 +226,8 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"stop":
 			_release_held_actions()
 			return {"status": "stopped", "type": "stop"}
+		"press_key":
+			_emit_key_pair(PRESS_KEYCODES[action["key"]])
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
@@ -266,16 +286,22 @@ func _emit_action_pair(action_name: String) -> void:
 
 func _emit_digit_pair(digit: String) -> void:
 	var code: int = digit.unicode_at(0)
+	_emit_key_pair(code as Key, code)
+
+
+func _emit_key_pair(keycode: Key, unicode_value: int = 0) -> void:
 	var event := InputEventKey.new()
 	event.device = SYNTHETIC_DEVICE_ID
-	event.keycode = code as Key
-	event.unicode = code
+	event.keycode = keycode
+	event.physical_keycode = keycode
+	event.unicode = unicode_value
 	event.pressed = true
 	Input.parse_input_event(event)
 	var release := InputEventKey.new()
 	release.device = SYNTHETIC_DEVICE_ID
-	release.keycode = code as Key
-	release.unicode = code
+	release.keycode = keycode
+	release.physical_keycode = keycode
+	release.unicode = unicode_value
 	release.pressed = false
 	Input.parse_input_event(release)
 

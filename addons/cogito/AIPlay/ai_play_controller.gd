@@ -40,6 +40,16 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "garden_task_failed"],
 		["failure", "max_requests"],
 	],
+	"loop_staircase_anomaly": [
+		["success", "correct_floor_selected"],
+		["failure", "wrong_floor_selected"],
+		["failure", "max_requests"],
+	],
+	"laboratory_experiment": [
+		["success", "experiment_completed"],
+		["failure", "experiment_attempts_exhausted"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D
@@ -52,6 +62,7 @@ const SCENARIO_TERMINAL_RESULTS := {
 var _state: State = State.DISABLED
 var _pending_observation_id: int = -1
 var _executing_observation_id: int = -1
+var _last_completed_observation_id: int = -1
 var _pending_context: Dictionary = {}
 var _last_results: Array = []
 var _reconnect_remaining: float = -1.0
@@ -81,7 +92,7 @@ func _ready() -> void:
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
 		_observer.player = player
-	if "manager" in _observer:
+	if "manager" in _observer and _observer.manager == null:
 		_observer.manager = get_node_or_null("../DailyRoutineManager")
 	if "player" in _executor:
 		_executor.player = player
@@ -193,6 +204,7 @@ func enable_ai() -> void:
 	_state = State.CONNECTING
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
 	var error: Error = _bridge.connect_to_server(host, port)
 	if error != OK:
 		_on_bridge_disconnected("connect_error:%d" % error)
@@ -204,6 +216,7 @@ func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> 
 	_state = State.DISABLED
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
 	_reconnect_remaining = -1.0
 	if _observation_timer != null:
 		_observation_timer.stop()
@@ -350,6 +363,7 @@ func _on_batch_finished(results: Array) -> void:
 		return
 	var completed_observation_id: int = _executing_observation_id
 	_executing_observation_id = -1
+	_last_completed_observation_id = completed_observation_id
 	if _bridge.send_packet({
 		"type": "action_results",
 		"protocol_version": PROTOCOL_VERSION,
@@ -403,6 +417,7 @@ func _on_bridge_disconnected(reason: String) -> void:
 	_state = State.CONNECTING
 	_pending_observation_id = -1
 	_executing_observation_id = -1
+	_last_completed_observation_id = -1
 	_observation_timer.stop()
 	_executor.cancel_all(reason)
 	_reconnect_remaining = RECONNECT_DELAY_SECONDS
@@ -492,6 +507,8 @@ func _on_game_finished(outcome: String, reason: String) -> void:
 	var observation_id: int = _executing_observation_id
 	if observation_id < 0:
 		observation_id = _pending_observation_id
+	if observation_id < 0:
+		observation_id = _last_completed_observation_id
 	_finish_game(outcome, reason, observation_id)
 
 

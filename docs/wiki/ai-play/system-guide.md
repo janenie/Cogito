@@ -47,8 +47,12 @@ Godot 桥的安全边界。
   `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
-  硬上限是 300，终局只允许 `success/garden_tasks_complete`、
-  `failure/garden_task_failed` 和 `failure/max_requests`。`find_key`、`put_book` 和
+  硬上限是 80，终局只允许 `success/garden_tasks_complete`、
+  `failure/garden_task_failed` 和 `failure/max_requests`；`loop_staircase_anomaly` 的
+  请求硬上限是 160，终局只允许 `success/correct_floor_selected`、
+  `failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment` 的
+  请求硬上限是 150，终局只允许 `success/experiment_completed`、
+  `failure/experiment_attempts_exhausted` 和 `failure/max_requests`。`find_key`、`put_book` 和
   `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；其他
@@ -76,22 +80,23 @@ Godot 桥的安全边界。
 
 > 状态：已于 2026-07-26 实施；设计来源见 [黑盒 Codex 玩家 spec](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)。
 
-orchestrator 把可信游戏侧和受限 Codex 会话拆开：它在仓库侧启动仅绑定 `127.0.0.1` 的
-Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；Codex 只配置该边车的
-`briefing`、`observe`、`act`、`stop` 四个工具。玩家提示词、环境、工作区和临时配置不含
-仓库路径、启动脚本路径、玩法 ID、日志位置或关卡信息；游戏目标只由 `briefing` 的既有白名单
-结果提供。
+orchestrator 把可信游戏侧和受限 Codex 会话拆开：它为临时 Codex 配置仓库内
+`python -m ai_play.mcp_server` stdio MCP，该 MCP 连接 Godot bridge 并保存可信轨迹；Codex 的
+游戏动作只使用 `briefing`、`observe`、`act`、`stop` 四个工具。玩家提示词、环境、工作区和
+临时配置不含仓库路径、启动脚本路径、隐藏状态或关卡答案；游戏目标只由 `briefing` 的既有
+白名单结果提供。玩家可读取本次白名单 AI Play 轨迹日志，并可在隔离工作区写 `player_notes/`
+作为自己的复盘/记忆日志，但不能修改可信轨迹日志。
 
-每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
+每局创建隔离的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
 `~/.codex-cogito-player`，只作为 `auth.json` 的来源；不会读取、合并或保留其 `config.toml`、
 MCP、插件、技能、记忆或会话。临时凭据副本和配置会在所有退出路径删除。工作区根及祖先不能
-位于当前仓库内，也不能含 `.git`、`AGENTS.md` 或 `.codex/config.toml`；日志、截图、轨迹和
-运行配置都不放入或传入玩家侧。
+位于当前仓库内，也不能含 `.git`、`AGENTS.md` 或 `.codex/config.toml`；玩家侧只获得运行配置、
+白名单日志读权限和工作区内笔记写权限。
 
 启动命令必须显式提供 `--model`、`--reasoning-effort` 和（需要覆盖默认值时）
-`--codex-auth-home`。临时配置固定模型、思考强度、唯一 MCP URL、四工具白名单和自定义最小
-权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的网络访问。旧的
-`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 都不被接受，不能
+`--codex-auth-home`。临时配置固定模型、思考强度、唯一 stdio MCP、四个游戏动作工具白名单和
+自定义最小权限 profile，并禁用 Web 搜索、子代理、记忆、登录 shell 及模型生成命令的网络访问。旧的
+`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 和 `--mcp-port` 都不被接受，不能
 用来放宽此边界。Windows 配置还请求 Codex 原生 `elevated` sandbox；建立失败时应修复本机
 权限环境，而不是降级该 profile。该 profile 对本局临时 `CODEX_HOME` 加显式 deny，禁止模型
 生成的命令读取认证副本或临时配置；CLI 与 MCP OAuth 凭据存储固定为 `file`，不回退读取
@@ -110,13 +115,11 @@ python3 tools/ai_play_codex_orchestrator.py \
 
 默认运行根在 Windows 是当前仓库所在驱动器根目录的 `cogito_ai_player_runs/`，非 Windows 是
 `/tmp/cogito_ai_player_runs/`；`--session-root` 必须同样通过隔离祖先检查。每局的
-`trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
-游戏产物。
+`trusted_mcplogs/` 位于运行目录的可信侧，由 MCP 写入、玩家只读；玩家工作区可写
+`player_notes/`，orchestrator 不在其中写入游戏产物。
 
-Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
-`http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查
-两个端口空闲，按 MCP 边车、Codex、supervisor 的顺序启动，并在启动 Codex 前等待 HTTP 和桥
-监听就绪。任一子进程退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
+Godot bridge 固定为 `127.0.0.1:8765`。启动器先检查该端口空闲，启动受限 Codex，
+等待它的 stdio MCP 启动并监听桥端口，再启动 supervisor。任一子进程退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
 输入释放路径。
 
 该本机方案限制 Codex 会话通过配置工具读取文件和使用网络的范围，但不是容器、VM 或独立 OS
@@ -320,6 +323,57 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   非下雨时按兰花房门铃或错过警报都会失败。
 - 公开观察只包含相机图像、玩家基础状态、可见交互提示，以及 HUD 级别的时间、天气、
   水壶、浇水和警报进度；不公开内部节点路径、脚本类名、随机下雨时间或运行种子。
+
+## loop_staircase_anomaly 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play-scenario=loop_staircase_anomaly
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play --ai-play-scenario=loop_staircase_anomaly
+```
+
+- 玩家在同一个三墙房间里通过 Up/Down 切换 2F 到 9F 的楼层状态，并在第五轮观察后用
+  Space 选择当前楼层。
+- 每一轮只公开一条新线索，每次开局的线索顺序会变化。玩家需要把五条线索累积起来维护
+  候选楼层集合；单张截图、静态房间外观和某一次看到的物品状态都不足以确定答案。
+  第五轮线索会把候选缩小到唯一出口，选择其他楼层均失败。
+- 公开观察只包含相机图像、玩家基础状态、可见交互提示，以及结构化的当前楼层、
+  轮次和终局布尔值；当前线索文本、房间号、墙上内容和家具变化只存在于截图/可见房间中，
+  需要玩家自行观察和记忆。不公开随机种子、答案楼层、内部节点路径或完整楼层表。
+
+## laboratory_experiment 回合规则
+
+普通游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play-scenario=laboratory_experiment
+```
+
+AI 游玩：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play --ai-play-scenario=laboratory_experiment
+```
+
+- 玩家先读取 HUD 上随机生成的实验目标、环境和两条公开条件，再寻找三种电池、三种
+  样本、三种处理模块和一根金属棒。
+- 材料通过单次 `interact2` 拿起并搬运到起点的对应插槽，无需持续按住。第四种材料安装后自动分析，不需要额外
+  对准验证按钮；替换材料并再次组装完整会开始下一次分析。
+- 只有完整组合消耗机会。三次内满足目标产生 `success/experiment_completed`；第三次
+  仍错误产生 `failure/experiment_attempts_exhausted`。
+- 公开观察只包含相机图像、玩家基础状态、可见交互提示、当前已安装材料、实验次数及
+  已执行实验的电源、电流、稳定性、温度和灯光测量。不公开随机种子、材料隐藏属性、
+  未执行组合结果或正确答案。
 
 ## 来源
 

@@ -38,6 +38,12 @@ func _initialize() -> void:
 	manager.run_experiment()
 	_assert(manager.attempts_used == 0, "incomplete setup consumes no attempt")
 	_assert(manager.status_code == "setup_incomplete", "incomplete setup is visible")
+	manager.select_battery("alpha")
+	manager.select_sample("a")
+	manager.set_metal_bar_installed(true)
+	manager.run_experiment()
+	_assert(manager.attempts_used == 0, "missing physical treatment consumes no attempt")
+	manager.reset_setup()
 
 	var terminal_events: Array[Array] = []
 	manager.round_finished.connect(

@@ -1,6 +1,6 @@
 # AI First Play MCP
 
-AI First Play 提供本地 stdio MCP 入口：外部 AI 客户端负责观察和决策，Python 提供经过白名单筛选的公开游玩简报，并把回合工具调用转发给已显式启用的 Godot Lobby。黑盒 Codex 启动器则在可信侧启动同一服务的仅回环 Streamable HTTP 边车。Godot 仍是动作校验、输入执行、运行时观察公开范围和安全停止的最终权威。
+AI First Play 提供本地 stdio MCP 入口：外部 AI 客户端负责观察和决策，Python 提供经过白名单筛选的公开游玩简报，并把回合工具调用转发给已显式启用的 Godot Lobby。黑盒 Codex 启动器则在受限 Codex 会话中配置同一 stdio MCP 服务。Godot 仍是动作校验、输入执行、运行时观察公开范围和安全停止的最终权威。
 
 ## 快速启动
 
@@ -74,6 +74,16 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   -- --ai-play --ai-play-scenario=garden_watering
 ```
 
+实验室推理玩法位于 Cogito Laboratory 场景，也可普通启动或接入 AI：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play-scenario=laboratory_experiment
+
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play --ai-play-scenario=laboratory_experiment
+```
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -82,9 +92,10 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 ## 黑盒 Codex 玩家连续 3 局
 
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
-由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
-`cogito_ai_play` 的 `briefing`、`observe`、`act`、`stop`。游戏目标、规则和物体操作说明只从
-`briefing` 返回，初始提示词、工作区、环境和临时配置均不包含玩法 ID、源码、日志或仓库路径。
+由 orchestrator 为临时 Codex 配置 stdio MCP，并启动 Godot supervisor；玩家 Codex 只可发现
+`cogito_ai_play` 的 `briefing`、`observe`、`act`、`stop` 作为游戏动作工具。游戏目标、规则和物体操作说明只从
+`briefing` 返回；玩家侧可读取本次白名单 AI Play 轨迹日志，并可在隔离工作区写自己的 `player_notes/`，
+但初始提示词、工作区、环境和临时配置均不包含源码、隐藏状态或仓库路径。
 
 首次使用前，在**专用认证目录**登录：
 
@@ -108,9 +119,11 @@ python3 tools/ai_play_codex_orchestrator.py \
 读取也不合并其中的 `config.toml`、MCP、插件、技能、记忆或会话。每局创建临时 `CODEX_HOME`，
 仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
 
-该临时配置固定模型/思考强度，唯一 MCP 为 `http://127.0.0.1:<mcp-port>/mcp`，并只允许四个
-游玩工具；它关闭 Web 搜索、子代理、记忆、登录 shell 和模型生成命令的网络访问。不要传递旧的
-`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host` 或 `--ws-port`：它们不是此启动器
+该临时配置固定模型/思考强度，唯一 MCP 为仓库内 `python -m ai_play.mcp_server` stdio
+服务，并只允许四个游玩工具用于游戏动作；它关闭 Web 搜索、子代理、记忆、登录 shell 和模型生成命令的网络访问。
+文件边界允许读取本次白名单 AI Play 日志，并允许在玩家工作区写 `player_notes/`；可信轨迹日志仍只读。
+不要传递旧的
+`--codex-home`、`--sandbox`、`--approval-policy`、`--ws-host`、`--ws-port` 或 `--mcp-port`：它们不是此启动器
 接受的参数。在 Windows 上，该配置请求 Codex 的原生 `elevated` sandbox；无法建立该沙箱时应
 修复本机 Codex/权限环境，而不是改用宽松配置。权限 profile 还显式拒绝模型生成命令读取本局
 临时 `CODEX_HOME`。CLI 和 MCP OAuth 凭据存储均固定为 `file`，不会回退读取系统凭据库。
@@ -122,14 +135,13 @@ python3 tools/ai_play_codex_orchestrator.py \
 ```text
 <isolated-session-root>/
 └── 20260726-170000/
-    ├── player_workspace/   # 创建时为空；orchestrator 不写入游戏产物
-    └── trusted_mcplogs/    # 仅可信 MCP 侧可见
+    ├── player_workspace/   # 创建时只含运行配置；玩家可写 player_notes/
+    └── trusted_mcplogs/    # 可信 MCP 写入，玩家只读
 ```
 
-`127.0.0.1:8765` 是 Godot 固定桥端口；`--mcp-port` 默认是独立的 `8766`，且不能使用 8765。
-启动器会先检查两个端口空闲，启动可信 MCP 边车并等待 HTTP 与桥监听就绪，再启动 Codex，最后
-启动 supervisor；任一进程异常、中断或退出都会终止其余进程。`--mcp-port` 可用于改变 HTTP
-边车端口，但 Godot bridge 不能通过该启动器改端口。
+`127.0.0.1:8765` 是 Godot 固定桥端口。启动器会先检查该端口空闲，启动受限 Codex，
+等待它的 stdio MCP 启动并监听桥端口，再启动 supervisor；任一进程异常、中断或退出都会终止其余进程。
+Godot bridge 不能通过该启动器改端口。
 
 这是本机 Codex 权限 profile 的硬化边界，不是容器、VM 或独立 Windows 用户级别的隔离，不能
 抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收会产生截图、令牌、费用和
@@ -198,6 +210,17 @@ NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，�
 `success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
 下雨警报会产生 `failure/garden_task_failed`。
 
+`loop_staircase_anomaly` 是循环楼梯异常任务。玩家在 2F 到 9F 之间用 Up/Down 切换楼层，
+经过五轮观察后用 Space 选择当前楼层。每一轮只公开一条新线索，每次开局的线索顺序会变化；
+玩家需要把五条线索累积起来维护候选楼层集合，不能只凭单张截图或静态房间外观决定答案。
+第五轮线索会把候选缩小到唯一出口。成功产生 `success/correct_floor_selected`，选错产生
+`failure/wrong_floor_selected`。
+
+`laboratory_experiment` 是随机实验回路任务。玩家读取 HUD 上的目标、环境和部分条件，
+寻找并安装电池、样本、处理模块和金属棒；第四种材料回到起点插槽后自动分析，再根据公开测量反馈调整组合。只有完整配置
+才消耗实验机会，三次内成功产生 `success/experiment_completed`，三次均失败产生
+`failure/experiment_attempts_exhausted`。公开观察不包含随机种子、材料隐藏属性或答案。
+
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
 stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
@@ -220,6 +243,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `jump`、`crouch`、`stop`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
+- `press_key` 只能按 `up`、`down` 或 `space`，用于循环楼梯等键盘式任务。
 
 Python 会先校验批次，Godot 会再次校验。上下文变化动作必须是批次最后一个动作；非法批次不会产生 Godot 输入。
 
@@ -233,8 +257,12 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 为 100 次，终局为 `success/meeting_door_closed` 或 `failure/max_requests`；
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
-为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
-或 `failure/max_requests`。环境变量
+为 80 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
+或 `failure/max_requests`；`loop_staircase_anomaly` 的硬上限为 160 次，终局为
+`success/correct_floor_selected`、`failure/wrong_floor_selected` 或
+`failure/max_requests`；`laboratory_experiment` 的硬上限为 150 次，终局为
+`success/experiment_completed`、`failure/experiment_attempts_exhausted` 或
+`failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -246,7 +274,9 @@ Python 会先校验批次，Godot 会再次校验。上下文变化动作必须�
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取
 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
-文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具
+文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果、截图和玩法公开
+状态；`loop_staircase_anomaly` 的结构化公开状态只包含当前楼层、当前轮次和终局布尔值。
+墙上内容、箱子数和家具变化只存在于截图/可见房间中，需要玩家自行观察和记忆。所有工具
 都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 启用 AI Play 后，MCP Server 会在 Godot 成功连接时开始保存本地游玩轨迹。日志只记录
@@ -299,10 +329,12 @@ mcplogs/
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
-  `daily_routine_cleanup` 和 `garden_watering` 的运行时终局事件和独立公开简报；
+  `daily_routine_cleanup`、`garden_watering`、`loop_staircase_anomaly` 和
+  `laboratory_experiment` 的运行时终局事件
+  和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书和箱子的随机选择、
-  NPC 路线起点、NPC 路线方向、daily routine 或 garden 内部节点路径、随机下雨时间、
-  随机种子或任务内部知识。
+  NPC 路线起点、NPC 路线方向、daily routine、garden 或 loop staircase 内部节点路径、
+  随机下雨时间、随机种子、循环楼梯答案、实验材料隐藏属性、正确实验组合或任务内部知识。
 
 ## 配置
 
@@ -318,7 +350,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 500、50/100、50、100、150、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 500、50/100、50、100、150、80、160 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

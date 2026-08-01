@@ -3,19 +3,14 @@ extends SceneTree
 const LABORATORY_PATH := "res://addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn"
 const STATION_PATH := "NavigationRegion3D/SYSTEMIC_PROPERTIES/LaboratoryExperiment"
 const REQUIRED_BUTTONS: Array[String] = [
-	"Controls/BatteryAlpha",
-	"Controls/BatteryBeta",
-	"Controls/BatteryGamma",
-	"Controls/SampleA",
-	"Controls/SampleB",
-	"Controls/SampleC",
-	"Controls/TreatmentDry",
-	"Controls/TreatmentWet",
-	"Controls/TreatmentHeated",
-	"Controls/InstallBar",
-	"Controls/RunExperiment",
 	"Controls/ResetSetup",
 ]
+const REQUIRED_SLOTS := {
+	"AssemblySlots/BatterySlot": "battery",
+	"AssemblySlots/SampleSlot": "sample",
+	"AssemblySlots/TreatmentSlot": "treatment",
+	"AssemblySlots/ConnectorSlot": "connector",
+}
 
 var failures := 0
 
@@ -40,6 +35,15 @@ func _initialize() -> void:
 		_assert(station.get_node_or_null("StatusPanel") != null, "station has status panel")
 		_assert(station.get_node_or_null("HistoryPanel") != null, "station has history panel")
 		_assert(station.get_node_or_null("ExperimentLamp") != null, "station has experiment lamp")
+		_assert(station.get_node_or_null("TaskCardMarker") != null, "task card has a visible marker")
+		_assert(station.get_node_or_null("ExperimentHUD") is CanvasLayer, "station has a screen HUD")
+		for hud_path: String in [
+			"ExperimentHUD/Layout/RulesPanel/Margin/Content/Title",
+			"ExperimentHUD/Layout/RulesPanel/Margin/Content/Rules",
+			"ExperimentHUD/Layout/StatePanel/Margin/Content/State",
+			"ExperimentHUD/Layout/StatePanel/Margin/Content/History",
+		]:
+			_assert(station.get_node_or_null(hud_path) != null, "%s exists" % hud_path)
 		for button_path: String in REQUIRED_BUTTONS:
 			var button := station.get_node_or_null(button_path)
 			_assert(button != null, "%s exists" % button_path)
@@ -50,10 +54,31 @@ func _initialize() -> void:
 					interaction != null and interaction.input_map_action in ["interact", "interact2"],
 					"%s uses an allowlisted AI action" % button_path,
 				)
+		for slot_path: String in REQUIRED_SLOTS:
+			var slot := station.get_node_or_null(slot_path)
+			_assert(slot != null, "%s exists" % slot_path)
+			_assert(
+				slot != null and slot.accepted_kind == REQUIRED_SLOTS[slot_path],
+				"%s accepts the correct component kind" % slot_path,
+			)
+		for removed_button: String in [
+			"Controls/RunExperiment",
+			"Controls/BatteryAlpha",
+			"Controls/SampleA",
+			"Controls/TreatmentDry",
+			"Controls/InstallBar",
+		]:
+			_assert(station.get_node_or_null(removed_button) == null, "%s was removed" % removed_button)
 		for anchor_group: String in ["BatteryAnchors", "BarAnchors", "TaskCardAnchors"]:
 			_assert(station.get_node_or_null(anchor_group) != null, "%s exists" % anchor_group)
 
-	_assert(laboratory.get_node_or_null("Player") != null, "existing player remains present")
+	var player := laboratory.get_node_or_null("Player") as Node3D
+	_assert(player != null, "existing player remains present")
+	if player != null and station is Node3D:
+		_assert(
+			player.position.distance_to(station.position) <= 6.0,
+			"player starts within sight of the experiment station",
+		)
 	for existing_path: String in [
 		"NavigationRegion3D/SYSTEMIC_PROPERTIES/Cathode_A",
 		"NavigationRegion3D/SYSTEMIC_PROPERTIES/Cathode_B",
@@ -70,23 +95,85 @@ func _initialize() -> void:
 	root.add_child(running_station)
 	await process_frame
 	_assert(
-		running_station.get_node("StatusPanel").text.contains("PROTOCOL:"),
-		"station initializes its live status display",
+		running_station.get_node("StatusPanel").text.contains("实验："),
+		"station initializes its Chinese live status display",
 	)
-	running_station.get_node("Controls/BatteryAlpha").pressed.emit()
-	running_station.get_node("Controls/SampleB").pressed.emit()
-	running_station.get_node("Controls/TreatmentWet").pressed.emit()
-	running_station.get_node("Controls/InstallBar").pressed.emit()
+	_assert(
+		running_station.get_node("StatusPanel").text.contains("自动分析"),
+		"status display directs the player to assemble before automatic analysis",
+	)
+	_assert(
+		not running_station.get_node("StatusPanel").text.contains("PROTOCOL"),
+		"3D status display has no English prompt",
+	)
+	_assert(
+		running_station.get_node("HistoryPanel").text.contains("实验记录"),
+		"3D measurement display is Chinese",
+	)
 	var running_manager := running_station.get_node("Manager")
-	_assert(running_manager.battery_installed == "alpha", "battery button is wired")
-	_assert(running_manager.selected_sample == "b", "sample button is wired")
-	_assert(running_manager.sample_state == "wet", "treatment button is wired")
-	_assert(running_manager.metal_bar_installed, "bar button is wired")
+	var candidates := running_station.get_node_or_null("Candidates")
+	_assert(candidates != null, "station has a candidate container")
+	if candidates != null:
+		_assert(candidates.get_child_count() == 10, "station spawns ten physical candidates")
+		var kinds := {"battery": 0, "sample": 0, "treatment": 0, "connector": 0}
+		var example_components := {}
+		for candidate: Node in candidates.get_children():
+			kinds[candidate.component_kind] += 1
+			if not example_components.has(candidate.component_kind):
+				example_components[candidate.component_kind] = candidate
+			var carry := candidate.get_node_or_null("CarryableComponent")
+			_assert(carry != null, "%s is carryable" % candidate.name)
+			_assert(
+				carry != null and carry.input_map_action == "interact2",
+				"%s uses interact2" % candidate.name,
+			)
+		_assert(kinds == {"battery": 3, "sample": 3, "treatment": 3, "connector": 1}, "candidate kinds are complete")
+		for kind: String in ["battery", "sample", "treatment", "connector"]:
+			var component: Node = example_components[kind]
+			var slot: Node = running_station.get_node(
+				"AssemblySlots/%sSlot" % kind.capitalize()
+			)
+			component.get_node("CarryableComponent").is_being_carried = true
+			slot._on_body_entered(component)
+			if kind == "battery":
+				slot._on_body_exited(component)
+				_assert(running_manager.battery_installed == "none", "removing a component clears its slot state")
+				component.get_node("CarryableComponent").is_being_carried = true
+				slot._on_body_entered(component)
+		await process_frame
+		_assert(running_manager.battery_installed != "none", "battery slot updates manager")
+		_assert(running_manager.selected_sample != "none", "sample slot updates manager")
+		_assert(running_manager.sample_state != "none", "treatment slot updates manager")
+		_assert(running_manager.metal_bar_installed, "connector slot updates manager")
+		_assert(running_manager.attempts_used == 1, "fourth component triggers automatic analysis")
 	_assert(
 		running_station.get_node("TaskCard/ReadableComponent").label_content.text
 		== running_manager.task_card_text(),
 		"task card UI shows the generated public clues",
 	)
+	_assert(
+		running_station.get_node("TaskCard/ReadableComponent").label_title.text
+		== "实验任务说明",
+		"task card title is Chinese",
+	)
+	var hud_title := running_station.get_node(
+		"ExperimentHUD/Layout/RulesPanel/Margin/Content/Title"
+	) as Label
+	var hud_rules := running_station.get_node(
+		"ExperimentHUD/Layout/RulesPanel/Margin/Content/Rules"
+	) as RichTextLabel
+	var hud_state := running_station.get_node(
+		"ExperimentHUD/Layout/StatePanel/Margin/Content/State"
+	) as Label
+	_assert(hud_title.text == "实验任务", "HUD title is Chinese")
+	_assert(hud_title.get_theme_font_size("font_size") >= 32, "HUD title uses a large font")
+	_assert(hud_rules.get_theme_font_size("normal_font_size") >= 24, "HUD rules use a large font")
+	_assert(hud_rules.text.contains("游戏规则"), "HUD explains the rules in Chinese")
+	_assert(hud_rules.text.contains("最多 3 次"), "HUD states the three-attempt limit")
+	_assert(hud_rules.text.contains("寻找"), "HUD explains the physical search loop")
+	_assert(hud_rules.text.contains("无需按住"), "HUD explains that carrying uses one E press")
+	_assert(hud_rules.text.contains("自动分析"), "HUD explains automatic validation at the start bench")
+	_assert(hud_state.text.contains("当前配置"), "HUD exposes current setup in Chinese")
 	running_station.queue_free()
 	_finish()
 

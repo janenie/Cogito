@@ -38,13 +38,18 @@ def test_codex_command_uses_empty_workspace_and_mcp_overrides(tmp_path):
     assert str(workspace_dir.resolve()) in command
     assert str(Path("/repo/Cogito")) not in command[command.index("--cd") + 1]
     assert "--skip-git-repo-check" in command
-    assert "--ignore-user-config" in command
+    assert "--ignore-user-config" not in command
     assert "--ignore-rules" in command
     assert "--output-last-message" in command
     assert str(report_file.resolve()) in command
     assert command[-1] == "-"
     assert any("mcp_servers.cogito_ai_play.command" in item for item in command)
     assert any("mcp_servers.cogito_ai_play.env" in item for item in command)
+    for tool_name in ["briefing", "observe", "act", "stop"]:
+        assert (
+            f'mcp_servers.cogito_ai_play.tools.{tool_name}.approval_mode="approve"'
+            in command
+        )
     assert 'model_reasoning_effort="xhigh"' in command
 
 

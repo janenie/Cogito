@@ -117,27 +117,45 @@ def test_temporary_player_codex_home_copies_only_auth_and_removes_it(tmp_path):
     assert not player_home.exists()
 
 
-def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path):
+def test_write_player_codex_config_uses_stdio_mcp_with_trusted_env(tmp_path):
     orchestrator = load_orchestrator()
 
+    mcp_env = {
+        "AI_PLAY_LOG_ROOT": str(tmp_path / "trusted_mcplogs"),
+        "AI_PLAY_WS_HOST": "127.0.0.1",
+        "AI_PLAY_WS_PORT": "8765",
+        "PYTHONPATH": str(orchestrator.REPO_ROOT / "ai_play" / "src"),
+    }
     config_path = orchestrator.write_player_codex_config(
         tmp_path,
         model="gpt-test",
         reasoning_effort="high",
-        mcp_url="http://127.0.0.1:8766/mcp",
+        mcp_command=["python", "-m", "ai_play.mcp_server"],
+        mcp_cwd=orchestrator.REPO_ROOT,
+        mcp_env=mcp_env,
     )
 
     text = config_path.read_text(encoding="utf-8")
     assert 'model = "gpt-test"' in text
     assert 'model_reasoning_effort = "high"' in text
-    assert 'url = "http://127.0.0.1:8766/mcp"' in text
+    assert 'command = "python"' in text
+    assert 'args = ["-m", "ai_play.mcp_server"]' in text
+    assert f'cwd = "{orchestrator.REPO_ROOT}"' in text
+    assert "[mcp_servers.cogito_ai_play.env]" in text
+    assert f'AI_PLAY_LOG_ROOT = "{tmp_path / "trusted_mcplogs"}"' in text
+    assert 'AI_PLAY_WS_HOST = "127.0.0.1"' in text
+    assert 'AI_PLAY_WS_PORT = "8765"' in text
+    assert (
+        f'PYTHONPATH = "{orchestrator.REPO_ROOT / "ai_play" / "src"}"'
+        in text
+    )
     assert 'enabled_tools = ["briefing", "observe", "act", "stop"]' in text
     assert 'web_search = "disabled"' in text
     assert 'cli_auth_credentials_store = "file"' in text
     assert 'mcp_oauth_credentials_store = "file"' in text
     assert 'default_permissions = "ai_play_player"' in text
     assert '":minimal" = "read"' in text
-    assert '"." = "read"' in text
+    assert '"." = "write"' in text
     assert "[permissions.ai_play_player.network]\nenabled = false" in text
     assert "[windows]" in text
     assert 'sandbox = "elevated"' in text
@@ -145,8 +163,7 @@ def test_write_player_codex_config_is_complete_and_has_no_repo_command(tmp_path)
         f'{json.dumps(str(tmp_path.resolve()), ensure_ascii=False)} = "deny"'
         in text
     )
-    assert "start_ai.sh" not in text
-    assert str(orchestrator.REPO_ROOT) not in text
+    assert 'url = "http://127.0.0.1:8766/mcp"' not in text
 
 
 @pytest.mark.parametrize(
@@ -265,7 +282,6 @@ def test_build_trusted_mcp_env_has_bridge_and_log_but_no_player_credentials(
 def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
     orchestrator = load_orchestrator()
 
-    mcp_command = orchestrator.build_mcp_command("python", 8766)
     codex_command = orchestrator.build_codex_command("codex", tmp_path / "workspace")
     prompt = orchestrator.build_player_prompt(
         runs=3,
@@ -273,17 +289,6 @@ def test_blackbox_commands_and_prompt_do_not_reveal_repo_or_scenario(tmp_path):
         run_config=tmp_path / "ai_play_run_config.json",
     )
 
-    assert mcp_command == [
-        "python",
-        "-m",
-        "ai_play.mcp_server",
-        "--transport",
-        "streamable-http",
-        "--http-host",
-        "127.0.0.1",
-        "--http-port",
-        "8766",
-    ]
     assert "--sandbox" not in codex_command
     assert "start_ai.sh" not in " ".join(codex_command)
     assert "find_contract" in prompt
@@ -309,6 +314,32 @@ def test_blackbox_prompt_waits_for_all_runs_with_bounded_log_access(tmp_path):
     assert "最新创建的时间戳目录" in prompt
     assert "trajectory.json" in prompt
     assert "run.json" in prompt
+    assert "player_notes" in prompt
+    assert "不要修改 ai_play_log_root" in prompt
+
+
+def test_loop_staircase_prompt_uses_key_controls_not_garden_navigation(tmp_path):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="loop_staircase_anomaly",
+        run_config=tmp_path / "ai_play_run_config.json",
+    )
+
+    assert "press_key" in prompt
+    assert "observation.staircase" in prompt
+    assert "current_floor" in prompt
+    assert "current_loop" in prompt
+    assert "lamp_color" not in prompt
+    assert "wall_marker" not in prompt
+    assert "box_count" not in prompt
+    assert '"up"' in prompt
+    assert '"down"' in prompt
+    assert '"space"' in prompt
+    assert "不要使用 move 或 sprint" in prompt
+    assert "花园" not in prompt
+    assert "水壶" not in prompt
 
 
 def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
@@ -333,7 +364,6 @@ def test_parse_args_exposes_only_hardened_player_options():
     )
 
     assert args.codex_auth_home == orchestrator.DEFAULT_CODEX_AUTH_HOME
-    assert args.mcp_port == 8766
     assert not hasattr(args, "sandbox")
     assert not hasattr(args, "approval_policy")
     assert not hasattr(args, "codex_home")
@@ -341,7 +371,7 @@ def test_parse_args_exposes_only_hardened_player_options():
 
 @pytest.mark.parametrize(
     "legacy_option",
-    ["--codex-home", "--sandbox", "--approval-policy", "--ws-port"],
+    ["--codex-home", "--sandbox", "--approval-policy", "--ws-port", "--mcp-port"],
 )
 def test_parse_args_rejects_legacy_player_boundary_options(legacy_option):
     orchestrator = load_orchestrator()
@@ -359,39 +389,6 @@ def test_parse_args_rejects_legacy_player_boundary_options(legacy_option):
         )
 
     assert error.value.code == 2
-
-
-def test_main_rejects_matching_mcp_and_bridge_ports_before_creating_run_paths(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    monkeypatch.setattr(
-        orchestrator,
-        "create_run_paths",
-        lambda *args, **kwargs: pytest.fail("run paths must not be created"),
-    )
-    monkeypatch.setattr(
-        orchestrator,
-        "validate_isolated_session_root",
-        lambda root: Path(root).resolve(),
-    )
-
-    with pytest.raises(SystemExit, match="must differ"):
-        orchestrator.main(
-            [
-                "--session-root",
-                str(tmp_path / "runs"),
-                "--codex-auth-home",
-                str(tmp_path / "auth-home"),
-                "--model",
-                "gpt-test",
-                "--reasoning-effort",
-                "high",
-                "--mcp-port",
-                "8765",
-            ]
-        )
 
 
 class FakeProcess:
@@ -419,14 +416,13 @@ class FakeProcess:
         self.returncode = -9
 
 
-def test_session_starts_trusted_mcp_before_codex_and_supervisor(
+def test_session_starts_codex_then_supervisor_after_bridge_ready(
     monkeypatch,
     tmp_path,
 ):
     orchestrator = load_orchestrator()
     started = []
     processes = {
-        "mcp": FakeProcess(),
         "codex": FakeProcess(),
         "supervisor": FakeProcess(return_codes=[0]),
     }
@@ -440,68 +436,60 @@ def test_session_starts_trusted_mcp_before_codex_and_supervisor(
     monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
 
     result = orchestrator.run_orchestrated_session(
-        mcp_command=["python", "-m", "ai_play.mcp_server"],
         codex_command=["codex", "exec"],
         supervisor_command=["python", "supervisor.py"],
         prompt="briefing",
-        mcp_env={},
         codex_env={},
         supervisor_env={},
-        mcp_cwd=tmp_path,
         codex_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
-        mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
     )
 
     assert result == 0
-    assert started == ["mcp", "codex", "supervisor"]
+    assert started == ["codex", "supervisor"]
     assert processes["codex"].terminated
-    assert processes["mcp"].terminated
 
 
-def test_sidecar_readiness_failure_never_starts_codex_or_supervisor(
+def test_bridge_readiness_failure_never_starts_supervisor(
     monkeypatch,
     tmp_path,
 ):
     orchestrator = load_orchestrator()
     started = []
-    mcp = FakeProcess()
+    codex = FakeProcess()
     monkeypatch.setattr(
         orchestrator,
         "_start_process",
-        lambda label, command, cwd, env, stdin_text=None: started.append(label) or mcp,
+        lambda label, command, cwd, env, stdin_text=None: (
+            started.append(label) or codex
+        ),
     )
     monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: False)
 
     result = orchestrator.run_orchestrated_session(
-        mcp_command=["python"],
         codex_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
-        mcp_env={},
         codex_env={},
         supervisor_env={},
-        mcp_cwd=tmp_path,
         codex_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
-        mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
     )
 
     assert result == 4
-    assert started == ["mcp"]
-    assert mcp.terminated
+    assert started == ["codex"]
+    assert codex.terminated
 
 
-def test_codex_early_exit_terminates_trusted_mcp(monkeypatch, tmp_path):
+def test_codex_early_exit_returns_codex_status(monkeypatch, tmp_path):
     orchestrator = load_orchestrator()
     processes = {
-        "mcp": FakeProcess(),
         "codex": FakeProcess(return_codes=[17]),
     }
     monkeypatch.setattr(
@@ -509,33 +497,27 @@ def test_codex_early_exit_terminates_trusted_mcp(monkeypatch, tmp_path):
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: processes[label],
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: False)
 
     result = orchestrator.run_orchestrated_session(
-        mcp_command=["python"],
         codex_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
-        mcp_env={},
         codex_env={},
         supervisor_env={},
-        mcp_cwd=tmp_path,
         codex_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
-        mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
     )
 
     assert result == 17
-    assert processes["mcp"].terminated
 
 
 def test_keyboard_interrupt_terminates_all_started_processes(monkeypatch, tmp_path):
     orchestrator = load_orchestrator()
     processes = {
-        "mcp": FakeProcess(),
         "codex": FakeProcess(),
         "supervisor": FakeProcess(),
     }
@@ -553,25 +535,20 @@ def test_keyboard_interrupt_terminates_all_started_processes(monkeypatch, tmp_pa
 
     with pytest.raises(KeyboardInterrupt):
         orchestrator.run_orchestrated_session(
-            mcp_command=["python"],
             codex_command=["codex"],
             supervisor_command=["supervisor"],
             prompt="briefing",
-            mcp_env={},
             codex_env={},
             supervisor_env={},
-            mcp_cwd=tmp_path,
             codex_cwd=tmp_path,
             supervisor_cwd=tmp_path,
             ws_port=8765,
-            mcp_port=8766,
             mcp_start_timeout_seconds=1.0,
             codex_exit_grace_seconds=0.0,
         )
 
     assert processes["supervisor"].terminated
     assert processes["codex"].terminated
-    assert processes["mcp"].terminated
 
 
 def test_main_removes_temporary_codex_home_after_session(monkeypatch, tmp_path):

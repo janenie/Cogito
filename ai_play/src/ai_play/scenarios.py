@@ -10,6 +10,10 @@ from .daily_routine_cleanup_briefing import load_daily_routine_cleanup_briefing
 from .find_key_briefing import load_find_key_briefing
 from .garden_watering_briefing import load_garden_watering_briefing
 from .greet_npc_meeting_briefing import load_greet_npc_meeting_briefing
+from .loop_staircase_anomaly_briefing import (
+    load_loop_staircase_anomaly_briefing,
+)
+from .laboratory_experiment_briefing import load_laboratory_experiment_briefing
 from .put_book_briefing import load_put_book_briefing
 
 
@@ -69,10 +73,28 @@ _SCENARIOS = {
     ),
     "garden_watering": ScenarioDefinition(
         briefing_loader=load_garden_watering_briefing,
-        max_act_requests=300,
+        max_act_requests=80,
         terminal_results=frozenset({
             ("success", "garden_tasks_complete"),
             ("failure", "garden_task_failed"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "loop_staircase_anomaly": ScenarioDefinition(
+        briefing_loader=load_loop_staircase_anomaly_briefing,
+        max_act_requests=160,
+        terminal_results=frozenset({
+            ("success", "correct_floor_selected"),
+            ("failure", "wrong_floor_selected"),
+            ("failure", "max_requests"),
+        }),
+    ),
+    "laboratory_experiment": ScenarioDefinition(
+        briefing_loader=load_laboratory_experiment_briefing,
+        max_act_requests=150,
+        terminal_results=frozenset({
+            ("success", "experiment_completed"),
+            ("failure", "experiment_attempts_exhausted"),
             ("failure", "max_requests"),
         }),
     ),

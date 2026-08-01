@@ -69,6 +69,13 @@
 [ext_resource type="Resource" uid="uid://c2goscdbbyawd" path="res://addons/cogito/QuestSystem/Quests/DemoSceneQuests/Demo_TargetPractice.tres" id="68_r8380"]
 [ext_resource type="PackedScene" uid="uid://b2cccsfb5tikx" path="res://addons/cogito/CogitoNPC/cogito_npc.tscn" id="68_wxy0x"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_station.tscn" id="69_laboratory_experiment"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_controller.gd" id="70_ai_controller"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_laboratory_observer.gd" id="71_ai_observer"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_executor.gd" id="72_ai_executor"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_home_interaction_probe.gd" id="73_ai_probe"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_bridge.gd" id="74_ai_bridge"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_laboratory_monitor.gd" id="75_ai_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="76_ai_game_over"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_wjbty"]
 panorama = ExtResource("2_akrjl")
@@ -919,8 +926,38 @@ shadow_opacity = 0.8
 environment = SubResource("Environment_bftoa")
 
 [node name="Player" parent="." unique_id=2115555435 instance=ExtResource("3_ea58p")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 5.13854, 0.8, -5.43073)
+position = Vector3(3, 0.8, -4.5)
 inventory_data = SubResource("Resource_kt1ow")
+
+[node name="AIPlayController" type="Node" parent="." node_paths=PackedStringArray("player")]
+script = ExtResource("70_ai_controller")
+player = NodePath("../Player")
+auto_start = false
+host = "127.0.0.1"
+port = 8765
+
+[node name="Observer" type="Node" parent="AIPlayController" node_paths=PackedStringArray("manager")]
+script = ExtResource("71_ai_observer")
+manager = NodePath("../../NavigationRegion3D/SYSTEMIC_PROPERTIES/LaboratoryExperiment/Manager")
+
+[node name="Executor" type="Node" parent="AIPlayController"]
+script = ExtResource("72_ai_executor")
+
+[node name="InteractionProbe" type="Node" parent="AIPlayController"]
+script = ExtResource("73_ai_probe")
+
+[node name="Bridge" type="Node" parent="AIPlayController"]
+script = ExtResource("74_ai_bridge")
+
+[node name="ObservationTimer" type="Timer" parent="AIPlayController"]
+one_shot = true
+
+[node name="LaboratoryMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("manager", "game_over_screen")]
+script = ExtResource("75_ai_monitor")
+manager = NodePath("../../NavigationRegion3D/SYSTEMIC_PROPERTIES/LaboratoryExperiment/Manager")
+game_over_screen = NodePath("GameOverScreen")
+
+[node name="GameOverScreen" parent="AIPlayController/LaboratoryMonitor" instance=ExtResource("76_ai_game_over")]
 
 [node name="CONNECTOR_TO_LOBBY" type="Node3D" parent="." unique_id=779963891]
 
@@ -4233,8 +4270,7 @@ transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1, 0, 
 [node name="SYSTEMIC_PROPERTIES" type="Node3D" parent="NavigationRegion3D" unique_id=721963478]
 
 [node name="LaboratoryExperiment" parent="NavigationRegion3D/SYSTEMIC_PROPERTIES" instance=ExtResource("69_laboratory_experiment")]
-position = Vector3(-14.25, 0, -23.5)
-rotation = Vector3(0, 1.5708, 0)
+position = Vector3(3, 0, -8)
 
 [node name="Pickup_Dart_Water" parent="NavigationRegion3D/SYSTEMIC_PROPERTIES" unique_id=696360870 instance=ExtResource("45_0fawo")]
 transform = Transform3D(0.754801, 6.99125e-15, -0.655954, 0, 1, 1.06581e-14, 0.655954, -8.04478e-15, 0.754801, -11.0006, 0.76828, -30.2038)

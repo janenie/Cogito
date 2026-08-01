@@ -106,6 +106,13 @@ func _run_tests() -> void:
 		_all_events_of_type_use_device(recorder.events, InputEventKey, executor.SYNTHETIC_DEVICE_ID),
 		"synthetic key events use the dedicated device ID",
 	)
+	recorder.events.clear()
+	executor.execute_batch([{"type": "press_key", "key": "up"}], {})
+	await process_frame
+	_assert(
+		_key_events_match(recorder.events, KEY_UP),
+		"press_key emits a dedicated up key press and release",
+	)
 
 	executor.queue_free()
 	recorder.queue_free()
@@ -398,6 +405,23 @@ func _first_mouse_motion(events: Array[InputEvent]) -> InputEventMouseMotion:
 		if event is InputEventMouseMotion:
 			return event
 	return null
+
+
+func _key_events_match(events: Array[InputEvent], expected_keycode: Key) -> bool:
+	var key_events: Array[InputEventKey] = []
+	for event: InputEvent in events:
+		if event is InputEventKey:
+			key_events.append(event as InputEventKey)
+	if key_events.size() != 2:
+		return false
+	return (
+		key_events[0].device == AIPlayExecutor.SYNTHETIC_DEVICE_ID
+		and key_events[1].device == AIPlayExecutor.SYNTHETIC_DEVICE_ID
+		and key_events[0].keycode == expected_keycode
+		and key_events[1].keycode == expected_keycode
+		and key_events[0].pressed
+		and not key_events[1].pressed
+	)
 
 
 func _assert(condition: bool, label: String) -> void:

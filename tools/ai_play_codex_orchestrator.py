@@ -142,11 +142,16 @@ def write_player_codex_config(
     home: Path,
     model: str,
     reasoning_effort: str,
-    mcp_url: str,
+    mcp_command: Sequence[str],
+    mcp_cwd: Path,
+    mcp_env: Mapping[str, str],
     readable_log_roots: Sequence[Path] = (),
 ) -> Path:
+    if not mcp_command:
+        raise ValueError("MCP command must not be empty")
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     player_home_path = _toml_basic_string(str(home.resolve()))
+    mcp_args = list(mcp_command[1:])
     config_path = home / "config.toml"
     filesystem_rules = [
         '":minimal" = "read"',
@@ -187,17 +192,25 @@ def write_player_codex_config(
                 *filesystem_rules,
                 "",
                 '[permissions.ai_play_player.filesystem.":workspace_roots"]',
-                '"." = "read"',
+                '"." = "write"',
                 "",
                 "[permissions.ai_play_player.network]",
                 "enabled = false",
                 "",
                 "[mcp_servers.cogito_ai_play]",
-                f"url = {_toml_basic_string(mcp_url)}",
+                f"command = {_toml_basic_string(mcp_command[0])}",
+                "args = " + json.dumps(mcp_args, ensure_ascii=False),
+                f"cwd = {_toml_basic_string(str(mcp_cwd.resolve()))}",
                 "required = true",
                 "enabled_tools = "
                 + json.dumps(list(PLAYER_TOOL_NAMES), ensure_ascii=False),
                 'default_tools_approval_mode = "approve"',
+                "",
+                "[mcp_servers.cogito_ai_play.env]",
+                *(
+                    f"{key} = {_toml_basic_string(value)}"
+                    for key, value in sorted(mcp_env.items())
+                ),
                 "",
             ]
         ),
@@ -294,17 +307,11 @@ def build_supervisor_env(
     return build_core_env(base_env)
 
 
-def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
+def build_mcp_command(python_bin: str) -> list[str]:
     return [
         python_bin,
         "-m",
         "ai_play.mcp_server",
-        "--transport",
-        "streamable-http",
-        "--http-host",
-        DEFAULT_WS_HOST,
-        "--http-port",
-        str(mcp_port),
     ]
 
 
@@ -361,13 +368,45 @@ def build_supervisor_command(
 
 
 def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
+    if scenario == "loop_staircase_anomaly":
+        play_guidance = """
+像人一样玩：
+1. 这是楼层切换解谜，不要使用 move 或 sprint；移动楼层只用 press_key。
+2. 上一层使用 {"type":"press_key","key":"up"}，下一层使用 {"type":"press_key","key":"down"}。
+3. 选择当前楼层作为答案只使用 {"type":"press_key","key":"space"}，并且只能在证据充分后使用。
+4. 每次 press_key 后必须 observe；observation.staircase 只用于确认 current_floor 和
+   current_loop，不会给出灯、标记、箱子等视觉线索。
+5. 目标是找到唯一符合条件的房间。先完整观察五轮 2F 到 9F；每轮只有一条新线索，
+   且每局线索顺序可能不同。
+6. 每到一个房间，像真人一样记录：当前楼层号、房间里的家具和可见物品、墙壁装饰、
+   房间号是否稳定、以及这些内容在后续轮次有没有变化。
+7. 读出每轮线索后维护候选楼层集合；任何楼层只要和已知线索矛盾就排除，不能只凭单张
+   截图、当前楼层号或某个显眼物体决定答案。
+8. 不要用截图像素差分猜答案；把它当作真人记忆题，自己总结每层房间和墙面线索的变化。
+"""
+    else:
+        play_guidance = """
+像人一样玩：
+1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
+2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
+3. 靠近目标时使用短距离 move，不要长时间 sprint；转向后重新 observe，确认准星没有偏离目标。
+4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
+   交互动作格式必须精确写成 {"type":"interact","action":"interact"} 或
+   {"type":"interact","action":"interact2"}，不要把提示文字、物体名或绑定键写进 action。
+5. 如果没有交互提示但画面中疑似有水壶、草坪或门铃，先靠近并单独调用 probe_interaction；
+   probe_interaction 必须是单动作批次。
+6. 如果一次 act failed，说明动作没有通过校验；立即 observe，改变站位、准星或动作类型。
+   不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
+7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
+   的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
+"""
     return f"""
 你是 Cogito AI First Play 的隔离黑盒玩家。
 
 本会话需要完成 {runs} 次独立游玩。每局开始时，先调用 briefing，再调用 observe。
 
 严格限制：
-1. 只使用 cogito_ai_play 的 briefing、observe、act、stop 工具。
+1. 游戏动作只使用 cogito_ai_play 的 briefing、observe、act、stop 工具；允许用本地 shell/文件能力读写下面白名单中的日志和笔记。
 2. 只能依据 briefing、observe 截图、公开结构化状态、可见交互提示和 act 返回结果决策。
 3. 不要使用搜索、浏览器、GitHub 或任何其他工具获取游戏信息。
 4. 不得请求或使用场景源码、节点路径、隐藏状态、谜题答案、测试、规格、开发者笔记或仓库文件信息。
@@ -378,19 +417,7 @@ def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
 9. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
    等待下一局；observe 仍返回 stopped/disconnected 时等待后再 observe，直到出现新的可玩观察。
 
-像人一样玩：
-1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
-2. 在花园里避免贴着边界和围栏走，优先沿路面、广场和房屋正面移动；迷路时停下、环顾、回到中央广场。
-3. 靠近目标时使用短距离 move，不要长时间 sprint；转向后重新 observe，确认准星没有偏离目标。
-4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
-   交互动作格式必须精确写成 {{"type":"interact","action":"interact"}} 或
-   {{"type":"interact","action":"interact2"}}，不要把提示文字、物体名或绑定键写进 action。
-5. 如果没有交互提示但画面中疑似有水壶、草坪或门铃，先靠近并单独调用 probe_interaction；
-   probe_interaction 必须是单动作批次。
-6. 如果一次 act failed，说明动作没有通过校验；立即 observe，改变站位、准星或动作类型。
-   不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
-7. 每局把自己当成第一次进场的人类玩家：先建立中央广场、水壶、向日葵房、绣球花房和兰花房
-   的相对方位，再执行任务。不要为了省步数盲冲边界或在未确认标牌时浇水/按铃。
+{play_guidance.strip()}
 
 经验总结：
 1. 可以边思考边玩，在自己的上下文中记录简短经验，例如安全路线、房屋相对方位、边界位置、
@@ -400,11 +427,13 @@ def build_player_prompt(runs: int, scenario: str, run_config: Path) -> str:
    任何其他路径。
 3. 可以读取本次 ai_play_log_root 下的所有日志内容来总结经验，包括 JPEG 截图、
    trajectory.json、run.json 和公开 MCP 结构化结果。
-4. 本次运行配置同时包含 public_mcp_log_root 和 public_latest_log_pattern。每局开始后，
+4. 允许在本启动目录下创建和更新 `player_notes/`，把自己的候选、失败原因和跨局经验写成日志。
+   不要修改 ai_play_log_root、public_mcp_log_root、trajectory.json、run.json 或截图；这些只读日志属于游戏观察记录。
+5. 本次运行配置同时包含 public_mcp_log_root 和 public_latest_log_pattern。每局开始后，
    读取 public_mcp_log_root 下 `{scenario}` 子目录里最新创建的时间戳目录，例如
    `{PUBLIC_MCP_LOG_ROOT / scenario}/20260727-01-36`，把里面的 trajectory.json、
    run.json 和 imgs/*.jpg 当作本局公开观察记忆。
-5. 不要读取仓库源码、测试、spec、game_script、code_read、其他项目文件、其他运行目录或凭据；
+6. 不要读取仓库源码、测试、spec、game_script、code_read、其他项目文件、其他运行目录或凭据；
    只把本次运行日志当作自己游玩过程的记忆，不要从仓库文件推断隐藏状态。
 
 本次运行配置写在你的启动目录 `{run_config.name}`，其中包含 AI_PLAY_LOG_ROOT、
@@ -416,44 +445,31 @@ public_mcp_log_root 和 public_latest_log_pattern。先读这个配置；如果 
 
 
 def run_orchestrated_session(
-    mcp_command: Sequence[str],
     codex_command: Sequence[str],
     supervisor_command: Sequence[str],
     prompt: str,
-    mcp_env: Mapping[str, str],
     codex_env: Mapping[str, str],
     supervisor_env: Mapping[str, str],
-    mcp_cwd: Path,
     codex_cwd: Path,
     supervisor_cwd: Path,
     ws_port: int,
-    mcp_port: int,
     mcp_start_timeout_seconds: float,
     codex_exit_grace_seconds: float,
 ) -> int:
     outputs: queue.Queue[tuple[str, str | None]] = queue.Queue()
-    mcp = None
     codex = None
     supervisor = None
     try:
-        mcp = _start_process("mcp", mcp_command, mcp_cwd, mcp_env)
-        _start_output_reader("mcp", mcp, outputs)
+        codex = _start_process(
+            "codex",
+            codex_command,
+            codex_cwd,
+            codex_env,
+            stdin_text=prompt,
+        )
+        _start_output_reader("codex", codex, outputs)
         if not wait_for_listener(
-            mcp,
-            DEFAULT_WS_HOST,
-            mcp_port,
-            mcp_start_timeout_seconds,
-            outputs,
-        ):
-            print(
-                "[orchestrator] trusted MCP sidecar did not listen on %s:%s "
-                "within %.1fs"
-                % (DEFAULT_WS_HOST, mcp_port, mcp_start_timeout_seconds),
-                flush=True,
-            )
-            return 4
-        if not wait_for_listener(
-            mcp,
+            codex,
             DEFAULT_WS_HOST,
             ws_port,
             mcp_start_timeout_seconds,
@@ -464,19 +480,8 @@ def run_orchestrated_session(
                 % (DEFAULT_WS_HOST, ws_port, mcp_start_timeout_seconds),
                 flush=True,
             )
-            return 4
-
-        codex = _start_process(
-            "codex",
-            codex_command,
-            codex_cwd,
-            codex_env,
-            stdin_text=prompt,
-        )
-        _start_output_reader("codex", codex, outputs)
-        codex_code = codex.poll()
-        if codex_code is not None:
-            return 3 if codex_code == 0 else codex_code
+            codex_code = codex.poll()
+            return 4 if codex_code is None else codex_code
 
         supervisor = _start_process(
             "supervisor",
@@ -488,28 +493,22 @@ def run_orchestrated_session(
 
         while True:
             _print_available_output(outputs)
-            mcp_code = mcp.poll()
             supervisor_code = supervisor.poll()
             codex_code = codex.poll()
-            if mcp_code is not None:
-                return 4 if mcp_code == 0 else mcp_code
             if supervisor_code is not None:
                 return supervisor_code
             if codex_code is not None:
                 deadline = time.monotonic() + codex_exit_grace_seconds
                 while time.monotonic() < deadline:
                     _print_available_output(outputs)
-                    mcp_code = mcp.poll()
                     supervisor_code = supervisor.poll()
-                    if mcp_code is not None:
-                        return 4 if mcp_code == 0 else mcp_code
                     if supervisor_code is not None:
                         return supervisor_code
                     time.sleep(0.05)
                 return 3 if codex_code == 0 else codex_code
             time.sleep(0.05)
     finally:
-        for process in (supervisor, codex, mcp):
+        for process in (supervisor, codex):
             if process is not None:
                 _terminate_process(process)
         _print_available_output(outputs)
@@ -630,7 +629,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--python-bin", default=sys.executable)
     parser.add_argument("--godot-bin", default="godot")
     parser.add_argument("--scene", default=DEFAULT_SCENE)
-    parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=1200.0)
     parser.add_argument("--mcp-start-timeout-seconds", type=float, default=30.0)
@@ -658,11 +656,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--max-retries must be at least 0")
     if args.timeout_seconds <= 0:
         raise SystemExit("--timeout-seconds must be positive")
-    _validate_port("--mcp-port", args.mcp_port)
-    if DEFAULT_WS_PORT == args.mcp_port:
-        raise SystemExit(
-            "--mcp-port must differ from fixed bridge port %s" % DEFAULT_WS_PORT
-        )
     if args.mcp_start_timeout_seconds <= 0:
         raise SystemExit("--mcp-start-timeout-seconds must be positive")
     if args.codex_exit_grace_seconds <= 0:
@@ -671,22 +664,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         auth_home = validate_codex_auth_home(args.codex_auth_home)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    for label, port in (
-        ("AI Play bridge", DEFAULT_WS_PORT),
-        ("MCP HTTP", args.mcp_port),
-    ):
-        if is_port_listening(DEFAULT_WS_HOST, port):
-            raise SystemExit(
-                "%s port %s:%s is already in use; stop the existing process "
-                "first or choose a different port."
-                % (label, DEFAULT_WS_HOST, port)
-            )
+    if is_port_listening(DEFAULT_WS_HOST, DEFAULT_WS_PORT):
+        raise SystemExit(
+            "AI Play bridge port %s:%s is already in use; stop the existing "
+            "process first."
+            % (DEFAULT_WS_HOST, DEFAULT_WS_PORT)
+        )
 
     paths = create_run_paths(session_root)
     write_player_run_config(paths, args.runs, args.scenario)
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env()
-    mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
+    mcp_command = build_mcp_command(args.python_bin)
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,
         runs=args.runs,
@@ -703,38 +692,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         % (DEFAULT_WS_HOST, DEFAULT_WS_PORT),
         flush=True,
     )
-    print(
-        "[orchestrator] MCP_HTTP=%s:%s"
-        % (DEFAULT_WS_HOST, args.mcp_port),
-        flush=True,
-    )
+    print("[orchestrator] MCP_TRANSPORT=stdio", flush=True)
     with temporary_player_codex_home(auth_home) as player_home:
         write_player_codex_config(
             player_home,
             args.model,
             args.reasoning_effort,
-            f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp",
+            mcp_command=mcp_command,
+            mcp_cwd=REPO_ROOT,
+            mcp_env=mcp_env,
             readable_log_roots=(
                 paths.log_root,
                 PUBLIC_MCP_LOG_ROOT / args.scenario,
             ),
         )
         return run_orchestrated_session(
-            mcp_command=mcp_command,
             codex_command=build_codex_command(
                 codex_bin,
                 paths.player_workspace,
             ),
             supervisor_command=supervisor_command,
             prompt=build_player_prompt(args.runs, args.scenario, paths.run_config),
-            mcp_env=mcp_env,
             codex_env=build_player_env(player_home),
             supervisor_env=supervisor_env,
-            mcp_cwd=REPO_ROOT,
             codex_cwd=paths.player_workspace,
             supervisor_cwd=REPO_ROOT,
             ws_port=DEFAULT_WS_PORT,
-            mcp_port=args.mcp_port,
             mcp_start_timeout_seconds=args.mcp_start_timeout_seconds,
             codex_exit_grace_seconds=args.codex_exit_grace_seconds,
         )

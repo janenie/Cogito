@@ -66,6 +66,7 @@ static func build_round(seed: int) -> Dictionary:
 		"correct_sample_profile": case["correct_sample_profile"],
 		"correct_treatment": case["correct_treatment"],
 		"clues": _clues_for_case(case),
+		"clues_zh": _clues_for_case_zh(case),
 	}
 	_assert_unique_solution(round_data)
 	return round_data
@@ -243,6 +244,20 @@ static func _clues_for_case(case: Dictionary) -> Array[String]:
 		"low": "Use the lowest safe output cell.",
 		"nominal": "The required source is neither low nor high output.",
 		"high": "The target material needs the strongest available source.",
+	}[case["correct_battery_profile"]]
+	return [treatment_clue, battery_clue]
+
+
+static func _clues_for_case_zh(case: Dictionary) -> Array[String]:
+	var treatment_clue: String = {
+		"dry": "目标样本不需要额外处理即可导电。",
+		"wet": "目标样本必须在湿润状态下测试。",
+		"heated": "目标样本只有加热后才会激活。",
+	}[case["correct_treatment"]]
+	var battery_clue: String = {
+		"low": "需要使用输出最低且仍能满足要求的电池。",
+		"nominal": "所需电源既不是低输出，也不是高输出。",
+		"high": "目标材料需要最强的可用电源。",
 	}[case["correct_battery_profile"]]
 	return [treatment_clue, battery_clue]
 

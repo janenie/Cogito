@@ -1,0 +1,36 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_component.gd" id="1_component"]
+[ext_resource type="PackedScene" uid="uid://cio4x05ipvslu" path="res://addons/cogito/Components/Interactions/CarryableComponent.tscn" id="2_carryable"]
+
+[sub_resource type="BoxMesh" id="DefaultMesh"]
+size = Vector3(0.5, 0.16, 0.36)
+
+[sub_resource type="BoxShape3D" id="DefaultShape"]
+size = Vector3(0.5, 0.16, 0.36)
+
+[node name="ExperimentComponent" type="RigidBody3D"]
+collision_layer = 3
+collision_mask = 1
+freeze = true
+contact_monitor = true
+max_contacts_reported = 4
+script = ExtResource("1_component")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("DefaultMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("DefaultShape")
+
+[node name="Label" type="Label3D" parent="."]
+position = Vector3(0, 0.35, 0)
+pixel_size = 0.003
+font_size = 42
+text = "实验材料"
+outline_size = 10
+billboard = 1
+
+[node name="CarryableComponent" parent="." instance=ExtResource("2_carryable")]
+interaction_text = "拿取实验材料"
+carry_distance_offset = -0.5

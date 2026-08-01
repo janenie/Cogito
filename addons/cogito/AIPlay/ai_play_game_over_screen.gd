@@ -13,6 +13,8 @@ const OUTCOME_TEXT := {
 	"cleanup_incomplete": "任务失败",
 	"garden_tasks_complete": "任务成功",
 	"garden_task_failed": "任务失败",
+	"experiment_completed": "实验成功",
+	"experiment_attempts_exhausted": "实验失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -26,6 +28,8 @@ const REASON_TEXT := {
 	"cleanup_incomplete": "还有垃圾没有处理",
 	"garden_tasks_complete": "浇水和下雨警报都已完成",
 	"garden_task_failed": "花园任务未完成",
+	"experiment_completed": "已组装出符合目标的实验回路",
+	"experiment_attempts_exhausted": "三次实验机会已用完",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome
