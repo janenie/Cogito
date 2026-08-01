@@ -163,6 +163,65 @@ do
 	done
 done
 
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd"' "$scene"
+grep -q 'path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn"' "$scene"
+grep -q 'name="RepairLightingCircuitMonitor" type="Node" parent="AIPlayController"' "$scene"
+grep -q '^scenario_id = "repair_lighting_circuit"$' "$scene"
+grep -q 'name="RepairLightingCircuitSetup" parent="\." instance=ExtResource("ai_play_repair_lighting_circuit_setup")' "$scene"
+grep -q 'control_switch_a = NodePath("../../GenericSwitch")' "$scene"
+grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
+grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
+grep -q 'entrance_lamp = NodePath("../../ENTRANCE_AREA/lampRoundFloor")' "$scene"
+grep -q 'ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")' "$scene"
+grep -q 'break_room_lamp = NodePath("../../RepairLightingCircuitSetup/BreakRoomLamp")' "$scene"
+test "$(grep -o 'lampSquareCeiling\(8\|9\|10\|11\|12\|13\)' "$scene" | sort -u | wc -l | tr -d ' ')" -eq 6
+
+setup="addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn"
+test -f "$setup"
+for node_name in \
+	PanelBacking TitleLabel SwitchLabelA SwitchLabelB SwitchLabelC SwitchLabelD \
+	ControlSwitchB ControlSwitchC ControlSwitchD BreakerHeadingLabel \
+	BreakerEntrance BreakerEntranceLabel BreakerCEO BreakerCEOLabel \
+	BreakerLobby BreakerLobbyLabel BreakerBreakRoom BreakerBreakRoomLabel \
+	VerifyButton VerifyLabel PanelSpawn TaskCardAnchor BreakRoomLamp
+do
+	grep -q "name=\"$node_name\"" "$setup"
+done
+grep -A4 '^\[node name="RepairLightingCircuitSetup"' "$setup" | grep -q '^process_mode = 4$'
+grep -A4 '^\[node name="RepairLightingCircuitSetup"' "$setup" | grep -q '^visible = false$'
+
+setup_node_block() {
+	local setup_node_name="$1"
+	awk -v setup_node_name="$setup_node_name" '
+		/^\[node / {
+			if (capture) exit
+			capture = ($0 ~ ("^\\[node name=\"" setup_node_name "\""))
+		}
+		capture { print }
+	' "$setup"
+}
+
+setup_interaction_block() {
+	local setup_parent_name="$1"
+	awk -v setup_parent_name="$setup_parent_name" '
+		/^\[node / {
+			if (capture) exit
+			capture = ($0 ~ /^\[node name="BasicInteraction"/ && $0 ~ ("parent=\"" setup_parent_name "\""))
+		}
+		capture { print }
+	' "$setup"
+}
+
+for inert_control in \
+	ControlSwitchB ControlSwitchC ControlSwitchD \
+	BreakerEntrance BreakerCEO BreakerLobby BreakerBreakRoom VerifyButton
+do
+	grep -q '^collision_layer = 0$' <<<"$(setup_node_block "$inert_control")"
+	grep -q '^is_disabled = true$' <<<"$(setup_interaction_block "$inert_control")"
+done
+grep -q '^collision_layer = 0$' <<<"$(setup_node_block BreakRoomLamp)"
+grep -q '^is_disabled = true$' <<<"$(setup_interaction_block BreakRoomLamp)"
+
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2
 	exit 1
