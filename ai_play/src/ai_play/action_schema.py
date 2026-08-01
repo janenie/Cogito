@@ -32,7 +32,9 @@ CONVEYOR_ACTIONS = frozenset({
     "select_ingredient", "undo", "make", "wait_next_window",
 })
 CONVEYOR_INGREDIENT_IDS = frozenset({
-    "lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
+    "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+    "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+    "broccoli", "corn", "fish",
 })
 
 

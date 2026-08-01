@@ -135,6 +135,19 @@ def test_conveyor_ingredient_ids_are_exact(ingredient):
         )
 
 
+@pytest.mark.parametrize("ingredient", [
+    "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+    "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+    "broccoli", "corn", "fish",
+])
+def test_conveyor_accepts_every_public_ingredient_id(ingredient):
+    action = {"type": "select_ingredient", "ingredient": ingredient}
+
+    assert validate_action_batch(
+        [action], set(), False, "conveyor_profit"
+    ) == [action]
+
+
 def test_conveyor_make_must_end_the_batch():
     with pytest.raises(ActionValidationError, match="last"):
         validate_action_batch(

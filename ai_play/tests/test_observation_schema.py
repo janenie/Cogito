@@ -180,6 +180,11 @@ def test_conveyor_observation_is_hud_level_and_bounded():
         "dish": "0 / 1",
         "net_profit": -3,
         "tray": ["bread", "egg"],
+        "last_receipt": {
+            "outcome": "accepted",
+            "recipe_id": "garden_salad",
+            "profit": -3,
+        },
         "finished": False,
     }
 
@@ -190,7 +195,11 @@ def test_conveyor_observation_is_hud_level_and_bounded():
 
 @pytest.mark.parametrize(
     "hidden_field",
-    ["ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit"],
+    [
+        "ingredients", "candidate_recipes", "best_profit", "future_supply", "seed",
+        "passing_profit", "deck_id", "recipe_counts", "missing_ingredient",
+        "theoretical_profit", "optimal_route",
+    ],
 )
 def test_conveyor_observation_rejects_hidden_fields(hidden_field):
     observation = valid_observation_with_jpeg_base64()
@@ -201,6 +210,7 @@ def test_conveyor_observation_rejects_hidden_fields(hidden_field):
         "dish": "0 / 1",
         "net_profit": 0,
         "tray": [],
+        "last_receipt": {},
         "finished": False,
         hidden_field: [],
     }
@@ -220,7 +230,8 @@ def test_conveyor_semantic_action_results_are_bounded():
         {
             "status": "completed",
             "type": "make",
-            "outcome": "window_locked",
+            "outcome": "recipe_limit_exceeded",
+            "recipe_id": "garden_salad",
         },
         {
             "status": "completed",
@@ -230,6 +241,45 @@ def test_conveyor_semantic_action_results_are_bounded():
     ]
 
     assert validate_action_results(results) == results
+
+
+@pytest.mark.parametrize("outcome", ["accepted", "recipe_limit_exceeded"])
+def test_conveyor_make_receipt_requires_a_public_recipe_id(outcome):
+    result = [{
+        "status": "completed",
+        "type": "make",
+        "outcome": outcome,
+        "recipe_id": "avocado_fish_sandwich",
+    }]
+
+    assert validate_action_results(result) == result
+
+    without_recipe = [{
+        "status": "completed",
+        "type": "make",
+        "outcome": outcome,
+    }]
+    with pytest.raises(ObservationValidationError):
+        validate_action_results(without_recipe)
+
+
+def test_conveyor_observation_accepts_five_item_tray_and_empty_receipt():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": ["egg", "cheese", "bacon", "corn", "avocado"],
+        "last_receipt": {},
+        "finished": False,
+    }
+
+    public, _image_bytes = prepare_mcp_observation(observation)
+
+    assert len(public["conveyor"]["tray"]) == 5
+    assert public["conveyor"]["last_receipt"] == {}
 
 
 def test_conveyor_full_tray_result_is_recoverable_and_bounded():

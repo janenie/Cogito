@@ -28,12 +28,20 @@ ACTION_TYPES = {
     "wait_next_window",
 }
 CONVEYOR_INGREDIENT_IDS = {
-    "lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
+    "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+    "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+    "broccoli", "corn", "fish",
+}
+CONVEYOR_RECIPE_IDS = {
+    "garden_salad", "avocado_salad", "carrot_sausage_soup",
+    "pumpkin_sausage_soup", "classic_burger", "avocado_burger",
+    "broccoli_bacon_omelet", "corn_bacon_omelet",
+    "garden_fish_sandwich", "avocado_fish_sandwich",
 }
 CONVEYOR_OUTCOMES = {
     "selected", "undone", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
-    "window_not_complete", "window_advanced", "tray_full",
+    "window_not_complete", "window_advanced", "tray_full", "recipe_limit_exceeded",
 }
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
@@ -89,7 +97,10 @@ def validate_action_results(results):
     safe_results = []
     for result in results:
         if not isinstance(result, dict) or not set(result).issubset(
-            {"status", "type", "error", "reason", "outcome", "scan_steps", "ingredient"}
+            {
+                "status", "type", "error", "reason", "outcome", "scan_steps",
+                "ingredient", "recipe_id",
+            }
         ) or "status" not in result:
             raise ObservationValidationError("action result has invalid fields")
         status = _text(result["status"], "result status", 16, allow_empty=False)
@@ -105,6 +116,11 @@ def validate_action_results(results):
                 and result.get("outcome") == "selected"
             ):
                 expected.add("ingredient")
+            if (
+                result["type"] == "make"
+                and result.get("outcome") in {"accepted", "recipe_limit_exceeded"}
+            ):
+                expected.add("recipe_id")
             if result_fields != expected or result.get("outcome") not in CONVEYOR_OUTCOMES:
                 raise ObservationValidationError("conveyor result fields are invalid")
             safe_result = {
@@ -119,6 +135,10 @@ def validate_action_results(results):
                 if result.get("ingredient") not in CONVEYOR_INGREDIENT_IDS:
                     raise ObservationValidationError("conveyor result ingredient is invalid")
                 safe_result["ingredient"] = result["ingredient"]
+            if "recipe_id" in expected:
+                if result.get("recipe_id") not in CONVEYOR_RECIPE_IDS:
+                    raise ObservationValidationError("conveyor result recipe is invalid")
+                safe_result["recipe_id"] = result["recipe_id"]
             safe_results.append(safe_result)
             continue
         if status == "completed" and result.get("type") == "probe_interaction":
@@ -311,7 +331,7 @@ def validate_observation(value):
             conveyor,
             {
                 "total_time", "window", "window_time", "dish",
-                "net_profit", "tray", "finished",
+                "net_profit", "tray", "last_receipt", "finished",
             },
             "conveyor",
         )
@@ -320,7 +340,7 @@ def validate_observation(value):
         tray = conveyor["tray"]
         if (
             not isinstance(tray, list)
-            or len(tray) > 4
+            or len(tray) > 5
             or any(item not in CONVEYOR_INGREDIENT_IDS for item in tray)
         ):
             raise ObservationValidationError("conveyor tray is invalid")
@@ -334,6 +354,29 @@ def validate_observation(value):
             raise ObservationValidationError("conveyor window is invalid")
         if re.fullmatch(r"[0-9] / [0-9]", dish) is None:
             raise ObservationValidationError("conveyor dish is invalid")
+        receipt = conveyor["last_receipt"]
+        if not isinstance(receipt, dict):
+            raise ObservationValidationError("conveyor receipt is invalid")
+        safe_receipt = {}
+        if receipt:
+            _exact(receipt, {"outcome", "recipe_id", "profit"}, "conveyor receipt")
+            outcome = receipt["outcome"]
+            recipe_id = receipt["recipe_id"]
+            if outcome not in {"accepted", "invalid_combo", "recipe_limit_exceeded"}:
+                raise ObservationValidationError("conveyor receipt outcome is invalid")
+            if (
+                (outcome == "invalid_combo" and recipe_id != "")
+                or (
+                    outcome in {"accepted", "recipe_limit_exceeded"}
+                    and recipe_id not in CONVEYOR_RECIPE_IDS
+                )
+            ):
+                raise ObservationValidationError("conveyor receipt recipe is invalid")
+            safe_receipt = {
+                "outcome": outcome,
+                "recipe_id": recipe_id,
+                "profit": _signed_integer(receipt["profit"], "conveyor receipt profit"),
+            }
         safe_conveyor = {
             "total_time": conveyor["total_time"],
             "window": window,
@@ -341,6 +384,7 @@ def validate_observation(value):
             "dish": dish,
             "net_profit": _signed_integer(conveyor["net_profit"], "conveyor net_profit"),
             "tray": list(tray),
+            "last_receipt": safe_receipt,
             "finished": conveyor["finished"],
         }
 

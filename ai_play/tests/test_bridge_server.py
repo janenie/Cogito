@@ -118,6 +118,7 @@ def _conveyor_observation(observation_id=7):
         "dish": "0 / 1",
         "net_profit": 0,
         "tray": [],
+        "last_receipt": {},
         "finished": False,
     }
     return observation
