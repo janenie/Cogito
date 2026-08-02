@@ -345,7 +345,8 @@ MCP 同步返回受限的终局状态。
 
 默认日志根目录是 `~/workspace/cogito_logs/mcplogs`。第一个 Godot 控制器成功连接时
 在对应任务的 `scenario_id` 目录下创建 `YYYYMMDD-HH-MM` 运行目录；同一任务的同名
-目录使用 `-02`、`-03` 等后缀，不会覆盖。一个运行目录最多分组同一任务的三次连接：
+目录使用 `-02`、`-03` 等后缀，不会覆盖。一个运行目录最多分组同一任务的四次连接；
+第五次连接会开始新的运行目录：
 
 ```text
 mcplogs/
@@ -356,7 +357,8 @@ mcplogs/
         │   ├── trajectory.json
         │   └── imgs/
         ├── attempt-02/
-        └── attempt-03/
+        ├── attempt-03/
+        └── attempt-04/
 ```
 
 `run.json` 顶层重复保存经过验证的 `scenario_id`，每次尝试摘要包含 `status`、

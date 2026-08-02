@@ -32,7 +32,7 @@ class _AttemptState:
 
 
 class TrajectoryLogger:
-    MAX_ATTEMPTS = 3
+    MAX_ATTEMPTS = 4
     ALLOWED_TOOLS = {"observe", "act", "stop"}
     TERMINAL_STATUSES = {"success", "failure", "stopped"}
 

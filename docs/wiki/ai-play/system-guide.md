@@ -85,7 +85,7 @@ Godot 桥的安全边界。
   该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
   `<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行/尝试目录；一个运行最多分组同一任务的
-  三次连接，不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
+  四次连接，第五次连接创建新的运行目录；不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
   `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
   bridge 断开和 MCP shutdown。
 - 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和 JPEG 相对路径，绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。

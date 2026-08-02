@@ -32,6 +32,8 @@ The run summary contract becomes:
 - `ai_play/tests/test_trajectory_logger.py`: assert the fourth attempt remains
   in the current run and the fifth rotates.
 - `ai_play/README.md`: document the four-attempt run summary limit.
+- `docs/wiki/ai-play/system-guide.md`: keep the long-term logging contract in
+  sync.
 
 Historical design documents remain unchanged because they describe the
 contract at the time they were accepted.
