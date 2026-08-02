@@ -27,6 +27,7 @@ ALLOWED_KEYS = {
     "undo": {"type"},
     "make": {"type"},
     "wait_next_window": {"type"},
+    "press_key": {"type", "key"},
 }
 CONVEYOR_ACTIONS = frozenset({
     "select_ingredient", "undo", "make", "wait_next_window",
@@ -36,6 +37,7 @@ CONVEYOR_INGREDIENT_IDS = frozenset({
     "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
     "broccoli", "corn", "fish",
 })
+ALLOWED_PRESS_KEYS = {"up", "down", "space"}
 
 
 def _require_number(value, lower, upper, field):
@@ -63,6 +65,8 @@ def _validate_action(action, available_interactions, interface_open, scenario_id
     if set(action) != expected_keys:
         raise ActionValidationError("action has invalid fields")
     if action_type in CONVEYOR_ACTIONS and scenario_id != "conveyor_profit":
+        raise ActionValidationError("action is not allowed for this scenario")
+    if action_type == "press_key" and scenario_id != "loop_staircase_anomaly":
         raise ActionValidationError("action is not allowed for this scenario")
 
     if action_type == "look":
@@ -106,6 +110,10 @@ def _validate_action(action, available_interactions, interface_open, scenario_id
             or ingredient not in CONVEYOR_INGREDIENT_IDS
         ):
             raise ActionValidationError("ingredient is not allowed")
+    elif action_type == "press_key":
+        key = action["key"]
+        if not isinstance(key, str) or key not in ALLOWED_PRESS_KEYS:
+            raise ActionValidationError("press_key key is not allowed")
 
 
 def validate_action_batch(

@@ -108,6 +108,16 @@ ID、成本、完整配方、售价和净利润，并公开每道菜整局最多
 结构化食材清单、可行菜、缺失食材、累计次数表、未来供给、随机牌组和绝对目标金额仍不公开；
 客户端必须根据 `observe` 截图识别当前可见食材，与公开菜单比较，并根据 accepted 收据自行记账。
 
+循环楼梯异常玩法位于独立场景，实验室推理玩法位于 Cogito Laboratory 场景：
+
+```bash
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play --ai-play-scenario=loop_staircase_anomaly
+
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play --ai-play-scenario=laboratory_experiment
+```
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -201,7 +211,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 orchestrator 和 supervisor 会按白名单解析场景：`daily_routine_cleanup` 使用家庭场景，
-`garden_watering` 使用花园场景，`conveyor_profit` 使用独立经营场景，其余六个任务使用 Lobby。
+`garden_watering` 使用花园场景，`conveyor_profit` 使用独立经营场景，
+`loop_staircase_anomaly` 使用循环楼梯场景，`laboratory_experiment` 使用实验室场景，
+其余六个任务使用 Lobby。
 未知 scenario 即使显式传入 `--scene` 也会在创建运行目录或启动 Godot 前被拒绝。
 
 `--ai-play-exit-on-game-over` 只有在同一启动参数中包含精确的 `--ai-play` 时才会生效。
@@ -320,6 +332,16 @@ MCP 结果、玩家提示或轨迹日志。
 Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
+`loop_staircase_anomaly` 是循环楼梯异常任务。玩家在 2F 到 9F 之间用 Up/Down 切换楼层，
+经过五轮观察后用 Space 选择当前楼层。每轮只有截图中的一条新线索，线索顺序每局变化；
+玩家必须累积线索维护候选集合。成功产生 `success/correct_floor_selected`，选错产生
+`failure/wrong_floor_selected`。
+
+`laboratory_experiment` 是随机实验回路任务。玩家读取 HUD 上的目标、环境和公开条件，
+搬运并安装电池、样本、处理模块和金属棒，再根据公开测量反馈调整组合。只有完整配置才
+消耗机会；三次内成功产生 `success/experiment_completed`，三次均失败产生
+`failure/experiment_attempts_exhausted`。随机种子、材料隐藏属性和正确答案不公开。
+
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
 stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
@@ -337,7 +359,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `observe()`：等待并返回最新获准观察和截图；第一人称 3D 玩法还返回当前画面的深度图。通常只在
   `briefing` 后调用一次；已有观察会立即返回，未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。
-  工具声明使用十四种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
+  工具声明使用十五种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
   `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
   不要再调用 `observe` 获取同一帧。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid, failure_review=null)`：在可信
@@ -367,6 +389,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
   已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
   `undo` 恢复。四种动作均不得在其他玩法使用。
+- `loop_staircase_anomaly` 额外允许 `press_key`，且 `key` 只能是 `up`、`down` 或
+  `space`；其他玩法必须拒绝该动作。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
@@ -392,13 +416,17 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `success/meeting_door_closed` 或 `failure/max_requests`；
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
-为 300 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
+为 80 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
 或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，终局为
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
 `arrange_meeting_briefings` 的硬上限为 100 次，终局为 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的硬上限为 300 次，终局为
 `success/efficiency_target_reached`、`failure/efficiency_below_target` 或
+`failure/max_requests`；`loop_staircase_anomaly` 的硬上限为 160 次，终局为
+`success/correct_floor_selected`、`failure/wrong_floor_selected` 或
+`failure/max_requests`；`laboratory_experiment` 的硬上限为 150 次，终局为
+`success/experiment_completed`、`failure/experiment_attempts_exhausted` 或
 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
@@ -420,7 +448,9 @@ Godot 和 Python 桥的单包上限为 8 MiB，用于容纳带有两张 Base64 �
 `briefing` 只公开 `ai_play.scenarios` 白名单选中的 loader 所返回的目标、规则、物体操作
 说明和固定参考图；`find_contract` 当前读取
 `ai_play/assets/find_contract/imgs/reference_atlas.jpg`。它不会返回资产清单里的内部类名或
-文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果和截图。所有工具
+文件路径。回合工具只公开观察 schema 允许的玩家、界面、绑定、动作结果、截图和对应任务的
+HUD 级状态；循环楼梯只额外公开当前楼层、轮次和终局布尔值，实验室只额外公开当前安装材料、
+尝试次数与已经执行的测量反馈。所有工具
 都不会返回源码、节点路径、隐藏状态、谜题答案、测试、规格或计划事实。
 
 启用 AI Play 后，MCP Server 会在 Godot 成功连接时开始保存本地游玩轨迹。日志只记录
@@ -480,11 +510,12 @@ mcplogs/
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
   `repair_lighting_circuit`、`arrange_meeting_briefings`、`daily_routine_cleanup`、
-  `garden_watering` 和 `conveyor_profit` 的运行时终局事件和独立公开简报；
+  `garden_watering`、`conveyor_profit`、`loop_staircase_anomaly` 和
+  `laboratory_experiment` 的运行时终局事件和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书籍的随机布局或任务书选择、
   NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、会议资料隐藏排列或候选解、
   daily routine 或 garden 内部节点路径、随机下雨时间、传送带未来供给、内部牌组标识、
-  理论最优路线、随机种子或任务内部知识。
+  理论最优路线、循环楼梯答案、实验材料隐藏属性、随机种子或任务内部知识。
 
 ## 配置
 
@@ -500,7 +531,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50、150、100、150、300、100、100、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50、150、100、150、80、100、100、300、160、150 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

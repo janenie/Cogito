@@ -98,7 +98,6 @@ def build_codex_exec_command(
         "--cd",
         str(workspace_dir.resolve()),
         "--skip-git-repo-check",
-        "--ignore-user-config",
         "--ignore-rules",
         "--sandbox",
         "read-only",
@@ -114,6 +113,14 @@ def build_codex_exec_command(
         'mcp_servers.cogito_ai_play.args=["-m","ai_play.mcp_server"]',
         "-c",
         f'mcp_servers.cogito_ai_play.env={{PYTHONPATH="{ai_play_src}"}}',
+        "-c",
+        'mcp_servers.cogito_ai_play.tools.briefing.approval_mode="approve"',
+        "-c",
+        'mcp_servers.cogito_ai_play.tools.observe.approval_mode="approve"',
+        "-c",
+        'mcp_servers.cogito_ai_play.tools.act.approval_mode="approve"',
+        "-c",
+        'mcp_servers.cogito_ai_play.tools.stop.approval_mode="approve"',
         "-",
     ])
     return command

@@ -25,6 +25,8 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "repair_lighting_circuit",
         "arrange_meeting_briefings",
         "conveyor_profit",
+        "loop_staircase_anomaly",
+        "laboratory_experiment",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
@@ -35,6 +37,8 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert is_supported_scenario("repair_lighting_circuit")
     assert is_supported_scenario("arrange_meeting_briefings")
     assert is_supported_scenario("conveyor_profit")
+    assert is_supported_scenario("loop_staircase_anomaly")
+    assert is_supported_scenario("laboratory_experiment")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -48,6 +52,17 @@ def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
         load_scenario_briefing("unknown")
 
 
+def test_loop_staircase_briefing_exposes_key_controls_without_walk_hint():
+    briefing, _image_bytes = load_scenario_briefing("loop_staircase_anomaly")
+    text = " ".join(briefing["rules"])
+
+    assert "press_key" in text
+    assert '"up"' in text
+    assert '"down"' in text
+    assert '"space"' in text
+    assert "move 和 sprint" not in text
+
+
 def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("find_contract", 500) == 300
     assert scenario_act_request_limit("find_contract", 120) == 120
@@ -59,19 +74,26 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
     assert scenario_act_request_limit("daily_routine_cleanup", 500) == 150
     assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
-    assert scenario_act_request_limit("garden_watering", 500) == 300
-    assert scenario_act_request_limit("garden_watering", 200) == 200
+    assert scenario_act_request_limit("garden_watering", 500) == 80
+    assert scenario_act_request_limit("garden_watering", 60) == 60
     assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
     assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
     assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 100
     assert scenario_act_request_limit("arrange_meeting_briefings", 80) == 80
     assert scenario_act_request_limit("conveyor_profit", 500) == 300
+    assert scenario_act_request_limit("loop_staircase_anomaly", 500) == 160
+    assert scenario_act_request_limit("loop_staircase_anomaly", 90) == 90
+    assert scenario_act_request_limit("laboratory_experiment", 500) == 150
+    assert scenario_act_request_limit("laboratory_experiment", 90) == 90
 
 
 def test_readme_lists_all_request_caps_in_scenario_order():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
 
-    assert "自身的 300、50、150、100、150、300、100、100、300 次硬上限" in readme
+    assert (
+        "自身的 300、50、150、100、150、80、100、100、300、160、150 次硬上限"
+        in readme
+    )
 
 
 def test_find_key_round_request_limits_are_allowlisted():
@@ -196,6 +218,16 @@ def test_terminal_results_are_scenario_specific():
         "failure",
         "efficiency_below_target",
     )
+    assert is_allowed_game_over(
+        "loop_staircase_anomaly",
+        "success",
+        "correct_floor_selected",
+    )
+    assert is_allowed_game_over(
+        "loop_staircase_anomaly",
+        "failure",
+        "wrong_floor_selected",
+    )
     assert not is_allowed_game_over(
         "greet_npc_meeting",
         "success",
@@ -259,3 +291,60 @@ def test_terminal_results_are_scenario_specific():
         "success",
         "cleanup_complete",
     )
+    assert is_allowed_game_over(
+        "loop_staircase_anomaly",
+        "failure",
+        "max_requests",
+    )
+    assert not is_allowed_game_over(
+        "loop_staircase_anomaly",
+        "success",
+        "garden_tasks_complete",
+    )
+    assert is_allowed_game_over(
+        "laboratory_experiment",
+        "success",
+        "experiment_completed",
+    )
+    assert is_allowed_game_over(
+        "laboratory_experiment",
+        "failure",
+        "experiment_attempts_exhausted",
+    )
+    assert is_allowed_game_over(
+        "laboratory_experiment",
+        "failure",
+        "max_requests",
+    )
+    assert not is_allowed_game_over(
+        "laboratory_experiment",
+        "success",
+        "correct_password",
+    )
+
+
+def test_loop_staircase_anomaly_loads_public_briefing():
+    briefing, image_bytes = load_scenario_briefing("loop_staircase_anomaly")
+
+    assert briefing["game_id"] == "loop_staircase_anomaly"
+    assert briefing["success_condition"] == "Select the only floor that satisfies all five cumulative clues."
+    assert "exactly two boxes" not in str(briefing).lower()
+    assert "five observation loops" in str(briefing).lower()
+    assert "2f through 9f" in str(briefing).lower()
+    assert "candidate set" in str(briefing).lower()
+    assert "clue order can change" in str(briefing).lower()
+    assert "target symbol" not in str(briefing).lower()
+    for symbol in ("circle", "triangle", "square", "star"):
+        assert symbol not in str(briefing).lower()
+    assert image_bytes is None
+
+
+def test_laboratory_experiment_loads_public_briefing_without_solution():
+    briefing, image_bytes = load_scenario_briefing("laboratory_experiment")
+
+    assert briefing["game_id"] == "laboratory_experiment"
+    assert "三次" in briefing["failure_condition"]
+    assert "interact2" in str(briefing["objects"])
+    assert image_bytes is None
+    assert "answer" not in str(briefing).lower()
+    assert "solution" not in str(briefing).lower()

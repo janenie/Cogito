@@ -59,6 +59,16 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "efficiency_below_target"],
 		["failure", "max_requests"],
 	],
+	"loop_staircase_anomaly": [
+		["success", "correct_floor_selected"],
+		["failure", "wrong_floor_selected"],
+		["failure", "max_requests"],
+	],
+	"laboratory_experiment": [
+		["success", "experiment_completed"],
+		["failure", "experiment_attempts_exhausted"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D
@@ -106,7 +116,7 @@ func _ready() -> void:
 	_observation_timer = get_node("ObservationTimer")
 	if "player" in _observer:
 		_observer.player = player
-	if "manager" in _observer:
+	if "manager" in _observer and _observer.manager == null:
 		_observer.manager = get_node_or_null("../DailyRoutineManager")
 	if "player" in _executor:
 		_executor.player = player
@@ -696,6 +706,8 @@ func _on_game_finished(outcome: String, reason: String) -> void:
 	var observation_id: int = _executing_observation_id
 	if observation_id < 0:
 		observation_id = _pending_observation_id
+	if observation_id < 0:
+		observation_id = _last_completed_observation_id
 	_finish_game(outcome, reason, observation_id)
 
 

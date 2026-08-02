@@ -40,9 +40,10 @@ SPAWN_ITEM = 1, ## Spawns an item defined in the InventoryItemPD's drop_scene va
 SPAWN_CONTAINER = 2, ## Spawns a loot drop container to fill up with rolled items. 
 }
 
-func _get_configuration_warnings():
+func _get_configuration_warnings() -> PackedStringArray:
 	if !loot_table:
-		return ["Loot table is not set. It is required for the loot component to function."]
+		return PackedStringArray(["Loot table is not set. It is required for the loot component to function."])
+	return PackedStringArray()
 
 
 func _ready() -> void:

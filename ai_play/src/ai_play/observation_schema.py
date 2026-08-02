@@ -22,12 +22,15 @@ OBSERVATION_FIELDS = {
     "observation_id", "captured_at_ms", "image", "player", "interface",
     "bindings", "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image", "conveyor"}
+OPTIONAL_OBSERVATION_FIELDS = {
+    "routine", "garden", "depth_image", "conveyor", "laboratory", "staircase",
+}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
     "select_ingredient", "undo", "make",
     "wait_next_window",
+    "press_key",
 }
 CONVEYOR_INGREDIENT_IDS = {
     "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
@@ -551,6 +554,110 @@ def validate_observation(value):
             "finished": conveyor["finished"],
         }
 
+    safe_laboratory = None
+    if "laboratory" in value:
+        laboratory = value["laboratory"]
+        _exact(
+            laboratory,
+            {
+                "objective", "protocol", "environment", "attempts_used",
+                "attempts_limit", "battery_installed", "selected_sample",
+                "sample_state", "metal_bar_installed", "setup_ready",
+                "experiment_running", "last_power", "last_current",
+                "last_stability", "last_temperature", "last_lamp",
+                "completed", "failed",
+            },
+            "laboratory",
+        )
+        for name in (
+            "metal_bar_installed", "setup_ready", "experiment_running",
+            "completed", "failed",
+        ):
+            if type(laboratory[name]) is not bool:
+                raise ObservationValidationError("laboratory booleans are invalid")
+        enum_fields = {
+            "protocol": {"stable_conduction", "moisture_safety", "thermal_tolerance"},
+            "environment": {"standard", "high_humidity", "limited_cooling", "power_fluctuation"},
+            "battery_installed": {"none", "alpha", "beta", "gamma"},
+            "selected_sample": {"none", "a", "b", "c"},
+            "sample_state": {"none", "dry", "wet", "heated"},
+            "last_power": {"none", "low", "normal", "high"},
+            "last_current": {"none", "zero", "low", "safe", "high"},
+            "last_stability": {"none", "interrupted", "flicker", "stable"},
+            "last_temperature": {"none", "safe", "elevated", "dangerous"},
+            "last_lamp": {"none", "off", "dim", "flicker", "stable"},
+        }
+        safe_laboratory = {
+            "objective": _text(laboratory["objective"], "laboratory objective", 500),
+            "attempts_used": _integer(laboratory["attempts_used"], "attempts_used"),
+            "attempts_limit": _integer(laboratory["attempts_limit"], "attempts_limit"),
+            **{
+                name: laboratory[name]
+                for name in (
+                    "metal_bar_installed", "setup_ready", "experiment_running",
+                    "completed", "failed",
+                )
+            },
+        }
+        if (
+            safe_laboratory["attempts_limit"] != 3
+            or safe_laboratory["attempts_used"] < 0
+            or safe_laboratory["attempts_used"] > 3
+        ):
+            raise ObservationValidationError("laboratory attempts are invalid")
+        for name, allowed in enum_fields.items():
+            item = _text(
+                laboratory[name], f"laboratory {name}", 32, allow_empty=False
+            )
+            if item not in allowed:
+                raise ObservationValidationError(f"laboratory {name} is invalid")
+            safe_laboratory[name] = item
+
+    safe_staircase = None
+    if "staircase" in value:
+        staircase = value["staircase"]
+        _exact(
+            staircase,
+            {
+                "objective", "current_floor", "current_floor_label",
+                "current_loop", "total_loops", "final_unlocked",
+                "completed", "failed",
+            },
+            "staircase",
+        )
+        for name in ("final_unlocked", "completed", "failed"):
+            if type(staircase[name]) is not bool:
+                raise ObservationValidationError("staircase booleans are invalid")
+        current_floor = _integer(staircase["current_floor"], "staircase current_floor")
+        current_loop = _integer(staircase["current_loop"], "staircase current_loop")
+        total_loops = _integer(staircase["total_loops"], "staircase total_loops")
+        if (
+            current_floor < 2
+            or current_floor > 9
+            or current_loop < 1
+            or current_loop > 5
+            or total_loops != 5
+        ):
+            raise ObservationValidationError("staircase public state is invalid")
+        current_floor_label = _text(
+            staircase["current_floor_label"],
+            "staircase current_floor_label",
+            3,
+            allow_empty=False,
+        )
+        if current_floor_label != f"{current_floor}F":
+            raise ObservationValidationError("staircase floor label is invalid")
+        safe_staircase = {
+            "objective": _text(staircase["objective"], "staircase objective", 500),
+            "current_floor": current_floor,
+            "current_floor_label": current_floor_label,
+            "current_loop": current_loop,
+            "total_loops": total_loops,
+            "final_unlocked": staircase["final_unlocked"],
+            "completed": staircase["completed"],
+            "failed": staircase["failed"],
+        }
+
     safe = {
         "observation_id": _integer(value["observation_id"], "observation_id"),
         "captured_at_ms": _integer(value["captured_at_ms"], "captured_at_ms"),
@@ -583,6 +690,10 @@ def validate_observation(value):
         safe["depth_image"] = safe_depth_image
     if safe_conveyor is not None:
         safe["conveyor"] = safe_conveyor
+    if safe_laboratory is not None:
+        safe["laboratory"] = safe_laboratory
+    if safe_staircase is not None:
+        safe["staircase"] = safe_staircase
     return safe
 
 

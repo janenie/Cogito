@@ -53,6 +53,12 @@ def test_supervisor_resolves_conveyor_scene_without_override():
     assert supervisor.resolve_scene("garden_watering", None) == (
         "garden/scenes/garden_vertical_slice.tscn"
     )
+    assert supervisor.resolve_scene("loop_staircase_anomaly", None) == (
+        "addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn"
+    )
+    assert supervisor.resolve_scene("laboratory_experiment", None) == (
+        "addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn"
+    )
     with pytest.raises(ValueError, match="unsupported"):
         supervisor.resolve_scene("unknown", None)
 

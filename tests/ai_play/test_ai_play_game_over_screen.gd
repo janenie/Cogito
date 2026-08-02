@@ -42,6 +42,13 @@ func _run_tests() -> void:
 	)
 	await _test_result(
 		screen_scene,
+		"success",
+		"experiment_completed",
+		"实验成功",
+		"已组装出符合目标的实验回路",
+	)
+	await _test_result(
+		screen_scene,
 		"failure",
 		"wrong_book_pickup",
 		"任务失败",
@@ -81,6 +88,13 @@ func _run_tests() -> void:
 		"incorrect_seating_assignment",
 		"任务失败",
 		"会议资料席位不正确",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"experiment_attempts_exhausted",
+		"实验失败",
+		"三次实验机会已用完",
 	)
 	_finish()
 

@@ -18,6 +18,8 @@ const OUTCOME_TEXT := {
 	"incorrect_circuit_configuration": "任务失败",
 	"meeting_prepared": "任务成功",
 	"incorrect_seating_assignment": "任务失败",
+	"experiment_completed": "实验成功",
+	"experiment_attempts_exhausted": "实验失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -36,6 +38,8 @@ const REASON_TEXT := {
 	"incorrect_circuit_configuration": "照明配置不正确",
 	"meeting_prepared": "会议资料已正确分发",
 	"incorrect_seating_assignment": "会议资料席位不正确",
+	"experiment_completed": "已组装出符合目标的实验回路",
+	"experiment_attempts_exhausted": "三次实验机会已用完",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

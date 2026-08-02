@@ -37,6 +37,12 @@ def test_conveyor_scenario_uses_standalone_scene_by_default():
     assert orchestrator.resolve_scene("garden_watering", None) == (
         "garden/scenes/garden_vertical_slice.tscn"
     )
+    assert orchestrator.resolve_scene("loop_staircase_anomaly", None) == (
+        "addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn"
+    )
+    assert orchestrator.resolve_scene("laboratory_experiment", None) == (
+        "addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn"
+    )
     assert orchestrator.resolve_scene("conveyor_profit", "custom.tscn") == "custom.tscn"
     with pytest.raises(ValueError, match="unsupported"):
         orchestrator.resolve_scene("unknown", "custom.tscn")
@@ -549,6 +555,22 @@ def test_player_prompt_without_awm_uses_only_in_context_notes():
     assert "failure_review" not in prompt
     assert "failure_reviews" not in prompt
     assert "普通会话上下文" in prompt
+
+
+def test_loop_staircase_prompt_uses_key_controls_not_world_navigation():
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        scenario="loop_staircase_anomaly",
+    )
+
+    assert "press_key" in prompt
+    assert "press_key 后直接使用 act 返回的新观察" in prompt
+    assert '"up"' in prompt
+    assert '"down"' in prompt
+    assert '"space"' in prompt
+    assert "不要使用 move 或 sprint" in prompt
 
 
 def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):

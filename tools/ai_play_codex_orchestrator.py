@@ -430,6 +430,7 @@ def build_supervisor_command(
 def build_player_prompt(
     runs: int,
     workflow_memory_enabled: bool = True,
+    scenario: str = "",
 ) -> str:
     if workflow_memory_enabled:
         startup = "先调用 briefing，再调用 workflow_memory_read，再调用 observe"
@@ -472,6 +473,15 @@ def build_player_prompt(
             "5. 每次 observe 或 act 后用公开新证据更新当前目标、已确认地标和已试过但失败的路线；\n"
             "   不要保存图片本身，也不要使用 shell 或文件系统保存笔记。"
         )
+    staircase_guidance = ""
+    if scenario == "loop_staircase_anomaly":
+        staircase_guidance = """
+循环楼梯专用规则：
+1. 不要使用 move 或 sprint；上下楼只用 press_key 的 "up"/"down"。
+2. 每次 press_key 后直接使用 act 返回的新观察，不要额外刷新 observe。
+3. 完整观察五轮 2F 到 9F，维护候选楼层集合；不能只凭单张截图或当前楼层号作答。
+4. 只有证据唯一时才用 press_key 的 "space" 提交当前楼层。
+"""
     return f"""
 你是 Cogito AI First Play 的隔离黑盒玩家。
 
@@ -490,6 +500,8 @@ def build_player_prompt(
 17. 若当前工具结果是 disconnected 且还没有完成全部 {runs} 次，继续调用 observe 等待同一局
    的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。
    stopped 表示操作者主动中止整次运行：立即停止调用工具，此时允许结束会话，无需凑满局数。
+
+{staircase_guidance.strip()}
 
 像人一样玩：
 1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
@@ -888,6 +900,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             prompt=build_player_prompt(
                 args.runs,
                 workflow_memory_enabled=args.workflow_memory == "enabled",
+                scenario=args.scenario,
             ),
             mcp_env=mcp_env,
             codex_env=build_player_env(player_home),

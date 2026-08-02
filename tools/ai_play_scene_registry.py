@@ -11,6 +11,10 @@ SCENARIO_SCENES = {
     "repair_lighting_circuit": DEFAULT_SCENE,
     "arrange_meeting_briefings": DEFAULT_SCENE,
     "conveyor_profit": "conveyor_profit/scenes/conveyor_profit_preview.tscn",
+    "loop_staircase_anomaly": (
+        "addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn"
+    ),
+    "laboratory_experiment": "addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn",
 }
 SUPPORTED_SCENARIOS = tuple(SCENARIO_SCENES)
 

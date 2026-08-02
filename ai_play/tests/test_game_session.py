@@ -254,7 +254,13 @@ def test_global_limit_can_tighten_greet_npc_meeting_cap():
 def test_garden_watering_uses_scenario_request_cap():
     session, _ = make_scenario_session("garden_watering")
 
-    assert session.act_request_limit == 300
+    assert session.act_request_limit == 80
+
+
+def test_loop_staircase_anomaly_uses_scenario_request_cap():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+
+    assert session.act_request_limit == 160
 
 
 def test_repair_lighting_circuit_uses_100_request_hard_cap():
@@ -370,6 +376,34 @@ def test_arrange_meeting_briefings_accepts_meeting_success_terminal():
     assert session.observe(timeout=0.1).game_over == terminal
 
 
+def test_loop_staircase_anomaly_accepts_correct_floor_terminal():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "success",
+        "reason": "correct_floor_selected",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_loop_staircase_anomaly_accepts_wrong_floor_terminal():
+    session, _ = make_scenario_session("loop_staircase_anomaly")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "wrong_floor_selected",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
 def test_terminal_success_cannot_cross_scenarios():
     contract, _ = make_scenario_session("find_contract")
     contract.receive_observation(observation(7))
@@ -459,6 +493,12 @@ def test_logging_failure_rejects_attach_without_controller():
             "arrange_meeting_briefings",
             "success",
             "meeting_prepared",
+            "success",
+        ),
+        (
+            "loop_staircase_anomaly",
+            "success",
+            "correct_floor_selected",
             "success",
         ),
         ("find_contract", "failure", "wrong_password", "failure"),

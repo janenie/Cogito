@@ -7,6 +7,10 @@ from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve as websocket_serve
 
 from .game_session import GameSession, SessionError
+from .observation_schema import (
+    OBSERVATION_FIELDS,
+    OPTIONAL_OBSERVATION_FIELDS,
+)
 from .scenarios import (
     DEFAULT_SCENARIO_ID,
     is_supported_scenario,
@@ -18,18 +22,6 @@ PROTOCOL_VERSION = 4
 # A full observation may carry both bounded 2 MiB screenshot and depth images.
 MAX_PACKET_SIZE = 8 * 1024 * 1024
 HELLO_TIMEOUT_SECONDS = 5
-OBSERVATION_FIELDS = {
-    "observation_id",
-    "captured_at_ms",
-    "image",
-    "player",
-    "interface",
-    "bindings",
-    "last_action_results",
-}
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image", "conveyor"}
-
-
 class BridgeHandle:
     def __init__(self, server, thread):
         self._server = server

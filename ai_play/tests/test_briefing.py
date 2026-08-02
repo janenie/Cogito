@@ -15,6 +15,7 @@ SPATIAL_SCENARIO_IDS = (
     "garden_watering",
     "repair_lighting_circuit",
     "arrange_meeting_briefings",
+    "laboratory_experiment",
 )
 
 
@@ -342,7 +343,11 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
 
 
 def test_all_scenario_briefings_include_shared_control_rules():
-    assert set(supported_scenario_ids()) == {*SPATIAL_SCENARIO_IDS, "conveyor_profit"}
+    assert set(supported_scenario_ids()) == {
+        *SPATIAL_SCENARIO_IDS,
+        "conveyor_profit",
+        "loop_staircase_anomaly",
+    }
     for scenario_id in SPATIAL_SCENARIO_IDS:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:

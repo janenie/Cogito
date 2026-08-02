@@ -141,6 +141,13 @@ class WaitNextWindowAction(_StrictToolInput):
     type: Literal["wait_next_window"]
 
 
+class PressKeyAction(_StrictToolInput):
+    """Press one allowlisted key in the loop-staircase scenario."""
+
+    type: Literal["press_key"]
+    key: Literal["up", "down", "space"]
+
+
 ActionInput = Union[
     LookAction,
     MoveAction,
@@ -156,6 +163,7 @@ ActionInput = Union[
     UndoAction,
     MakeAction,
     WaitNextWindowAction,
+    PressKeyAction,
 ]
 ActionBatchInput = SkipValidation[
     Annotated[

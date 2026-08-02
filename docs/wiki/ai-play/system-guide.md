@@ -64,7 +64,7 @@ Godot 桥的安全边界。
   `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
-  硬上限是 300，终局只允许 `success/garden_tasks_complete`、
+  硬上限是 80，终局只允许 `success/garden_tasks_complete`、
   `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
   请求硬上限是 100，终局只允许 `success/circuit_repaired`、
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
@@ -72,6 +72,10 @@ Godot 桥的安全边界。
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
   `failure/max_requests`；`conveyor_profit` 的请求硬上限是 300，终局只允许
   `success/efficiency_target_reached`、`failure/efficiency_below_target` 和
+  `failure/max_requests`；`loop_staircase_anomaly` 的请求硬上限是 160，终局只允许
+  `success/correct_floor_selected`、`failure/wrong_floor_selected` 和
+  `failure/max_requests`；`laboratory_experiment` 的请求硬上限是 150，终局只允许
+  `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
   `failure/max_requests`。`find_key` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
@@ -82,6 +86,9 @@ Godot 桥的安全边界。
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
   不受过滤；垂直映射必须抵消玩家的反转轴设置，使 `up` / `down` 与最终画面一致。停用、错误、
   终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
+- `press_key` 只允许精确的 `up`、`down`、`space`，且 Python 与 Godot 都必须在
+  `loop_staircase_anomaly` 之外拒绝它；传送带四种语义动作也必须继续只对
+  `conveyor_profit` 开放。
 - 所有动作的后续 observation（包括普通 interval、即时和恢复捕获）都必须在 Godot 内部先留出
   一个完整输入/处理帧，再等待最多 1 秒的 `RenderingServer.frame_post_draw` 后捕获截图；后台窗口
   没有产生信号时，必须在主线程调用 `RenderingServer.force_draw(false)` 重绘当前 Viewport，而不是
@@ -216,7 +223,8 @@ python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 ```
 
 启动器按白名单选择默认场景：`daily_routine_cleanup` 使用家庭场景，`garden_watering` 使用
-花园场景，`conveyor_profit` 使用独立经营场景，其余六个任务使用 Lobby。未知 scenario
+花园场景，`conveyor_profit` 使用独立经营场景，`loop_staircase_anomaly` 使用循环楼梯场景，
+`laboratory_experiment` 使用实验室场景，其余六个任务使用 Lobby。未知 scenario
 即使同时给出 `--scene` 也必须在创建运行目录或启动 Godot 前拒绝。
 
 supervisor 每局启动：
@@ -542,6 +550,42 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   非下雨时按兰花房门铃或错过警报都会失败。
 - 公开观察只包含相机图像、玩家基础状态、可见交互提示，以及 HUD 级别的时间、天气、
   水壶、浇水和警报进度；不公开内部节点路径、脚本类名、随机下雨时间或运行种子。
+
+## loop_staircase_anomaly 回合规则
+
+普通游玩与 AI 游玩分别使用同一独立场景；只有后者增加精确的 `--ai-play`：
+
+```bash
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play-scenario=loop_staircase_anomaly
+
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play --ai-play-scenario=loop_staircase_anomaly
+```
+
+- 玩家用 Up/Down 在 2F 到 9F 之间切换状态，第五轮观察后用 Space 选择当前楼层。
+- 每轮只有截图中的一条新线索，顺序每局变化；第五轮才把累积候选缩小到唯一出口。
+- 结构化公开状态只包含当前楼层、当前轮次和终局布尔值。线索文字、家具变化、随机种子、
+  答案楼层和完整楼层表不得进入结构化观察、briefing 或其他模型输入。
+
+## laboratory_experiment 回合规则
+
+普通游玩与 AI 游玩位于 Cogito Laboratory 场景：
+
+```bash
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play-scenario=laboratory_experiment
+
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play --ai-play-scenario=laboratory_experiment
+```
+
+- 玩家读取 HUD 上随机生成的实验目标、环境和公开条件，将电池、样本、处理模块和金属棒
+  搬运到对应插槽；第四种材料安装后自动分析。
+- 只有完整组合消耗机会。三次内满足目标产生 `success/experiment_completed`；第三次仍
+  错误产生 `failure/experiment_attempts_exhausted`。
+- 公开观察只包含当前安装材料、实验次数和已执行实验的测量反馈；随机种子、材料隐藏属性、
+  未执行组合结果和正确答案不得公开。
 
 ## 来源
 
