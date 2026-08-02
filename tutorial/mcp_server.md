@@ -322,7 +322,7 @@ Client 请求工具列表：
 ```
 
 Server 返回工具声明。以下以 JSONC 摘要展示 `act`；实际声明的 `$defs` 会分别完整列出
-十种动作的精确字段、枚举和范围：
+十四种动作的精确字段、枚举和范围：
 
 ```jsonc
 {
@@ -367,7 +367,8 @@ Server 返回工具声明。以下以 JSONC 摘要展示 `act`；实际声明的
                   {"$ref": "#/$defs/MoveAction"},
                   {"$ref": "#/$defs/SprintAction"}
                   // 其余 jump、crouch、interact、enter_digits、
-                  // close_ui、wait、probe_interaction 定义从略
+                  // close_ui、wait、probe_interaction、select_ingredient、
+                  // undo、make、wait_next_window 定义从略
                 ]
               }
             }
@@ -835,7 +836,9 @@ disconnected / stopping / stopped / game_over
 - `interact` 必须是当前观察中可用的交互；
 - `enter_digits` 和 `close_ui` 要求界面已打开；
 - 改变上下文的动作必须位于批次最后；
-- `probe_interaction` 必须单独调用。
+- `probe_interaction` 和 `wait_next_window` 必须单独调用；
+- `select_ingredient`、`undo`、`make` 和 `wait_next_window` 只允许在
+  `conveyor_profit` 使用，食材 ID 还必须来自固定公开白名单。
 
 Python 校验通过后 Godot 仍会再次校验。Python 是第一道边界，Godot 是输入执行的最终
 权威。
@@ -851,8 +854,10 @@ Python 校验通过后 Godot 仍会再次校验。Python 是第一道边界，Go
 - 最多两个获准交互；
 - 允许公开的运行时按键绑定；
 - 动作结果；
+- `conveyor_profit` 获准公开的 HUD 级窗口、托盘、收据和利润状态；
 - 1024×576、最大 2 MiB 的 JPEG；
-- 1024×576、0.05～20 米的 8 位线性深度 PNG，20 米外和背景为白色。
+- 第一人称 3D 玩法可选的 1024×576、0.05～20 米 8 位线性深度 PNG，20 米外和背景为白色；
+- `conveyor_profit` 不返回深度图，只返回截图和获准的 HUD 级状态。
 
 `prepare_mcp_observation()` 还把图片 Base64 从结构化 JSON 中移除，返回：
 

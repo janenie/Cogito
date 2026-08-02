@@ -1,6 +1,8 @@
 class_name AIPlayController
 extends Node
 
+signal supervised_exit_requested(exit_code: int)
+
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
 const PROTOCOL_VERSION: int = 4
@@ -10,6 +12,7 @@ const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
+const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
 const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
@@ -51,6 +54,11 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["failure", "incorrect_seating_assignment"],
 		["failure", "max_requests"],
 	],
+	"conveyor_profit": [
+		["success", "efficiency_target_reached"],
+		["failure", "efficiency_below_target"],
+		["failure", "max_requests"],
+	],
 }
 
 @export var player: Node3D
@@ -73,6 +81,10 @@ var _stop_delivery_pending: bool = false
 var _game_finished: bool = false
 var _active_scenario_id: String = ""
 var _exit_on_game_over: bool = false
+var _render_frame_wait_timeout_msec: int = 1000
+var _pending_game_over_ack_id: Variant = null
+var _pending_game_over_outcome: String = ""
+var _game_over_ack_generation: int = 0
 
 var _observer: Node
 var _executor: Node
@@ -107,13 +119,29 @@ func _ready() -> void:
 		)
 	if "interaction_probe" in _executor:
 		_executor.interaction_probe = _interaction_probe
+	if "active_scenario_id" in _executor:
+		_executor.active_scenario_id = _active_scenario_id
+	if (
+		_terminal_monitor != null
+		and "semantic_action_provider" in _executor
+		and _terminal_monitor.has_method("execute_semantic_action")
+	):
+		_executor.semantic_action_provider = _terminal_monitor
+	if (
+		_terminal_monitor != null
+		and "gameplay" in _observer
+		and "gameplay" in _terminal_monitor
+	):
+		_observer.gameplay = _terminal_monitor.gameplay
 	_bridge.connected.connect(_on_bridge_connected)
 	_bridge.disconnected.connect(_on_bridge_disconnected)
 	_bridge.action_batch_received.connect(_on_action_batch_received)
 	_bridge.recover_action_received.connect(_on_recover_action_received)
 	_bridge.stop_request_received.connect(_on_stop_request_received)
 	_bridge.end_game_received.connect(_on_end_game_received)
+	_bridge.game_over_ack_received.connect(_on_game_over_ack_received)
 	_bridge.remote_error.connect(_on_remote_error)
+	supervised_exit_requested.connect(_quit_tree_for_supervised_exit)
 	_executor.batch_finished.connect(_on_batch_finished)
 	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
 		_terminal_monitor.game_finished.connect(_on_game_finished)
@@ -242,6 +270,7 @@ func get_state() -> State:
 
 func enable_ai() -> void:
 	print("AI_PLAY enabling; target=ws://%s:%d" % [host, port])
+	_set_scenario_ai_control_active(true)
 	_set_ai_mouse_guard(true)
 	_stop_delivery_pending = false
 	_game_finished = false
@@ -260,6 +289,7 @@ func enable_ai() -> void:
 
 func disable_ai(reason: String = "disabled", disconnect_bridge: bool = true) -> void:
 	print("AI_PLAY disabled; reason=%s" % reason)
+	_set_scenario_ai_control_active(false)
 	_set_ai_mouse_guard(false)
 	_capture_generation += 1
 	_state = State.DISABLED
@@ -504,7 +534,6 @@ func _capture_observation_if_current(generation: int, results: Array) -> void:
 	# Synthetic input is delivered after the batch signal. Give the game one full
 	# input/process frame to apply UI and interaction changes before reading pixels.
 	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
 	if (
 		generation != _capture_generation
 		or _state != State.READY
@@ -512,11 +541,43 @@ func _capture_observation_if_current(generation: int, results: Array) -> void:
 		or not is_inside_tree()
 	):
 		return
+	var rendered: bool = await _wait_for_render_frame(_render_frame_wait_timeout_msec)
+	if (
+		generation != _capture_generation
+		or _state != State.READY
+		or is_queued_for_deletion()
+		or not is_inside_tree()
+	):
+		return
+	if not rendered:
+		# A background or throttled window may keep processing game state without
+		# producing frame_post_draw. Force one current-state viewport redraw instead
+		# of waiting until the MCP action timeout or publishing stale pixels.
+		RenderingServer.force_draw(false)
 	_capture_observation(results)
+
+
+func _wait_for_render_frame(timeout_msec: int) -> bool:
+	var render_state: Dictionary = {"completed": false}
+	var mark_completed := func() -> void:
+		render_state["completed"] = true
+	RenderingServer.frame_post_draw.connect(mark_completed, CONNECT_ONE_SHOT)
+	var deadline_msec: int = Time.get_ticks_msec() + timeout_msec
+	while (
+		not render_state["completed"]
+		and Time.get_ticks_msec() < deadline_msec
+		and not is_queued_for_deletion()
+		and is_inside_tree()
+	):
+		await get_tree().process_frame
+	if RenderingServer.frame_post_draw.is_connected(mark_completed):
+		RenderingServer.frame_post_draw.disconnect(mark_completed)
+	return render_state["completed"]
 
 
 func _exit_tree() -> void:
 	_capture_generation += 1
+	_set_scenario_ai_control_active(false)
 	_set_ai_mouse_guard(false)
 
 
@@ -525,8 +586,14 @@ func _set_ai_mouse_guard(enabled: bool) -> void:
 		player.set_ai_play_mouse_motion_device(EXECUTOR_DEVICE_ID if enabled else -1)
 
 
+func _set_scenario_ai_control_active(enabled: bool) -> void:
+	if _terminal_monitor != null and _terminal_monitor.has_method("set_ai_control_active"):
+		_terminal_monitor.set_ai_control_active(enabled)
+
+
 func _on_observation_timer_timeout() -> void:
-	_capture_observation(_last_results)
+	var generation: int = _capture_generation
+	call_deferred("_capture_observation_if_current", generation, _last_results)
 
 
 func _on_bridge_disconnected(reason: String) -> void:
@@ -654,7 +721,10 @@ func _finish_game(outcome: String, reason: String, observation_id: Variant) -> v
 	_show_game_over_result(outcome, reason)
 	print("AI_PLAY_GAME_OVER outcome=%s reason=%s" % [outcome, reason])
 	if _exit_on_game_over:
-		_quit_after_game_over.call_deferred(outcome)
+		if send_error == OK:
+			_wait_for_game_over_ack(outcome, observation_id)
+		else:
+			_request_supervised_exit(outcome)
 
 
 func _show_game_over_result(outcome: String, reason: String) -> void:
@@ -662,8 +732,51 @@ func _show_game_over_result(outcome: String, reason: String) -> void:
 		_terminal_monitor.show_result(outcome, reason)
 
 
-func _quit_after_game_over(outcome: String) -> void:
-	get_tree().quit(0 if outcome == "success" else 1)
+func _wait_for_game_over_ack(outcome: String, observation_id: Variant) -> void:
+	_pending_game_over_ack_id = observation_id
+	_pending_game_over_outcome = outcome
+	_game_over_ack_generation += 1
+	_quit_after_game_over_ack_timeout(
+		_game_over_ack_generation,
+		outcome,
+	)
+
+
+func _quit_after_game_over_ack_timeout(generation: int, outcome: String) -> void:
+	await get_tree().create_timer(GAME_OVER_ACK_TIMEOUT_SECONDS).timeout
+	if (
+		generation == _game_over_ack_generation
+		and not _pending_game_over_outcome.is_empty()
+	):
+		_request_supervised_exit(outcome)
+
+
+func _on_game_over_ack_received(ack: Dictionary) -> void:
+	if (
+		_pending_game_over_outcome.is_empty()
+		or not _has_exact_keys(
+			ack,
+			["type", "protocol_version", "observation_id"],
+		)
+		or ack.get("type") != "game_over_ack"
+		or ack.get("protocol_version") != PROTOCOL_VERSION
+		or ack.get("observation_id") != _pending_game_over_ack_id
+	):
+		return
+	_request_supervised_exit(_pending_game_over_outcome)
+
+
+func _request_supervised_exit(outcome: String) -> void:
+	if _pending_game_over_outcome.is_empty() and outcome.is_empty():
+		return
+	_pending_game_over_ack_id = null
+	_pending_game_over_outcome = ""
+	_game_over_ack_generation += 1
+	supervised_exit_requested.emit(0 if outcome == "success" else 1)
+
+
+func _quit_tree_for_supervised_exit(exit_code: int) -> void:
+	get_tree().quit(exit_code)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:

@@ -106,3 +106,67 @@ def test_interface_actions_require_open_interface():
     ]:
         with pytest.raises(ActionValidationError, match="interface"):
             validate_action_batch([action], set(), False)
+
+
+def test_conveyor_actions_are_scenario_gated():
+    actions = [
+        {"type": "select_ingredient", "ingredient": "tomato"},
+        {"type": "make"},
+    ]
+
+    assert validate_action_batch(
+        actions,
+        set(),
+        False,
+        "conveyor_profit",
+    ) == actions
+    with pytest.raises(ActionValidationError, match="scenario"):
+        validate_action_batch(actions, set(), False, "find_contract")
+
+
+@pytest.mark.parametrize("ingredient", ["potato", "Tomato", "../tomato", 7])
+def test_conveyor_ingredient_ids_are_exact(ingredient):
+    with pytest.raises(ActionValidationError, match="ingredient"):
+        validate_action_batch(
+            [{"type": "select_ingredient", "ingredient": ingredient}],
+            set(),
+            False,
+            "conveyor_profit",
+        )
+
+
+@pytest.mark.parametrize("ingredient", [
+    "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+    "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+    "broccoli", "corn", "fish",
+])
+def test_conveyor_accepts_every_public_ingredient_id(ingredient):
+    action = {"type": "select_ingredient", "ingredient": ingredient}
+
+    assert validate_action_batch(
+        [action], set(), False, "conveyor_profit"
+    ) == [action]
+
+
+def test_conveyor_make_must_end_the_batch():
+    with pytest.raises(ActionValidationError, match="last"):
+        validate_action_batch(
+            [{"type": "make"}, {"type": "undo"}],
+            set(),
+            False,
+            "conveyor_profit",
+        )
+
+
+def test_wait_next_window_is_conveyor_only_and_solo():
+    action = {"type": "wait_next_window"}
+
+    assert validate_action_batch(
+        [action], set(), False, "conveyor_profit"
+    ) == [action]
+    with pytest.raises(ActionValidationError, match="only action"):
+        validate_action_batch(
+            [{"type": "undo"}, action], set(), False, "conveyor_profit"
+        )
+    with pytest.raises(ActionValidationError, match="scenario"):
+        validate_action_batch([action], set(), False, "find_key")

@@ -21,6 +21,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
+try:
+    from .ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+except ImportError:
+    from ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SESSION_ROOT = (
@@ -29,7 +34,6 @@ DEFAULT_SESSION_ROOT = (
     else Path("/tmp/cogito_ai_player_runs")
 )
 DEFAULT_CODEX_AUTH_HOME = Path("~/.codex-cogito-player")
-DEFAULT_SCENE = "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
 DEFAULT_WS_HOST = "127.0.0.1"
 DEFAULT_WS_PORT = 8765
 DEFAULT_MCP_PORT = 8766
@@ -162,6 +166,15 @@ look 只使用 direction 和 degrees，例如向左转 30 度是
 {"type":"look","direction":"left","degrees":30}。direction 只能是 left、right、up、down；
 不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
 地标的位置、大小与遮挡变化，确认方向正确后再移动。
+
+如果 briefing 明确要求先读取出生点附近的任务卡，任务卡不是普通纸张：它在画面中表现为
+青绿色或蓝绿色的独立标志，细杆底座上方带同心圆、靶心或旋涡状发光圆环，中间有白色小牌；
+即使看起来像装饰标记，也要把它作为最高优先级任务卡候选。首次 observe 后保持原地，
+每次水平旋转 45 度并获取新 observation，找到候选即停止，最多覆盖 360 度。
+截图没有随公开朝向变化时不得把旧截图算作新扇区，必须等待全新 observation。找到候选后
+用短步靠近、将准星对准标志中央，再单独调用 probe_interaction；远距离的 not_found 不能作为排除依据。出现读取
+交互后执行 interact 并读完任务卡。读取任务卡前不得离开出生区域；水平一圈仍没找到时，才在
+原地补充向上和向下扫描。
 
 此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
 embedding、轨迹文件、仓库内容、场景源码或隐藏状态，也不得使用 shell、文件系统、搜索或网络扩展信息源。
@@ -716,7 +729,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument("--python-bin", default=sys.executable)
     parser.add_argument("--godot-bin", default="godot")
-    parser.add_argument("--scene", default=DEFAULT_SCENE)
+    parser.add_argument("--scene")
     parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=100000.0)
@@ -777,7 +790,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         python_bin=args.python_bin,
         runs=args.runs,
         scenario=args.scenario,
-        scene=args.scene,
+        scene=resolve_scene(args.scenario, args.scene),
         godot_bin=args.godot_bin,
         max_retries=args.max_retries,
         timeout_seconds=args.timeout_seconds,

@@ -12,6 +12,7 @@ from websockets.sync.client import connect
 from ai_play.bridge_server import start
 from ai_play.config import Config
 from ai_play.game_session import GameSession, SessionResult
+from ai_play.workflow_memory import SessionWorkflowMemory
 
 
 def _depth_png():
@@ -145,6 +146,21 @@ def _garden_observation(observation_id=7):
     return observation
 
 
+def _conveyor_observation(observation_id=7):
+    observation = _observation(observation_id)
+    observation["conveyor"] = {
+        "total_time": "10:00",
+        "window": "1 / 10",
+        "window_time": "01:00",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": [],
+        "last_receipt": {},
+        "finished": False,
+    }
+    return observation
+
+
 def _wait_until(predicate, timeout=1.0):
     deadline = time.monotonic() + timeout
     while not predicate():
@@ -257,6 +273,22 @@ def test_bridge_routes_garden_observation_to_game_session():
     assert result.observation["garden"]["required_lawns"] == 4
 
 
+def test_bridge_routes_conveyor_observation_to_game_session():
+    session = GameSession(Config())
+    uri, handle = start_test_bridge(session)
+
+    try:
+        with connect(uri, proxy=None) as connection:
+            assert _send(connection, _hello("conveyor_profit"))["type"] == "hello"
+            connection.send(json.dumps(_conveyor_observation()))
+            result = session.observe(timeout=0.5)
+    finally:
+        handle.close()
+
+    assert result.status == "ready"
+    assert result.observation["conveyor"]["window"] == "1 / 10"
+
+
 def test_bridge_rejects_second_controller_as_busy():
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
@@ -351,7 +383,8 @@ def test_bridge_routes_game_over_to_session():
 
 
 def test_bridge_routes_find_key_success_to_session():
-    session = GameSession(Config())
+    memory = SessionWorkflowMemory()
+    session = GameSession(Config(), attempt_observer=memory)
     uri, handle = start_test_bridge(session)
     terminal = {
         "type": "game_over",
@@ -371,12 +404,18 @@ def test_bridge_routes_find_key_success_to_session():
             connection.send(json.dumps(_observation()))
             assert session.observe(timeout=0.5).status == "ready"
             connection.send(json.dumps(terminal))
+            assert json.loads(connection.recv(timeout=0.5)) == {
+                "type": "game_over_ack",
+                "protocol_version": 4,
+                "observation_id": 7,
+            }
             _wait_until(lambda: session._state == "game_over")
             result = session.observe(timeout=0.5)
     finally:
         handle.close()
 
     assert result == SessionResult(status="game_over", game_over=terminal)
+    assert memory.read("find_key")["completed_runs"] == 1
 
 
 def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():

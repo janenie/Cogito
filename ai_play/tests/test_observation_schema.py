@@ -345,3 +345,138 @@ def test_garden_observation_rejects_invalid_public_state(field, value):
 
     with pytest.raises(ObservationValidationError):
         validate_observation(observation)
+
+
+def test_conveyor_observation_is_hud_level_and_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": -3,
+        "tray": ["bread", "egg"],
+        "last_receipt": {
+            "outcome": "accepted",
+            "recipe_id": "garden_salad",
+            "profit": -3,
+        },
+        "finished": False,
+    }
+
+    public, _image_bytes, _depth_image_bytes = prepare_mcp_observation(observation)
+
+    assert public["conveyor"] == observation["conveyor"]
+
+
+@pytest.mark.parametrize(
+    "hidden_field",
+    [
+        "ingredients", "candidate_recipes", "best_profit", "future_supply", "seed",
+        "passing_profit", "deck_id", "recipe_counts", "missing_ingredient",
+        "theoretical_profit", "optimal_route",
+    ],
+)
+def test_conveyor_observation_rejects_hidden_fields(hidden_field):
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": [],
+        "last_receipt": {},
+        "finished": False,
+        hidden_field: [],
+    }
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation)
+
+
+def test_conveyor_semantic_action_results_are_bounded():
+    results = [
+        {
+            "status": "completed",
+            "type": "select_ingredient",
+            "outcome": "selected",
+            "ingredient": "tomato",
+        },
+        {
+            "status": "completed",
+            "type": "make",
+            "outcome": "recipe_limit_exceeded",
+            "recipe_id": "garden_salad",
+        },
+        {
+            "status": "completed",
+            "type": "wait_next_window",
+            "outcome": "window_advanced",
+        },
+    ]
+
+    assert validate_action_results(results) == results
+
+
+@pytest.mark.parametrize("outcome", ["accepted", "recipe_limit_exceeded"])
+def test_conveyor_make_receipt_requires_a_public_recipe_id(outcome):
+    result = [{
+        "status": "completed",
+        "type": "make",
+        "outcome": outcome,
+        "recipe_id": "avocado_fish_sandwich",
+    }]
+
+    assert validate_action_results(result) == result
+
+    without_recipe = [{
+        "status": "completed",
+        "type": "make",
+        "outcome": outcome,
+    }]
+    with pytest.raises(ObservationValidationError):
+        validate_action_results(without_recipe)
+
+
+def test_conveyor_observation_accepts_five_item_tray_and_empty_receipt():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": ["egg", "cheese", "bacon", "corn", "avocado"],
+        "last_receipt": {},
+        "finished": False,
+    }
+
+    public, _image_bytes, _depth_image_bytes = prepare_mcp_observation(observation)
+
+    assert len(public["conveyor"]["tray"]) == 5
+    assert public["conveyor"]["last_receipt"] == {}
+
+
+def test_conveyor_full_tray_result_is_recoverable_and_bounded():
+    result = [{
+        "status": "completed",
+        "type": "select_ingredient",
+        "outcome": "tray_full",
+    }]
+
+    assert validate_action_results(result) == result
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["window_not_complete", "window_advanced", "game_finished"],
+)
+def test_wait_next_window_results_are_exact(outcome):
+    result = [{
+        "status": "completed",
+        "type": "wait_next_window",
+        "outcome": outcome,
+    }]
+
+    assert validate_action_results(result) == result

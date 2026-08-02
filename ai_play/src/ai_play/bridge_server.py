@@ -27,7 +27,7 @@ OBSERVATION_FIELDS = {
     "bindings",
     "last_action_results",
 }
-OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image"}
+OPTIONAL_OBSERVATION_FIELDS = {"routine", "garden", "depth_image", "conveyor"}
 
 
 class BridgeHandle:
@@ -251,6 +251,11 @@ def _exclusive_handler(connection, session, scenario_id=None):
                     return
                 elif packet_type == "game_over":
                     session.receive_game_over(packet)
+                    _safe_send(connection, {
+                        "type": "game_over_ack",
+                        "protocol_version": PROTOCOL_VERSION,
+                        "observation_id": packet["observation_id"],
+                    })
                     return
                 else:
                     raise SessionError("unexpected_packet")

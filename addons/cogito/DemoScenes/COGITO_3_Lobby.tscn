@@ -3326,14 +3326,13 @@ archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" unique_id=921075935 instance=ExtResource("ai_play_game_over_screen")]
 
-[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "key", "desktop_desk_anchor", "laptop_desk_anchor", "archive_sofa_anchor", "meeting_table_anchor", "tv_coffee_table_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
+[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "key", "laptop_desk_anchor", "archive_sofa_anchor", "meeting_table_anchor", "tv_coffee_table_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_key_monitor")
 scenario_id = "find_key"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
 key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
-desktop_desk_anchor = NodePath("../../FindKeyMarkers/DesktopDeskAnchor")
 laptop_desk_anchor = NodePath("../../FindKeyMarkers/LaptopDeskAnchor")
 archive_sofa_anchor = NodePath("../../FindKeyMarkers/ArchiveSofaAnchor")
 meeting_table_anchor = NodePath("../../FindKeyMarkers/MeetingTableAnchor")
@@ -8121,9 +8120,6 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 2, 0.905039, 10.4)
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.7, 1.2, 10.4)
 
 [node name="FindKeyMarkers" type="Node3D" parent="." unique_id=15031304]
-
-[node name="DesktopDeskAnchor" type="Marker3D" parent="FindKeyMarkers" unique_id=1726557083]
-transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1.5, -0.55)
 
 [node name="LaptopDeskAnchor" type="Marker3D" parent="FindKeyMarkers" unique_id=1510285551]
 transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, -6.0986724, 3.49246, -10.639568)

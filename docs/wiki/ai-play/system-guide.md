@@ -36,7 +36,7 @@ Godot 桥的安全边界。
 
 ## 跨层契约
 
-- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
+- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`game_over_ack`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `4` 的 `protocol_version` 规范化为整数 `4`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
@@ -55,8 +55,7 @@ Godot 桥的安全边界。
   `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
   50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
 - `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
-  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 根据本局位置使用
-  50 或 100 次请求硬上限，公开 briefing 只说明最大值 100，
+  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 使用 50 次请求硬上限，
   终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
   是 150，终局只允许 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和
   `failure/max_requests`；
@@ -70,6 +69,8 @@ Godot 桥的安全边界。
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
   `failure/max_requests`；`arrange_meeting_briefings` 的请求硬上限是 200，终局只允许
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
+  `failure/max_requests`；`conveyor_profit` 的请求硬上限是 300，终局只允许
+  `success/efficiency_target_reached`、`failure/efficiency_below_target` 和
   `failure/max_requests`。`find_key` 和 `greet_npc_meeting` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
@@ -80,12 +81,16 @@ Godot 桥的安全边界。
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
   不受过滤；垂直映射必须抵消玩家的反转轴设置，使 `up` / `down` 与最终画面一致。停用、错误、
   终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
-- 需要即时重新观察的动作必须先留出一个完整输入/处理帧，再等待
-  `RenderingServer.frame_post_draw` 后捕获截图，并在等待后重新检查 capture generation、
-  控制器状态和节点生命周期，防止动作尚未生效、旧动作、停用或销毁后发送滞后观察。
+- 所有动作的后续 observation（包括普通 interval、即时和恢复捕获）都必须在 Godot 内部先留出
+  一个完整输入/处理帧，再等待最多 1 秒的 `RenderingServer.frame_post_draw` 后捕获截图；后台窗口
+  没有产生信号时，必须在主线程调用 `RenderingServer.force_draw(false)` 重绘当前 Viewport，而不是
+  等待到 Python action timeout 或发送旧纹理。这项等待不得暴露为 AI action 或消耗请求额度。
+  等待后重新检查 capture generation、控制器状态和节点生命周期，防止动作尚未生效、旧动作、
+  停用或销毁后发送滞后观察。
 - `observe` 和 `act` 返回获准结构化状态及 MCP 图片内容；成功的 `act` 已携带下一份观察，
-  玩家不得为刷新同一帧重复调用 `observe`。观察成功时图片顺序为截图 JPEG、深度 PNG。
-  结构化结果只保留 `image` 和 `depth_image` 的元数据，不得重复任一图片的 Base64，也不得
+  玩家不得为刷新同一帧重复调用 `observe`。观察成功时先返回截图 JPEG；第一人称 3D 玩法
+  再返回深度 PNG，`conveyor_profit` 只返回截图。结构化结果只保留 `image` 和可选
+  `depth_image` 的元数据，不得重复任一图片的 Base64，也不得
   包含隐藏状态。深度图是 1024×576 的 `linear_depth_normalized_8bit` 同视角不透明 3D
   几何可视化，固定使用面向局部门口导航的 0.05～20 米范围（近黑，20 米外/背景白）；HUD、
   2D UI 和透明物体没有独立可靠深度。`act` 可额外返回仅由前后公开玩家位置计算的
@@ -96,17 +101,18 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
-- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`，只允许整数 50 或 100；
-  省略时默认 100，其他玩法携带、非法类型和值都必须拒绝。首次握手后重连上限必须一致。
+- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`；当前 Godot 固定发送 50。
+  Python 为兼容旧 Godot 仍允许整数 50 或 100；省略时默认 100，其他玩法携带、非法类型
+  和值都必须拒绝。首次握手后重连上限必须一致。
   该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
   `<scenario_id>/<YYYYMMDD-HH-MM>/` 下创建运行/尝试目录；一个运行最多分组同一任务的
-  三次连接，不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
+  四次连接，第五次连接创建新的运行目录；不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
   `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
   bridge 断开和 MCP shutdown。
 - 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和截图 JPEG 相对路径；深度 PNG 只在 MCP 响应中返回，不写入轨迹目录。绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
-- 运行时观察截图和深度图统一缩放为 1024×576；Godot 和 Python 桥的单包上限为 8 MiB，
-  用于容纳包含两张 Base64 图片的观察 JSON。
+- 运行时观察截图和可选深度图统一缩放为 1024×576；Godot 和 Python 桥的单包上限为 8 MiB，
+  用于容纳最多两张 Base64 图片的观察 JSON。
 - 修改公开协议、环境变量、控制方式、隐私行为或日志布局时，必须在同一改动中更新 `ai_play/README.md` 和对应测试。
 
 ## Codex orchestrator 多局验收
@@ -123,8 +129,10 @@ Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；C
 结果提供。隔离玩家的权限 profile 必须启用网络但只 allowlist 字面量 `127.0.0.1`，使 Codex 能
 连接本机 Streamable HTTP MCP 边车；玩家环境必须为大小写代理变量显式设置回环
 `NO_PROXY`。不得使用公网通配符或 `allow_local_binding` 扩大访问范围。
-玩家提示还要求：当公开 `briefing` 指定出生点附近任务卡时，首次观察后应先扫描并探测近处的
-悬浮标志、纸张或文件，确认失败后才能扩大搜索范围。
+高优先级 developer/system instruction 还要求：当公开 `briefing` 指定出生点附近任务卡时，
+把细杆底座上的青绿色/蓝绿色同心发光圆环标志作为最高优先级任务卡候选。玩家留在出生区，
+按 45 度扇区扫描最多 360 度，每次等待与公开朝向一致的新截图；找到标志后短步靠近、对准并
+探测，读卡后才能离开。远距离 `not_found` 不得用于排除候选。
 
 每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
 `~/.codex-cogito-player`，只作为 `auth.json` 的来源；不会读取、合并或保留其 `config.toml`、
@@ -204,7 +212,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 `AIPlayController` 只在同时存在 `--ai-play` 和 `--ai-play-exit-on-game-over` 时启用终局
-自动退出。合法终局会先通过桥发送 `game_over`，再在 Godot 输出中打印：
+自动退出。合法终局会先通过桥发送 `game_over`，Python 在记录可信终局和 AWM attempt 后
+回复匹配 `observation_id` 的 `game_over_ack`；Godot 收到 ACK 后才退出，ACK 丢失时通过
+有界超时兜底。Godot 同时在输出中打印：
 
 ```text
 AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
@@ -235,6 +245,58 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 
 只有静态地图结构确实不同，才应创建另一个完整世界场景；共享地图上的任务、线索、出生点
 和胜负条件变化应留在小型玩法脚本或玩法子场景中。
+
+## conveyor_profit 语义动作契约
+
+> 设计来源见 [完整玩法与 AI Play spec](../../scope/2026-08-01-conveyor-profit-ai-play/spec-conveyor-profit-ai-play.md)
+> 和 [固定关卡与近似菜谱设计](../../superpowers/specs/2026-08-02-conveyor-authored-decks-design.md)。
+
+`conveyor_profit` 使用与其他玩法相同的 `briefing`、`observe`、`act`、`stop` MCP 工具，
+但不要求 AI 模拟移动、转向、瞄准或鼠标点击。仅当
+`--ai-play-scenario=conveyor_profit` 激活时，`act` 允许以下场景专用动作：
+
+```json
+{"type": "select_ingredient", "ingredient": "tomato"}
+{"type": "undo"}
+{"type": "make"}
+{"type": "wait_next_window"}
+```
+
+- `select_ingredient` 只接受配方目录公开的固定英文食材 ID。游戏从当前窗口内尚未消耗、
+  可选择、正在渲染且位于当前相机画面内的同名食材中，使用本局随机源选择一个。
+- 托盘最多容纳五项食材。第 6 次选材返回 `tray_full`，不扣钱、
+  不改变托盘；AI 可先用 `undo` 撤销最后一项再继续，不能因选材过多断开观察连接。
+- `wait_next_window` 只在当前窗口已经制作并锁定后有效，只推进一个窗口；最后一个窗口推进后
+  进入正常终局。它不允许跳过尚未制作的窗口。
+- AI 的选材、撤销和制作动作与人类鼠标点击、UNDO 和 MAKE 按钮共用同一套托盘、配方和
+  经济入口。
+- `briefing` 白名单返回墙上同样可见的十道固定菜谱，包括十六种公开食材、成本、售价和
+  净利润，并说明同一道菜整局最多成功制作两次。AI 必须根据成功收据自行维护菜谱次数；
+  briefing、HUD、`observe` 和动作结果均不返回累计次数表。`observe` 只保留当前窗口最近一次
+  制作收据；accepted 和 `recipe_limit_exceeded` 动作结果只额外公开本次 `recipe_id`。
+  `observe` 仍不返回当前窗口的结构化食材清单或候选菜；AI 必须根据截图判断当前可见食材，
+  再与公开菜单匹配并比较利润。
+- 动作结果不得公开节点、位置、隐藏库存、候选菜、窗口最优菜、未来供应、生成 seed 或
+  理论利润门槛。无效或当前不可用的食材请求只返回公开失败状态，不扣钱、不改变托盘。
+- 这些动作继续遵守 `observation_id` 新鲜度、每批最多三个动作、双端 DTO 验证、日志和
+  断连安全退出约束。其他玩法必须拒绝它们。
+
+十分钟规则由十个连续的 60 秒窗口组成。游戏维护五套手写关卡，每套包含十个有序窗口；
+新一局随机选择一套，窗口顺序固定，只打乱每窗 16 个食材盘的位置。开发者验证必须确认每窗
+恰好有两道净利润不同的完整菜，并有且仅有一道利润更高、恰缺一份食材的指定诱饵；五套关卡
+各自至少包含两次由菜谱次数上限造成的低价选择压力。这些关卡结构、组 ID、诱饵、缺失食材、
+候选和窗口答案不得进入任何模型输入。
+
+每个窗口只有一次制作机会：合法且本局成功次数少于两次的组合获得售价并扣除成本；非法组合
+收入为零并扣除所选食材成本。第三次提交同一道合法菜返回 `recipe_limit_exceeded`，同样零收入、
+扣成本且不增加成功次数。所有制作结果都会清空托盘并锁定窗口。锁定后 HUD 继续显示“本时间段
+已完成”及剩余时间，人工模式到 60 秒边界再进入下一窗口。
+
+AI 模式的窗口时钟由 Godot 控制；controller 等待外部模型返回期间不推进经营倒计时，避免把
+API 延迟计入策略表现。人工模式仍按真实 Godot 时间运行。整局理论基准由动态规划计算：状态
+包含窗口索引和十道菜各自 0、1、2 次的成功次数，转移只能选择当前窗口完整且未达两次上限的
+菜。实际净利润达到全局理论最优的 80% 向上取整才成功。运行中不得公开单窗口最优答案、
+剩余次数、理论最高总利润或绝对通关金额。
 
 ## find_contract 回合规则
 
@@ -276,14 +338,15 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_key
 ```
 
-- 每局只存在一张任务卡和一把目标钥匙。钥匙在五类办公家具位置中随机选择一处，任务卡
-  用环境特征描述目标位置，不公开内部节点或坐标。
+- 每局只存在一张任务卡和一把目标钥匙。钥匙在四类办公家具位置中随机选择一处：有笔记本
+  电脑的办公桌、档案室旁边的沙发、会议室长桌或有大电视的茶几。任务卡用环境特征描述
+  目标位置，不公开内部节点或坐标。
 - 游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择与钥匙世界坐标
   直线距离最远的出生点；任务卡与出生点保持 1～2 米距离。
 - 只有成功执行 Pickup 才产生 `success/key_picked_up`；仅看到钥匙不算成功，本玩法没有
   wrong-answer 失败。
-- 台式电脑桌、电视茶几和档案室沙发位置使用 50 次请求硬上限；笔记本电脑桌和会议长桌
-  位置使用 100 次请求硬上限。Godot 只向内部桥发送 50/100 上限，不发送位置 ID。
+- 无论钥匙随机出现在哪类家具位置，每局都使用 50 次请求硬上限。Godot 只向内部桥发送
+  固定的 50 步上限，不发送位置 ID。
 - 非零 `round_seed` 仅供本地确定性测试。候选坐标、所选位置、出生点计算和种子都属于
   隐藏初始化状态，不得进入公开简报、观察或桥协议。
 

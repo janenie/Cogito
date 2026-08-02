@@ -24,6 +24,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
         "garden_watering",
         "repair_lighting_circuit",
         "arrange_meeting_briefings",
+        "conveyor_profit",
     )
     assert is_supported_scenario("find_contract")
     assert is_supported_scenario("find_key")
@@ -33,6 +34,7 @@ def test_scenario_registry_exposes_only_allowlisted_scenarios():
     assert is_supported_scenario("garden_watering")
     assert is_supported_scenario("repair_lighting_circuit")
     assert is_supported_scenario("arrange_meeting_briefings")
+    assert is_supported_scenario("conveyor_profit")
     assert not is_supported_scenario("unknown")
     assert not is_supported_scenario(True)
 
@@ -63,12 +65,13 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
     assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 200
     assert scenario_act_request_limit("arrange_meeting_briefings", 125) == 125
+    assert scenario_act_request_limit("conveyor_profit", 500) == 300
 
 
 def test_readme_lists_all_request_caps_in_scenario_order():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
 
-    assert "自身的 300、50/100、150、100、150、300、100、200 次硬上限" in readme
+    assert "自身的 300、50、150、100、150、300、100、200、300 次硬上限" in readme
 
 
 def test_find_key_round_request_limits_are_allowlisted():
@@ -183,6 +186,16 @@ def test_terminal_results_are_scenario_specific():
         "failure",
         "incorrect_seating_assignment",
     )
+    assert is_allowed_game_over(
+        "conveyor_profit",
+        "success",
+        "efficiency_target_reached",
+    )
+    assert is_allowed_game_over(
+        "conveyor_profit",
+        "failure",
+        "efficiency_below_target",
+    )
     assert not is_allowed_game_over(
         "greet_npc_meeting",
         "success",
@@ -213,6 +226,11 @@ def test_terminal_results_are_scenario_specific():
     )
     assert is_allowed_game_over(
         "arrange_meeting_briefings",
+        "failure",
+        "max_requests",
+    )
+    assert is_allowed_game_over(
+        "conveyor_profit",
         "failure",
         "max_requests",
     )

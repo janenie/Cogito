@@ -17,9 +17,7 @@ PUBLIC_BRIEFING = {
         "找到并拾取场景中唯一的目标钥匙。"
     ),
     "success_condition": "成功拾取办公室中唯一的目标钥匙。",
-    "failure_condition": (
-        "本局根据目标位置采用 50 或 100 次 act 请求上限；达到当前上限仍未拾取钥匙则失败。"
-    ),
+    "failure_condition": "最多允许 50 次 act 请求；达到上限仍未拾取钥匙则失败。",
     "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容和动作结果寻找钥匙。",
         "任务卡位于出生点附近并可重复读取。",

@@ -4,33 +4,24 @@ extends Node
 signal game_finished(outcome: String, reason: String)
 
 const LOCATION_IDS: Array[String] = [
-	"desktop_desk",
 	"laptop_desk",
 	"archive_sofa",
 	"meeting_table",
 	"tv_coffee_table",
 ]
 const LOCATION_TASK_TEXT := {
-	"desktop_desk": "钥匙在有台式电脑的办公桌上。",
 	"laptop_desk": "钥匙在有笔记本电脑的办公桌上。",
 	"archive_sofa": "钥匙在档案室旁边的沙发上。",
 	"meeting_table": "钥匙在会议室的长桌上。",
 	"tv_coffee_table": "钥匙在有大电视的茶几上。",
 }
-const SHORT_ACT_REQUEST_LIMIT: int = 50
-const DEFAULT_ACT_REQUEST_LIMIT: int = 100
-const SHORT_LIMIT_LOCATION_IDS: Array[String] = [
-	"desktop_desk",
-	"tv_coffee_table",
-	"archive_sofa",
-]
+const ACT_REQUEST_LIMIT: int = 50
 
 @export var scenario_id: String = "find_key"
 @export var game_over_screen: AIPlayGameOverScreen
 @export var player: Node3D
 @export var task_card: ReadableComponent
 @export var key: RigidBody3D
-@export var desktop_desk_anchor: Marker3D
 @export var laptop_desk_anchor: Marker3D
 @export var archive_sofa_anchor: Marker3D
 @export var meeting_table_anchor: Marker3D
@@ -88,7 +79,6 @@ func configure_round(seed_value: int = 0) -> void:
 
 func _key_anchors() -> Dictionary:
 	return {
-		"desktop_desk": desktop_desk_anchor,
 		"laptop_desk": laptop_desk_anchor,
 		"archive_sofa": archive_sofa_anchor,
 		"meeting_table": meeting_table_anchor,
@@ -97,9 +87,7 @@ func _key_anchors() -> Dictionary:
 
 
 func get_act_request_limit() -> int:
-	if _selected_location in SHORT_LIMIT_LOCATION_IDS:
-		return SHORT_ACT_REQUEST_LIMIT
-	return DEFAULT_ACT_REQUEST_LIMIT
+	return ACT_REQUEST_LIMIT
 
 
 func _spawn_options() -> Array[Dictionary]:
@@ -217,7 +205,6 @@ func _has_required_nodes() -> bool:
 		player,
 		task_card,
 		key,
-		desktop_desk_anchor,
 		laptop_desk_anchor,
 		archive_sofa_anchor,
 		meeting_table_anchor,

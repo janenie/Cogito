@@ -14,9 +14,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+try:
+    from .ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+except ImportError:
+    from ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SCENE = "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
 GAME_OVER_RE = re.compile(
     r"^AI_PLAY_GAME_OVER outcome=(success|failure) reason=([a-z0-9_]+)$"
 )
@@ -48,6 +52,8 @@ def parse_game_over_marker(line: str) -> tuple[str, str] | None:
     match = AI_PLAY_DISABLED_RE.match(line.strip())
     if match is not None:
         reason = match.group(1)
+        if reason.startswith("game_over:"):
+            return None
         if reason in STOPPED_REASONS:
             return "failure", reason if reason != "mcp_stop" else "stopped"
         return "abnormal", reason
@@ -225,7 +231,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--scenario", default="find_contract")
-    parser.add_argument("--scene", default=DEFAULT_SCENE)
+    parser.add_argument("--scene")
     parser.add_argument("--godot-bin", default="godot")
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=1200.0)
@@ -246,7 +252,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     command = build_godot_command(
         godot_bin=args.godot_bin,
-        scene=args.scene,
+        scene=resolve_scene(args.scenario, args.scene),
         scenario=args.scenario,
     )
     results: list[AttemptResult] = []

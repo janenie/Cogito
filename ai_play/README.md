@@ -94,6 +94,20 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   -- --ai-play --ai-play-scenario=garden_watering
 ```
 
+回转带利润玩法位于独立经营场景，也可普通启动或显式接入 AI：
+
+```bash
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
+
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play --ai-play-scenario=conveyor_profit
+```
+
+`conveyor_profit` 的白名单 `briefing` 会返回墙上同样可见的十道固定菜谱，包括十六种食材
+ID、成本、完整配方、售价和净利润，并公开每道菜整局最多成功制作两次的规则。当前窗口的
+结构化食材清单、可行菜、缺失食材、累计次数表、未来供给、随机牌组和绝对目标金额仍不公开；
+客户端必须根据 `observe` 截图识别当前可见食材，与公开菜单比较，并根据 accepted 收据自行记账。
+
 普通 Lobby 不会自动启用 AI；只有精确的用户参数 `-- --ai-play` 才会连接本地桥。MCP Server 不会自动启动、重启或关闭 Godot。
 `--ai-play-scenario=<id>` 在同一 Lobby 中选择玩法脚本，省略时默认
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
@@ -131,7 +145,10 @@ python3 tools/ai_play_codex_orchestrator.py \
 并通过 `developer_instructions` 给两种模式加载相同的黑盒视觉权限：模型应像人类玩家一样遵循
 `briefing` 规则，并比较当前与本会话先前 `observe` 或 `act` 直接返回的截图，以画面变化推断相对位移、
 转向、遮挡和地标关系。若公开规则要求先读出生点附近任务卡，玩家会在离开出生区前优先扫描、
-靠近并探测可见的悬浮标志、纸张或文件。该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
+靠近并探测可见的悬浮标志、纸张或文件。高优先级指令会进一步说明任务卡是细杆
+底座上的青绿色/蓝绿色同心发光圆环标志，而不是普通纸张。玩家必须保持在出生区，以 45 度扇区
+扫描最多 360 度；每次确认新截图后再继续，找到标志便短步靠近、对准并探测，读卡后才能离开。
+该权限不允许读取或保存磁盘截图、轨迹、仓库内容或隐藏状态。
 隔离玩家的网络 profile 只允许字面量 `127.0.0.1`，用于连接编排器启动的本机 MCP HTTP
 边车，并为大小写代理变量显式设置回环 `NO_PROXY`；不允许公网域名，也不启用宽泛的本地网络访问。
 仅复制该凭据、写入确定性配置，然后在所有退出路径删除它。
@@ -181,6 +198,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_contract --ai-play-exit-on-game-over
 ```
 
+`conveyor_profit` 是独立场景：orchestrator 和 supervisor 在没有显式传入 `--scene` 时会自动
+选择 `conveyor_profit/scenes/conveyor_profit_preview.tscn`；其他玩法仍默认使用 Lobby。
+
 `--ai-play-exit-on-game-over` 只有在同一启动参数中包含精确的 `--ai-play` 时才会生效。
 合法终局会输出固定标识：
 
@@ -223,11 +243,12 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 随机谜题属于游戏规则；`-- --ai-play` 只决定是否连接 MCP 和接受 AI 控制。回合随机
 种子和生成答案只存在于 Godot 运行时，不进入 MCP 简报、观察或桥协议。
 
-`find_key` 每局把场景中唯一的钥匙放到五类办公家具位置之一，任务卡只描述本局目标
-位置的环境特征。游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择
+`find_key` 每局把场景中唯一的钥匙放到四类办公家具位置之一：有笔记本电脑的办公桌、
+档案室旁边的沙发、会议室长桌或有大电视的茶几。任务卡只描述本局目标位置的环境特征。
+游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择
 与钥匙直线距离最远的出生点；任务卡仍位于出生点 1～2 米内。成功拾取钥匙产生
-`success/key_picked_up`，该玩法没有答错失败。台式电脑桌、电视茶几和档案室沙发位置
-使用 50 次请求硬上限，笔记本电脑桌和会议长桌位置使用 100 次请求硬上限。
+`success/key_picked_up`，该玩法没有答错失败。无论钥匙随机出现在哪类家具位置，每局都
+使用 50 次请求硬上限。
 
 `put_book` 在档案室内彼此分开的三组书架上设置九个作者标定槽位，并以种子确定的均衡方式选择六个位置：
 每组书架两本、低中高三层各两本。每层有一本带可见任务书标记；玩家必须一次搬运一本，
@@ -266,6 +287,13 @@ MCP 结果、玩家提示或轨迹日志。
 `success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
 下雨警报会产生 `failure/garden_task_failed`。
 
+`conveyor_profit` 是十窗口经营任务。每个 60 秒窗口固定显示 16 盘食材，每个窗口只允许
+制作一次；成功、非法组合和次数超限的 MAKE 都会锁定窗口。同一道菜整局最多成功制作两次；
+第三次正确提交返回 `recipe_limit_exceeded`，扣除食材成本但没有收入。AI 使用
+`select_ingredient`、`undo`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；等待模型期间
+Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
+`success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
+
 只有模型 API、没有现成 MCP Host 时，可参考
 [`tutorial/ai_play_api_host.py`](../tutorial/ai_play_api_host.py)。该示例在本地启动
 stdio Server，把 MCP 工具转换成 Responses API function tools，并转发结构化结果和图片；
@@ -280,10 +308,10 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   和参考图谱；应在首个 `observe` 前调用一次。
 - `workflow_memory_read()`：读取当前 orchestrator 会话中已经通过终局资格和内容校验的
   抽象工作流；第一局返回 `version: 0` 和 `memory: null`。
-- `observe()`：等待并返回最新获准观察、截图和当前 3D 画面的深度图。通常只在
+- `observe()`：等待并返回最新获准观察和截图；第一人称 3D 玩法还返回当前画面的深度图。通常只在
   `briefing` 后调用一次；已有观察会立即返回，未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。
-  工具声明使用十种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
+  工具声明使用十四种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
   `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
   不要再调用 `observe` 获取同一帧。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid)`：在可信终局后提交一次
@@ -309,13 +337,19 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
+- `conveyor_profit` 只允许 `select_ingredient`、`undo`、`make` 和 `wait_next_window`：选材按
+  固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
+  已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
+  `undo` 恢复。四种动作均不得在其他玩法使用。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
 CogitoPlayer 只接受专用合成设备的鼠标移动，Escape 仍是物理紧急停止键；停用或退出后立即恢复
-普通鼠标控制。需要即时重新观察的动作会等待 `RenderingServer.frame_post_draw` 后截图，避免把
-动作前的画面当成动作结果；交互和界面动作还会先留出一个完整输入/处理帧，确保公开界面状态与
-截图来自动作实际生效之后。若 Python 等待动作超时，会进入 `recovering`，暂停接受新动作并向
+普通鼠标控制。所有动作的后续 observation 都由 Godot 在内部先等待一个完整输入/处理帧，再等待
+最多 1 秒的 `RenderingServer.frame_post_draw` 后截图；后台窗口没有产生渲染信号时，Godot 会在
+主线程调用 `RenderingServer.force_draw(false)` 重绘当前 Viewport，避免把新位置或朝向与动作前的
+旧画面组合在一起，也避免等待到 Python action timeout。这项等待对 AI 和 MCP 客户端透明，不消耗
+动作额度。若 Python 等待动作超时，会进入 `recovering`，暂停接受新动作并向
 Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消该 observation 尚未完成的
 动作、释放全部模拟输入，并从玩家已经到达的位置和当前世界状态捕获全新的 observation ID；旧
 `action_results` 和延迟截图会被废弃。Python 收到新 observation 后恢复 `act`，不会重启场景或
@@ -325,8 +359,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
 `workflow_memory_update`、`observe`、MCP `stop()` 不计数。
 `find_contract` 的硬上限为 300 次，终局为 `success/correct_password`、
-`failure/wrong_password` 或 `failure/max_requests`；`find_key` 根据本局位置使用
-50 或 100 次硬上限，公开 briefing 只说明最大值 100 次，
+`failure/wrong_password` 或 `failure/max_requests`；`find_key` 使用 50 次硬上限，
 终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为
 150 次，终局为 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，终局为
@@ -338,7 +371,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
 `arrange_meeting_briefings` 的硬上限为 200 次，终局为 `success/meeting_prepared`、
-`failure/incorrect_seating_assignment` 或 `failure/max_requests`。环境变量
+`failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的硬上限为 300 次，终局为
+`success/efficiency_target_reached`、`failure/efficiency_below_target` 或
+`failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
@@ -346,9 +381,10 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 ## 结果与隐私边界
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
-截图、深度图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
-观察成功时，`observe` 和 `act` 的图片顺序固定为截图 `image/jpeg`，再是深度图
-`image/png`。结构化 `observation.image` 与 `observation.depth_image` 只保留元数据；
+截图、可选深度图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+观察成功时，`observe` 和 `act` 先返回截图 `image/jpeg`；第一人称 3D 玩法再返回深度图
+`image/png`，`conveyor_profit` 只返回截图。结构化 `observation.image` 与可选的
+`observation.depth_image` 只保留元数据；
 运行时截图和深度图统一缩放为 1024×576；深度图的 `encoding` 为
 `linear_depth_normalized_8bit`，并公开
 `near_meters=0.05`、`far_meters=20.0`。它是面向室内和门口导航的同视角不透明 3D
@@ -371,7 +407,8 @@ Godot 和 Python 桥的单包上限为 8 MiB，用于容纳带有两张 Base64 �
 
 默认日志根目录是 `~/workspace/cogito_logs/mcplogs`。第一个 Godot 控制器成功连接时
 在对应任务的 `scenario_id` 目录下创建 `YYYYMMDD-HH-MM` 运行目录；同一任务的同名
-目录使用 `-02`、`-03` 等后缀，不会覆盖。一个运行目录最多分组同一任务的三次连接：
+目录使用 `-02`、`-03` 等后缀，不会覆盖。一个运行目录最多分组同一任务的四次连接；
+第五次连接会开始新的运行目录：
 
 ```text
 mcplogs/
@@ -382,7 +419,8 @@ mcplogs/
         │   ├── trajectory.json
         │   └── imgs/
         ├── attempt-02/
-        └── attempt-03/
+        ├── attempt-03/
+        └── attempt-04/
 ```
 
 `run.json` 顶层重复保存经过验证的 `scenario_id`，每次尝试摘要包含 `status`、
@@ -403,19 +441,24 @@ mcplogs/
 
 - Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
-- `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`，只接受整数
-  `50` 或 `100`；旧 Godot 省略时默认 100，其他玩法不得携带。该字段不进入 MCP
+- Godot 发送合法 `game_over` 后，Python 必须在记录可信终局和 AWM attempt 结果后回复
+  精确字段的 `game_over_ack`。supervisor 启动的 Godot 只有收到匹配的
+  `observation_id` ACK 后才退出；ACK 丢失时使用有界超时退出，避免永久挂起。
+- `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`；当前 Godot
+  固定发送 `50`。Python 为兼容旧 Godot 仍接受整数 `50` 或 `100`，省略时默认 100，
+  其他玩法不得携带。该字段不进入 MCP
   工具结果或轨迹日志，重连时必须与首次握手一致。
 - Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `4` 的表示，并在桥内规范化为整数 `4`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。
 - 请求计数属于当前 Python/Godot 桥连接；Godot 成功重连、重新进入 Lobby 或重启 MCP Server 都会清零。达到上限后，Python 只向 Godot 发送一次严格的 `end_game/failure/max_requests`，Godot 复用既有终局、输入释放和界面路径。
 - Godot 断线、Python 退出、节点销毁、执行器取消和 `stop` 都必须释放 `forward`、`back`、`left`、`right`、`sprint` 等保持输入。
 - Escape 始终是物理紧急停止键，优先于 MCP 控制；它发送 `escape_stop`，不会被普通输入或 MCP 工具禁用。
 - 当前支持 `find_contract`、`find_key`、`put_book`、`greet_npc_meeting`、
-  `repair_lighting_circuit`、`arrange_meeting_briefings`、`daily_routine_cleanup` 和
-  `garden_watering` 的运行时终局事件和独立公开简报；
+  `repair_lighting_circuit`、`arrange_meeting_briefings`、`daily_routine_cleanup`、
+  `garden_watering` 和 `conveyor_profit` 的运行时终局事件和独立公开简报；
   不通过 MCP 提供场景源码、线索原文、密码、钥匙候选位置、书籍的随机布局或任务书选择、
   NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、会议资料隐藏排列或候选解、
-  daily routine 或 garden 内部节点路径、随机下雨时间、随机种子或任务内部知识。
+  daily routine 或 garden 内部节点路径、随机下雨时间、传送带未来供给、内部牌组标识、
+  理论最优路线、随机种子或任务内部知识。
 
 ## 配置
 
@@ -431,7 +474,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50/100、150、100、150、300、100、200 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50、150、100、150、300、100、200、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

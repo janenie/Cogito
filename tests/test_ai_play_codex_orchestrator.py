@@ -13,13 +13,23 @@ ORCHESTRATOR_PATH = REPO_ROOT / "tools" / "ai_play_codex_orchestrator.py"
 
 def load_orchestrator():
     spec = importlib.util.spec_from_file_location(
-        "ai_play_codex_orchestrator",
+        "tools.ai_play_codex_orchestrator",
         ORCHESTRATOR_PATH,
     )
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def test_conveyor_scenario_uses_standalone_scene_by_default():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator.resolve_scene("conveyor_profit", None) == (
+        "conveyor_profit/scenes/conveyor_profit_preview.tscn"
+    )
+    assert orchestrator.resolve_scene("find_key", None) == orchestrator.DEFAULT_SCENE
+    assert orchestrator.resolve_scene("conveyor_profit", "custom.tscn") == "custom.tscn"
 
 
 def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
@@ -386,6 +396,14 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "白色" in instructions
     assert "磁盘" in instructions
     assert "隐藏状态" in instructions
+    assert "青绿色或蓝绿色的独立标志" in instructions
+    assert "同心圆、靶心或旋涡状发光圆环" in instructions
+    assert "每次水平旋转 45 度" in instructions
+    assert "最多覆盖 360 度" in instructions
+    assert "截图没有随公开朝向变化" in instructions
+    assert "用短步靠近" in instructions
+    assert "远距离的 not_found 不能作为排除依据" in instructions
+    assert "读取任务卡前不得离开出生区域" in instructions
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])

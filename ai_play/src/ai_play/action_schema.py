@@ -23,7 +23,19 @@ ALLOWED_KEYS = {
     "close_ui": {"type"},
     "wait": {"type", "duration_ms"},
     "probe_interaction": {"type", "target_x", "target_y"},
+    "select_ingredient": {"type", "ingredient"},
+    "undo": {"type"},
+    "make": {"type"},
+    "wait_next_window": {"type"},
 }
+CONVEYOR_ACTIONS = frozenset({
+    "select_ingredient", "undo", "make", "wait_next_window",
+})
+CONVEYOR_INGREDIENT_IDS = frozenset({
+    "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+    "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+    "broccoli", "corn", "fish",
+})
 
 
 def _require_number(value, lower, upper, field):
@@ -38,7 +50,7 @@ def _require_number(value, lower, upper, field):
         )
 
 
-def _validate_action(action, available_interactions, interface_open):
+def _validate_action(action, available_interactions, interface_open, scenario_id):
     if not isinstance(action, dict):
         raise ActionValidationError("action must be an object")
 
@@ -50,6 +62,8 @@ def _validate_action(action, available_interactions, interface_open):
         raise ActionValidationError("action type is not allowed")
     if set(action) != expected_keys:
         raise ActionValidationError("action has invalid fields")
+    if action_type in CONVEYOR_ACTIONS and scenario_id != "conveyor_profit":
+        raise ActionValidationError("action is not allowed for this scenario")
 
     if action_type == "look":
         if action["direction"] not in LOOK_DIRECTIONS:
@@ -85,17 +99,31 @@ def _validate_action(action, available_interactions, interface_open):
             raise ActionValidationError(
                 "probe_interaction requires a closed interface"
             )
+    elif action_type == "select_ingredient":
+        ingredient = action["ingredient"]
+        if (
+            not isinstance(ingredient, str)
+            or ingredient not in CONVEYOR_INGREDIENT_IDS
+        ):
+            raise ActionValidationError("ingredient is not allowed")
 
 
-def validate_action_batch(actions, available_interactions, interface_open):
+def validate_action_batch(
+    actions,
+    available_interactions,
+    interface_open,
+    scenario_id=None,
+):
     """Validate and return an unchanged bounded batch of player actions."""
     if not isinstance(actions, list) or not 1 <= len(actions) <= 3:
         raise ActionValidationError("actions must contain 1..3 entries")
 
     available = set(available_interactions)
     for index, action in enumerate(actions):
-        _validate_action(action, available, interface_open)
-        if action["type"] in {"interact", "enter_digits", "close_ui"}:
+        _validate_action(action, available, interface_open, scenario_id)
+        if action["type"] == "wait_next_window" and len(actions) != 1:
+            raise ActionValidationError("wait_next_window must be the only action")
+        if action["type"] in {"interact", "enter_digits", "close_ui", "make"}:
             if index != len(actions) - 1:
                 raise ActionValidationError("context-changing action must be last")
     if (

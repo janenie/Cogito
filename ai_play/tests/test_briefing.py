@@ -6,6 +6,18 @@ from ai_play.common_briefing_rules import COMMON_CONTROL_RULES
 from ai_play.scenarios import load_scenario_briefing, supported_scenario_ids
 
 
+SPATIAL_SCENARIO_IDS = (
+    "find_contract",
+    "find_key",
+    "put_book",
+    "greet_npc_meeting",
+    "daily_routine_cleanup",
+    "garden_watering",
+    "repair_lighting_circuit",
+    "arrange_meeting_briefings",
+)
+
+
 def test_load_public_briefing_returns_fresh_sanitized_data_and_jpeg():
     first, image_bytes = load_public_briefing()
     second, second_image_bytes = load_public_briefing()
@@ -47,7 +59,6 @@ def test_find_key_registry_loads_bounded_public_briefing():
     assert briefing["game_id"] == "find_key"
     assert briefing["success_condition"] == "成功拾取办公室中唯一的目标钥匙。"
     assert "50" in briefing["failure_condition"]
-    assert "100" in briefing["failure_condition"]
     assert "MEETING ROOM" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
@@ -188,6 +199,111 @@ def test_repair_lighting_circuit_briefing_is_public_and_bounded():
         assert forbidden not in serialized
 
 
+def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state():
+    briefing, image_bytes = load_scenario_briefing("conveyor_profit")
+
+    assert image_bytes is None
+    assert briefing["game_id"] == "conveyor_profit"
+    expected_menu = [
+        {
+            "id": "garden_salad",
+            "name": "GARDEN SALAD",
+            "ingredients": ["lettuce", "tomato", "carrot"],
+            "sale_price": 7,
+            "net_profit": 4,
+        },
+        {
+            "id": "avocado_salad",
+            "name": "AVOCADO SALAD",
+            "ingredients": ["lettuce", "tomato", "avocado"],
+            "sale_price": 19,
+            "net_profit": 13,
+        },
+        {
+            "id": "carrot_sausage_soup",
+            "name": "CARROT SAUSAGE SOUP",
+            "ingredients": ["sausage", "mushroom", "onion", "carrot"],
+            "sale_price": 14,
+            "net_profit": 6,
+        },
+        {
+            "id": "pumpkin_sausage_soup",
+            "name": "PUMPKIN SAUSAGE SOUP",
+            "ingredients": ["sausage", "mushroom", "onion", "pumpkin"],
+            "sale_price": 24,
+            "net_profit": 15,
+        },
+        {
+            "id": "classic_burger",
+            "name": "CLASSIC BURGER",
+            "ingredients": ["bread", "meat", "lettuce", "tomato"],
+            "sale_price": 17,
+            "net_profit": 8,
+        },
+        {
+            "id": "avocado_burger",
+            "name": "AVOCADO BURGER",
+            "ingredients": ["bread", "meat", "avocado", "tomato"],
+            "sale_price": 30,
+            "net_profit": 18,
+        },
+        {
+            "id": "broccoli_bacon_omelet",
+            "name": "BROCCOLI BACON OMELET",
+            "ingredients": ["egg", "cheese", "bacon", "broccoli"],
+            "sale_price": 18,
+            "net_profit": 7,
+        },
+        {
+            "id": "corn_bacon_omelet",
+            "name": "CORN BACON OMELET",
+            "ingredients": ["egg", "cheese", "bacon", "corn"],
+            "sale_price": 27,
+            "net_profit": 16,
+        },
+        {
+            "id": "garden_fish_sandwich",
+            "name": "GARDEN FISH SANDWICH",
+            "ingredients": ["bread", "fish", "lettuce", "onion"],
+            "sale_price": 15,
+            "net_profit": 7,
+        },
+        {
+            "id": "avocado_fish_sandwich",
+            "name": "AVOCADO FISH SANDWICH",
+            "ingredients": ["bread", "fish", "avocado", "onion"],
+            "sale_price": 28,
+            "net_profit": 17,
+        },
+    ]
+    assert briefing["menu"] == expected_menu
+
+    assert briefing["ingredient_costs"] == {
+        "lettuce": 1, "tomato": 1, "carrot": 1, "onion": 1,
+        "bread": 2, "egg": 2, "mushroom": 2, "pumpkin": 2,
+        "broccoli": 2, "corn": 2, "cheese": 3, "avocado": 4,
+        "sausage": 4, "bacon": 4, "fish": 4, "meat": 5,
+    }
+
+    second, _ = load_scenario_briefing("conveyor_profit")
+    briefing["menu"][0]["ingredients"].append("bread")
+    assert second["menu"] == expected_menu
+
+    serialized = repr(briefing)
+    for term in [
+        "select_ingredient", "undo", "make", "wait_next_window",
+        "80%", "一分钟", "十六", "最多成功制作两次", "自行记录", "五份",
+    ]:
+        assert term in serialized
+    for forbidden in [
+        "node_path", "passing_profit", "best_profit", "future_supply",
+        "round_seed", "game_script", "conveyor_gameplay.gd", "deck_id",
+        "recipe_counts", "missing_ingredient", "theoretical_profit",
+        "optimal_route", "诱饵", "缺一", "两种", "136", "109",
+    ]:
+        assert forbidden not in serialized
+
+
 def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
     briefing, image_bytes = load_scenario_briefing(
         "arrange_meeting_briefings"
@@ -226,14 +342,15 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
 
 
 def test_all_scenario_briefings_include_shared_control_rules():
-    for scenario_id in supported_scenario_ids():
+    assert set(supported_scenario_ids()) == {*SPATIAL_SCENARIO_IDS, "conveyor_profit"}
+    for scenario_id in SPATIAL_SCENARIO_IDS:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:
             assert rule in briefing["rules"]
 
 
 def test_all_scenario_briefings_teach_look_based_spatial_estimation():
-    for scenario_id in supported_scenario_ids():
+    for scenario_id in SPATIAL_SCENARIO_IDS:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
         assert "look" in serialized_rules
@@ -247,8 +364,19 @@ def test_all_scenario_briefings_teach_look_based_spatial_estimation():
         assert "避免碰撞" in serialized_rules
 
 
+def test_all_scenario_briefings_forbid_cancelling_look_batches():
+    for scenario_id in SPATIAL_SCENARIO_IDS:
+        briefing, _image_bytes = load_scenario_briefing(scenario_id)
+        serialized_rules = "\n".join(briefing["rules"])
+        assert "批次结束后返回一张截图" in serialized_rules
+        assert "每个批次只提交一个 look" in serialized_rules
+        assert "left 和 right" in serialized_rules
+        assert "up 和 down" in serialized_rules
+        assert "互相抵消" in serialized_rules
+
+
 def test_all_scenario_briefings_explain_action_parameter_scale():
-    for scenario_id in supported_scenario_ids():
+    for scenario_id in SPATIAL_SCENARIO_IDS:
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
         assert "角度单位是度" in serialized_rules

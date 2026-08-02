@@ -44,7 +44,6 @@ grep -q 'conference_door = NodePath("../../MEETING_ROOM/ConferenceDoor/FrontDoor
 grep -q 'meeting_room = NodePath("../../MEETING_ROOM")' "$scene"
 test "$(grep -c 'name="Pickup_Key"' "$scene")" -eq 1
 for marker in \
-	DesktopDeskAnchor \
 	LaptopDeskAnchor \
 	ArchiveSofaAnchor \
 	MeetingTableAnchor \

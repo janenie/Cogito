@@ -7,6 +7,7 @@ signal action_batch_received(batch: Dictionary)
 signal recover_action_received(request: Dictionary)
 signal stop_request_received(request: Dictionary)
 signal end_game_received(request: Dictionary)
+signal game_over_ack_received(ack: Dictionary)
 signal remote_error(error: Dictionary)
 
 const PROTOCOL_VERSION: int = 4
@@ -150,6 +151,20 @@ func _handle_text_packet(raw_packet: String) -> void:
 				end_game_received.emit(packet)
 			else:
 				_protocol_error("invalid_end_game", "invalid end-game request")
+		"game_over_ack":
+			if (
+				_has_exact_keys(
+					packet,
+					["type", "protocol_version", "observation_id"],
+				)
+				and (
+					normalized_observation_id["valid"]
+					or packet["observation_id"] == null
+				)
+			):
+				game_over_ack_received.emit(packet)
+			else:
+				_protocol_error("invalid_game_over_ack", "invalid game-over ACK")
 		"error":
 			remote_error.emit(packet)
 		_:

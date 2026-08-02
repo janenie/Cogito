@@ -41,7 +41,7 @@ def test_first_attempt_creates_run_and_empty_trajectory(tmp_path):
     assert load_json(attempt_dir.parent / "run.json") == {
         "scenario_id": "find_key",
         "started_at": "2026-07-24T14:35:00+00:00",
-        "max_attempts": 3,
+        "max_attempts": 4,
         "completed_attempts": 0,
         "status": "in_progress",
         "successful_attempt": None,
@@ -68,7 +68,7 @@ def test_runs_are_partitioned_by_scenario(tmp_path):
     assert key_dir.parent.name == contract_dir.parent.name
 
 
-def test_collision_and_fourth_attempt_rotate_runs(tmp_path):
+def test_collision_and_fifth_attempt_rotate_runs(tmp_path):
     occupied = tmp_path / "find_key" / "20260724-14-35"
     occupied.mkdir(parents=True)
     logger = TrajectoryLogger(tmp_path, now=Clock())
@@ -80,7 +80,15 @@ def test_collision_and_fourth_attempt_rotate_runs(tmp_path):
     logger.start_attempt("find_key")
     logger.finish_attempt("failure", "max_requests")
 
-    assert logger.start_attempt("find_key").parent.name == "20260724-14-35-03"
+    fourth = logger.start_attempt("find_key")
+    assert fourth.parent.name == "20260724-14-35-02"
+    assert fourth.name == "attempt-04"
+    assert logger.current_attempt_number == 4
+    logger.finish_attempt("failure", "max_requests")
+
+    fifth = logger.start_attempt("find_key")
+    assert fifth.parent.name == "20260724-14-35-03"
+    assert fifth.name == "attempt-01"
     assert logger.current_attempt_number == 1
 
 
@@ -180,8 +188,8 @@ def test_completion_saves_exact_jpeg_without_base64(tmp_path):
     ("statuses", "expected_run_status", "successful_attempt"),
     [
         (["success"], "success", 1),
-        (["failure", "failure", "failure"], "failure", None),
-        (["failure", "stopped", "failure"], "stopped", None),
+        (["failure", "failure", "failure", "failure"], "failure", None),
+        (["failure", "stopped", "failure", "failure"], "stopped", None),
     ],
 )
 def test_attempt_results_update_run_summary(

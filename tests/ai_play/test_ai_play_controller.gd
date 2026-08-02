@@ -31,6 +31,7 @@ class FakeBridge extends Node:
 	signal recover_action_received(request: Dictionary)
 	signal stop_request_received(request: Dictionary)
 	signal end_game_received(request: Dictionary)
+	signal game_over_ack_received(ack: Dictionary)
 	signal remote_error(error: Dictionary)
 
 	var connect_calls: Array[Dictionary] = []
@@ -115,7 +116,10 @@ func _run_tests() -> void:
 	await _test_action_batch_requires_exact_mcp_fields(controller_script)
 	await _test_remote_stop_releases_and_acknowledges(controller_script)
 	await _test_action_results_are_reported(controller_script)
+	await _test_interval_recapture_waits_for_rendering(controller_script)
+	await _test_interval_recapture_force_draws_after_render_timeout(controller_script)
 	await _test_terminal_outcomes(controller_script)
+	await _test_supervised_exit_waits_for_game_over_ack(controller_script)
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
 	await _test_invalid_remote_request_limit_terminal(controller_script)
@@ -369,12 +373,18 @@ func _test_bridge_raw_json_packets() -> void:
 	var bridge: Node = bridge_script.new()
 	var batches: Array[Dictionary] = []
 	var recoveries: Array[Dictionary] = []
+	var game_over_acks: Array[Dictionary] = []
 	var errors: Array[Dictionary] = []
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	_assert(bridge.has_signal("recover_action_received"), "bridge exposes recovery signal")
 	if bridge.has_signal("recover_action_received"):
 		bridge.recover_action_received.connect(
 			func(request: Dictionary) -> void: recoveries.append(request)
+		)
+	_assert(bridge.has_signal("game_over_ack_received"), "bridge exposes game-over ACK signal")
+	if bridge.has_signal("game_over_ack_received"):
+		bridge.game_over_ack_received.connect(
+			func(ack: Dictionary) -> void: game_over_acks.append(ack)
 		)
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
 	bridge._handle_text_packet('{"type":"hello","protocol_version":4}')
@@ -389,6 +399,14 @@ func _test_bridge_raw_json_packets() -> void:
 		'{"type":"recover_action","protocol_version":4,"observation_id":7,"reason":"action_timeout"}'
 	)
 	_assert(recoveries.size() == 1, "exact recovery request emits through bridge")
+	bridge._handle_text_packet(
+		'{"type":"game_over_ack","protocol_version":4,"observation_id":7}'
+	)
+	_assert(game_over_acks == [{
+		"type": "game_over_ack",
+		"protocol_version": 4,
+		"observation_id": 7,
+	}], "exact game-over ACK emits through bridge")
 	for invalid_recovery: String in [
 		'{"type":"recover_action","protocol_version":4,"observation_id":7,"reason":"other"}',
 		'{"type":"recover_action","protocol_version":4,"observation_id":true,"reason":"action_timeout"}',
@@ -753,6 +771,69 @@ func _test_action_results_are_reported(controller_script: GDScript) -> void:
 	await _free_fixture(fixture)
 
 
+func _test_interval_recapture_waits_for_rendering(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	fixture.bridge.action_batch_received.emit({
+		"type": "action_batch",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"actions": [{"type": "move", "forward": 1.0, "right": 0.0, "duration_ms": 50}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "completed", "type": "move"}])
+	_assert(not fixture.timer.is_stopped(), "completed move starts observation interval timer")
+	fixture.timer.stop()
+	fixture.timer.timeout.emit()
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture does not read the viewport before a rendered frame",
+	)
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture waits for rendering after the timer",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count,
+		"interval recapture waits one full process frame before rendering",
+	)
+	RenderingServer.emit_signal("frame_post_draw")
+	await process_frame
+	_assert(
+		fixture.observer.capture_count == initial_capture_count + 1,
+		"interval recapture captures exactly once after rendering",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_interval_recapture_force_draws_after_render_timeout(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(controller_script)
+	var initial_capture_count: int = fixture.observer.capture_count
+	var has_timeout_setting: bool = "_render_frame_wait_timeout_msec" in fixture.controller
+	_assert(has_timeout_setting, "controller exposes an internal bounded render wait")
+	if has_timeout_setting:
+		fixture.controller._render_frame_wait_timeout_msec = 20
+	fixture.bridge.action_batch_received.emit({
+		"type": "action_batch",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"actions": [{"type": "look", "direction": "left", "degrees": 45.0}],
+	})
+	fixture.executor.batch_finished.emit([{"status": "completed", "type": "look"}])
+	fixture.timer.stop()
+	fixture.timer.timeout.emit()
+	await create_timer(0.1).timeout
+	_assert(
+		fixture.observer.capture_count == initial_capture_count + 1,
+		"render timeout force-draws and captures without a frame_post_draw signal",
+	)
+	await _free_fixture(fixture)
+
+
 func _test_terminal_outcomes(controller_script: GDScript) -> void:
 	_assert(
 		AIPlayController.SCENARIO_TERMINAL_RESULTS["put_book"] == [
@@ -974,6 +1055,51 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			],
 		)
 		await _free_fixture(put_book_fixture)
+
+
+func _test_supervised_exit_waits_for_game_over_ack(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_key",
+	)
+	_assert(
+		fixture.controller.has_method("_on_game_over_ack_received"),
+		"controller handles terminal delivery acknowledgement",
+	)
+	_assert(
+		fixture.controller.has_signal("supervised_exit_requested"),
+		"controller exposes a supervised exit request signal",
+	)
+	if (
+		not fixture.controller.has_method("_on_game_over_ack_received")
+		or not fixture.controller.has_signal("supervised_exit_requested")
+	):
+		await _free_fixture(fixture)
+		return
+	var exit_codes: Array[int] = []
+	var exit_handler := Callable(
+		fixture.controller,
+		"_quit_tree_for_supervised_exit",
+	)
+	if fixture.controller.supervised_exit_requested.is_connected(exit_handler):
+		fixture.controller.supervised_exit_requested.disconnect(exit_handler)
+	fixture.controller.supervised_exit_requested.connect(
+		func(exit_code: int) -> void: exit_codes.append(exit_code)
+	)
+	fixture.controller._exit_on_game_over = true
+	fixture.terminal_monitor.game_finished.emit("success", "key_picked_up")
+	await process_frame
+	_assert(exit_codes.is_empty(), "supervised game waits for terminal ACK before exit")
+	fixture.bridge.game_over_ack_received.emit({
+		"type": "game_over_ack",
+		"protocol_version": 4,
+		"observation_id": 17,
+	})
+	await process_frame
+	_assert(exit_codes == [0], "matching terminal ACK releases supervised success exit")
+	await _free_fixture(fixture)
 
 
 func _test_remote_request_limit_terminal(controller_script: GDScript) -> void:
@@ -1270,6 +1396,7 @@ func _test_observation_id_gate(controller_script: GDScript) -> void:
 	executor.batch_finished.emit([{"status": "completed"}])
 	fixture.observer.next_observation_id = 18
 	fixture.timer.emit_signal("timeout")
+	await _flush_deferred_capture()
 	bridge.action_batch_received.emit({
 		"type": "action_batch",
 		"protocol_version": 4,
