@@ -1,6 +1,8 @@
 class_name AIPlayController
 extends Node
 
+signal supervised_exit_requested(exit_code: int)
+
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
 const PROTOCOL_VERSION: int = 4
@@ -10,6 +12,7 @@ const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
+const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
 const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
@@ -68,6 +71,9 @@ var _game_finished: bool = false
 var _active_scenario_id: String = ""
 var _exit_on_game_over: bool = false
 var _render_frame_wait_timeout_msec: int = 1000
+var _pending_game_over_ack_id: Variant = null
+var _pending_game_over_outcome: String = ""
+var _game_over_ack_generation: int = 0
 
 var _observer: Node
 var _executor: Node
@@ -122,7 +128,9 @@ func _ready() -> void:
 	_bridge.recover_action_received.connect(_on_recover_action_received)
 	_bridge.stop_request_received.connect(_on_stop_request_received)
 	_bridge.end_game_received.connect(_on_end_game_received)
+	_bridge.game_over_ack_received.connect(_on_game_over_ack_received)
 	_bridge.remote_error.connect(_on_remote_error)
+	supervised_exit_requested.connect(_quit_tree_for_supervised_exit)
 	_executor.batch_finished.connect(_on_batch_finished)
 	if _terminal_monitor != null and _terminal_monitor.has_signal("game_finished"):
 		_terminal_monitor.game_finished.connect(_on_game_finished)
@@ -659,7 +667,10 @@ func _finish_game(outcome: String, reason: String, observation_id: Variant) -> v
 	_show_game_over_result(outcome, reason)
 	print("AI_PLAY_GAME_OVER outcome=%s reason=%s" % [outcome, reason])
 	if _exit_on_game_over:
-		_quit_after_game_over.call_deferred(outcome)
+		if send_error == OK:
+			_wait_for_game_over_ack(outcome, observation_id)
+		else:
+			_request_supervised_exit(outcome)
 
 
 func _show_game_over_result(outcome: String, reason: String) -> void:
@@ -667,8 +678,51 @@ func _show_game_over_result(outcome: String, reason: String) -> void:
 		_terminal_monitor.show_result(outcome, reason)
 
 
-func _quit_after_game_over(outcome: String) -> void:
-	get_tree().quit(0 if outcome == "success" else 1)
+func _wait_for_game_over_ack(outcome: String, observation_id: Variant) -> void:
+	_pending_game_over_ack_id = observation_id
+	_pending_game_over_outcome = outcome
+	_game_over_ack_generation += 1
+	_quit_after_game_over_ack_timeout(
+		_game_over_ack_generation,
+		outcome,
+	)
+
+
+func _quit_after_game_over_ack_timeout(generation: int, outcome: String) -> void:
+	await get_tree().create_timer(GAME_OVER_ACK_TIMEOUT_SECONDS).timeout
+	if (
+		generation == _game_over_ack_generation
+		and not _pending_game_over_outcome.is_empty()
+	):
+		_request_supervised_exit(outcome)
+
+
+func _on_game_over_ack_received(ack: Dictionary) -> void:
+	if (
+		_pending_game_over_outcome.is_empty()
+		or not _has_exact_keys(
+			ack,
+			["type", "protocol_version", "observation_id"],
+		)
+		or ack.get("type") != "game_over_ack"
+		or ack.get("protocol_version") != PROTOCOL_VERSION
+		or ack.get("observation_id") != _pending_game_over_ack_id
+	):
+		return
+	_request_supervised_exit(_pending_game_over_outcome)
+
+
+func _request_supervised_exit(outcome: String) -> void:
+	if _pending_game_over_outcome.is_empty() and outcome.is_empty():
+		return
+	_pending_game_over_ack_id = null
+	_pending_game_over_outcome = ""
+	_game_over_ack_generation += 1
+	supervised_exit_requested.emit(0 if outcome == "success" else 1)
+
+
+func _quit_tree_for_supervised_exit(exit_code: int) -> void:
+	get_tree().quit(exit_code)
 
 
 func _interaction_actions(interactions: Variant) -> Array[String]:

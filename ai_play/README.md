@@ -379,6 +379,9 @@ mcplogs/
 
 - Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
+- Godot 发送合法 `game_over` 后，Python 必须在记录可信终局和 AWM attempt 结果后回复
+  精确字段的 `game_over_ack`。supervisor 启动的 Godot 只有收到匹配的
+  `observation_id` ACK 后才退出；ACK 丢失时使用有界超时退出，避免永久挂起。
 - `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`；当前 Godot
   固定发送 `50`。Python 为兼容旧 Godot 仍接受整数 `50` 或 `100`，省略时默认 100，
   其他玩法不得携带。该字段不进入 MCP

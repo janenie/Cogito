@@ -36,7 +36,7 @@ Godot 桥的安全边界。
 
 ## 跨层契约
 
-- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
+- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`game_over_ack`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `4` 的 `protocol_version` 规范化为整数 `4`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
@@ -190,7 +190,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 `AIPlayController` 只在同时存在 `--ai-play` 和 `--ai-play-exit-on-game-over` 时启用终局
-自动退出。合法终局会先通过桥发送 `game_over`，再在 Godot 输出中打印：
+自动退出。合法终局会先通过桥发送 `game_over`，Python 在记录可信终局和 AWM attempt 后
+回复匹配 `observation_id` 的 `game_over_ack`；Godot 收到 ACK 后才退出，ACK 丢失时通过
+有界超时兜底。Godot 同时在输出中打印：
 
 ```text
 AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>

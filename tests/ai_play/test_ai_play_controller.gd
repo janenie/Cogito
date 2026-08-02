@@ -31,6 +31,7 @@ class FakeBridge extends Node:
 	signal recover_action_received(request: Dictionary)
 	signal stop_request_received(request: Dictionary)
 	signal end_game_received(request: Dictionary)
+	signal game_over_ack_received(ack: Dictionary)
 	signal remote_error(error: Dictionary)
 
 	var connect_calls: Array[Dictionary] = []
@@ -118,6 +119,7 @@ func _run_tests() -> void:
 	await _test_interval_recapture_waits_for_rendering(controller_script)
 	await _test_interval_recapture_force_draws_after_render_timeout(controller_script)
 	await _test_terminal_outcomes(controller_script)
+	await _test_supervised_exit_waits_for_game_over_ack(controller_script)
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
 	await _test_invalid_remote_request_limit_terminal(controller_script)
@@ -365,12 +367,18 @@ func _test_bridge_raw_json_packets() -> void:
 	var bridge: Node = bridge_script.new()
 	var batches: Array[Dictionary] = []
 	var recoveries: Array[Dictionary] = []
+	var game_over_acks: Array[Dictionary] = []
 	var errors: Array[Dictionary] = []
 	bridge.action_batch_received.connect(func(batch: Dictionary) -> void: batches.append(batch))
 	_assert(bridge.has_signal("recover_action_received"), "bridge exposes recovery signal")
 	if bridge.has_signal("recover_action_received"):
 		bridge.recover_action_received.connect(
 			func(request: Dictionary) -> void: recoveries.append(request)
+		)
+	_assert(bridge.has_signal("game_over_ack_received"), "bridge exposes game-over ACK signal")
+	if bridge.has_signal("game_over_ack_received"):
+		bridge.game_over_ack_received.connect(
+			func(ack: Dictionary) -> void: game_over_acks.append(ack)
 		)
 	bridge.remote_error.connect(func(error: Dictionary) -> void: errors.append(error))
 	bridge._handle_text_packet('{"type":"hello","protocol_version":4}')
@@ -385,6 +393,14 @@ func _test_bridge_raw_json_packets() -> void:
 		'{"type":"recover_action","protocol_version":4,"observation_id":7,"reason":"action_timeout"}'
 	)
 	_assert(recoveries.size() == 1, "exact recovery request emits through bridge")
+	bridge._handle_text_packet(
+		'{"type":"game_over_ack","protocol_version":4,"observation_id":7}'
+	)
+	_assert(game_over_acks == [{
+		"type": "game_over_ack",
+		"protocol_version": 4,
+		"observation_id": 7,
+	}], "exact game-over ACK emits through bridge")
 	for invalid_recovery: String in [
 		'{"type":"recover_action","protocol_version":4,"observation_id":7,"reason":"other"}',
 		'{"type":"recover_action","protocol_version":4,"observation_id":true,"reason":"action_timeout"}',
@@ -918,6 +934,51 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		"find_key rejects password success",
 	)
 	await _free_fixture(find_key_fixture)
+
+
+func _test_supervised_exit_waits_for_game_over_ack(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_key",
+	)
+	_assert(
+		fixture.controller.has_method("_on_game_over_ack_received"),
+		"controller handles terminal delivery acknowledgement",
+	)
+	_assert(
+		fixture.controller.has_signal("supervised_exit_requested"),
+		"controller exposes a supervised exit request signal",
+	)
+	if (
+		not fixture.controller.has_method("_on_game_over_ack_received")
+		or not fixture.controller.has_signal("supervised_exit_requested")
+	):
+		await _free_fixture(fixture)
+		return
+	var exit_codes: Array[int] = []
+	var exit_handler := Callable(
+		fixture.controller,
+		"_quit_tree_for_supervised_exit",
+	)
+	if fixture.controller.supervised_exit_requested.is_connected(exit_handler):
+		fixture.controller.supervised_exit_requested.disconnect(exit_handler)
+	fixture.controller.supervised_exit_requested.connect(
+		func(exit_code: int) -> void: exit_codes.append(exit_code)
+	)
+	fixture.controller._exit_on_game_over = true
+	fixture.terminal_monitor.game_finished.emit("success", "key_picked_up")
+	await process_frame
+	_assert(exit_codes.is_empty(), "supervised game waits for terminal ACK before exit")
+	fixture.bridge.game_over_ack_received.emit({
+		"type": "game_over_ack",
+		"protocol_version": 4,
+		"observation_id": 17,
+	})
+	await process_frame
+	_assert(exit_codes == [0], "matching terminal ACK releases supervised success exit")
+	await _free_fixture(fixture)
 
 
 func _test_remote_request_limit_terminal(controller_script: GDScript) -> void:

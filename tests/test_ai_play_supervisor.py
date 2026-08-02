@@ -59,6 +59,14 @@ def test_parse_game_over_marker_rejects_unrelated_output():
     )
 
 
+def test_parse_game_over_marker_waits_for_formal_terminal_after_game_over_disable():
+    supervisor = load_supervisor()
+
+    assert supervisor.parse_game_over_marker(
+        "AI_PLAY disabled; reason=game_over:key_picked_up"
+    ) is None
+
+
 def test_parse_game_over_marker_treats_mcp_stop_as_failed_attempt():
     supervisor = load_supervisor()
 

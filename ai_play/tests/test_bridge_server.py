@@ -10,6 +10,7 @@ from websockets.sync.client import connect
 from ai_play.bridge_server import start
 from ai_play.config import Config
 from ai_play.game_session import GameSession, SessionResult
+from ai_play.workflow_memory import SessionWorkflowMemory
 
 
 def _free_port():
@@ -322,7 +323,8 @@ def test_bridge_routes_game_over_to_session():
 
 
 def test_bridge_routes_find_key_success_to_session():
-    session = GameSession(Config())
+    memory = SessionWorkflowMemory()
+    session = GameSession(Config(), attempt_observer=memory)
     uri, handle = start_test_bridge(session)
     terminal = {
         "type": "game_over",
@@ -342,12 +344,18 @@ def test_bridge_routes_find_key_success_to_session():
             connection.send(json.dumps(_observation()))
             assert session.observe(timeout=0.5).status == "ready"
             connection.send(json.dumps(terminal))
+            assert json.loads(connection.recv(timeout=0.5)) == {
+                "type": "game_over_ack",
+                "protocol_version": 4,
+                "observation_id": 7,
+            }
             _wait_until(lambda: session._state == "game_over")
             result = session.observe(timeout=0.5)
     finally:
         handle.close()
 
     assert result == SessionResult(status="game_over", game_over=terminal)
+    assert memory.read("find_key")["completed_runs"] == 1
 
 
 def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():
