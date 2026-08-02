@@ -36,7 +36,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 0, 0)
 billboard = 1
 text = "TASK CARD"
 font = ExtResource("6_font")
-font_size = 18
+font_size = 30
 outline_size = 6
 
 [node name="RecordCEO" parent="." instance=ExtResource("2_record")]
@@ -47,16 +47,16 @@ display_name = "CEO meeting record"
 
 [node name="ReadableComponent" parent="RecordCEO" index="2"]
 is_disabled = true
-interaction_text = "Read CEO meeting record"
-readable_title = "Inactive meeting record"
-readable_content = "This record is available only during its task."
+interaction_text = "读取 CEO 办公室线索 / Read CEO Office clue"
+readable_title = "会议线索未启用 / MEETING CLUE INACTIVE"
+readable_content = "该线索仅在对应任务中可用 / Available only during its task."
 
 [node name="RecordCEOLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.75, 3.82, -10.6396)
 billboard = 1
 text = "CEO OFFICE\nMEETING RECORD"
 font = ExtResource("6_font")
-font_size = 17
+font_size = 26
 outline_size = 6
 
 [node name="RecordArchive" parent="." instance=ExtResource("2_record")]
@@ -67,16 +67,16 @@ display_name = "Archive meeting record"
 
 [node name="ReadableComponent" parent="RecordArchive" index="2"]
 is_disabled = true
-interaction_text = "Read archive meeting record"
-readable_title = "Inactive meeting record"
-readable_content = "This record is available only during its task."
+interaction_text = "读取档案室线索 / Read Archive clue"
+readable_title = "会议线索未启用 / MEETING CLUE INACTIVE"
+readable_content = "该线索仅在对应任务中可用 / Available only during its task."
 
 [node name="RecordArchiveLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.03, 1.15, 12.27)
 billboard = 1
 text = "ARCHIVE\nMEETING RECORD"
 font = ExtResource("6_font")
-font_size = 17
+font_size = 26
 outline_size = 6
 
 [node name="RecordBreakRoom" parent="." instance=ExtResource("2_record")]
@@ -87,16 +87,16 @@ display_name = "Break Room meeting record"
 
 [node name="ReadableComponent" parent="RecordBreakRoom" index="2"]
 is_disabled = true
-interaction_text = "Read Break Room meeting record"
-readable_title = "Inactive meeting record"
-readable_content = "This record is available only during its task."
+interaction_text = "读取休息室线索 / Read Break Room clue"
+readable_title = "会议线索未启用 / MEETING CLUE INACTIVE"
+readable_content = "该线索仅在对应任务中可用 / Available only during its task."
 
 [node name="RecordBreakRoomLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1, 0.42, -12.8)
 billboard = 1
 text = "BREAK ROOM\nMEETING RECORD"
 font = ExtResource("6_font")
-font_size = 17
+font_size = 26
 outline_size = 6
 
 [node name="FolderAtlas" parent="." instance=ExtResource("1_books")]
@@ -109,9 +109,10 @@ display_name = "李明的会议资料"
 
 [node name="CarryableComponent" parent="FolderAtlas" index="4"]
 is_disabled = true
-carry_distance_offset = -0.4
-carrying_velocity_multiplier = 5.0
-drop_distance = 1.8
+carry_distance_offset = -0.75
+carrying_velocity_multiplier = 12.0
+drop_distance = 2.5
+enable_manual_rotating = false
 
 [node name="NameLabel" type="Label3D" parent="FolderAtlas"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
@@ -131,9 +132,10 @@ display_name = "王芳的会议资料"
 
 [node name="CarryableComponent" parent="FolderBirch" index="4"]
 is_disabled = true
-carry_distance_offset = -0.4
-carrying_velocity_multiplier = 5.0
-drop_distance = 1.8
+carry_distance_offset = -0.75
+carrying_velocity_multiplier = 12.0
+drop_distance = 2.5
+enable_manual_rotating = false
 
 [node name="NameLabel" type="Label3D" parent="FolderBirch"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
@@ -153,9 +155,10 @@ display_name = "陈宇的会议资料"
 
 [node name="CarryableComponent" parent="FolderCrown" index="4"]
 is_disabled = true
-carry_distance_offset = -0.4
-carrying_velocity_multiplier = 5.0
-drop_distance = 1.8
+carry_distance_offset = -0.75
+carrying_velocity_multiplier = 12.0
+drop_distance = 2.5
+enable_manual_rotating = false
 
 [node name="NameLabel" type="Label3D" parent="FolderCrown"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
@@ -175,9 +178,10 @@ display_name = "赵宁的会议资料"
 
 [node name="CarryableComponent" parent="FolderDelta" index="4"]
 is_disabled = true
-carry_distance_offset = -0.4
-carrying_velocity_multiplier = 5.0
-drop_distance = 1.8
+carry_distance_offset = -0.75
+carrying_velocity_multiplier = 12.0
+drop_distance = 2.5
+enable_manual_rotating = false
 
 [node name="NameLabel" type="Label3D" parent="FolderDelta"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, 0)
@@ -207,7 +211,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
 text = "TV SIDE"
 font = ExtResource("6_font")
-font_size = 12
+font_size = 16
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatTVSide"]
@@ -237,7 +241,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
 text = "DOOR SIDE"
 font = ExtResource("6_font")
-font_size = 12
+font_size = 16
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatDoorSide"]
@@ -267,7 +271,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
 text = "OPPOSITE TV"
 font = ExtResource("6_font")
-font_size = 12
+font_size = 16
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatOppositeTV"]
@@ -297,7 +301,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 billboard = 1
 text = "INNER WALL"
 font = ExtResource("6_font")
-font_size = 12
+font_size = 16
 outline_size = 6
 
 [node name="SnapAnchor" type="Marker3D" parent="SeatInnerWall"]
@@ -312,7 +316,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.15, 1.55, 14.55)
 billboard = 1
 text = "↻  CLOCKWISE"
 font = ExtResource("6_font")
-font_size = 18
+font_size = 22
 outline_size = 7
 
 [node name="VerifyButton" parent="." instance=ExtResource("3_button")]
@@ -330,7 +334,7 @@ is_disabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 1.48, 12.23)
 text = "VERIFY"
 font = ExtResource("6_font")
-font_size = 24
+font_size = 28
 outline_size = 7
 
 [editable path="RecordCEO"]

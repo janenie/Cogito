@@ -1,11 +1,19 @@
 class_name AIPlayReadablePresenter
 extends RefCounted
 
+const TASK_MARKER_SCALE := 1.75
+const CLUE_MARKER_SCALE := 1.4
+const BASE_VISUAL_SCALE_META := &"ai_play_base_visual_scale"
+
 
 static func configure(
 	readable: ReadableComponent,
 	fit_without_scrolling: bool = false,
 ) -> void:
+	_configure_marker_visuals(
+		readable,
+		TASK_MARKER_SCALE if fit_without_scrolling else CLUE_MARKER_SCALE,
+	)
 	var readable_ui := readable.get_node_or_null("ReadableUi") as Control
 	var scroll := readable.get_node_or_null(
 		"ReadableUi/Bindings/ScrollContainer"
@@ -35,3 +43,32 @@ static func configure(
 	if content != null:
 		content.custom_minimum_size = Vector2(text_width, 0.0)
 		content.add_theme_font_size_override("normal_font_size", 24)
+
+
+static func _configure_marker_visuals(
+	readable: ReadableComponent,
+	multiplier: float,
+) -> void:
+	var marker_root := readable.get_parent_node_3d()
+	if marker_root == null:
+		return
+	for child: Node in marker_root.get_children():
+		if not _is_hint_marker_visual(child):
+			continue
+		var visual := child as Node3D
+		if not visual.has_meta(BASE_VISUAL_SCALE_META):
+			visual.set_meta(BASE_VISUAL_SCALE_META, visual.scale)
+		var base_scale: Vector3 = visual.get_meta(
+			BASE_VISUAL_SCALE_META,
+			visual.scale,
+		)
+		visual.scale = base_scale * multiplier
+
+
+static func _is_hint_marker_visual(node: Node) -> bool:
+	if node is Sprite3D:
+		return true
+	return (
+		node is MeshInstance3D
+		and String(node.name) in ["Center", "Stick"]
+	)

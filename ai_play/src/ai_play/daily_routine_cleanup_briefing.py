@@ -7,7 +7,7 @@ from .common_briefing_rules import COMMON_CONTROL_RULES
 
 PUBLIC_BRIEFING = {
     "game_id": "daily_routine_cleanup",
-    "title": "家庭日常清理与提交",
+    "title": "家庭日常清理与提交 / DAILY ROUTINE CLEANUP",
     "background": (
         "这是一个第一人称家庭日常任务。玩家在一个小型室内空间中探索，"
         "根据 HUD 目标和可见交互提示完成清理。"

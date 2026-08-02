@@ -79,7 +79,7 @@ def test_put_book_registry_loads_bounded_public_briefing():
 
     assert briefing["game_id"] == "put_book"
     assert briefing["success_condition"] == (
-        "按低层、中层、高层顺序，将三本带标记的任务书逐本送到 "
+        "按低层、中层、高层顺序，将三本经 HUD 名称确认为任务书的书逐本送到 "
         "CEO OFFICE 的书籍放置点。"
     )
     assert "150" in briefing["failure_condition"]
@@ -96,9 +96,19 @@ def test_put_book_registry_loads_bounded_public_briefing():
         "青色",
         "一次搬运一本",
         "放置点外提前放下",
+        "逐本对准",
+        "HUD 名称",
+        "返回的截图",
     ]:
         assert required in serialized
-    for obsolete in ["目标纸箱", "最近", "jump", "crouch", "高处或低处"]:
+    for obsolete in [
+        "目标纸箱",
+        "最近",
+        "jump",
+        "crouch",
+        "高处或低处",
+        "task_book_marker",
+    ]:
         assert obsolete not in serialized
     for forbidden in [
         "PutBookShelfSlots",
@@ -160,7 +170,7 @@ def test_garden_watering_briefing_is_public_and_bounded():
     assert "向日葵房" in briefing["objective"]
     assert "绣球花房" in briefing["objective"]
     assert "兰花房" in briefing["objective"]
-    assert "300 次 act 请求" in briefing["failure_condition"]
+    assert "80 次 act 请求" in briefing["failure_condition"]
     assert "不需要额外 Verify" in repr(briefing)
     assert any(
         "三个房子" in rule and "公共水池" in rule and "不要越界" in rule
@@ -323,6 +333,8 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
     for legacy_name in ["ATLAS", "BIRCH", "CROWN", "DELTA"]:
         assert legacy_name not in serialized
     assert "顺时针" in serialized
+    assert "无需持续按住" in serialized
+    assert "手动旋转" in serialized
     assert "100 次 act 请求" in briefing["failure_condition"]
     assert "一次" in serialized
     assert image_bytes.startswith(b"\xff\xd8\xff")
@@ -352,6 +364,16 @@ def test_all_scenario_briefings_include_shared_control_rules():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         for rule in COMMON_CONTROL_RULES:
             assert rule in briefing["rules"]
+
+
+def test_all_scenario_briefing_titles_are_chinese_first_with_english_aid():
+    for scenario_id in supported_scenario_ids():
+        briefing, _image_bytes = load_scenario_briefing(scenario_id)
+        title = briefing["title"]
+        chinese_title, separator, english_title = title.partition(" / ")
+        assert separator
+        assert any("\u4e00" <= char <= "\u9fff" for char in chinese_title)
+        assert any("A" <= char <= "Z" for char in english_title)
 
 
 def test_all_scenario_briefings_teach_look_based_spatial_estimation():

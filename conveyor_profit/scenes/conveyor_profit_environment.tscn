@@ -225,7 +225,7 @@ mesh = SubResource("PanelMesh")
 position = Vector3(0, 2.03, -0.12)
 rotation = Vector3(0, 3.14159, 0)
 text = "CONVEYOR KITCHEN  •  RECIPE BOARD"
-font_size = 48
+font_size = 58
 outline_size = 8
 modulate = Color(1, 0.53, 0.12, 1)
 
@@ -676,6 +676,6 @@ offset_bottom = 140.0
 theme_override_colors/font_color = Color(0.96, 0.95, 0.87, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.03, 0.035, 1)
 theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 22
-text = "Choose ingredients from the moving belt"
+theme_override_font_sizes/font_size = 24
+text = "从传送带选择食材 / CHOOSE INGREDIENTS FROM THE BELT"
 horizontal_alignment = 1

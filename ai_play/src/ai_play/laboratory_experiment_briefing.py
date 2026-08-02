@@ -7,7 +7,7 @@ from .common_briefing_rules import COMMON_CONTROL_RULES
 
 PUBLIC_BRIEFING = {
     "game_id": "laboratory_experiment",
-    "title": "随机实验室回路",
+    "title": "随机实验室回路 / RANDOM LABORATORY CIRCUIT",
     "background": (
         "这是一个第一人称观察与实验推理任务。每局会给出实验目标、环境和部分条件，"
         "材料分散在实验区域内，正确组合每局可能不同。"

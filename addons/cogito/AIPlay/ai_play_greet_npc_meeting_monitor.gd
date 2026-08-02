@@ -3,17 +3,17 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const TASK_TITLE := "先打招呼再去会议室"
+const TASK_TITLE := "先打招呼再去会议室 / GREET, THEN MEET"
 const GREETING_PHRASES: Array[String] = ["你好", "要去开会了么？", "hi"]
 const GREETING_DISTANCE := 1.8
 const TASK_CONTENT := (
-	"任务目标：先向办公室里走动的 NPC 打招呼，再进入会议室并从室内关门。\n\n"
-	+ "操作步骤：\n"
+	"任务目标 / OBJECTIVE：先向办公室里走动的 NPC 打招呼，再进入会议室并从室内关门。\n\n"
+	+ "操作步骤 / STEPS：\n"
 	+ "1. NPC 会持续走动；主动观察并靠近他。\n"
 	+ "2. 对准 NPC，出现问候提示后执行交互，确认已经完成打招呼。\n"
 	+ "3. 沿 MEETING ROOM 标牌找到会议室；进入房间后转身关上会议室门。\n\n"
-	+ "完成条件：问候已完成、玩家位于会议室内、会议室门处于关闭状态。\n"
-	+ "顺序要求：必须先打招呼；从走廊关门或只进入房间都不会完成任务。"
+	+ "完成条件 / SUCCESS：问候已完成、玩家位于会议室内、会议室门处于关闭状态。\n"
+	+ "顺序要求 / ORDER：必须先打招呼；从走廊关门或只进入房间都不会完成任务。"
 )
 
 @export var scenario_id: String = "greet_npc_meeting"
@@ -99,7 +99,7 @@ func _place_player_and_task_card() -> void:
 func _write_task_card() -> void:
 	task_card.readable_title = TASK_TITLE
 	task_card.readable_content = TASK_CONTENT
-	task_card.interaction_text = "Read task card"
+	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:

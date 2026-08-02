@@ -7,7 +7,7 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "repair_lighting_circuit",
-    "title": "未知照明电路修复",
+    "title": "未知照明电路修复 / REPAIR LIGHTING CIRCUIT",
     "background": (
         "这是一个第一人称办公室照明诊断任务。入口面板上的 A～D 与四个区域的照明线路"
         "接线未知，其中一条线路已经跳闸。"

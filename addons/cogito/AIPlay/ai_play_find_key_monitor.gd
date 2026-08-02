@@ -140,17 +140,17 @@ func _select_farthest_spawn(rng: RandomNumberGenerator) -> Dictionary:
 
 func _write_task_card() -> void:
 	var content: String = (
-		"任务目标：根据本局位置线索，找到并拾取办公室里唯一的金色钥匙。\n\n"
-		+ "位置线索："
+		"任务目标 / OBJECTIVE：根据本局位置线索，找到并拾取办公室里唯一的金色钥匙。\n\n"
+		+ "位置线索 / LOCATION CLUE："
 		+ LOCATION_TASK_TEXT[_selected_location]
-		+ "\n\n操作：观察房间文字标识和家具特征；靠近并对准钥匙，"
+		+ "\n\n操作 / ACTION：观察房间文字标识和家具特征；靠近并对准钥匙，"
 		+ "出现拾取提示后执行交互。\n\n"
-		+ "完成条件：必须实际拾取钥匙；只看到钥匙不算完成。"
+		+ "完成条件 / SUCCESS：必须实际拾取钥匙；只看到钥匙不算完成。"
 		+ "搜索错误区域不会立即失败。"
 	)
-	task_card.readable_title = "寻找办公室钥匙"
+	task_card.readable_title = "寻找办公室钥匙 / FIND OFFICE KEY"
 	task_card.readable_content = content
-	task_card.interaction_text = "Read task card"
+	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:

@@ -3,7 +3,7 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const TASK_TITLE := "未知照明电路修复"
+const TASK_TITLE := "未知照明电路修复 / REPAIR LIGHTING CIRCUIT"
 const CIRCUIT_LABELS := {
 	"entrance": "入口落地灯",
 	"ceo": "CEO 办公室落地灯",
@@ -250,12 +250,12 @@ func _place_player_and_task_card() -> void:
 
 func _write_task_card(target_states: Dictionary) -> void:
 	var lines: Array[String] = [
-		"任务目标：修复跳闸线路，并将四组照明调整为以下状态。",
+		"任务目标 / OBJECTIVE：修复跳闸线路，并将四组照明调整为以下状态。",
 		"",
-		"接线规则：A～D 与四组灯是一对一未知对应。",
+		"接线规则 / WIRING：A～D 与四组灯是一对一未知对应。",
 		"必须判断 A、B、C、D 各自控制哪一组灯。",
 		"",
-		"最终目标状态：",
+		"最终目标状态 / TARGET STATES：",
 	]
 	for circuit_id: String in AIPlayLightingCircuitRound.CIRCUIT_IDS:
 		lines.append(
@@ -264,7 +264,7 @@ func _write_task_card(target_states: Dictionary) -> void:
 		)
 	lines.append_array([
 		"",
-		"操作步骤：",
+		"操作步骤 / STEPS：",
 		"1. 先观察并记住四组灯的当前状态。",
 		"2. 每次只操作 A～D 中的一个开关，再巡视四组灯。",
 		"   哪组灯发生变化，该字母就控制哪组灯。",
@@ -279,7 +279,7 @@ func _write_task_card(target_states: Dictionary) -> void:
 	var content := "\n".join(lines)
 	task_card.readable_title = TASK_TITLE
 	task_card.readable_content = content
-	task_card.interaction_text = "Read task card"
+	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:

@@ -69,8 +69,20 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		_assert(folder.collision_mask == 1, "%s ignores interaction markers" % folder.name)
 		var carry: Node = folder.get_node("CarryableComponent")
 		_assert(
-			carry.get("carrying_velocity_multiplier") <= 5.0,
-			"%s uses a stable carrying speed" % folder.name,
+			is_equal_approx(carry.get("carry_distance_offset"), -0.75),
+			"%s stays close to the view while carried" % folder.name,
+		)
+		_assert(
+			carry.get("carrying_velocity_multiplier") >= 12.0,
+			"%s uses responsive carrying speed" % folder.name,
+		)
+		_assert(
+			carry.get("drop_distance") >= 2.5,
+			"%s tolerates quick camera movement" % folder.name,
+		)
+		_assert(
+			not carry.get("enable_manual_rotating"),
+			"%s disables accidental manual rotation" % folder.name,
 		)
 	_assert(monitor.seat_interactions.size() == 4, "four seats are active")
 	for interaction: Node in monitor.seat_interactions:
@@ -97,8 +109,20 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"task card retains the original three-layer rotating icon",
 	)
 	_assert(
-		monitor.task_card.interaction_text == "Read task card",
-		"shared icon exposes the task-card interaction",
+		monitor.task_card.interaction_text
+		== "读取任务说明 / Read task brief",
+		"shared icon exposes a Chinese-first task-card interaction",
+	)
+	var task_icon := task_card_object.get_node("Sprite3D_01") as Sprite3D
+	var enlarged_task_icon_scale := task_icon.scale
+	_assert(
+		enlarged_task_icon_scale.length() >= Vector3(0.17, 0.17, 0.17).length(),
+		"task-card marker is visibly enlarged",
+	)
+	var task_collision := task_card_object.get_node("CollisionShape3D") as CollisionShape3D
+	_assert(
+		is_equal_approx((task_collision.shape as SphereShape3D).radius, 0.18),
+		"larger task marker keeps the original interaction radius",
 	)
 	var demo_hints := lobby.get_node("DEMO_HINTS") as Node3D
 	_assert(not demo_hints.visible, "unrelated Demo Hints are hidden")
@@ -147,6 +171,7 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"会议室门侧",
 		"电视对面侧",
 		"内墙侧",
+		"无需按住或旋转",
 		"Verify 只有一次机会",
 	]:
 		_assert(
@@ -190,8 +215,8 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 			"%s record contains its assigned clue" % record_id,
 		)
 		_assert(
-			interaction_text.begins_with("Read "),
-			"%s record interaction is English" % record_id,
+			interaction_text.contains(" / Read "),
+			"%s record interaction is Chinese-first with English aid" % record_id,
 		)
 		_assert(
 			not interaction_text.contains("break_room"),
@@ -200,18 +225,24 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 
 	var player_interaction: Node = monitor.player.get_node("PlayerInteractionComponent")
 	monitor.configure_round(8011)
-	var placed: Dictionary = _hold_and_place(
-		monitor,
-		player_interaction,
-		"atlas",
-		"tv_side",
+	var atlas: RigidBody3D = _folder_for_id(monitor, "atlas")
+	_hold_folder(monitor, player_interaction, "atlas")
+	_assert(atlas.freeze, "carried folder is frozen for stable follow")
+	_assert(atlas.collision_layer == 0, "carried folder collision is disabled")
+	_assert(atlas.collision_mask == 0, "carried folder physics mask is disabled")
+	var carry_position: Vector3 = player_interaction.get_carryable_destination_point(
+		monitor.FOLDER_CARRY_DISTANCE_OFFSET,
 	)
+	_assert(
+		atlas.global_position.is_equal_approx(carry_position),
+		"carried folder snaps to the stable view position",
+	)
+	var placed: Dictionary = monitor.place_carried_folder("tv_side", player_interaction)
 	_assert(placed.get("accepted", false), "task folder places into empty seat")
 	_assert(
 		monitor.get_folder_seat_map() == {"atlas": "tv_side"},
 		"trusted map records placement",
 	)
-	var atlas: RigidBody3D = _folder_for_id(monitor, "atlas")
 	var tv_anchor: Marker3D = _anchor_for_seat(monitor, "tv_side")
 	_assert(atlas.freeze, "placed folder is frozen")
 	_assert(atlas.linear_velocity.is_zero_approx(), "placed folder linear speed is cleared")
@@ -231,7 +262,11 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"occupied seat rejects second folder",
 	)
 	_assert(player_interaction.carried_object != null, "occupied rejection keeps folder held")
+	var birch: RigidBody3D = _folder_for_id(monitor, "birch")
 	player_interaction.carried_object.leave()
+	_assert(not birch.freeze, "dropped folder restores rigid-body physics")
+	_assert(birch.collision_layer == 3, "dropped folder restores interaction collision")
+	_assert(birch.collision_mask == 1, "dropped folder restores its world collision mask")
 
 	player_interaction.carried_object = monitor.get_node(
 		"../../ARCHIVE/PutBook_CarryableBook/CarryableComponent"

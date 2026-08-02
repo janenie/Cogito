@@ -632,7 +632,7 @@ autowrap_mode = 2
 [node name="Panel" type="PanelContainer" parent="HUD" unique_id=342965078]
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 168.0
+offset_bottom = 236.0
 grow_horizontal = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/Panel" unique_id=407637838]
@@ -654,11 +654,13 @@ text = "07:00"
 unique_name_in_owner = true
 layout_mode = 2
 text = "把全部垃圾扔进客厅垃圾桶。"
+theme_override_font_sizes/font_size = 18
 
 [node name="RulesLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1969375385]
 unique_name_in_owner = true
 layout_mode = 2
-text = "任务目标：清理屋内 4 个散落垃圾，并检查冰箱里的过期牛奶；所有目标物都要送进客厅垃圾桶。\n操作：一次只能拿一个物品；取冰箱内物品前先开门，处理后关好冰箱。\n提交条件：HUD 显示已扔 5/5、手上为空且冰箱关闭，再点击垃圾桶旁的完成任务按钮；条件不全会立即失败。"
+theme_override_font_sizes/font_size = 18
+text = "家庭日常清理 / DAILY ROUTINE CLEANUP\n任务目标 / OBJECTIVE：清理屋内 4 个散落垃圾，并检查冰箱里的过期牛奶；所有目标物都要送进客厅垃圾桶。\n操作 / ACTION：一次只能拿一个物品；取冰箱内物品前先开门，处理后关好冰箱。\n提交条件 / SUBMISSION：HUD 显示已扔 5/5、手上为空且冰箱关闭，再点击垃圾桶旁的完成任务按钮；条件不全会立即失败。"
 autowrap_mode = 3
 
 [node name="TrashLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer" unique_id=1663053136]

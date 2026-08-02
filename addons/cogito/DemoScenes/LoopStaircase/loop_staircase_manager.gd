@@ -216,7 +216,7 @@ func get_round_snapshot() -> Dictionary:
 
 func ai_play_public_state() -> Dictionary:
 	return {
-		"objective": "Find the true exit floor.",
+		"objective": "寻找真正的出口楼层 / Find the true exit floor.",
 		"current_floor": _current_floor,
 		"current_floor_label": "%dF" % _current_floor,
 		"current_loop": current_loop + 1,
@@ -442,7 +442,7 @@ func _create_current_floor_room() -> void:
 	clue.name = "Clue"
 	clue.position = Vector3(0, 1.45, -2.34)
 	clue.pixel_size = 0.006
-	clue.font_size = 24
+	clue.font_size = 34
 	clue.modulate = Color(0.95, 0.9, 0.72)
 	clue.visible = false
 	room.add_child(clue)
@@ -451,7 +451,7 @@ func _create_current_floor_room() -> void:
 	observation.name = "ObservationLabel"
 	observation.position = Vector3(0, 1.05, -2.34)
 	observation.pixel_size = 0.0055
-	observation.font_size = 24
+	observation.font_size = 28
 	observation.modulate = Color(0.78, 0.92, 1.0)
 	room.add_child(observation)
 
@@ -512,7 +512,7 @@ func _create_game_ui() -> void:
 	panel.name = "RulesPanel"
 	panel.offset_left = 18.0
 	panel.offset_top = 18.0
-	panel.custom_minimum_size = Vector2(300, 0)
+	panel.custom_minimum_size = Vector2(390, 0)
 	ui.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -525,16 +525,16 @@ func _create_game_ui() -> void:
 
 	var rules := Label.new()
 	rules.name = "Rules"
-	rules.text = "寻找真正的出口楼层。\n\n每一轮只有一条新线索。\n每次开局的线索顺序都会变化。\n线索只说明一种观察依据，不直接给楼层号。\n自己记录每层变化，不能反悔。\n\n观察五轮后，按空格选择。\n上/下：切换楼层"
+	rules.text = "循环楼梯任务 / LOOPING STAIRCASE\n寻找真正的出口楼层 / FIND THE TRUE EXIT FLOOR\n\n每一轮只有一条新线索。\n每次开局的线索顺序都会变化。\n线索只说明一种观察依据，不直接给楼层号。\n自己记录每层变化，不能反悔。\n\n观察五轮后，按空格选择。\n上/下：切换楼层"
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rules.add_theme_font_size_override("font_size", 17)
+	rules.add_theme_font_size_override("font_size", 19)
 	margin.add_child(rules)
 
 	var status_panel := PanelContainer.new()
 	status_panel.name = "StatusPanel"
 	status_panel.offset_left = 18.0
-	status_panel.offset_top = 224.0
-	status_panel.custom_minimum_size = Vector2(300, 0)
+	status_panel.offset_top = 300.0
+	status_panel.custom_minimum_size = Vector2(390, 0)
 	status_panel.visible = false
 	ui.add_child(status_panel)
 
@@ -745,7 +745,7 @@ func _build_visual_platform(parent: Node3D, floor_number: int) -> void:
 	clue.name = "Clue"
 	clue.position = Vector3(-2.8, 0.82, -0.7)
 	clue.pixel_size = 0.007
-	clue.font_size = 34
+	clue.font_size = 44
 	clue.modulate = Color(0.95, 0.9, 0.72)
 	clue.visible = false
 	parent.add_child(clue)
@@ -888,7 +888,7 @@ func _build_floor_landing(parent: Node3D, floor_number: int) -> void:
 	clue.name = "Clue"
 	clue.position = Vector3(0, 1.35, 2.45)
 	clue.pixel_size = 0.012
-	clue.font_size = 42
+	clue.font_size = 54
 	clue.modulate = Color(0.95, 0.9, 0.7)
 	clue.visible = false
 	parent.add_child(clue)
@@ -1105,13 +1105,17 @@ func _update_floor_displays() -> void:
 	var status := get_node_or_null("GameUI/StatusPanel/Status") as Label
 	if status != null:
 		status.text = (
-			"Current: %dF\nLoop: %d/%d\nClue: %s\n%s"
+			"当前楼层 / CURRENT：%dF\n轮次 / LOOP：%d/%d\n线索 / CLUE：%s\n%s"
 			% [
 				_current_floor,
 				current_loop + 1,
 				TOTAL_LOOPS,
 				get_current_clue_text(),
-				"Space chooses this floor." if is_final_unlocked() else "Collect all five clues, then press Space.",
+				(
+					"按空格选择本层 / Press Space to choose."
+					if is_final_unlocked()
+					else "收集五条线索后按空格 / Collect five clues, then press Space."
+				),
 			]
 		)
 

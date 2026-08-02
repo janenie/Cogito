@@ -3,17 +3,18 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const TASK_TITLE := "按低→中→高搬运 3 本任务书"
+const TASK_TITLE := "按低→中→高搬运 3 本任务书 / MOVE 3 TASK BOOKS"
 const TASK_CONTENT := (
-	"任务目标：档案室（ARCHIVE）三组书架上共有 6 本书；"
-	+ "只把其中 3 本带“任务书”标记的书送到 CEO OFFICE。\n\n"
-	+ "操作步骤：\n"
-	+ "1. 找齐三本任务书并比较它们所在的书架层级。\n"
+	"任务目标 / OBJECTIVE：档案室（ARCHIVE）三组书架上共有 6 本书；"
+	+ "只把其中 3 本对准后 HUD 显示为“任务书”的书送到 CEO OFFICE。\n\n"
+	+ "操作步骤 / STEPS：\n"
+	+ "1. 逐本靠近并对准六本书，通过 HUD 名称区分“任务书”和“普通书”；"
+	+ "找齐三本任务书并比较它们所在的书架层级。\n"
 	+ "2. 必须严格按 ①低层 → ②中层 → ③高层 搬运。\n"
 	+ "3. 每次只拿一本，送到 CEO OFFICE 的青色“书籍放置点”；"
 	+ "确认当前一本送达后再返回拿下一本。\n\n"
-	+ "完成条件：三本任务书全部按顺序送达。\n"
-	+ "失败条件：拿起普通书，或提前拿中层/高层任务书，会立即失败。"
+	+ "完成条件 / SUCCESS：三本任务书全部按顺序送达。\n"
+	+ "失败条件 / FAILURE：拿起普通书，或提前拿中层/高层任务书，会立即失败。"
 )
 const ROUND_BOOK_COUNT := 6
 const TARGET_BOOK_COUNT := 3
@@ -201,9 +202,6 @@ func _select_target_books(rng: RandomNumberGenerator) -> void:
 	for book: RigidBody3D in _active_books:
 		var is_target := book in _target_books
 		book.set("display_name", "任务书" if is_target else "普通书")
-		var marker := book.get_node_or_null("TargetMarker") as Label3D
-		if marker != null:
-			marker.visible = is_target
 
 
 func _place_player_and_task_card() -> void:
@@ -242,7 +240,7 @@ func _face_player_toward(target_position: Vector3) -> void:
 func _write_task_card() -> void:
 	task_card.set("readable_title", TASK_TITLE)
 	task_card.set("readable_content", TASK_CONTENT)
-	task_card.set("interaction_text", "Read task card")
+	task_card.set("interaction_text", "读取任务说明 / Read task brief")
 	task_card.set("is_disabled", false)
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:
@@ -341,9 +339,6 @@ func _complete_current_delivery(book: RigidBody3D) -> void:
 	if carry_component != null:
 		carry_component.is_being_carried = false
 		carry_component.is_disabled = true
-	var marker := book.get_node_or_null("TargetMarker") as Label3D
-	if marker != null:
-		marker.visible = false
 	_update_book_pickup_gate()
 	_delivery_in_progress = false
 	if _current_target_index == _target_books.size():

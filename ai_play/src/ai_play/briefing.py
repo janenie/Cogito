@@ -7,7 +7,7 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "find_contract",
-    "title": "寻找合同密码并解锁档案室",
+    "title": "寻找合同密码并解锁档案室 / FIND CONTRACT PASSCODE",
     "background": (
         "这是一个第一人称环境解谜任务。玩家需要探索办公场景，调查可见物体，"
         "阅读文件并与友好角色交谈。"

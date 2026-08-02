@@ -189,14 +189,14 @@ func ai_play_public_state() -> Dictionary:
 
 func task_card_text() -> String:
 	return (
-		"实验：%s\n目标：%s\n环境：%s\n\n"
-		+ "游戏规则\n"
+		"实验 / EXPERIMENT：%s\n目标 / OBJECTIVE：%s\n环境 / ENVIRONMENT：%s\n\n"
+		+ "游戏规则 / RULES\n"
 		+ "1. 在附近两个实验区域寻找电池、样本、处理模块和金属棒。\n"
 		+ "2. 对准材料按一下 E 拿取（无需按住），带回起点放入对应插槽。\n"
 		+ "3. 把四种材料带回起点插槽，组装完整后会自动分析。\n"
 		+ "4. 只有完整配置的自动分析才消耗机会，最多 3 次。\n"
 		+ "5. 根据电流、稳定性、温度和灯光结果更换单个组件。\n\n"
-		+ "本局已知条件\n• %s\n• %s"
+		+ "本局已知条件 / CLUES\n• %s\n• %s"
 	) % [
 		PROTOCOL_NAMES_ZH.get(round_data.get("protocol", ""), "实验协议"),
 		OBJECTIVES_ZH.get(round_data.get("protocol", ""), "安全完成实验。"),

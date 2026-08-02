@@ -327,15 +327,16 @@ def test_loop_staircase_anomaly_loads_public_briefing():
     briefing, image_bytes = load_scenario_briefing("loop_staircase_anomaly")
 
     assert briefing["game_id"] == "loop_staircase_anomaly"
-    assert briefing["success_condition"] == "Select the only floor that satisfies all five cumulative clues."
-    assert "exactly two boxes" not in str(briefing).lower()
-    assert "five observation loops" in str(briefing).lower()
-    assert "2f through 9f" in str(briefing).lower()
-    assert "candidate set" in str(briefing).lower()
-    assert "clue order can change" in str(briefing).lower()
-    assert "target symbol" not in str(briefing).lower()
+    assert briefing["success_condition"] == "选择唯一满足五条累计线索的楼层。"
+    serialized = str(briefing)
+    assert "exactly two boxes" not in serialized.lower()
+    assert "五轮观察" in serialized
+    assert "2F 到 9F" in serialized
+    assert "候选集合" in serialized
+    assert "线索顺序可能变化" in serialized
+    assert "target symbol" not in serialized.lower()
     for symbol in ("circle", "triangle", "square", "star"):
-        assert symbol not in str(briefing).lower()
+        assert symbol not in serialized.lower()
     assert image_bytes is None
 
 

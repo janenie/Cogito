@@ -153,8 +153,14 @@ func _initialize() -> void:
 	)
 	_assert(
 		running_station.get_node("TaskCard/ReadableComponent").label_title.text
-		== "实验任务说明",
-		"task card title is Chinese",
+		== "实验任务说明 / EXPERIMENT BRIEF",
+		"task card title is Chinese-first with English aid",
+	)
+	var task_marker := running_station.get_node("TaskCardMarker") as Label3D
+	_assert(task_marker.font_size >= 68, "task-card marker uses a larger font")
+	_assert(
+		task_marker.text == "EXPERIMENT BRIEF [E]",
+		"in-world task-card marker stays concise and English-only",
 	)
 	var hud_title := running_station.get_node(
 		"ExperimentHUD/Layout/RulesPanel/Margin/Content/Title"
@@ -165,7 +171,10 @@ func _initialize() -> void:
 	var hud_state := running_station.get_node(
 		"ExperimentHUD/Layout/StatePanel/Margin/Content/State"
 	) as Label
-	_assert(hud_title.text == "实验任务", "HUD title is Chinese")
+	_assert(
+		hud_title.text == "实验任务 / EXPERIMENT TASK",
+		"HUD title is Chinese-first with English aid",
+	)
 	_assert(hud_title.get_theme_font_size("font_size") >= 32, "HUD title uses a large font")
 	_assert(hud_rules.get_theme_font_size("normal_font_size") >= 24, "HUD rules use a large font")
 	_assert(hud_rules.text.contains("游戏规则"), "HUD explains the rules in Chinese")

@@ -88,22 +88,22 @@ rotation = Vector3(0, 0, 0)
 scale = Vector3(1.8, 1.8, 1.8)
 
 [node name="ReadableComponent" parent="TaskCard" index="6"]
-readable_title = "实验任务说明"
+readable_title = "实验任务说明 / EXPERIMENT BRIEF"
 readable_content = "正在载入实验任务……"
 
 [node name="TaskCardMarker" type="Label3D" parent="."]
 position = Vector3(2.02, 1.28, 0.24)
 modulate = Color(0.25, 1, 0.72, 1)
 pixel_size = 0.0035
-font_size = 54
-text = "实验说明 [E]"
+font_size = 68
+text = "EXPERIMENT BRIEF [E]"
 outline_size = 12
 
 [node name="StatusPanel" type="Label3D" parent="."]
 position = Vector3(-1.25, 2.35, 0.12)
 pixel_size = 0.0028
 font_size = 48
-text = "实验任务"
+text = "EXPERIMENT TASK"
 outline_size = 8
 
 [node name="HistoryPanel" type="Label3D" parent="."]
@@ -159,7 +159,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_colors/font_color = Color(0.3, 1, 0.74, 1)
 theme_override_font_sizes/font_size = 34
-text = "实验任务"
+text = "实验任务 / EXPERIMENT TASK"
 
 [node name="Rules" type="RichTextLabel" parent="ExperimentHUD/Layout/RulesPanel/Margin/Content"]
 custom_minimum_size = Vector2(536, 382)

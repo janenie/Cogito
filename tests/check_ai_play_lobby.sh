@@ -320,11 +320,17 @@ grep -q '^text = "↻  CLOCKWISE"$' \
 	<<<"$(meeting_setup_node_block ClockwiseLabel)"
 grep -q '^text = "TASK CARD"$' \
 	<<<"$(meeting_setup_node_block TaskCardLabel)"
+grep -q '^font_size = 30$' \
+	<<<"$(meeting_setup_node_block TaskCardLabel)"
 grep -q '^text = "CEO OFFICE\\nMEETING RECORD"$' \
+	<<<"$(meeting_setup_node_block RecordCEOLabel)"
+grep -q '^font_size = 26$' \
 	<<<"$(meeting_setup_node_block RecordCEOLabel)"
 grep -q '^text = "ARCHIVE\\nMEETING RECORD"$' \
 	<<<"$(meeting_setup_node_block RecordArchiveLabel)"
 grep -q '^text = "BREAK ROOM\\nMEETING RECORD"$' \
+	<<<"$(meeting_setup_node_block RecordBreakRoomLabel)"
+grep -q '^font_size = 26$' \
 	<<<"$(meeting_setup_node_block RecordBreakRoomLabel)"
 grep -q '^text = "TV SIDE"$' \
 	<<<"$(meeting_setup_child_block SeatLabel SeatTVSide)"
@@ -336,6 +342,11 @@ grep -q '^text = "INNER WALL"$' \
 	<<<"$(meeting_setup_child_block SeatLabel SeatInnerWall)"
 grep -q '^text = "VERIFY"$' \
 	<<<"$(meeting_setup_node_block VerifyLabel)"
+
+grep -q '^const TASK_MARKER_SCALE := 1.75$' \
+	addons/cogito/AIPlay/ai_play_readable_presenter.gd
+grep -q '^const CLUE_MARKER_SCALE := 1.4$' \
+	addons/cogito/AIPlay/ai_play_readable_presenter.gd
 
 if ! tests/check_ai_play_secrets.sh; then
 	echo "AI Play tracked files must not contain a credential" >&2

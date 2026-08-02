@@ -87,10 +87,20 @@ func _run_test() -> void:
 	_assert(
 		rules != null
 		and "寻找真正的出口楼层" in rules.text
+		and "LOOPING STAIRCASE" in rules.text
 		and "上/下" in rules.text
 		and "空格" in rules.text
 		and "五轮" in rules.text,
 		"HUD explains the loop staircase rules and controls",
+	)
+	_assert(
+		rules != null and rules.get_theme_font_size("font_size") >= 19,
+		"task description uses a larger font",
+	)
+	var clue_label := manager.get_node_or_null("CurrentFloorRoom/Clue") as Label3D
+	_assert(
+		clue_label != null and clue_label.font_size >= 34,
+		"in-world clue text uses a larger font",
 	)
 	_assert(
 		rules != null and not "2 boxes" in rules.text and not "two boxes" in rules.text,

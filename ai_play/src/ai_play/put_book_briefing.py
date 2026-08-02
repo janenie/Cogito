@@ -7,17 +7,18 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "put_book",
-    "title": "整理档案室书籍",
+    "title": "整理档案室书籍 / ORGANIZE ARCHIVE BOOKS",
     "background": (
         "这是一个第一人称办公室整理任务。玩家需要读取任务卡，进入档案室，"
-        "找出带任务书标记的书，并将它们送到 CEO OFFICE。"
+        "逐本对准书籍，通过画面中的 HUD 名称找出任务书，并将它们送到 CEO OFFICE。"
     ),
     "objective": (
-        "先读取出生点附近的任务卡，进入档案室；六本书中只搬运三本带任务书标记的书，"
+        "先读取出生点附近的任务卡，进入档案室；逐本对准六本书，只搬运 HUD 名称显示为"
+        "任务书的三本书，"
         "严格按低层、中层、高层顺序逐本送到 CEO OFFICE 的青色书籍放置点。"
     ),
     "success_condition": (
-        "按低层、中层、高层顺序，将三本带标记的任务书逐本送到 "
+        "按低层、中层、高层顺序，将三本经 HUD 名称确认为任务书的书逐本送到 "
         "CEO OFFICE 的书籍放置点。"
     ),
     "failure_condition": (
@@ -27,7 +28,11 @@ PUBLIC_BRIEFING = {
     "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容和动作结果完成任务。",
         "任务卡位于出生点附近并可重复读取。",
-        "档案室会显示六本可搬运的书，其中三本带有清晰的任务书标记。",
+        "档案室有六本可搬运的书；书本上方没有悬浮身份标记。",
+        (
+            "靠近并逐本对准书籍；画面中的交互 HUD 会显示任务书或普通书。"
+            "probe_interaction 只负责安全对准，身份需从随后返回的截图中读取。"
+        ),
         "先比较三本任务书所在的书架高度，再严格按照低层、中层、高层顺序搬运。",
         (
             "一次搬运一本：将当前书送到 CEO OFFICE 的青色书籍放置点并确认送达后，"
@@ -56,19 +61,19 @@ PUBLIC_BRIEFING = {
         },
         {
             "id": "carryable_book",
-            "meaning": "可搬运的书需要依据任务书标记和书架高度判断是否应当搬运。",
+            "meaning": "可搬运的书需要依据对准时显示的 HUD 名称和书架高度判断是否搬运。",
             "actions": {
-                "probe_interaction": "靠近并对准书确认可用交互。",
+                "probe_interaction": "靠近并对准书，再从返回截图的 HUD 名称确认身份。",
                 "interact": "按当前提示拿起或放下书。",
                 "interact2": "按当前提示拿起或放下书。",
             },
         },
         {
-            "id": "task_book_marker",
-            "meaning": "清晰的任务书标记表示这本书属于三本需要按高度顺序搬运的书。",
+            "id": "book_identity_prompt",
+            "meaning": "对准书籍时，画面 HUD 名称会公开显示任务书或普通书。",
             "actions": {
-                "look": "观察标记并比较任务书所在书架的高度。",
-                "probe_interaction": "对准标记附近的书确认交互提示。",
+                "look": "读取 HUD 名称，并比较任务书所在书架的高度。",
+                "probe_interaction": "安全对准书籍，不会触发拿取或失败。",
             },
         },
         {

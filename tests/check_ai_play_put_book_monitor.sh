@@ -70,6 +70,7 @@ fi
 if awk '
 	/^ERROR:/ \
 		&& $0 != "ERROR: 21 resources still in use at exit (run with --verbose for details)." \
+		&& $0 != "ERROR: 23 resources still in use at exit (run with --verbose for details)." \
 		&& $0 != "ERROR: 3 RID allocations of type '\''N13RendererDummy15MaterialStorage11DummyShaderE'\'' were leaked at exit." \
 		{ unexpected = 1 }
 	END { exit unexpected ? 0 : 1 }

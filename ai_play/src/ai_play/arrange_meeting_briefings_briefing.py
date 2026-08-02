@@ -7,7 +7,7 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "arrange_meeting_briefings",
-    "title": "会议席位与资料分发",
+    "title": "会议席位与资料分发 / ARRANGE MEETING BRIEFINGS",
     "background": (
         "这是一个第一人称办公室关系推理任务。三份会议记录分布在不同区域，"
         "会议室中有四份待分发资料和四个由环境位置区分的席位。"
@@ -29,6 +29,8 @@ PUBLIC_BRIEFING = {
         "(BREAK ROOM) 读取三份会议记录；简报不提供本局线索。",
         "四个席位由电视侧 (TV SIDE)、电视对面侧 (OPPOSITE TV)、会议室门侧 "
         "(DOOR SIDE) 和内墙侧 (INNER WALL) 区分，桌面的 ↻ CLOCKWISE 标记定义顺时针方向。",
+        "对准会议资料后触发一次 interact2 即可拿取，无需持续按住或手动旋转；"
+        "资料会稳定贴近视角。",
         "手持会议资料并对准空席位使用放置交互，资料会自动对齐；一个席位只能容纳一份资料。",
         "已经放好的资料在提交前可以重新拿起并调整，系统不会提前反馈位置是否正确。",
         "只有在四份资料全部摆好并检查无误后才按 Verify；错误或不完整提交会立即结束任务。",

@@ -3,7 +3,7 @@ from copy import deepcopy
 
 PUBLIC_BRIEFING = {
     "game_id": "conveyor_profit",
-    "title": "回转食材利润挑战",
+    "title": "回转食材利润挑战 / CONVEYOR PROFIT CHALLENGE",
     "background": (
         "像人类玩家一样观察传送带和固定公开菜单。不要只按价格选择；"
         "逐项核对当前画面是否具有一道菜要求的每份食材。"

@@ -39,7 +39,7 @@ func _ready() -> void:
 	_lamp_material.albedo_color = Color(0.08, 0.09, 0.1)
 	_lamp_material.emission_enabled = true
 	experiment_lamp.material_override = _lamp_material
-	task_card.readable_title = "实验任务说明"
+	task_card.readable_title = "实验任务说明 / EXPERIMENT BRIEF"
 	task_card.readable_content = manager.task_card_text()
 	task_card.label_title.text = task_card.readable_title
 	task_card.label_content.text = task_card.readable_content

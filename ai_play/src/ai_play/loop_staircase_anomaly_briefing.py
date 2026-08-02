@@ -5,71 +5,65 @@ from copy import deepcopy
 
 PUBLIC_BRIEFING = {
     "game_id": "loop_staircase_anomaly",
-    "title": "Looping Staircase Anomaly",
+    "title": "循环楼梯异常 / LOOPING STAIRCASE ANOMALY",
     "background": (
-        "This is a first-person looping stairwell reasoning task. The player "
-        "cycles through floors 2F to 9F across five observation loops. Each loop "
-        "reveals one new clue; the visible clue order changes from run to run. "
-        "The task is to identify the one matching room, not to navigate to a "
-        "physical destination. The true exit floor is determined by the clues "
-        "accumulated across the whole run."
+        "这是一个第一人称循环楼梯推理任务。玩家会在五轮观察中循环查看 2F 到 9F；"
+        "每轮公开一条新线索，线索顺序每局可能变化。任务是识别唯一符合全部线索的房间，"
+        "而不是走到某个真实出口；真正的出口楼层由整局累计线索共同决定。"
     ),
     "objective": (
-        "Observe each floor like a human player, keep notes about its furniture, "
-        "wall decorations, visible floor label, and other stable room details, "
-        "then use the clue trail to eliminate wrong rooms until only one true "
-        "exit floor remains after the fifth loop."
+        "像人类玩家一样观察每层的家具、墙面装饰、可见楼层标牌和其他稳定细节并做好记录；"
+        "依据逐轮出现的线索排除错误房间，直到第五轮结束后只剩一个真正出口楼层。"
     ),
-    "success_condition": "Select the only floor that satisfies all five cumulative clues.",
+    "success_condition": "选择唯一满足五条累计线索的楼层。",
     "failure_condition": (
-        "Select an incorrect floor, or reach the maximum act request count."
+        "选择错误楼层，或达到最大 act 请求数。"
     ),
     "rules": [
-        'Use act action {"type":"press_key","key":"up"} to switch to the next floor.',
-        'Use act action {"type":"press_key","key":"down"} to switch to the previous floor.',
-        'Use act action {"type":"press_key","key":"space"} only when choosing the current floor as the answer.',
-        "Do not use move or sprint in this task; the floor switch is controlled by Up/Down keys.",
-        "Observe 2F through 9F carefully in each loop.",
-        "Press Up on 9F to return to 2F and advance the loop.",
-        "There are five observation loops; one new clue appears in each loop.",
-        "The visible clue order can change each run, so read the current clue instead of memorizing a fixed script.",
-        "For every floor, record the visible furniture and objects, wall decorations, and floor label.",
-        "Compare what you recorded across loops; some room details may change while the relevant evidence remains constrained by the clues.",
-        "Keep a running candidate set from the clues and remove floors that contradict any clue.",
-        "Do not decide from a single screenshot or from the current floor number alone.",
-        "Static room appearance can distract from the clue trail.",
-        "Wrong floor choices immediately fail the run.",
-        "After each key action or loop transition, use the observation returned by act before deciding; do not repeat observe.",
+        '使用 act 动作 {"type":"press_key","key":"up"} 切换到下一层。',
+        '使用 act 动作 {"type":"press_key","key":"down"} 切换到上一层。',
+        '仅在选择当前楼层作为答案时使用 {"type":"press_key","key":"space"}。',
+        "本任务不要使用 move 或 sprint；楼层切换只由 Up/Down 键控制。",
+        "每轮都要仔细观察 2F 到 9F。",
+        "在 9F 按 Up 会返回 2F 并进入下一轮。",
+        "一共五轮观察，每轮出现一条新线索。",
+        "每局的可见线索顺序可能变化，应读取当前线索，不要背固定脚本。",
+        "记录每层可见的家具与物体、墙面装饰和楼层标牌。",
+        "跨轮比较记录；部分房间细节可能变化，但相关证据始终受当前线索约束。",
+        "根据累计线索维护候选集合，排除与任一线索冲突的楼层。",
+        "不要只凭一张截图或当前楼层号下结论。",
+        "静态房间外观可能干扰判断，应以线索链为准。",
+        "选择错误楼层会立即失败。",
+        "每次按键或跨轮后，先使用 act 返回的新观察再决策，不要重复调用 observe。",
     ],
     "objects": [
         {
             "id": "floor_landings",
             "meaning": (
-                "Each floor landing is a room candidate. The current loop clue is "
-                "visible in the scene, and the room itself contains furniture, "
-                "objects, wall decorations, and a visible floor label that should "
-                "be remembered across loops."
+                "每个楼层平台都是候选房间。当前轮次线索直接显示在场景中；房间内的家具、"
+                "物体、墙面装饰和楼层标牌需要跨轮记录。"
             ),
             "actions": {
                 "observe": (
-                    "Read the current clue, inspect the room details, update your "
-                    "notes for this floor, and revise your candidate set before "
-                    "pressing Up or Down."
+                    "读取当前线索，检查房间细节，更新本层记录和候选集合，再按 Up 或 Down。"
                 ),
             },
         },
         {
             "id": "loop_trigger",
-            "meaning": "The top stairwell trigger returns the player to 2F and advances the loop count.",
+            "meaning": "顶层楼梯触发器会让玩家返回 2F，并推进观察轮次。",
             "actions": {
-                "press_key": 'Press {"type":"press_key","key":"up"} after observing 9F.',
+                "press_key": '观察完 9F 后执行 {"type":"press_key","key":"up"}。',
             },
         },
         {
             "id": "answer_choices",
-            "meaning": "Final interactable choices for 2F through 9F.",
+            "meaning": "2F 到 9F 的最终可选答案。",
             "actions": {
-                "press_key": 'Use Up/Down to show the inferred true floor, then press {"type":"press_key","key":"space"}.',
+                "press_key": (
+                    "使用 Up/Down 显示推断出的真正楼层，再执行 "
+                    '{"type":"press_key","key":"space"}。'
+                ),
             },
         },
     ],

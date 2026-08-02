@@ -3,12 +3,12 @@ extends Node
 
 const GardenGame1Rules = preload("res://garden/scripts/garden_game1_rules.gd")
 const WATERING_TASK_TEXT := (
-	"目标：用中央广场的 4 个满水壶，浇完向日葵房和绣球花房各 2 块草坪；"
+	"浇水目标 / WATERING：用中央广场的 4 个满水壶，浇完向日葵房和绣球花房各 2 块草坪；"
 	+ "兰花房草坪不要浇。每个水壶只能浇 1 块草坪。"
 )
-const RAIN_TASK_TEXT := "下雨了：雨停前到兰花房按门铃报警。"
+const RAIN_TASK_TEXT := "下雨警报 / RAIN ALERT：雨停前到兰花房按门铃报警。"
 const TASK_RULE_SUMMARY := (
-	"另一目标：等待 HUD 天气显示下雨，并在雨停前按兰花房门铃。"
+	"警报目标 / ALERT：等待 HUD 天气显示下雨，并在雨停前按兰花房门铃。"
 	+ "浇错目标、按错门铃、未下雨时按铃或错过雨期都会失败。"
 )
 
@@ -647,6 +647,8 @@ func _style_ui_label(label: Label) -> void:
 		label.add_theme_constant_override("outline_size", 4)
 		if label == _task_label or label == _message_label:
 			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if label == _task_label:
+			label.add_theme_font_size_override("font_size", 18)
 
 func _nearest_alarm_button() -> Node3D:
 	var player := get_node_or_null(player_path) as Node3D

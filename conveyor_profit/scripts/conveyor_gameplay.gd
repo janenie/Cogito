@@ -84,7 +84,7 @@ func initialize(
 	_make_button.activated.connect(_on_action_requested)
 	_undo_button.activated.connect(_on_action_requested)
 	_load_window(0)
-	_update_public_display("Choose ingredients from the moving belt")
+	_update_public_display("从传送带选择食材 / CHOOSE INGREDIENTS FROM THE BELT")
 
 
 func _process(delta: float) -> void:

@@ -162,6 +162,8 @@ func _run_test() -> void:
 		_assert(task_text.contains("档案室（ARCHIVE）"), "task card pairs the archive name with its sign")
 		_assert(task_text.contains("CEO OFFICE"), "task card names CEO OFFICE")
 		_assert(task_text.contains("只把其中 3 本"), "task card clearly excludes ordinary books")
+		_assert(task_text.contains("逐本靠近并对准"), "task card requires active book inspection")
+		_assert(task_text.contains("HUD 名称"), "task card explains the identity prompt")
 		_assert(task_text.contains("操作步骤"), "task card separates the operation sequence")
 		_assert(task_text.contains("①低层 → ②中层 → ③高层"), "task card shows the exact order")
 		_assert(task_text.contains("青色“书籍放置点”"), "task card identifies the destination")
@@ -179,11 +181,14 @@ func _run_test() -> void:
 		slot_ids.sort()
 		seen_layouts["|".join(slot_ids)] = true
 		for book: RigidBody3D in monitor._active_books:
-			var marker := book.get_node_or_null("TargetMarker") as Label3D
-			_assert(marker != null, "runtime book exposes target marker")
 			_assert(
-				marker != null and marker.visible == (book in monitor._target_books),
-				"only target books show the marker",
+				book.get_node_or_null("TargetMarker") == null,
+				"books do not expose a floating identity marker",
+			)
+			var expected_name := "任务书" if book in monitor._target_books else "普通书"
+			_assert(
+				book.display_name == expected_name,
+				"aiming at a book exposes its identity through the HUD name",
 			)
 			var carry_component: Variant = book.get_node_or_null("CarryableComponent")
 			_assert(carry_component != null and not carry_component.is_disabled, "all books start pickup-enabled")

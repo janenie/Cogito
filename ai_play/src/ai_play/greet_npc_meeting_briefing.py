@@ -7,7 +7,7 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "greet_npc_meeting",
-    "title": "先打招呼再去会议室",
+    "title": "先打招呼再去会议室 / GREET, THEN MEET",
     "background": (
         "这是一个第一人称办公室社交与导航任务。玩家需要读取任务卡，找到移动中的 NPC，"
         "完成一次近距离打招呼，然后进入会议室并关上会议室门。"

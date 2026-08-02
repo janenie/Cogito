@@ -7,7 +7,7 @@ from .reference_image import load_reference_image
 
 PUBLIC_BRIEFING = {
     "game_id": "find_key",
-    "title": "寻找办公室钥匙",
+    "title": "寻找办公室钥匙 / FIND OFFICE KEY",
     "background": (
         "这是一个第一人称办公室空间探索任务。玩家需要观察房间标识、家具和"
         "可交互物体，根据游戏内任务卡寻找目标。"

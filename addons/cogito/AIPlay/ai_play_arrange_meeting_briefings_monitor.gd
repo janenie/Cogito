@@ -10,10 +10,13 @@ const RECORD_TITLES := {
 	"break_room": "休息室会议记录 / BREAK ROOM RECORD",
 }
 const RECORD_INTERACTION_TEXT := {
-	"ceo": "Read CEO Office meeting record",
-	"archive": "Read Archive meeting record",
-	"break_room": "Read Break Room meeting record",
+	"ceo": "读取 CEO 办公室线索 / Read CEO Office clue",
+	"archive": "读取档案室线索 / Read Archive clue",
+	"break_room": "读取休息室线索 / Read Break Room clue",
 }
+const FOLDER_CARRY_DISTANCE_OFFSET := -0.75
+const FOLDER_CARRYING_VELOCITY_MULTIPLIER := 12.0
+const FOLDER_DROP_DISTANCE := 2.5
 
 @export var scenario_id: String = "arrange_meeting_briefings"
 @export var setup: Node3D
@@ -37,6 +40,7 @@ var _folder_to_seat: Dictionary = {}
 var _seat_to_folder: Dictionary = {}
 var _submitted_map: Dictionary = {}
 var _folder_home_transforms: Array[Transform3D] = []
+var _current_carried_folder: RigidBody3D = null
 
 
 func _ready() -> void:
@@ -59,6 +63,7 @@ func _activate_task() -> void:
 	_folder_home_transforms.clear()
 	for folder: RigidBody3D in folder_nodes:
 		_folder_home_transforms.append(folder.global_transform)
+		_configure_folder_carry(folder)
 	for seat_index: int in range(seat_interactions.size()):
 		seat_interactions[seat_index].monitor = self
 		seat_interactions[seat_index].seat_id = (
@@ -80,6 +85,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_submitted_map.clear()
 	_folder_to_seat.clear()
 	_seat_to_folder.clear()
+	_current_carried_folder = null
 	_reset_verify_button()
 	_set_play_interactions_enabled(true)
 	for index: int in range(folder_nodes.size()):
@@ -190,25 +196,26 @@ func _write_records() -> void:
 
 func _write_task_card() -> void:
 	var lines: Array[String] = [
-		"任务目标：读取三份会议记录，推断四位参会者资料对应的会议席位。",
+		"任务目标 / OBJECTIVE：读取三份会议记录，推断四位参会者资料对应的会议席位。",
 		"",
-		"调查地点：CEO 办公室 (CEO OFFICE)、档案室 (ARCHIVE)、",
+		"调查地点 / CLUE LOCATIONS：CEO 办公室 (CEO OFFICE)、档案室 (ARCHIVE)、",
 		"休息室 (BREAK ROOM)。每处记录只有一条线索，必须合并使用。",
 		"",
-		"参会者资料：李明、王芳、陈宇、赵宁。",
-		"会议席位：电视侧 (TV SIDE)、会议室门侧 (DOOR SIDE)、",
+		"参会者资料 / BRIEFINGS：李明、王芳、陈宇、赵宁。",
+		"会议席位 / SEATS：电视侧 (TV SIDE)、会议室门侧 (DOOR SIDE)、",
 		"电视对面侧 (OPPOSITE TV)、内墙侧 (INNER WALL)。",
 		"桌面的 ↻ CLOCKWISE 标记定义“顺时针下一席”的方向。",
 		"",
-		"操作：从电视附近侧桌拿起资料；手持资料对准空席位，",
-		"使用放置交互自动对齐。每席最多一份，提交前可重新调整。",
+		"操作 / ACTION：从电视附近侧桌单击拿起资料；无需按住或旋转，",
+		"资料会稳定贴近视角。手持资料对准空席位，使用放置交互自动对齐。",
+		"每席最多一份，提交前可重新调整。",
 		"系统不会提前提示正误。确认四份资料后，按出口旁的 Verify。",
 		"Verify 只有一次机会；资料缺失或摆错都会立即失败。",
 	]
 	var content: String = "\n".join(lines)
 	task_card.readable_title = TASK_TITLE
 	task_card.readable_content = content
-	task_card.interaction_text = "Read task card"
+	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:
@@ -265,11 +272,14 @@ func _reset_folder_to_home(index: int) -> void:
 	var folder: RigidBody3D = folder_nodes[index]
 	folder.linear_velocity = Vector3.ZERO
 	folder.angular_velocity = Vector3.ZERO
+	folder.collision_layer = 3
+	folder.collision_mask = 1
 	folder.freeze = true
 	folder.global_transform = _folder_home_transforms[index]
 
 
 func _freeze_all_folders() -> void:
+	_current_carried_folder = null
 	for folder: RigidBody3D in folder_nodes:
 		folder.linear_velocity = Vector3.ZERO
 		folder.angular_velocity = Vector3.ZERO
@@ -280,13 +290,19 @@ func _on_folder_carry_state_changed(
 	is_being_carried: bool,
 	folder_id: String,
 ) -> void:
-	if not _task_active or _round_finished or not is_being_carried:
+	if not _task_active or _round_finished:
 		return
 	var folder_index: int = AIPlayMeetingBriefingRound.FOLDER_IDS.find(folder_id)
-	if folder_index >= 0:
-		folder_nodes[folder_index].linear_velocity = Vector3.ZERO
-		folder_nodes[folder_index].angular_velocity = Vector3.ZERO
-	_clear_folder_placement(folder_id)
+	if folder_index < 0:
+		return
+	var folder: RigidBody3D = folder_nodes[folder_index]
+	if is_being_carried:
+		_current_carried_folder = folder
+		_stabilize_carried_folder(folder)
+		_clear_folder_placement(folder_id)
+	elif _current_carried_folder == folder:
+		_restore_dropped_folder_physics(folder)
+		_current_carried_folder = null
 
 
 func _clear_folder_placement(folder_id: String) -> void:
@@ -300,6 +316,66 @@ func _clear_folder_placement(folder_id: String) -> void:
 
 func _carry_component(folder: RigidBody3D) -> CogitoCarryableComponent:
 	return folder.get_node_or_null("CarryableComponent") as CogitoCarryableComponent
+
+
+func _configure_folder_carry(folder: RigidBody3D) -> void:
+	var carry: CogitoCarryableComponent = _carry_component(folder)
+	if carry == null:
+		return
+	carry.carry_distance_offset = FOLDER_CARRY_DISTANCE_OFFSET
+	carry.carrying_velocity_multiplier = FOLDER_CARRYING_VELOCITY_MULTIPLIER
+	carry.drop_distance = FOLDER_DROP_DISTANCE
+	carry.enable_manual_rotating = false
+
+
+func _physics_process(_delta: float) -> void:
+	if not _task_active or _round_finished or _current_carried_folder == null:
+		return
+	var carry: CogitoCarryableComponent = _carry_component(_current_carried_folder)
+	if carry != null and carry.is_being_carried:
+		_stabilize_carried_folder(_current_carried_folder)
+
+
+func _stabilize_carried_folder(folder: RigidBody3D) -> void:
+	if folder == null:
+		return
+	folder.freeze = true
+	folder.collision_layer = 0
+	folder.collision_mask = 0
+	_snap_folder_to_carry_position(folder)
+
+
+func _snap_folder_to_carry_position(folder: RigidBody3D) -> void:
+	var interaction_component: Variant = _player_interaction_component()
+	if interaction_component == null:
+		return
+	if not interaction_component.has_method("get_carryable_destination_point"):
+		return
+	var destination: Variant = interaction_component.call(
+		"get_carryable_destination_point",
+		FOLDER_CARRY_DISTANCE_OFFSET,
+	)
+	if destination is Vector3:
+		folder.global_position = destination
+		folder.linear_velocity = Vector3.ZERO
+		folder.angular_velocity = Vector3.ZERO
+
+
+func _restore_dropped_folder_physics(folder: RigidBody3D) -> void:
+	if folder == null:
+		return
+	folder.linear_velocity = Vector3.ZERO
+	folder.angular_velocity = Vector3.ZERO
+	folder.collision_layer = 3
+	folder.collision_mask = 1
+	folder.freeze = false
+
+
+func _player_interaction_component() -> Variant:
+	var interaction_component: Variant = player.get("player_interaction_component")
+	if interaction_component != null:
+		return interaction_component
+	return player.get_node_or_null("PlayerInteractionComponent")
 
 
 func _folder_index_for_carry(carry: Variant) -> int:

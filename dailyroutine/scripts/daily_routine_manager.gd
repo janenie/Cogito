@@ -209,11 +209,11 @@ func submit_cleanup() -> bool:
 	return false
 
 func place_trash_at_door() -> bool:
-	_set_objective("Use the living room trash bin.")
+	_set_objective("请使用客厅垃圾桶 / Use the living room trash bin.")
 	return false
 
 func take_room_bin(room_id: String, actor: Node3D = null, bin_position := Vector3.ZERO) -> bool:
-	_set_objective("No need to pick up the trash bin.")
+	_set_objective("无需拿起垃圾桶 / No need to pick up the trash bin.")
 	return false
 
 func clear_room_bin(room_id: String, actor: Node3D = null, bin_position := Vector3.ZERO) -> bool:
@@ -226,7 +226,7 @@ func place_trash_bag_at_door() -> bool:
 	return empty_held_bin_at_door()
 
 func empty_held_bin_at_door() -> bool:
-	_set_objective("There is no front-door pickup today.")
+	_set_objective("今天门口没有待取物 / There is no front-door pickup today.")
 	return false
 
 func evaluate_deadline() -> void:

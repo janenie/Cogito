@@ -100,6 +100,8 @@ func configure_round(seed_value: int = 0) -> void:
 	_place_player_and_task_card(spawn_index)
 	AIPlayReadablePresenter.configure(task_card, true)
 	_place_clues()
+	for active_clue: ReadableComponent in _active_clues:
+		AIPlayReadablePresenter.configure(active_clue)
 	_write_round_documents()
 	_update_interaction_gates()
 
@@ -238,36 +240,36 @@ func _reparent_to_anchor(object: Node3D, anchor: Node3D) -> void:
 func _write_round_documents() -> void:
 	_set_readable(
 		task_card,
-		"本局档案室任务卡",
+		"档案室合同任务 / ARCHIVE CONTRACT TASK",
 		(
-			"任务目标：按顺序读取三份合同记录，组合本局 6 位数字密码并解锁 ARCHIVE。\n\n"
-			+ "调查流程：\n"
+			"任务目标 / OBJECTIVE：按顺序读取三份合同记录，组合本局 6 位数字密码并解锁 ARCHIVE。\n\n"
+			+ "调查流程 / INVESTIGATION：\n"
 			+ "1. 从下方第一处地点开始；当前记录会公开下一处地点。\n"
 			+ "2. 必须按记录 1/3 → 2/3 → 3/3 的顺序阅读，不能提前跳步。\n"
 			+ "3. 记录可能是圆形 COGITO Hint、实体文件或书本，均可重复读取。\n\n"
 			+ "第一处地点：%s\n\n"
-			+ "提交规则：三份记录分别给出日期代码、版本代码和拼接顺序。"
+			+ "提交规则 / SUBMISSION：三份记录分别给出日期代码、版本代码和拼接顺序。"
 			+ "读完记录 3/3 后再使用 ARCHIVE 密码盘；提交错误密码会立即失败。"
 		) % _selected_route[0],
-		"Read task card",
+		"读取任务说明 / Read task brief",
 	)
 	_set_readable(
 		_active_clues[0],
-		"合同记录 1/3：签署日期",
+		"合同线索 1/3：签署日期 / SIGNING DATE",
 		(
 			"签署日期代码：%s（MMDD）\n\n"
 			+ "下一份合同记录位于：%s"
 		) % [_selected_date, _selected_route[1]],
-		"Read contract 1",
+		"读取合同线索 1/3 / Read clue 1/3",
 	)
 	_set_readable(
 		_active_clues[1],
-		"合同记录 2/3：版本号",
+		"合同线索 2/3：版本号 / VERSION",
 		(
 			"合同版本代码：%s（VV）\n\n"
 			+ "最终授权记录位于：%s"
 		) % [_selected_version, _selected_route[2]],
-		"Read contract 2",
+		"读取合同线索 2/3 / Read clue 2/3",
 	)
 	var order_text := (
 		"版本号在前、签署日期在后（VV + MMDD）"
@@ -276,9 +278,9 @@ func _write_round_documents() -> void:
 	)
 	_set_readable(
 		_active_clues[2],
-		"合同记录 3/3：门禁拼接顺序",
+		"合同线索 3/3：门禁拼接顺序 / CODE ORDER",
 		"最终授权：%s\n\n读完本记录后，ARCHIVE 密码盘才会接受本局密码。" % order_text,
-		"Read contract 3",
+		"读取合同线索 3/3 / Read clue 3/3",
 	)
 
 
