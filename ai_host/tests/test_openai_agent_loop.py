@@ -1,6 +1,8 @@
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
 from ai_host.attempt_state import AttemptContext, ReflectionMemory
 from ai_host.agents.openai_responses import (
     ToolInteractionBudget,
@@ -16,13 +18,31 @@ from ai_host.config import HostConfig
 def test_terminal_detection_for_game_over_payload():
     payload = {
         "status": "game_over",
-        "outcome": "success",
-        "reason": "cleanup_complete",
+        "game_over": {
+            "type": "game_over",
+            "protocol_version": 4,
+            "observation_id": 7,
+            "outcome": "success",
+            "reason": "cleanup_complete",
+        },
     }
 
     terminal = is_terminal_payload(payload)
 
     assert terminal == ("success", "cleanup_complete")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": "game_over"},
+        {"status": "game_over", "game_over": "invalid"},
+        {"status": "game_over", "game_over": {"outcome": "unknown", "reason": "x"}},
+        {"status": "game_over", "game_over": {"outcome": "success", "reason": ""}},
+    ],
+)
+def test_terminal_detection_rejects_malformed_game_over(payload):
+    assert is_terminal_payload(payload) is None
 
 
 def test_terminal_detection_ignores_ready_observation():

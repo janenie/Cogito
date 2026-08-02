@@ -22,9 +22,17 @@ from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
 try:
-    from .ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+    from .ai_play_scene_registry import (
+        DEFAULT_SCENE,
+        SUPPORTED_SCENARIOS,
+        resolve_scene,
+    )
 except ImportError:
-    from ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
+    from ai_play_scene_registry import (
+        DEFAULT_SCENE,
+        SUPPORTED_SCENARIOS,
+        resolve_scene,
+    )
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -155,8 +163,9 @@ def build_player_developer_instructions() -> str:
 你是通过视觉与获准 MCP 工具操作 3D 游戏的黑盒玩家。briefing 是游戏规则、目标和物体操作说明的
 唯一权威来源；每局先读取并遵守它，像人类玩家一样从第一次进入场景开始观察、探索、规划和纠错。
 
-observe 和 act 在工具结果中返回的图片属于你的获准视觉输入。第一张图片是正常画面的 JPEG 截图；第二张图片是 PNG 深度图，
-深度图越暗表示越近，白色表示 20 米外或当前无法取得深度。首次 observe 后，每次成功的 act 已经携带下一份观察，
+observe 和 act 在工具结果中返回的图片属于你的获准视觉输入。第一张图片是正常画面的 JPEG 截图；
+如果返回第二张图片，它是 PNG 深度图，越暗表示越近，白色表示 20 米外或当前无法取得深度。
+首次 observe 后，每次成功的 act 已经携带下一份观察，
 不要为了刷新画面重复调用 observe。你可以并且应该比较当前截图与本会话之前由 observe 或 act 返回的截图，
 依据画面中物体大小、屏幕位置、透视、可见/遮挡和朝向的变化，推断相对位移、转向、遮挡变化和地标关系，
 逐步建立以可见地标为依据的空间理解。动作后必须用新截图验证实际变化；
@@ -433,14 +442,19 @@ def build_player_prompt(
 9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
 10. 终局后调用 workflow_memory_update，但 stopped、disconnected 或其他异常局不要更新。
 11. 成功局提交由本局公开证据支持的抽象 workflow、landmarks 和 avoid。
-12. 失败局只提交 avoid：workflow 和 landmarks 必须为空，不得把未验证路线晋升为经验。
-13. 不要保存图片、图片引用、Base64 或 embedding；不要保存局内具体答案、随机结果、绝对坐标、
+12. 失败局的 workflow 和 landmarks 必须为空；提交 avoid 和 failure_review，不得把未验证路线晋升为经验。
+    failure_review 只包含 stage、bottlenecks 和 optimizations，概括目标分类、导航、交互选择或
+    请求预算管理中可跨局复用的瓶颈与优化，不要叙述逐帧经过。
+13. 下一局读取 failure_reviews 后，用最新 briefing 和 observe（或 act 返回的新观察）判断建议；
+    公开说明哪些优化适用、有哪些新证据，以及适用建议如何改变当前计划；忽略不适用的建议。
+14. 不要保存图片、图片引用、Base64 或 embedding；不要保存局内具体答案、随机答案或随机结果、绝对坐标、
     逐帧动作序列、文件路径、URL 或内部实现信息。
-14. 局数以 workflow_memory_read 返回的 completed_runs 为准；stopped、disconnected、shutdown
+15. 局数以 workflow_memory_read 返回的 completed_runs 为准；stopped、disconnected、shutdown
     或其他异常重试不算完成一局，也不得自行增加局数。eligible 更新返回后再等待下一局，
     并重新从 briefing 开始。"""
         decision_memory = (
-            "3. 记录 workflow memory 提供了什么高层经验，以及最新观察是否支持采用它。\n"
+            "3. 记录 workflow memory 提供了什么高层经验；若有 failure_reviews，说明哪些优化适用、\n"
+            "   最新 briefing 和 observe（或 act 新观察）提供了什么证据，以及适用建议如何改变当前计划。\n"
             "4. 记录最新 observe 或 act 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
             "5. 主动 Keep 这份 memory：每次 observe 或 act 后用新证据更新当前目标、已确认地标、\n"
             "   已试过但失败的路线，以及终局后要提交的抽象候选；不要把图片本身写入 memory。"
@@ -472,9 +486,10 @@ def build_player_prompt(
 6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；成功的 act 返回下一份观察，
    直接用它重新规划，不要再调用 observe。只有开局或 act 未返回观察且会话仍可继续时才调用 observe。
 {memory_rules}
-15. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
-16. 若当前工具结果是 stopped 或 disconnected，但还没有完成全部 {runs} 次，继续调用 observe
-   等待下一局；observe 仍返回 stopped/disconnected 时等待后再 observe，直到出现新的可玩观察。
+16. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
+17. 若当前工具结果是 disconnected 且还没有完成全部 {runs} 次，继续调用 observe 等待同一局
+   的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。
+   stopped 表示操作者主动中止整次运行：立即停止调用工具，此时允许结束会话，无需凑满局数。
 
 像人一样玩：
 1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
@@ -525,6 +540,8 @@ def run_orchestrated_session(
     mcp_port: int,
     mcp_start_timeout_seconds: float,
     codex_exit_grace_seconds: float,
+    idle_timeout_seconds: float,
+    codex_final_grace_seconds: float,
 ) -> int:
     outputs: queue.Queue[tuple[str, str | None]] = queue.Queue()
     mcp = None
@@ -580,16 +597,24 @@ def run_orchestrated_session(
             supervisor_env,
         )
         _start_output_reader("supervisor", supervisor, outputs)
+        last_activity_at = time.monotonic()
 
         while True:
-            _print_available_output(outputs)
+            if _print_available_output(outputs):
+                last_activity_at = time.monotonic()
             mcp_code = mcp.poll()
             supervisor_code = supervisor.poll()
             codex_code = codex.poll()
             if mcp_code is not None:
                 return 4 if mcp_code == 0 else mcp_code
             if supervisor_code is not None:
-                return supervisor_code
+                return _finish_after_supervisor(
+                    supervisor_code,
+                    mcp,
+                    codex,
+                    outputs,
+                    codex_final_grace_seconds,
+                )
             if codex_code is not None:
                 deadline = time.monotonic() + codex_exit_grace_seconds
                 while time.monotonic() < deadline:
@@ -602,6 +627,13 @@ def run_orchestrated_session(
                         return supervisor_code
                     time.sleep(0.05)
                 return 3 if codex_code == 0 else codex_code
+            if time.monotonic() - last_activity_at > idle_timeout_seconds:
+                print(
+                    "[orchestrator] no child-process output for %.1fs; "
+                    "stopping stalled session" % idle_timeout_seconds,
+                    flush=True,
+                )
+                return 5
             time.sleep(0.05)
     finally:
         for process in (supervisor, codex, mcp):
@@ -678,14 +710,38 @@ def _read_labeled_output(
     outputs.put((label, None))
 
 
-def _print_available_output(outputs: queue.Queue[tuple[str, str | None]]) -> None:
+def _finish_after_supervisor(
+    supervisor_code: int,
+    mcp: subprocess.Popen[str],
+    codex: subprocess.Popen[str],
+    outputs: queue.Queue[tuple[str, str | None]],
+    grace_seconds: float,
+) -> int:
+    """Allow Codex to consume the terminal result and emit its final response."""
+    deadline = time.monotonic() + grace_seconds
+    while True:
+        _print_available_output(outputs)
+        mcp_code = mcp.poll()
+        codex_code = codex.poll()
+        if mcp_code is not None:
+            return 4 if mcp_code == 0 else mcp_code
+        if codex_code is not None or time.monotonic() >= deadline:
+            return supervisor_code
+        time.sleep(0.05)
+
+
+def _print_available_output(
+    outputs: queue.Queue[tuple[str, str | None]],
+) -> bool:
+    printed = False
     while True:
         try:
             label, line = outputs.get_nowait()
         except queue.Empty:
-            return
+            return printed
         if line is not None:
             print("[%s] %s" % (label, line), end="", flush=True)
+            printed = True
 
 
 def _terminate_process(process: subprocess.Popen[str]) -> None:
@@ -735,6 +791,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=100000.0)
     parser.add_argument("--mcp-start-timeout-seconds", type=float, default=30.0)
     parser.add_argument("--codex-exit-grace-seconds", type=float, default=5.0)
+    parser.add_argument("--idle-timeout-seconds", type=float, default=600.0)
+    parser.add_argument("--codex-final-grace-seconds", type=float, default=30.0)
     return parser.parse_args(argv)
 
 
@@ -749,6 +807,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         validate_model_argument("--model", args.model)
         validate_model_argument("--reasoning-effort", args.reasoning_effort)
         session_root = validate_isolated_session_root(args.session_root)
+        scene = resolve_scene(args.scenario, args.scene)
         codex_bin = resolve_codex_bin(args.codex_bin)
     except ValueError as error:
         raise SystemExit(str(error)) from error
@@ -767,6 +826,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--mcp-start-timeout-seconds must be positive")
     if args.codex_exit_grace_seconds <= 0:
         raise SystemExit("--codex-exit-grace-seconds must be positive")
+    if args.idle_timeout_seconds <= 0:
+        raise SystemExit("--idle-timeout-seconds must be positive")
+    if args.codex_final_grace_seconds <= 0:
+        raise SystemExit("--codex-final-grace-seconds must be positive")
     try:
         auth_home = validate_codex_auth_home(args.codex_auth_home)
     except ValueError as error:
@@ -790,7 +853,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         python_bin=args.python_bin,
         runs=args.runs,
         scenario=args.scenario,
-        scene=resolve_scene(args.scenario, args.scene),
+        scene=scene,
         godot_bin=args.godot_bin,
         max_retries=args.max_retries,
         timeout_seconds=args.timeout_seconds,
@@ -836,6 +899,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             mcp_port=args.mcp_port,
             mcp_start_timeout_seconds=args.mcp_start_timeout_seconds,
             codex_exit_grace_seconds=args.codex_exit_grace_seconds,
+            idle_timeout_seconds=args.idle_timeout_seconds,
+            codex_final_grace_seconds=args.codex_final_grace_seconds,
         )
 
 

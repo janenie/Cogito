@@ -24,6 +24,7 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   - `scenarios.py`：玩法 ID 到公开简报 loader 的显式白名单。
   - `briefing.py`：经过白名单筛选的公开任务简报和固定参考图入口。
   - `action_schema.py` 和 `observation_schema.py`：严格的传输数据验证。
+  - `workflow_memory.py`：会话级 AWM 的验证、可信终局绑定和有界失败复盘。
 - `ai_play/assets/find_contract/`：公开简报使用的固定视觉参考资产；不包含谜题答案。
 - `ai_play/tests/`：pytest 单元测试和本机回环集成测试。
 - `tools/`：隔离 Codex 玩家编排器和 Godot supervisor。
@@ -34,6 +35,8 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
 - `dailyroutine/`：独立的家庭日常清理场景及脚本，对应
   `daily_routine_cleanup` AI Play 任务。
 - `garden/`：独立的社区花园场景及脚本，对应 `garden_watering` AI Play 任务。
+- `conveyor_profit/`：独立的十窗口经营场景及语义动作实现，对应 `conveyor_profit` 任务。
+- `ai_host/`：保留用于兼容和实验的旧多局 Host；当前受维护入口是 `tools/` 下的 orchestrator。
 - `tests/ai_play/`：Godot 无界面契约测试。
 - `tests/garden/`：花园玩法和 AI Play 接线的 Godot 无界面测试。
 - `tests/*.sh`：场景、启动、NPC 和凭据的静态检查。

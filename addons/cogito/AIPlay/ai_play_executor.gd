@@ -24,7 +24,8 @@ const CONVEYOR_ACTIONS: Array[String] = [
 	"select_ingredient", "undo", "make", "wait_next_window",
 ]
 const CONVEYOR_INGREDIENT_IDS: Array[String] = [
-	"lettuce", "tomato", "bread", "egg", "mushroom", "cheese", "fish", "meat",
+	"lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom", "onion", "pumpkin",
+	"bread", "meat", "egg", "cheese", "bacon", "broccoli", "corn", "fish",
 ]
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe

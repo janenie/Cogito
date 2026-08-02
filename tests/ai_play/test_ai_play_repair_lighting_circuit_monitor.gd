@@ -145,6 +145,33 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		"Verify label stays centered with its button",
 	)
 	_assert(monitor.lobby_lamps.size() == 6, "Lobby circuit contains six ceiling lamps")
+	for control_id: String in ["A", "B", "C", "D"]:
+		var control: Node = monitor._control_switches()[control_id]
+		_assert(
+			control.interaction_text_when_on == "Switch circuit %s off" % control_id
+			and control.interaction_text_when_off == "Switch circuit %s on" % control_id,
+			"%s switch publishes a distinct semantic prompt" % control_id,
+		)
+	_assert(
+		monitor.breaker_entrance.usable_interaction_text == "Reset Entrance lighting breaker",
+		"entrance breaker prompt is distinct",
+	)
+	_assert(
+		monitor.breaker_ceo.usable_interaction_text == "Reset CEO office lighting breaker",
+		"CEO breaker prompt is distinct",
+	)
+	_assert(
+		monitor.breaker_lobby.usable_interaction_text == "Reset Lobby ceiling lighting breaker",
+		"Lobby breaker prompt is distinct",
+	)
+	_assert(
+		monitor.breaker_break_room.usable_interaction_text == "Reset Break room lighting breaker",
+		"break-room breaker prompt is distinct",
+	)
+	_assert(
+		monitor.verify_button.usable_interaction_text == "Verify lighting configuration",
+		"Verify publishes a semantic prompt",
+	)
 	_assert(
 		monitor.task_card.readable_content.contains("入口落地灯"),
 		"task card lists entrance target",
@@ -264,6 +291,11 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.control_switch_a.objects_call_interact.size() == 6,
 		"exit restores A's six ordinary Lobby targets",
 	)
+	for control: Node in monitor._original_control_states:
+		_assert(
+			control.is_on == monitor._original_control_states[control],
+			"exit restores %s switch state" % control.name,
+		)
 	_assert(
 		monitor.control_switch_a.collision_layer == 3
 		and not monitor.control_switch_a.get_node("BasicInteraction").is_disabled,
@@ -277,6 +309,17 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		_assert(control.collision_layer == 0, "exit disables %s collision" % control.name)
 	for button: Node in _panel_buttons(monitor):
 		_assert(button.collision_layer == 0, "exit disables %s collision" % button.name)
+	for object: Node in monitor._original_panel_collision_layers:
+		_assert(
+			object.collision_layer == monitor._original_panel_collision_layers[object],
+			"exit restores %s collision layer exactly" % object.name,
+		)
+		if object in monitor._original_panel_interaction_states:
+			_assert(
+				object.get_node("BasicInteraction").is_disabled
+				== monitor._original_panel_interaction_states[object],
+				"exit restores %s interaction state exactly" % object.name,
+			)
 
 
 func _test_isolation(lobby: Node, monitor: Node, setup: Node) -> void:

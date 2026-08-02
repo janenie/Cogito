@@ -102,6 +102,45 @@ class ProbeInteractionAction(_StrictToolInput):
     target_y: Annotated[float, Field(ge=0, le=1)]
 
 
+ConveyorIngredientId = Literal[
+    "lettuce",
+    "tomato",
+    "carrot",
+    "avocado",
+    "sausage",
+    "mushroom",
+    "onion",
+    "pumpkin",
+    "bread",
+    "meat",
+    "egg",
+    "cheese",
+    "bacon",
+    "broccoli",
+    "corn",
+    "fish",
+]
+
+
+class SelectIngredientAction(_StrictToolInput):
+    """Select one public conveyor ingredient by its stable identifier."""
+
+    type: Literal["select_ingredient"]
+    ingredient: ConveyorIngredientId
+
+
+class UndoAction(_StrictToolInput):
+    type: Literal["undo"]
+
+
+class MakeAction(_StrictToolInput):
+    type: Literal["make"]
+
+
+class WaitNextWindowAction(_StrictToolInput):
+    type: Literal["wait_next_window"]
+
+
 ActionInput = Union[
     LookAction,
     MoveAction,
@@ -113,6 +152,10 @@ ActionInput = Union[
     CloseUIAction,
     WaitAction,
     ProbeInteractionAction,
+    SelectIngredientAction,
+    UndoAction,
+    MakeAction,
+    WaitNextWindowAction,
 ]
 ActionBatchInput = SkipValidation[
     Annotated[
@@ -144,6 +187,18 @@ class WorkflowStepInput(_StrictToolInput):
 
 class LandmarkInput(_StrictToolInput):
     relation: PublicText
+
+
+class FailureReviewInput(_StrictToolInput):
+    stage: PublicText
+    bottlenecks: Annotated[
+        list[PublicText],
+        Field(min_length=1, max_length=3),
+    ]
+    optimizations: Annotated[
+        list[PublicText],
+        Field(min_length=1, max_length=4),
+    ]
 
 
 WorkflowInput = SkipValidation[

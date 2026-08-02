@@ -40,8 +40,20 @@ const REASON_TEXT := {
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome
 @onready var reason_label: Label = $Screen/Center/Content/Margin/Labels/Reason
+@onready var exit_button: Button = $Screen/Center/Content/Margin/Labels/ExitButton
 
 var _finished: bool = false
+
+
+func _ready() -> void:
+	exit_button.pressed.connect(_request_exit)
+
+
+func _input(event: InputEvent) -> void:
+	if not _should_exit_for_event(event):
+		return
+	get_viewport().set_input_as_handled()
+	_request_exit()
 
 
 func show_result(outcome: String, reason: String) -> void:
@@ -56,3 +68,24 @@ func show_result(outcome: String, reason: String) -> void:
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	get_tree().paused = true
+	exit_button.grab_focus()
+
+
+func _should_exit_for_event(event: InputEvent) -> bool:
+	if not _finished or event.device == AIPlayExecutor.SYNTHETIC_DEVICE_ID:
+		return false
+	if not event is InputEventKey:
+		return false
+	var key_event := event as InputEventKey
+	return (
+		key_event.pressed
+		and not key_event.echo
+		and (
+			key_event.keycode == KEY_ESCAPE
+			or key_event.physical_keycode == KEY_ESCAPE
+		)
+	)
+
+
+func _request_exit() -> void:
+	get_tree().quit()

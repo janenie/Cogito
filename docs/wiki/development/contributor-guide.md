@@ -65,6 +65,13 @@ $env:PYTHONPATH = "ai_play/src"
 .\.venv\Scripts\python.exe -m pytest ai_play\tests -q
 ```
 
+需要一次收集 canonical MCP、工具脚本和 legacy `ai_host` 测试时，使用不冲突的统一命令：
+
+```bash
+PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest \
+  ai_play/tests ai_host/tests tests/*.py tests/conveyor_profit/test_protocol_parity.py -q
+```
+
 MCP 相关测试还必须验证工具列表、结构化结果、图片内容、串行动作、过期观察 ID、
 Godot 断线和停止时的输入释放；测试不得启动真实外部模型或使用真实凭据。
 
@@ -75,9 +82,9 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 ```
 
 这些测试只使用临时目录和伪进程，覆盖隔离运行目录、临时认证副本、HTTP MCP 工具白名单、
-异常重试及停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。当前 controller 的 Escape 停止会
-输出可被 supervisor 记为 `failure/stopped` 的标识；MCP `stop` 只完成 `stop_ack` 并释放输入，
-不产生监督回合终局标识。
+异常重试及停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。controller 的 Escape
+或 MCP stop 会让 supervisor 返回 `stopped` 并中止整次运行；桥断开、MCP shutdown、超时和
+无正式终局的提前退出只重试当前有效局次，不能计入任务成功率。
 
 黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时副本清理、空且隔离的玩家目录、
 确定性临时 Codex 配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
@@ -94,12 +101,14 @@ godot --headless --path . --script tests/ai_play/test_ai_play_observer.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_controller.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_interaction_probe.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_lighting_circuit_round.gd
+godot --headless --path . --script tests/ai_play/test_ai_play_repair_lighting_circuit_monitor.gd -- --ai-play --ai-play-scenario=repair_lighting_circuit
 godot --headless --path . --script tests/ai_play/test_ai_play_meeting_briefing_round.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_meeting_seat_interaction.gd
 godot --headless --path . --script tests/ai_play/test_cogito_keypad_result.gd
 godot --headless --path . --script tests/garden/test_garden_ai_play.gd
 godot --headless --path . --script tests/garden/test_garden_game1.gd
 godot --headless --path . --script tests/garden/test_garden_scene.gd
+godot --headless --path . --script tests/dailyroutine/test_home_ai_play_observer.gd
 ```
 
 隔离 Codex 玩家多局验收的 Godot 生命周期由 supervisor 管理；真实运行前还须获得用户对截图、
@@ -116,7 +125,7 @@ python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 orchestrator 每次在隔离的 `--session-root` 下创建空玩家启动目录和可信的 `trusted_mcplogs/`。
 supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>`
 终局标识、`AI_PLAY disabled; reason=mcp_stop|escape_stop` 停止标识和进程状态；
-MCP/Godot 停止标识按 `failure/stopped` 计入该局并继续后续局数。两者都不得扩展为读取
+MCP/Godot 停止标识中止整次运行；基础设施异常有限重试同一局。两者都不得扩展为读取
 轨迹、截图、源码或模型上下文。隔离玩家 Codex 不读取 `AI_PLAY_LOG_ROOT`、轨迹、摘要
 或截图；这些内容只留在可信 MCP 边车侧，玩家只可通过获准的五个 MCP 工具取得公开结果。
 

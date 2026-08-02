@@ -9,7 +9,8 @@ AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游�
 `find_key`、`put_book`、`greet_npc_meeting`、`repair_lighting_circuit`、
 `arrange_meeting_briefings`，以及导入到当前仓库的
 `dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup` 和
-`garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，共 8 个任务。
+`garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，以及独立场景
+`conveyor_profit/scenes/conveyor_profit_preview.tscn` 中的 `conveyor_profit`，共 9 个任务。
 MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
 
 ## 1. 准备环境
@@ -147,8 +148,9 @@ C:\ABSOLUTE\PATH\TO\Cogito\.venv\Scripts\python.exe
 [`tutorial/README.md`](tutorial/README.md)。
 
 如果要让同一任务最多重玩 3 局，并在失败后重启 Godot、总结流程级错误、把改进策略带入
-下一局，可使用 [`ai_host/`](ai_host/README.md)。`ai_host` 是外层 supervisor，
-复用同一套 MCP server 和 Godot AI Play 桥，不把多局自进化逻辑放进 MCP server。
+下一局，使用 [`tools/ai_play_codex_orchestrator.py`](tools/ai_play_codex_orchestrator.py)；完整
+用法和隔离边界见 [`ai_play/README.md`](ai_play/README.md)。[`ai_host/`](ai_host/README.md)
+仅保留用于兼容和实验。
 
 ## 3. 启动游戏
 
@@ -288,8 +290,7 @@ $env:PYTHONPATH = "ai_play/src"
 不允许或已有动作在途；`briefing`、`observe`、`stop` 和工作流记忆工具不计数。
 `find_contract` 的硬上限为 300 次，允许 `success/correct_password`、
 `failure/wrong_password` 和
-`failure/max_requests`；`find_key` 根据本局位置使用 50 或 100 次硬上限，公开
-briefing 只说明最大值 100 次，允许
+`failure/max_requests`；当前 `find_key` 每局使用 50 次硬上限，允许
 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 150 次，允许
 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和 `failure/max_requests`；
 `greet_npc_meeting` 的硬上限为 100 次，
@@ -300,14 +301,15 @@ briefing 只说明最大值 100 次，允许
 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，允许
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
-`arrange_meeting_briefings` 的硬上限为 200 次，允许 `success/meeting_prepared`、
+`arrange_meeting_briefings` 的硬上限为 100 次，允许 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 和 `failure/max_requests`。
 `find_key` 和 `greet_npc_meeting` 没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
-`find_key` 只在内部版本 4 握手中发送经过验证的 50/100 上限，不发送所选位置；该上限
-不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时必须保持一致。
+`find_key` 只在内部版本 4 握手中发送经过验证的上限，不发送所选位置；Python 桥为兼容
+旧 Godot 仍接受 50 或 100。该上限不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时
+必须保持一致。
 
 最小的 `act` 参数示例：
 

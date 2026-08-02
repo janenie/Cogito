@@ -21,7 +21,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "四份资料全部位于正确席位，并按下 Verify。",
     "failure_condition": (
-        "Verify 只有一次机会；资料缺失或席位错误会立即失败；最多允许 200 次 act 请求。"
+        "Verify 只有一次机会；资料缺失或席位错误会立即失败；最多允许 100 次 act 请求。"
     ),
     "rules": COMMON_CONTROL_RULES + [
         "第一步一定要找到并读取出生点附近的任务卡；任务卡可重复阅读。",

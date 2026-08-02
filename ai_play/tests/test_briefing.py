@@ -322,7 +322,7 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
     for legacy_name in ["ATLAS", "BIRCH", "CROWN", "DELTA"]:
         assert legacy_name not in serialized
     assert "顺时针" in serialized
-    assert "200 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
     assert "一次" in serialized
     assert image_bytes.startswith(b"\xff\xd8\xff")
     assert image_bytes.endswith(b"\xff\xd9")
@@ -397,7 +397,7 @@ def test_find_contract_briefing_teaches_flexible_look_and_depth_estimation():
     serialized_rules = "\n".join(briefing["rules"])
 
     assert "灵活调整视角" in serialized_rules
-    assert "重新 observe" in serialized_rules
+    assert "act 返回的新观察" in serialized_rules
     assert "深度估计" in serialized_rules
     assert "自己与物体的距离" in serialized_rules
     assert "300 次 act 请求" in briefing["failure_condition"]

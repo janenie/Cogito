@@ -170,6 +170,7 @@ def valid_workflow_candidate():
         }],
         "landmarks": [{"relation": "先建立出生区域与主要地标的相对方向"}],
         "avoid": ["没有交互提示时不要重复 interact"],
+        "failure_review": None,
     }
 
 
@@ -199,6 +200,19 @@ def test_mcp_exposes_only_game_tools():
                 "workflow_memory_read",
                 "workflow_memory_update",
             ]
+            update_tool = next(
+                tool for tool in tools.tools
+                if tool.name == "workflow_memory_update"
+            )
+            assert "failure_review" in update_tool.inputSchema["properties"]
+            assert "failure_review" not in update_tool.inputSchema.get("required", [])
+            review = update_tool.inputSchema["$defs"]["FailureReviewInput"]
+            assert review["additionalProperties"] is False
+            assert review["properties"]["stage"]["maxLength"] == 240
+            assert review["properties"]["bottlenecks"]["minItems"] == 1
+            assert review["properties"]["bottlenecks"]["maxItems"] == 3
+            assert review["properties"]["optimizations"]["minItems"] == 1
+            assert review["properties"]["optimizations"]["maxItems"] == 4
 
     asyncio.run(run())
 
@@ -234,6 +248,10 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
                 "close_ui",
                 "wait",
                 "probe_interaction",
+                "select_ingredient",
+                "undo",
+                "make",
+                "wait_next_window",
             }
             move = definitions["MoveAction"]
             assert move["additionalProperties"] is False
@@ -241,6 +259,12 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
             assert move["properties"]["forward"]["maximum"] == 1
             assert move["properties"]["duration_ms"]["minimum"] == 50
             assert move["properties"]["duration_ms"]["maximum"] == 250
+            select_ingredient = definitions["SelectIngredientAction"]
+            assert set(select_ingredient["properties"]["ingredient"]["enum"]) == {
+                "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",
+                "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
+                "broccoli", "corn", "fish",
+            }
 
     asyncio.run(run())
 
@@ -366,6 +390,7 @@ def test_observe_tool_description_explains_screenshot_and_depth_images(monkeypat
             observe_tool = next(tool for tool in tools.tools if tool.name == "observe")
             assert "first image" in observe_tool.description
             assert "JPEG" in observe_tool.description
+            assert "When present" in observe_tool.description
             assert "second image" in observe_tool.description
             assert "PNG" in observe_tool.description
             assert "darker" in observe_tool.description
@@ -447,11 +472,21 @@ def test_workflow_memory_read_returns_current_session_snapshot(monkeypatch):
     [
         (
             "success",
-            {"workflow": 1, "landmarks": 1, "avoid": 1},
+            {
+                "workflow": 1,
+                "landmarks": 1,
+                "avoid": 1,
+                "failure_reviews": 0,
+            },
         ),
         (
             "failure",
-            {"workflow": 0, "landmarks": 0, "avoid": 1},
+            {
+                "workflow": 0,
+                "landmarks": 0,
+                "avoid": 1,
+                "failure_reviews": 0,
+            },
         ),
     ],
 )
@@ -486,6 +521,61 @@ def test_workflow_memory_tools_are_not_logged(monkeypatch):
     call_tool("workflow_memory_read", {})
     memory.finish_attempt("success", "correct_password")
     call_tool("workflow_memory_update", valid_workflow_candidate())
+
+    assert logger.begun == []
+    assert logger.completed == []
+
+
+def test_workflow_memory_update_accepts_old_call_without_failure_review(monkeypatch):
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("failure", "max_requests")
+    configure_server(monkeypatch, memory=memory)
+    candidate = valid_workflow_candidate()
+    candidate.pop("failure_review")
+
+    result = call_tool("workflow_memory_update", candidate)
+
+    assert result.structuredContent["accepted"]["failure_reviews"] == 0
+
+
+def test_workflow_memory_failure_review_uses_trusted_reason(monkeypatch):
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("failure", "max_requests")
+    configure_server(monkeypatch, memory=memory)
+    candidate = valid_workflow_candidate()
+    candidate["failure_review"] = {
+        "stage": "接近目标并准备交互",
+        "bottlenecks": ["在相似交互物之间反复判断"],
+        "optimizations": ["先组合验证环境名称与目标物特征"],
+    }
+
+    updated = call_tool("workflow_memory_update", candidate)
+    snapshot = call_tool("workflow_memory_read", {})
+
+    assert updated.structuredContent["accepted"]["failure_reviews"] == 1
+    assert snapshot.structuredContent["memory"]["failure_reviews"] == [{
+        "terminal_reason": "max_requests",
+        **candidate["failure_review"],
+    }]
+
+
+def test_failure_review_memory_tools_are_not_logged(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    memory = SessionWorkflowMemory()
+    memory.start_attempt("find_contract")
+    configure_server(monkeypatch, logger=logger, memory=memory)
+    call_tool("workflow_memory_read", {})
+    memory.finish_attempt("failure", "max_requests")
+    candidate = valid_workflow_candidate()
+    candidate["failure_review"] = {
+        "stage": "目标分类",
+        "bottlenecks": ["候选区分不足"],
+        "optimizations": ["先组合验证多个可见特征"],
+    }
+
+    call_tool("workflow_memory_update", candidate)
 
     assert logger.begun == []
     assert logger.completed == []

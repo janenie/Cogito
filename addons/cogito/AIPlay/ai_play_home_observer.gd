@@ -69,7 +69,10 @@ func get_bindings() -> Dictionary:
 		for event: InputEvent in InputMap.action_get_events(action_name):
 			if event is InputEventKey:
 				var key_event := event as InputEventKey
-				var label := OS.get_keycode_string(key_event.physical_keycode)
+				var keycode: Key = key_event.physical_keycode
+				if keycode == KEY_NONE:
+					keycode = key_event.keycode
+				var label := OS.get_keycode_string(keycode)
 				if not label.is_empty():
 					result[action_name] = label
 				break

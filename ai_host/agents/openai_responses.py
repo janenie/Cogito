@@ -12,7 +12,14 @@ from ai_host.reflection import build_attempt_instructions
 def is_terminal_payload(payload: dict[str, Any]) -> tuple[str, str] | None:
     status = payload.get("status")
     if status == "game_over":
-        return str(payload.get("outcome", "unknown")), str(payload.get("reason", "unknown"))
+        game_over = payload.get("game_over")
+        if not isinstance(game_over, dict):
+            return None
+        outcome = game_over.get("outcome")
+        reason = game_over.get("reason")
+        if outcome not in {"success", "failure"} or not isinstance(reason, str) or not reason:
+            return None
+        return outcome, reason
     if status in {"stopped", "disconnected"}:
         return str(status), str(payload.get("reason", status))
     return None

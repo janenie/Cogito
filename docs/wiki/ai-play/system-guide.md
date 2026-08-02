@@ -31,7 +31,8 @@ Godot 桥的安全边界。
 - 绝不能把场景源码、节点路径、隐藏状态、仓库文件、谜题答案，或来自 `game_script/`、`code_read/`、测试、规格和计划的事实加入提示词、种子记忆、API 载荷或黑盒验收提示。
 - 除非用户明确要求，并且了解截图、令牌、费用和本地轨迹持久化的影响，否则不要运行真实外部 MCP/模型验收。自动化测试必须不依赖真实凭据。
 - 隔离 Codex 玩家多局验收应由外部 supervisor 重启 Godot。玩家 Codex 只使用
-  `briefing`、`observe`、`act`、`stop`；supervisor 只监听 Godot 终局标识和进程状态，
+  `briefing`、`workflow_memory_read`、`observe`、`act`、`workflow_memory_update`；supervisor
+  只监听 Godot 终局标识和进程状态，
   不读取轨迹、截图、源码或模型上下文。
 
 ## 跨层契约
@@ -67,7 +68,7 @@ Godot 桥的安全边界。
   `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
   请求硬上限是 100，终局只允许 `success/circuit_repaired`、
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
-  `failure/max_requests`；`arrange_meeting_briefings` 的请求硬上限是 200，终局只允许
+  `failure/max_requests`；`arrange_meeting_briefings` 的请求硬上限是 100，终局只允许
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
   `failure/max_requests`；`conveyor_profit` 的请求硬上限是 300，终局只允许
   `success/efficiency_target_reached`、`failure/efficiency_below_target` 和
@@ -171,7 +172,8 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 `http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查
 两个端口空闲，按 MCP 边车、Codex、supervisor 的顺序启动，并在启动 Codex 前等待 HTTP 和桥
 监听就绪。任一子进程退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
-输入释放路径。
+输入释放路径。默认 600 秒没有任何子进程输出时，看门狗以退出码 5 收束会话；supervisor
+退出后默认保留 30 秒终局 grace，让 Codex 消费终局、更新 AWM 并输出总结。
 
 该本机方案限制 Codex 会话通过配置工具读取文件和使用网络的范围，但不是容器、VM 或独立 OS
 用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
@@ -185,9 +187,18 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 Codex 内建 memories，也不跨 orchestrator 复用。每局的固定调用顺序是 `briefing`、
 `workflow_memory_read`、`observe`/`act`，终局后再调用一次 `workflow_memory_update`。
 `GameSession` 的真实 attempt 生命周期决定晋升资格：成功局可以晋升抽象 workflow、相对地标和
-avoid，正常失败局只能晋升 avoid；stopped、disconnected、shutdown、异常和未终局 attempt
-不得晋升，也不计入公开的 `completed_runs`，由 supervisor 重试且不占用 `--runs` 的有效局次数。
+avoid，正常失败局只能晋升 avoid，并可提交可选 `failure_review`。review 精确包含一个
+`stage`、1～3 个 `bottlenecks` 和 1～4 个 `optimizations`；服务端从可信 attempt 注入
+`terminal_reason`，调用方不能提供或覆盖。旧客户端省略 review 仍兼容；成功局提交非空 review
+会原子拒绝整次更新。memory 只保留最近 3 个规范化后不同的复盘，重复项不刷新顺序。
+stopped、disconnected、shutdown、异常和未终局 attempt
+不得晋升，也不计入公开的 `completed_runs`。disconnected、shutdown 和其他基础设施异常由
+supervisor 重试且不占用 `--runs` 的有效局次数；stopped 中止整次运行。
 每个终局 attempt 最多消费一次，调用方不提供也不能伪造 outcome。
+
+后续局读取 `failure_reviews` 后必须用最新 briefing 和 observe/act 观察验证建议是否适用，公开
+说明证据与计划变化，并忽略不适用的建议。至少需要同一 orchestrator 进程内的两局且前一局为
+合格失败，才能实际观察生产/消费分支；不得诱导或伪造失败。
 
 AWM 只保存固定结构、受长度和内容校验的语言化程序性记忆。图片可以参与玩家当局判断，但不会
 作为图片、引用、Base64 或 embedding 存入 memory；密码、随机答案、绝对坐标、逐帧动作、路径
@@ -203,6 +214,10 @@ AWM 只保存固定结构、受长度和内容校验的语言化程序性记忆�
 ```bash
 python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 ```
+
+启动器按白名单选择默认场景：`daily_routine_cleanup` 使用家庭场景，`garden_watering` 使用
+花园场景，`conveyor_profit` 使用独立经营场景，其余六个任务使用 Lobby。未知 scenario
+即使同时给出 `--scene` 也必须在创建运行目录或启动 Godot 前拒绝。
 
 supervisor 每局启动：
 
@@ -220,12 +235,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>
 ```
 
+手动试玩不会隐式启用这两个参数；终局画面会显示退出按钮，并在暂停后继续响应
+物理 Escape 以退出当前 Godot 进程。AI 合成键盘事件不能触发该退出路径。
+
 supervisor 将该标识作为本局完成依据。没有该标识的提前退出、超时或连接异常按异常局
 处理并有限重试。控制器因协议或执行错误产生的其他 `AI_PLAY disabled` 标识也必须触发异常
 重试，不能让玩家永久等待断开的观察。若外部 MCP 客户端调用 `stop` 或人工 Escape 触发 Godot 停止控制，
 Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
-`AI_PLAY disabled; reason=escape_stop` 时，supervisor 将本局记为
-`failure/stopped` 并继续后续局数。supervisor 不读取本地轨迹日志，不复盘截图，不修改
+`AI_PLAY disabled; reason=escape_stop` 时，supervisor 返回 `stopped` 并立即中止整次多局运行，
+不重试也不计为任务失败。桥断开、MCP shutdown、超时与无正式终局的提前退出只重试同一个
+有效局次，耗尽重试后以退出码 2 收束。supervisor 不读取本地轨迹日志，不复盘截图，不修改
 玩家 Codex 提示词，也不访问仓库内部知识；本次 `AI_PLAY_LOG_ROOT` 只属于可信 MCP
 边车，绝不授权给隔离玩家 Codex。
 

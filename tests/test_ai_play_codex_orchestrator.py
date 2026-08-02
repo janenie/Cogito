@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from ai_play.scenarios import supported_scenario_ids
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ORCHESTRATOR_PATH = REPO_ROOT / "tools" / "ai_play_codex_orchestrator.py"
@@ -29,7 +31,24 @@ def test_conveyor_scenario_uses_standalone_scene_by_default():
         "conveyor_profit/scenes/conveyor_profit_preview.tscn"
     )
     assert orchestrator.resolve_scene("find_key", None) == orchestrator.DEFAULT_SCENE
+    assert orchestrator.resolve_scene("daily_routine_cleanup", None) == (
+        "dailyroutine/scenes/home_daily_routine.tscn"
+    )
+    assert orchestrator.resolve_scene("garden_watering", None) == (
+        "garden/scenes/garden_vertical_slice.tscn"
+    )
     assert orchestrator.resolve_scene("conveyor_profit", "custom.tscn") == "custom.tscn"
+    with pytest.raises(ValueError, match="unsupported"):
+        orchestrator.resolve_scene("unknown", "custom.tscn")
+
+
+def test_scene_registry_covers_every_public_scenario_with_an_existing_scene():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator.SUPPORTED_SCENARIOS == supported_scenario_ids()
+    for scenario in orchestrator.SUPPORTED_SCENARIOS:
+        scene = orchestrator.resolve_scene(scenario, None)
+        assert (orchestrator.REPO_ROOT / scene).is_file(), scenario
 
 
 def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
@@ -222,6 +241,39 @@ def test_main_rejects_unsafe_model_arguments_before_creating_run_paths(
         )
 
 
+def test_main_rejects_unknown_scenario_before_external_setup(monkeypatch, tmp_path):
+    orchestrator = load_orchestrator()
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "resolve_codex_bin",
+        lambda _command: pytest.fail("Codex must not be resolved"),
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "create_run_paths",
+        lambda *args, **kwargs: pytest.fail("run paths must not be created"),
+    )
+
+    with pytest.raises(SystemExit, match="unsupported AI Play scenario"):
+        orchestrator.main([
+            "--session-root",
+            str(tmp_path / "runs"),
+            "--codex-auth-home",
+            str(tmp_path / "auth-home"),
+            "--model",
+            "gpt-test",
+            "--reasoning-effort",
+            "high",
+            "--scenario",
+            "unknown",
+        ])
+
+
 def test_build_player_env_drops_game_and_secret_environment(tmp_path):
     orchestrator = load_orchestrator()
 
@@ -357,6 +409,7 @@ def test_blackbox_prompt_waits_for_all_runs_without_log_access(tmp_path):
 
     assert "不要输出最终回答" in prompt
     assert "继续调用 observe" in prompt
+    assert "stopped 表示操作者主动中止整次运行" in prompt
     assert "ai_play_log_root" not in prompt
     assert "public_mcp_log_root" not in prompt
     assert "trajectory.json" not in prompt
@@ -390,7 +443,7 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "地标的位置、大小与遮挡变化" in instructions
     assert "第一张图片" in instructions
     assert "JPEG" in instructions
-    assert "第二张图片" in instructions
+    assert "如果返回第二张图片" in instructions
     assert "PNG" in instructions
     assert "越暗表示越近" in instructions
     assert "白色" in instructions
@@ -461,11 +514,25 @@ def test_player_prompt_requires_awm_lifecycle(tmp_path):
     assert "briefing，再调用 workflow_memory_read，再调用 observe" in prompt
     assert "终局后调用 workflow_memory_update" in prompt
     assert "成功局" in prompt
-    assert "失败局只提交 avoid" in prompt
+    assert "失败局的 workflow 和 landmarks 必须为空" in prompt
     assert "以 workflow_memory_read 返回的 completed_runs 为准" in prompt
     assert "异常重试不算完成一局" in prompt
     assert "不要保存图片" in prompt
     assert "不要保存局内具体答案" in prompt
+
+
+def test_player_prompt_requires_failure_reflection_loop():
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(runs=2)
+
+    assert "failure_review" in prompt
+    assert "stage、bottlenecks 和 optimizations" in prompt
+    assert "失败局的 workflow 和 landmarks 必须为空" in prompt
+    assert "最新 briefing 和 observe" in prompt
+    assert "说明哪些优化适用" in prompt
+    assert "如何改变当前计划" in prompt
+    assert "随机答案" in prompt
 
 
 def test_player_prompt_without_awm_uses_only_in_context_notes():
@@ -479,6 +546,8 @@ def test_player_prompt_without_awm_uses_only_in_context_notes():
     assert "briefing，再调用 observe" in prompt
     assert "workflow_memory_read" not in prompt
     assert "workflow_memory_update" not in prompt
+    assert "failure_review" not in prompt
+    assert "failure_reviews" not in prompt
     assert "普通会话上下文" in prompt
 
 
@@ -506,6 +575,8 @@ def test_parse_args_exposes_only_hardened_player_options():
     assert args.codex_auth_home == orchestrator.DEFAULT_CODEX_AUTH_HOME
     assert args.mcp_port == 8766
     assert args.timeout_seconds == 100000.0
+    assert args.idle_timeout_seconds == 600.0
+    assert args.codex_final_grace_seconds == 30.0
     assert args.workflow_memory == "enabled"
     assert not hasattr(args, "sandbox")
     assert not hasattr(args, "approval_policy")
@@ -627,12 +698,95 @@ def test_session_starts_trusted_mcp_before_codex_and_supervisor(
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        codex_final_grace_seconds=0.0,
     )
 
     assert result == 0
     assert started == ["mcp", "codex", "supervisor"]
     assert processes["codex"].terminated
     assert processes["mcp"].terminated
+
+
+def test_session_allows_codex_to_finish_after_supervisor_terminal_exit(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    processes = {
+        "mcp": FakeProcess(),
+        "codex": FakeProcess(return_codes=[None, None, 0]),
+        "supervisor": FakeProcess(return_codes=[0]),
+    }
+    monkeypatch.setattr(
+        orchestrator,
+        "_start_process",
+        lambda label, command, cwd, env, stdin_text=None: processes[label],
+    )
+    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python"],
+        codex_command=["codex"],
+        supervisor_command=["supervisor"],
+        prompt="briefing",
+        mcp_env={},
+        codex_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        codex_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        codex_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        codex_final_grace_seconds=1.0,
+    )
+
+    assert result == 0
+    assert not processes["codex"].terminated
+    assert processes["mcp"].terminated
+
+
+def test_session_stops_when_all_children_are_idle(monkeypatch, tmp_path):
+    orchestrator = load_orchestrator()
+    processes = {
+        "mcp": FakeProcess(),
+        "codex": FakeProcess(),
+        "supervisor": FakeProcess(),
+    }
+    monotonic_values = iter([0.0, 11.0])
+    monkeypatch.setattr(
+        orchestrator,
+        "_start_process",
+        lambda label, command, cwd, env, stdin_text=None: processes[label],
+    )
+    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+    monkeypatch.setattr(orchestrator.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(orchestrator.time, "sleep", lambda _seconds: None)
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python"],
+        codex_command=["codex"],
+        supervisor_command=["supervisor"],
+        prompt="briefing",
+        mcp_env={},
+        codex_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        codex_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        codex_exit_grace_seconds=1.0,
+        idle_timeout_seconds=10.0,
+        codex_final_grace_seconds=1.0,
+    )
+
+    assert result == 5
+    assert all(process.terminated for process in processes.values())
 
 
 def test_sidecar_readiness_failure_never_starts_codex_or_supervisor(
@@ -664,6 +818,8 @@ def test_sidecar_readiness_failure_never_starts_codex_or_supervisor(
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        codex_final_grace_seconds=0.0,
     )
 
     assert result == 4
@@ -699,6 +855,8 @@ def test_codex_early_exit_terminates_trusted_mcp(monkeypatch, tmp_path):
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
         codex_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        codex_final_grace_seconds=0.0,
     )
 
     assert result == 17
@@ -740,6 +898,8 @@ def test_keyboard_interrupt_terminates_all_started_processes(monkeypatch, tmp_pa
             mcp_port=8766,
             mcp_start_timeout_seconds=1.0,
             codex_exit_grace_seconds=0.0,
+            idle_timeout_seconds=10.0,
+            codex_final_grace_seconds=0.0,
         )
 
     assert processes["supervisor"].terminated

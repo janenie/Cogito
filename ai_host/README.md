@@ -1,5 +1,9 @@
 # AI Host: Multi-Attempt Cogito AI Play
 
+> `ai_host` 是保留用于兼容和实验的旧 Host。当前受维护的黑盒多局入口是
+> [`tools/ai_play_codex_orchestrator.py`](../tools/ai_play_codex_orchestrator.py)，其启动方式、
+> 隔离边界和 AWM 契约以 [`ai_play/README.md`](../ai_play/README.md) 为准。
+
 `ai_host` 是 AI Play 的外层 supervisor。它不修改 MCP server，也不把自进化逻辑塞进
 Godot。它负责：
 

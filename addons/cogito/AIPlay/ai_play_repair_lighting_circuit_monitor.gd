@@ -10,6 +10,12 @@ const CIRCUIT_LABELS := {
 	"lobby": "大厅六盏顶灯（右侧高处一排）",
 	"break_room": "休息室落地灯",
 }
+const BREAKER_PROMPT_LABELS := {
+	"entrance": "Entrance lighting",
+	"ceo": "CEO office lighting",
+	"lobby": "Lobby ceiling lighting",
+	"break_room": "Break room lighting",
+}
 
 @export var scenario_id: String = "repair_lighting_circuit"
 @export var setup: Node3D
@@ -41,6 +47,12 @@ var _signals_connected: bool = false
 var _original_a_targets: Array[NodePath] = []
 var _original_lamp_interaction_states: Dictionary = {}
 var _original_existing_lamp_states: Dictionary = {}
+var _original_control_prompts: Dictionary = {}
+var _original_button_prompts: Dictionary = {}
+var _original_control_states: Dictionary = {}
+var _original_panel_collision_layers: Dictionary = {}
+var _original_panel_interaction_states: Dictionary = {}
+var _original_break_room_collision_layer: int = 0
 
 
 func _ready() -> void:
@@ -59,6 +71,7 @@ func _activate_task() -> void:
 		return
 	_task_active = true
 	_save_original_state()
+	_configure_panel_prompts()
 	setup.visible = true
 	setup.process_mode = Node.PROCESS_MODE_INHERIT
 	_original_a_targets = control_switch_a.objects_call_interact.duplicate()
@@ -153,6 +166,79 @@ func _save_original_state() -> void:
 			_original_lamp_interaction_states[lamp] = interaction.is_disabled
 	for lamp: CogitoSwitch in _existing_lamps():
 		_original_existing_lamp_states[lamp] = lamp.is_on
+	_original_control_prompts.clear()
+	for control: CogitoSwitch in _control_switches().values():
+		_original_control_prompts[control] = {
+			"on": control.interaction_text_when_on,
+			"off": control.interaction_text_when_off,
+		}
+	_original_control_states.clear()
+	for control: CogitoSwitch in _control_switches().values():
+		_original_control_states[control] = control.is_on
+	_original_button_prompts.clear()
+	for button: CogitoButton in _panel_buttons():
+		_original_button_prompts[button] = {
+			"usable": button.usable_interaction_text,
+			"unusable": button.unusable_interaction_text,
+			"used_hint": button.has_been_used_hint,
+			"has_been_used": button.has_been_used,
+			"cooldown": button.cooldown,
+		}
+	_original_panel_collision_layers.clear()
+	_original_panel_interaction_states.clear()
+	for object: Node3D in _panel_objects():
+		_original_panel_collision_layers[object] = object.collision_layer
+		var interaction := object.get_node_or_null("BasicInteraction")
+		if interaction != null:
+			_original_panel_interaction_states[object] = interaction.is_disabled
+	_original_break_room_collision_layer = break_room_lamp.collision_layer
+
+
+func _configure_panel_prompts() -> void:
+	for control_id: String in AIPlayLightingCircuitRound.CONTROL_IDS:
+		var control: CogitoSwitch = _control_switches()[control_id]
+		control.interaction_text_when_on = "Switch circuit %s off" % control_id
+		control.interaction_text_when_off = "Switch circuit %s on" % control_id
+		control.set_state()
+	for circuit_id: String in AIPlayLightingCircuitRound.CIRCUIT_IDS:
+		var breaker: CogitoButton = _breaker_buttons()[circuit_id]
+		breaker.usable_interaction_text = "Reset %s breaker" % BREAKER_PROMPT_LABELS[circuit_id]
+		breaker.unusable_interaction_text = "Breaker already selected"
+		breaker.has_been_used_hint = "A breaker has already been selected"
+		breaker.set_state()
+	verify_button.usable_interaction_text = "Verify lighting configuration"
+	verify_button.unusable_interaction_text = "Lighting configuration submitted"
+	verify_button.has_been_used_hint = "Lighting configuration has already been submitted"
+	verify_button.set_state()
+
+
+func _restore_panel_prompts() -> void:
+	for control: CogitoSwitch in _original_control_prompts:
+		var prompts: Dictionary = _original_control_prompts[control]
+		control.interaction_text_when_on = prompts.on
+		control.interaction_text_when_off = prompts.off
+		control.set_state()
+	for button: CogitoButton in _original_button_prompts:
+		var prompts: Dictionary = _original_button_prompts[button]
+		button.usable_interaction_text = prompts.usable
+		button.unusable_interaction_text = prompts.unusable
+		button.has_been_used_hint = prompts.used_hint
+		button.has_been_used = prompts.has_been_used
+		button.cooldown = prompts.cooldown
+		button.set_state()
+
+
+func _restore_panel_state() -> void:
+	for control: CogitoSwitch in _original_control_states:
+		_set_switch_state(control, _original_control_states[control])
+	for object: Node3D in _panel_objects():
+		if object in _original_panel_collision_layers:
+			object.collision_layer = _original_panel_collision_layers[object]
+		if object in _original_panel_interaction_states:
+			_set_basic_interaction_disabled(
+				object,
+				_original_panel_interaction_states[object],
+			)
 
 
 func _place_player_and_task_card() -> void:
@@ -270,6 +356,15 @@ func _panel_buttons() -> Array[CogitoButton]:
 	]
 
 
+func _panel_objects() -> Array[Node3D]:
+	var objects: Array[Node3D] = []
+	for control: CogitoSwitch in _control_switches().values():
+		objects.append(control)
+	for button: CogitoButton in _panel_buttons():
+		objects.append(button)
+	return objects
+
+
 func _controlled_lamps() -> Array[CogitoSwitch]:
 	var lamps: Array[CogitoSwitch] = _existing_lamps()
 	lamps.append(break_room_lamp)
@@ -378,11 +473,10 @@ func _exit_tree() -> void:
 	if not _task_active:
 		return
 	_disconnect_signals()
-	_set_panel_interactions_enabled(false)
+	_restore_panel_prompts()
 	control_switch_a.objects_call_interact = _original_a_targets.duplicate()
-	control_switch_a.collision_layer = 3
-	_set_basic_interaction_disabled(control_switch_a, false)
-	break_room_lamp.collision_layer = 0
+	_restore_panel_state()
+	break_room_lamp.collision_layer = _original_break_room_collision_layer
 	for lamp: CogitoSwitch in _controlled_lamps():
 		if lamp in _original_lamp_interaction_states:
 			_set_basic_interaction_disabled(

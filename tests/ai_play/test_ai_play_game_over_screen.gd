@@ -16,6 +16,7 @@ func _run_tests() -> void:
 		_finish()
 		return
 
+	await _test_exit_controls(screen_scene)
 	await _test_result(screen_scene, "success", "correct_password", "解谜成功", "密码正确")
 	await _test_result(screen_scene, "failure", "wrong_password", "解谜失败", "密码错误")
 	await _test_result(
@@ -84,6 +85,56 @@ func _run_tests() -> void:
 	_finish()
 
 
+func _test_exit_controls(screen_scene: PackedScene) -> void:
+	paused = false
+	var screen: CanvasLayer = screen_scene.instantiate()
+	root.add_child(screen)
+	await process_frame
+	_assert(
+		screen.process_mode == Node.PROCESS_MODE_ALWAYS,
+		"game-over screen keeps processing while the SceneTree is paused",
+	)
+	var exit_button: Button = screen.get_node(
+		"Screen/Center/Content/Margin/Labels/ExitButton"
+	)
+	_assert(exit_button.text == "退出游戏（Esc）", "exit control explains the Escape shortcut")
+
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	_assert(
+		not screen._should_exit_for_event(escape),
+		"Escape does not exit before a terminal result",
+	)
+	screen.show_result("success", "correct_password")
+	_assert(screen._should_exit_for_event(escape), "physical Escape exits a terminal result")
+
+	var synthetic_escape := InputEventKey.new()
+	synthetic_escape.keycode = KEY_ESCAPE
+	synthetic_escape.pressed = true
+	synthetic_escape.device = AIPlayExecutor.SYNTHETIC_DEVICE_ID
+	_assert(
+		not screen._should_exit_for_event(synthetic_escape),
+		"synthetic Escape cannot exit a terminal result",
+	)
+	var released_escape := InputEventKey.new()
+	released_escape.keycode = KEY_ESCAPE
+	_assert(
+		not screen._should_exit_for_event(released_escape),
+		"released Escape does not exit a terminal result",
+	)
+	var other_key := InputEventKey.new()
+	other_key.keycode = KEY_ENTER
+	other_key.pressed = true
+	_assert(
+		not screen._should_exit_for_event(other_key),
+		"non-Escape keys do not exit a terminal result",
+	)
+	paused = false
+	screen.queue_free()
+	await process_frame
+
+
 func _test_result(
 	screen_scene: PackedScene,
 	outcome: String,
@@ -108,6 +159,10 @@ func _test_result(
 	_assert(
 		screen.get_node("Screen/Center/Content/Margin/Labels/Reason").text == expected_reason,
 		"%s result has expected reason copy" % reason,
+	)
+	_assert(
+		screen.get_node("Screen/Center/Content/Margin/Labels/ExitButton").visible,
+		"%s result exposes an exit control" % reason,
 	)
 	_assert(paused, "%s pauses the SceneTree" % reason)
 	paused = false

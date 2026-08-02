@@ -478,12 +478,15 @@ Footstep Profile
 The profiles are not a new class. They are an AudioStreamRandomizer. I recommend saving these as resources.
 
 * To create a new one:
+
   * Right click in the FileSystem, Create New -> Resource
   * Find AudioStreamRandomizer (I like to type random in the search bar)
 
 * To assign footstep sounds:
+
   * Select the Footstep Profile Asset (You can adjust random pitch and random volume here)
   * Expand the "Streams" accordion
+
     * Here you can add or remove elements. Each of the added elements will be selected from randomly.
     * You also can adjust their weights individually. Higher weights are more likely to be selected
 
@@ -720,7 +723,7 @@ Ladder Area
 Script used to define ladders that the player can climb. Needs a reference to a CollisionObject3D and uses it's signals to determine if the player is on the ladder.
 
 Loot Component
------------
+--------------
 Script used for generating loot upon death.
 
 Functionality:

@@ -38,7 +38,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Content" type="PanelContainer" parent="Screen/Center"]
-custom_minimum_size = Vector2(440, 260)
+custom_minimum_size = Vector2(440, 310)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBox_result")
 
@@ -73,3 +73,11 @@ theme_override_colors/font_color = Color(0.713726, 0.741176, 0.768627, 1)
 theme_override_font_sizes/font_size = 18
 text = "密码正确"
 horizontal_alignment = 1
+
+[node name="ExitButton" type="Button" parent="Screen/Center/Content/Margin/Labels"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+focus_neighbor_top = NodePath(".")
+focus_neighbor_bottom = NodePath(".")
+mouse_default_cursor_shape = 2
+text = "退出游戏（Esc）"

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from ai_play.action_schema import CONVEYOR_INGREDIENT_IDS as ACTION_INGREDIENT_IDS
+from ai_play.action_schema import CONVEYOR_ACTIONS
 from ai_play.conveyor_profit_briefing import PUBLIC_BRIEFING
 from ai_play.observation_schema import (
     CONVEYOR_INGREDIENT_IDS as OBSERVATION_INGREDIENT_IDS,
@@ -42,5 +43,7 @@ def test_python_and_godot_publish_the_same_catalog_ids():
     assert set(godot_catalog["ingredient_ids"]) == briefing_ingredient_ids
     assert briefing_ingredient_ids == set(ACTION_INGREDIENT_IDS)
     assert briefing_ingredient_ids == set(OBSERVATION_INGREDIENT_IDS)
+    assert briefing_ingredient_ids == set(godot_catalog["executor_ingredient_ids"])
+    assert set(godot_catalog["executor_action_types"]) == set(CONVEYOR_ACTIONS)
     assert set(godot_catalog["recipe_ids"]) == briefing_recipe_ids
     assert briefing_recipe_ids == set(CONVEYOR_RECIPE_IDS)

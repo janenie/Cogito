@@ -12,9 +12,11 @@ _CANDIDATE_KEYS = {
     "workflow",
     "landmarks",
     "avoid",
+    "failure_review",
 }
 _WORKFLOW_KEYS = {"step", "precondition", "success_signal"}
 _LANDMARK_KEYS = {"relation"}
+_FAILURE_REVIEW_KEYS = {"stage", "bottlenecks", "optimizations"}
 _ELIGIBLE_STATUSES = {"success", "failure"}
 _TERMINAL_STATUSES = _ELIGIBLE_STATUSES | {
     "stopped",
@@ -80,6 +82,7 @@ class SessionWorkflowMemory:
         self._workflow: list[dict] = []
         self._landmarks: list[dict] = []
         self._avoid: list[str] = []
+        self._failure_reviews: list[dict] = []
 
     def start_attempt(self, scenario_id: str) -> int:
         with self._lock:
@@ -142,8 +145,11 @@ class SessionWorkflowMemory:
                 "workflow": 0,
                 "landmarks": 0,
                 "avoid": 0,
+                "failure_reviews": 0,
             }
             if attempt.status == "success":
+                if safe["failure_review"] is not None:
+                    raise WorkflowMemoryError("invalid_workflow_memory")
                 self._goal_pattern = safe["goal_pattern"]
                 accepted["workflow"] = _merge_unique(
                     self._workflow,
@@ -152,6 +158,16 @@ class SessionWorkflowMemory:
                 accepted["landmarks"] = _merge_unique(
                     self._landmarks,
                     safe["landmarks"],
+                )
+            elif safe["failure_review"] is not None:
+                trusted_review = {
+                    "terminal_reason": attempt.terminal_reason,
+                    **safe["failure_review"],
+                }
+                accepted["failure_reviews"] = _append_bounded_unique(
+                    self._failure_reviews,
+                    trusted_review,
+                    max_items=3,
                 )
             accepted["avoid"] = _merge_unique(self._avoid, safe["avoid"])
             attempt.consumed = True
@@ -190,6 +206,7 @@ class SessionWorkflowMemory:
             "workflow": deepcopy(self._workflow),
             "landmarks": deepcopy(self._landmarks),
             "avoid": list(self._avoid),
+            "failure_reviews": deepcopy(self._failure_reviews),
             "confidence": round(confidence, 2),
         }
 
@@ -216,6 +233,7 @@ def validate_workflow_candidate(candidate: object) -> dict:
             max_items=12,
             require_items=True,
         )
+        failure_review = _validate_failure_review(candidate["failure_review"])
     except (KeyError, TypeError, ValueError, WorkflowMemoryError) as error:
         if (
             isinstance(error, WorkflowMemoryError)
@@ -228,6 +246,26 @@ def validate_workflow_candidate(candidate: object) -> dict:
         "workflow": workflow,
         "landmarks": landmarks,
         "avoid": avoid,
+        "failure_review": failure_review,
+    }
+
+
+def _validate_failure_review(value: object) -> dict | None:
+    if value is None:
+        return None
+    _require_exact_dict(value, _FAILURE_REVIEW_KEYS)
+    return {
+        "stage": _normalize_text(value["stage"], max_length=240),
+        "bottlenecks": _validate_text_list(
+            value["bottlenecks"],
+            max_items=3,
+            require_items=True,
+        ),
+        "optimizations": _validate_text_list(
+            value["optimizations"],
+            max_items=4,
+            require_items=True,
+        ),
     }
 
 
@@ -306,3 +344,16 @@ def _merge_unique(target: list, additions: list) -> int:
             target.append(deepcopy(item))
             accepted += 1
     return accepted
+
+
+def _append_bounded_unique(
+    target: list,
+    item: object,
+    *,
+    max_items: int,
+) -> int:
+    if item in target:
+        return 0
+    target.append(deepcopy(item))
+    del target[:-max_items]
+    return 1

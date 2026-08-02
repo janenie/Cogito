@@ -96,7 +96,7 @@ _SCENARIOS = {
     ),
     "arrange_meeting_briefings": ScenarioDefinition(
         briefing_loader=load_arrange_meeting_briefings_briefing,
-        max_act_requests=200,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "meeting_prepared"),
             ("failure", "incorrect_seating_assignment"),

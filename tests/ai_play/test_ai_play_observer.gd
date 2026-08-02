@@ -171,6 +171,14 @@ func _run_tests() -> void:
 	InputMap.action_add_event("interact", rebound)
 	_assert(observer.get_bindings().get("interact") == "Q", "bindings reflect runtime remapping")
 	InputMap.action_erase_events("interact")
+	var legacy_rebound := InputEventKey.new()
+	legacy_rebound.keycode = KEY_R
+	InputMap.action_add_event("interact", legacy_rebound)
+	_assert(
+		observer.get_bindings().get("interact") == "R",
+		"bindings support legacy keycode-only mappings",
+	)
+	InputMap.action_erase_events("interact")
 	for event: InputEvent in saved_events:
 		InputMap.action_add_event("interact", event)
 

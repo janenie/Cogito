@@ -57,6 +57,15 @@ func _run() -> void:
 	_assert(observation["routine"]["trash_collected"] == manager.collected_trash_count, "trash count current is exposed")
 	_assert(observation["routine"]["trash_required"] == manager.required_trash_count, "trash count required is exposed")
 	_assert(observation["routine"]["held_item"] == manager.held_item_label(), "held item is exposed")
+	var saved_events: Array[InputEvent] = InputMap.action_get_events("interact")
+	InputMap.action_erase_events("interact")
+	var legacy_rebound := InputEventKey.new()
+	legacy_rebound.keycode = KEY_R
+	InputMap.action_add_event("interact", legacy_rebound)
+	_assert(observer.get_bindings().get("interact") == "R", "legacy keycode binding is public")
+	InputMap.action_erase_events("interact")
+	for event: InputEvent in saved_events:
+		InputMap.action_add_event("interact", event)
 	var observation_text := JSON.stringify(observation)
 	_assert(not observation_text.contains("DailyRoutineManager"), "observation does not leak class names")
 	_assert(not observation_text.contains("dailyroutine/scripts"), "observation does not leak script paths")

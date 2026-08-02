@@ -28,12 +28,8 @@ AI_PLAY_DISABLED_RE = re.compile(r"^AI_PLAY disabled; reason=([a-z0-9_:]+)$")
 AI_PLAY_DISCONNECTED_RE = re.compile(
     r"^AI_PLAY WebSocket disconnected; reason=([a-z0-9_:]+)$"
 )
-STOPPED_REASONS = frozenset({
-    "mcp_stop",
-    "escape_stop",
-    "bridge_disconnected",
-    "mcp_shutdown",
-})
+INTENTIONAL_STOP_REASONS = frozenset({"mcp_stop", "escape_stop"})
+ABNORMAL_STOP_REASONS = frozenset({"bridge_disconnected", "mcp_shutdown"})
 
 
 @dataclass(frozen=True)
@@ -54,12 +50,14 @@ def parse_game_over_marker(line: str) -> tuple[str, str] | None:
         reason = match.group(1)
         if reason.startswith("game_over:"):
             return None
-        if reason in STOPPED_REASONS:
-            return "failure", reason if reason != "mcp_stop" else "stopped"
+        if reason in INTENTIONAL_STOP_REASONS:
+            return "stopped", reason
+        if reason in ABNORMAL_STOP_REASONS:
+            return "abnormal", reason
         return "abnormal", reason
     match = AI_PLAY_DISCONNECTED_RE.match(line.strip())
     if match is not None:
-        return "failure", "bridge_disconnected"
+        return "abnormal", "bridge_disconnected"
     return None
 
 
@@ -97,7 +95,7 @@ def run_supervised_attempt(
             timeout_seconds=timeout_seconds,
             game_over_exit_timeout_seconds=game_over_exit_timeout_seconds,
         )
-        if result.status in {"success", "failure"}:
+        if result.status in {"success", "failure", "stopped"}:
             return result
         if retry == max_retries:
             return result
@@ -162,7 +160,10 @@ def _run_process_once(
 
         exit_code = process.poll()
         if exit_code is not None:
-            _drain_lines(lines)
+            reader.join(timeout=1.0)
+            drained_marker = _drain_lines(lines)
+            if game_over is None:
+                game_over = drained_marker
             if game_over is not None:
                 return AttemptResult(
                     attempt=attempt_number,
@@ -187,7 +188,7 @@ def _run_process_once(
             _terminate_process(process)
             return AttemptResult(
                 attempt=attempt_number,
-                status="failure",
+                status="abnormal",
                 reason="attempt_timeout",
                 exit_code=process.returncode,
                 retries=retry,
@@ -204,14 +205,18 @@ def _read_process_output(
     lines.put(None)
 
 
-def _drain_lines(lines: queue.Queue[str | None]) -> None:
+def _drain_lines(lines: queue.Queue[str | None]) -> tuple[str, str] | None:
+    marker = None
     while True:
         try:
             line = lines.get_nowait()
         except queue.Empty:
-            return
+            return marker
         if line is not None:
             print(line, end="", flush=True)
+            parsed = parse_game_over_marker(line)
+            if marker is None and parsed is not None:
+                marker = parsed
 
 
 def _terminate_process(process: subprocess.Popen[str]) -> None:
@@ -250,9 +255,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.game_over_exit_timeout_seconds <= 0:
         raise SystemExit("--game-over-exit-timeout-seconds must be positive")
 
+    try:
+        scene = resolve_scene(args.scenario, args.scene)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     command = build_godot_command(
         godot_bin=args.godot_bin,
-        scene=resolve_scene(args.scenario, args.scene),
+        scene=scene,
         scenario=args.scenario,
     )
     results: list[AttemptResult] = []

@@ -178,8 +178,10 @@ Godot supervisor 使用该隔离环境写入 `user://`、着色器缓存和临�
 
 `127.0.0.1:8765` 是 Godot 固定桥端口；`--mcp-port` 默认是独立的 `8766`，且不能使用 8765。
 启动器会先检查两个端口空闲，启动可信 MCP 边车并等待 HTTP 与桥监听就绪，再启动 Codex，最后
-启动 supervisor；任一进程异常、中断或退出都会终止其余进程。`--mcp-port` 可用于改变 HTTP
-边车端口，但 Godot bridge 不能通过该启动器改端口。
+启动 supervisor；任一进程异常、中断或退出都会终止其余进程。所有子进程连续 600 秒没有输出时，
+`--idle-timeout-seconds` 看门狗会以退出码 5 收束卡死会话。supervisor 正常结束后，orchestrator
+默认再给 Codex 30 秒（`--codex-final-grace-seconds`）消费终局、更新 AWM 并输出总结，然后才清理
+边车。`--mcp-port` 可用于改变 HTTP 边车端口，但 Godot bridge 不能通过该启动器改端口。
 
 这是本机 Codex 权限 profile 的硬化边界，不是容器、VM 或独立 Windows 用户级别的隔离，不能
 抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收会产生截图、令牌、费用和
@@ -198,10 +200,13 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_contract --ai-play-exit-on-game-over
 ```
 
-`conveyor_profit` 是独立场景：orchestrator 和 supervisor 在没有显式传入 `--scene` 时会自动
-选择 `conveyor_profit/scenes/conveyor_profit_preview.tscn`；其他玩法仍默认使用 Lobby。
+orchestrator 和 supervisor 会按白名单解析场景：`daily_routine_cleanup` 使用家庭场景，
+`garden_watering` 使用花园场景，`conveyor_profit` 使用独立经营场景，其余六个任务使用 Lobby。
+未知 scenario 即使显式传入 `--scene` 也会在创建运行目录或启动 Godot 前被拒绝。
 
 `--ai-play-exit-on-game-over` 只有在同一启动参数中包含精确的 `--ai-play` 时才会生效。
+不含 `--ai-play` 的手动试玩不会隐式开启 AI 或终局自动退出；任务结束后可点击
+“退出游戏（Esc）”或按物理 Escape 退出当前 Godot 进程。该终局快捷键不接受 AI 合成输入。
 合法终局会输出固定标识：
 
 ```text
@@ -212,7 +217,9 @@ supervisor 将带有该标识的进程退出计为一局完成；未看到标识
 按异常局处理并有限重试。控制器因协议或执行错误输出的其他 `AI_PLAY disabled` 也属于异常局，
 supervisor 会终止该 Godot 并重试，而不是让玩家永久等待断开的观察。若玩家 Codex 或人工 Escape 通过 MCP/Godot 停止控制，Godot
 输出 `AI_PLAY disabled; reason=mcp_stop` 或 `AI_PLAY disabled; reason=escape_stop` 时，
-supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“自进化”只能发生在隔离
+supervisor 返回 `stopped` 并立即中止整次多局运行，不重试也不把它计为任务失败。桥断开、
+MCP shutdown、超时和没有正式终局的提前退出属于异常，只重试同一个有效局次；重试耗尽后以
+退出码 2 收束。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。
 
 ### 会话级 Agent Workflow Memory
@@ -220,9 +227,28 @@ supervisor 将本局记为 `failure/stopped` 并继续后续局数。跨局“�
 同一次 orchestrator 多局运行共享 MCP sidecar 进程内的 `SessionWorkflowMemory`。每局先调用
 `briefing`，再调用 `workflow_memory_read`，随后才用 `observe`/`act` 游玩；终局后调用一次
 `workflow_memory_update` 提交固定结构的抽象流程。服务端依据 `GameSession` 的真实终局决定
-晋升范围：成功局可以合并 workflow、地标关系和避坑规则，正常失败局只能合并避坑规则；
+晋升范围：成功局可以合并 workflow、地标关系和避坑规则，正常失败局只能合并避坑规则，
+并可额外提交一个 `failure_review`：
+
+```json
+{
+  "stage": "接近目标并准备交互",
+  "bottlenecks": ["在相似交互物之间反复判断"],
+  "optimizations": ["先组合验证环境名称与目标物特征"]
+}
+```
+
+服务端把可信终局原因注入已存 review 的 `terminal_reason`，模型不能提供或覆盖该字段。review
+必须包含 1 个 stage、1～3 个 bottlenecks 和 1～4 个 optimizations；旧客户端省略 review
+仍有效。memory 最多保留最近 3 个规范化后不同的失败复盘，重复项不刷新顺序。成功局携带
+非空 review 会整笔拒绝，不会部分晋升其他字段；
 stopped、disconnected、MCP shutdown、异常退出和未终局局次不学习，也不计入
-`completed_runs`；它们由 supervisor 重试，不占用 `--runs` 的有效局次数。调用方不能自行声明胜负。
+`completed_runs`；disconnected、shutdown 和其他基础设施异常由 supervisor 重试且不占用
+`--runs` 的有效局次数，stopped 则中止整次运行。调用方不能自行声明胜负。
+
+下一局读取 `failure_reviews` 后，玩家必须用最新 briefing 和观察判断哪些优化仍适用，公开说明
+证据以及它们如何改变当前计划，不适用的建议必须忽略。要观察这条生产/消费链，至少要在同一
+orchestrator 进程中运行两局，且前一局确实产生合格失败；不得为了测试而制造或伪造失败。
 
 AWM 只保存经过严格字段、长度和内容校验的语言化程序性记忆。运行时截图可以作为玩家提炼经验
 的依据，但 memory 不保存图片、图片引用、Base64、embedding、逐帧动作、坐标、随机密码或其他
@@ -314,8 +340,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   工具声明使用十四种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
   `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
   不要再调用 `observe` 获取同一帧。
-- `workflow_memory_update(goal_pattern, workflow, landmarks, avoid)`：在可信终局后提交一次
-  固定结构候选；工具不接受调用方提供的胜负结果。
+- `workflow_memory_update(goal_pattern, workflow, landmarks, avoid, failure_review=null)`：在可信
+  终局后提交一次固定结构候选；工具不接受调用方提供的胜负结果或终局原因。
 - `stop()`：发送固定原因 `mcp_stop`，请求取消当前动作、释放模拟输入并结束 MCP 控制会话；重复调用安全幂等。
 
 动作批次使用现有安全白名单：
@@ -370,7 +396,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，终局为
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
-`arrange_meeting_briefings` 的硬上限为 200 次，终局为 `success/meeting_prepared`、
+`arrange_meeting_briefings` 的硬上限为 100 次，终局为 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的硬上限为 300 次，终局为
 `success/efficiency_target_reached`、`failure/efficiency_below_target` 或
 `failure/max_requests`。环境变量
@@ -474,7 +500,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 300、50、150、100、150、300、100、200、300 次硬上限；等待时间有界，日志根目录支持 `~`
+自身的 300、50、150、100、150、300、100、100、300 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

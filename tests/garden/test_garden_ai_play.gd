@@ -84,6 +84,15 @@ func _test_public_observation(
 		_assert(interactions[0].prompt == "拿水壶", "watering-can prompt is public")
 
 	var observation: Dictionary = observer.capture_observation([])
+	var saved_events: Array[InputEvent] = InputMap.action_get_events("interact")
+	InputMap.action_erase_events("interact")
+	var legacy_rebound := InputEventKey.new()
+	legacy_rebound.keycode = KEY_R
+	InputMap.action_add_event("interact", legacy_rebound)
+	_assert(observer.get_bindings().get("interact") == "R", "legacy keycode binding is public")
+	InputMap.action_erase_events("interact")
+	for event: InputEvent in saved_events:
+		InputMap.action_add_event("interact", event)
 	_assert(observation.has("garden"), "observation includes public garden state")
 	_assert(observation.garden == public_state, "observation garden state is exact")
 	_assert(observation["depth_image"]["mime_type"] == "image/png", "observation includes png depth")

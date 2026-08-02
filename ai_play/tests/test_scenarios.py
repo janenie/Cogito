@@ -63,15 +63,15 @@ def test_scenario_request_limits_are_hard_caps():
     assert scenario_act_request_limit("garden_watering", 200) == 200
     assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
     assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
-    assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 200
-    assert scenario_act_request_limit("arrange_meeting_briefings", 125) == 125
+    assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 100
+    assert scenario_act_request_limit("arrange_meeting_briefings", 80) == 80
     assert scenario_act_request_limit("conveyor_profit", 500) == 300
 
 
 def test_readme_lists_all_request_caps_in_scenario_order():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
 
-    assert "自身的 300、50、150、100、150、300、100、200、300 次硬上限" in readme
+    assert "自身的 300、50、150、100、150、300、100、100、300 次硬上限" in readme
 
 
 def test_find_key_round_request_limits_are_allowlisted():

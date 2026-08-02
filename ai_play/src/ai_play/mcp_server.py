@@ -16,6 +16,7 @@ from .game_session import GameSession, SessionError
 from .mcp_tool_schema import (
     ActionBatchInput,
     AvoidInput,
+    FailureReviewInput,
     LandmarksInput,
     ObservationIdInput,
     PublicText,
@@ -180,9 +181,9 @@ async def observe() -> CallToolResult:
     """Read the latest approved observation and local-navigation images.
 
     Use once after briefing; each successful act already returns the next
-    observation. The first image is the colour JPEG screenshot. The second image
-    is a depth PNG where darker pixels are nearer and white is 20 metres or
-    unavailable depth.
+    observation. The first image is the colour JPEG screenshot. When present,
+    the second image is a depth PNG where darker pixels are nearer and white is
+    20 metres or unavailable depth.
     """
     if not _configured():
         return _error("server_not_ready")
@@ -283,6 +284,7 @@ async def workflow_memory_update(
     workflow: WorkflowInput,
     landmarks: LandmarksInput,
     avoid: AvoidInput,
+    failure_review: FailureReviewInput | None = None,
 ) -> CallToolResult:
     """Promote a validated workflow candidate after a trusted terminal result."""
     if not _configured() or workflow_memory is None:
@@ -292,6 +294,11 @@ async def workflow_memory_update(
         "workflow": workflow,
         "landmarks": landmarks,
         "avoid": avoid,
+        "failure_review": (
+            failure_review.model_dump()
+            if failure_review is not None
+            else None
+        ),
     }
     try:
         return _result(workflow_memory.update(candidate))

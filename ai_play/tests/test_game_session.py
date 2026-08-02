@@ -266,18 +266,18 @@ def test_repair_lighting_circuit_uses_100_request_hard_cap():
     assert session.act_request_limit == 100
 
 
-def test_arrange_meeting_briefings_uses_200_request_hard_cap():
+def test_arrange_meeting_briefings_uses_100_request_hard_cap():
     session, _ = make_scenario_session(
         "arrange_meeting_briefings",
         configured_limit=500,
     )
     tightened, _ = make_scenario_session(
         "arrange_meeting_briefings",
-        configured_limit=125,
+        configured_limit=80,
     )
 
-    assert session.act_request_limit == 200
-    assert tightened.act_request_limit == 125
+    assert session.act_request_limit == 100
+    assert tightened.act_request_limit == 80
 
 
 def test_find_key_accepts_only_key_success_terminal():
