@@ -96,6 +96,34 @@ func _run_tests() -> void:
 		"实验失败",
 		"三次实验机会已用完",
 	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"efficiency_target_reached",
+		"经营成功",
+		"传送带经营效率达到目标",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"efficiency_below_target",
+		"经营失败",
+		"传送带经营效率未达到目标",
+	)
+	await _test_result(
+		screen_scene,
+		"success",
+		"correct_floor_selected",
+		"任务成功",
+		"已找到真正的出口楼层",
+	)
+	await _test_result(
+		screen_scene,
+		"failure",
+		"wrong_floor_selected",
+		"任务失败",
+		"选择了错误的出口楼层",
+	)
 	_finish()
 
 

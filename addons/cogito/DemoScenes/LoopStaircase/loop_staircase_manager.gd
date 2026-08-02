@@ -42,6 +42,7 @@ const BASIC_INTERACTION_SCENE: String = "res://addons/cogito/Components/Interact
 @export var round_seed: int = 0
 @export var build_scene_on_ready: bool = false
 @export var player: Node3D
+@export var game_over_screen: Node
 
 var current_loop: int = 0
 var _rng := RandomNumberGenerator.new()
@@ -121,6 +122,8 @@ func set_current_floor(floor_number: int) -> void:
 
 
 func move_up() -> void:
+	if _round_finished:
+		return
 	if _current_floor >= FLOOR_MAX:
 		_current_floor = FLOOR_MIN
 		advance_loop()
@@ -130,6 +133,8 @@ func move_up() -> void:
 
 
 func move_down() -> void:
+	if _round_finished:
+		return
 	if _current_floor <= FLOOR_MIN:
 		_current_floor = FLOOR_MAX
 	else:
@@ -245,6 +250,8 @@ func _capture_scene_player_spawn_transform() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _round_finished:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_UP or event.physical_keycode == KEY_UP:
 			move_up()
@@ -255,6 +262,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func show_result(outcome: String, reason: String) -> void:
+	if game_over_screen != null and game_over_screen.has_method("show_result"):
+		game_over_screen.show_result(outcome, reason)
+		return
 	var status := get_node_or_null("GameUI/StatusPanel/Status") as Label
 	if status != null:
 		status.text = "%s: %s" % [outcome, reason]

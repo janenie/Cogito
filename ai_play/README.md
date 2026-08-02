@@ -97,7 +97,8 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 回转带利润玩法位于独立经营场景，也可普通启动或显式接入 AI：
 
 ```bash
-godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play-scenario=conveyor_profit
 
 godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
   -- --ai-play --ai-play-scenario=conveyor_profit
@@ -108,11 +109,17 @@ ID、成本、完整配方、售价和净利润，并公开每道菜整局最多
 结构化食材清单、可行菜、缺失食材、累计次数表、未来供给、随机牌组和绝对目标金额仍不公开；
 客户端必须根据 `observe` 截图识别当前可见食材，与公开菜单比较，并根据 accepted 收据自行记账。
 
-循环楼梯异常玩法位于独立场景，实验室推理玩法位于 Cogito Laboratory 场景：
+循环楼梯异常玩法位于独立场景，实验室推理玩法位于 Cogito Laboratory 场景；两者也可普通启动：
 
 ```bash
 godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play-scenario=loop_staircase_anomaly
+
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
   -- --ai-play --ai-play-scenario=loop_staircase_anomaly
+
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play-scenario=laboratory_experiment
 
 godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
   -- --ai-play --ai-play-scenario=laboratory_experiment
@@ -404,6 +411,9 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 动作、释放全部模拟输入，并从玩家已经到达的位置和当前世界状态捕获全新的 observation ID；旧
 `action_results` 和延迟截图会被废弃。Python 收到新 observation 后恢复 `act`，不会重启场景或
 把恢复计为新一局。重复恢复请求幂等；非法字段和不匹配 ID 仍然 fail-closed。
+普通动作回合只有在相同 `observation_id` 的 `action_results` 和不同编号的后续 observation
+都到达后才完成；两者允许乱序到达，但任何一方缺失都不得提前向 MCP 返回。Godot 断线后重新
+附加会清除旧终局和缓存观察，`observe` 必须等待新连接的第一帧，不能返回上一连接的截图。
 
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
@@ -497,6 +507,8 @@ mcplogs/
 
 - Python 与 Godot 只通过精确的 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 一个 MCP 会话只允许一个 Godot 控制器；握手、包大小、JSON 对象、协议版本和消息字段都经过边界校验。
+- 观察中的任务专用可选字段按当前握手玩法白名单校验；例如传送带、循环楼梯、实验室、日常和
+  花园的公开状态不能出现在其他任务响应中。所有第一人称任务可按观察契约公开深度图。
 - Godot 发送合法 `game_over` 后，Python 必须在记录可信终局和 AWM attempt 结果后回复
   精确字段的 `game_over_ack`。supervisor 启动的 Godot 只有收到匹配的
   `observation_id` ACK 后才退出；ACK 丢失时使用有界超时退出，避免永久挂起。
@@ -516,6 +528,8 @@ mcplogs/
   NPC 路线起点、NPC 路线方向、照明电路映射或故障线路、会议资料隐藏排列或候选解、
   daily routine 或 garden 内部节点路径、随机下雨时间、传送带未来供给、内部牌组标识、
   理论最优路线、循环楼梯答案、实验材料隐藏属性、随机种子或任务内部知识。
+- 旧 `ai_host --adapter codex-local` 因无法提供受维护入口同等级的本机权限隔离而明确禁用；
+  Codex 黑盒验收只使用 `tools/ai_play_codex_orchestrator.py`，并仍须先确认截图、令牌、费用和轨迹影响。
 
 ## 配置
 

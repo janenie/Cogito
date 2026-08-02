@@ -52,6 +52,25 @@ def valid_observation_with_jpeg_base64():
     }
 
 
+def test_scenario_validation_rejects_another_scenario_public_state():
+    observation = valid_observation_with_jpeg_base64()
+    observation["routine"] = {
+        "objective": "Collect trash.",
+        "trash_collected": 0,
+        "trash_required": 2,
+        "held_item": "",
+        "completed": False,
+        "failed": False,
+    }
+
+    with pytest.raises(ObservationValidationError, match="invalid fields"):
+        validate_observation(observation, "find_contract")
+    assert validate_observation(
+        observation,
+        "daily_routine_cleanup",
+    )["routine"] == observation["routine"]
+
+
 def png_chunk(kind, data):
     checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
     return (
@@ -106,6 +125,13 @@ def valid_observation_with_depth_image():
     observation = valid_observation_with_jpeg_base64()
     observation["depth_image"] = valid_depth_image()
     return observation
+
+
+def test_fixed_camera_conveyor_rejects_depth_image():
+    observation = valid_observation_with_depth_image()
+
+    with pytest.raises(ObservationValidationError, match="invalid fields"):
+        validate_observation(observation, "conveyor_profit")
 
 
 @pytest.mark.parametrize("outcome", ["aligned", "not_found"])

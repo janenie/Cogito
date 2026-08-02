@@ -1,6 +1,7 @@
 extends SceneTree
 
 var _failures: Array[String] = []
+var _test_scene_root: Node
 
 
 func _initialize() -> void:
@@ -8,6 +9,7 @@ func _initialize() -> void:
 
 
 func _run_test() -> void:
+	_ensure_current_scene()
 	var scene: PackedScene = load(
 		"res://addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn"
 	)
@@ -51,6 +53,11 @@ func _run_test() -> void:
 			not has_hidden_field,
 			"public state excludes the seed and hidden solution",
 		)
+		if _is_selected_scenario():
+			_assert(
+				controller.get_active_scenario_id() == "laboratory_experiment",
+				"selected launch activates the laboratory scenario",
+			)
 		_assert(public_state["attempts_limit"] == 3, "public state exposes the three-attempt limit")
 		_assert(public_state["sample_state"] == "none", "empty treatment slot is explicit")
 
@@ -69,13 +76,36 @@ func _run_test() -> void:
 			}],
 			"experiment terminal result is emitted exactly once",
 		)
+		if _is_selected_scenario():
+			_assert(
+				monitor.game_over_screen != null
+				and monitor.game_over_screen.visible,
+				"selected laboratory terminal shows the shared exit screen",
+			)
+		paused = false
 
 	laboratory.queue_free()
+	if _test_scene_root != null:
+		_test_scene_root.queue_free()
 	await process_frame
 	_finish()
 
 
+func _is_selected_scenario() -> bool:
+	return "--ai-play-scenario=laboratory_experiment" in OS.get_cmdline_user_args()
+
+
+func _ensure_current_scene() -> void:
+	if current_scene != null:
+		return
+	_test_scene_root = Node.new()
+	_test_scene_root.name = "AIPlayHeadlessTestScene"
+	root.add_child(_test_scene_root)
+	current_scene = _test_scene_root
+
+
 func _finish() -> void:
+	paused = false
 	if _failures.is_empty():
 		print("AIPlay laboratory integration test passed")
 		quit(0)

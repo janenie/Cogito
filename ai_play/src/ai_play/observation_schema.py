@@ -25,6 +25,19 @@ OBSERVATION_FIELDS = {
 OPTIONAL_OBSERVATION_FIELDS = {
     "routine", "garden", "depth_image", "conveyor", "laboratory", "staircase",
 }
+SCENARIO_OPTIONAL_OBSERVATION_FIELDS = {
+    "find_contract": {"depth_image"},
+    "find_key": {"depth_image"},
+    "put_book": {"depth_image"},
+    "greet_npc_meeting": {"depth_image"},
+    "repair_lighting_circuit": {"depth_image"},
+    "arrange_meeting_briefings": {"depth_image"},
+    "daily_routine_cleanup": {"depth_image", "routine"},
+    "garden_watering": {"depth_image", "garden"},
+    "conveyor_profit": {"conveyor"},
+    "loop_staircase_anomaly": {"depth_image", "staircase"},
+    "laboratory_experiment": {"depth_image", "laboratory"},
+}
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
@@ -297,12 +310,18 @@ def validate_action_results(results):
     return safe_results
 
 
-def validate_observation(value):
+def validate_observation(value, scenario_id=None):
     """Return a fresh safe observation DTO or raise before any model call."""
+    allowed_optional_fields = OPTIONAL_OBSERVATION_FIELDS
+    if scenario_id is not None:
+        try:
+            allowed_optional_fields = SCENARIO_OPTIONAL_OBSERVATION_FIELDS[scenario_id]
+        except (KeyError, TypeError) as error:
+            raise ObservationValidationError("observation scenario is invalid") from error
     if (
         not isinstance(value, dict)
         or not OBSERVATION_FIELDS.issubset(value)
-        or not set(value).issubset(OBSERVATION_FIELDS | OPTIONAL_OBSERVATION_FIELDS)
+        or not set(value).issubset(OBSERVATION_FIELDS | allowed_optional_fields)
     ):
         raise ObservationValidationError("observation has invalid fields")
 

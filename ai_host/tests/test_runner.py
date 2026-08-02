@@ -1,9 +1,17 @@
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from ai_host.attempt_state import AttemptResult
 from ai_host.config import HostConfig
 from ai_host.runner import run_host
+
+
+def test_runner_rejects_legacy_codex_local_before_starting_godot(tmp_path):
+    with pytest.raises(RuntimeError, match="codex-local adapter is disabled"):
+        asyncio.run(run_host(HostConfig(run_dir=tmp_path, adapter="codex-local")))
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_runner_stops_after_first_success(tmp_path):

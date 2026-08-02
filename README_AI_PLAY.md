@@ -10,7 +10,9 @@ AI First Play：外部 AI agent 通过本地 stdio MCP 服务观察并操作游�
 `arrange_meeting_briefings`，以及导入到当前仓库的
 `dailyroutine/scenes/home_daily_routine.tscn` 中的 `daily_routine_cleanup` 和
 `garden/scenes/garden_vertical_slice.tscn` 中的 `garden_watering`，以及独立场景
-`conveyor_profit/scenes/conveyor_profit_preview.tscn` 中的 `conveyor_profit`，共 9 个任务。
+`conveyor_profit/scenes/conveyor_profit_preview.tscn` 中的 `conveyor_profit`、
+循环楼梯场景中的 `loop_staircase_anomaly` 和实验室场景中的
+`laboratory_experiment`，共 11 个任务。
 MCP 服务不会启动 Godot、不会调用模型，也不需要 API Key。
 
 ## 1. 准备环境
@@ -241,13 +243,33 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
   -- --ai-play --ai-play-scenario=garden_watering
 ```
 
+`conveyor_profit`、`loop_staircase_anomaly` 和 `laboratory_experiment` 位于独立场景，
+均可普通启动或显式接入 AI：
+
+```bash
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play-scenario=conveyor_profit
+godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
+  -- --ai-play --ai-play-scenario=conveyor_profit
+
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play-scenario=loop_staircase_anomaly
+godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn \
+  -- --ai-play --ai-play-scenario=loop_staircase_anomaly
+
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play-scenario=laboratory_experiment
+godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
+  -- --ai-play --ai-play-scenario=laboratory_experiment
+```
+
 `--ai-play` 必须作为 Godot 用户参数精确传入：
 
 - 第一个 `--` 把后续内容作为 Godot 用户参数传入游戏。
 - `--ai-play` 显式启用 AI 控制。
 - `--ai-play-scenario=<id>` 选择同一 Lobby 中的玩法脚本；省略时默认使用
   `find_contract`。ID 只允许小写 ASCII 字母、数字和下划线。
-- `--ai-play-seed=<N>` 可选；外层 `ai_host` 多局运行时会自动为每局传入不同 seed。
+- `--ai-play-seed=<N>` 可选；受维护的 orchestrator/supervisor 多局运行时会自动为每局传入不同 seed。
   该 seed 只影响 Godot 运行时随机内容，不会进入 MCP 简报、观察或桥协议结果。
 
 普通 Lobby 启动保持 AI 控制关闭。MCP 服务也不会自动启动、重启或关闭 Godot。
@@ -296,13 +318,19 @@ $env:PYTHONPATH = "ai_play/src"
 `greet_npc_meeting` 的硬上限为 100 次，
 允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
 的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
-和 `failure/max_requests`；`garden_watering` 的硬上限为 300 次，允许
+和 `failure/max_requests`；`garden_watering` 的硬上限为 80 次，允许
 `success/garden_tasks_complete`、`failure/garden_task_failed` 和
 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，允许
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
 `arrange_meeting_briefings` 的硬上限为 100 次，允许 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 和 `failure/max_requests`。
+`conveyor_profit` 的硬上限为 300 次，允许 `success/efficiency_target_reached`、
+`failure/efficiency_below_target` 和 `failure/max_requests`；
+`loop_staircase_anomaly` 的硬上限为 160 次，允许 `success/correct_floor_selected`、
+`failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment` 的硬上限为
+150 次，允许 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
+`failure/max_requests`。
 `find_key` 和 `greet_npc_meeting` 没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
@@ -458,6 +486,8 @@ Godot 成功连接后，MCP Server 会在日志根目录的
 bash tests/check_ai_play_start_script.sh
 bash tests/check_ai_play_mcp_only.sh
 bash tests/check_ai_play_arrange_meeting_briefings_monitor.sh
+bash tests/check_ai_play_laboratory.sh
+bash tests/check_loop_staircase.sh
 git diff --check
 ```
 

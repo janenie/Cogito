@@ -60,6 +60,12 @@ def parse_args(argv: list[str] | None = None) -> HostConfig:
         help="Maximum MCP tool calls allowed per game attempt.",
     )
     args = parser.parse_args(argv)
+    if args.adapter == "codex-local":
+        parser.error(
+            "--adapter codex-local is disabled because the legacy Host cannot "
+            "enforce black-box filesystem isolation; use "
+            "tools/ai_play_codex_orchestrator.py"
+        )
     if args.max_attempts < 1:
         parser.error("--max-attempts must be >= 1")
     if args.max_mcp_interactions < 1:
@@ -73,7 +79,7 @@ def parse_args(argv: list[str] | None = None) -> HostConfig:
         parser.error("--max-agent-turns must be >= 1")
     model = args.model
     if model is None:
-        model = "gpt-5.6-sol" if args.adapter == "codex-local" else "gpt-5.6"
+        model = "gpt-5.6"
     return HostConfig(
         scenario_id=args.scenario,
         scene_path=Path(args.scene),

@@ -20,6 +20,10 @@ const OUTCOME_TEXT := {
 	"incorrect_seating_assignment": "任务失败",
 	"experiment_completed": "实验成功",
 	"experiment_attempts_exhausted": "实验失败",
+	"efficiency_target_reached": "经营成功",
+	"efficiency_below_target": "经营失败",
+	"correct_floor_selected": "任务成功",
+	"wrong_floor_selected": "任务失败",
 }
 const REASON_TEXT := {
 	"correct_password": "密码正确",
@@ -40,6 +44,10 @@ const REASON_TEXT := {
 	"incorrect_seating_assignment": "会议资料席位不正确",
 	"experiment_completed": "已组装出符合目标的实验回路",
 	"experiment_attempts_exhausted": "三次实验机会已用完",
+	"efficiency_target_reached": "传送带经营效率达到目标",
+	"efficiency_below_target": "传送带经营效率未达到目标",
+	"correct_floor_selected": "已找到真正的出口楼层",
+	"wrong_floor_selected": "选择了错误的出口楼层",
 }
 
 @onready var outcome_label: Label = $Screen/Center/Content/Margin/Labels/Outcome

@@ -61,39 +61,14 @@ per-attempt seed。
 
 ### 本地 Codex 模式
 
-这种模式下 `ai_host` 负责启动 Godot；每一局再启动一次本地 `codex exec`，让 Codex 通过
-临时配置的 `cogito_ai_play` MCP server 玩游戏。Codex 的工作目录不是当前仓库，而是每局
-新建的空目录：
+`ai_host --adapter codex-local` 已明确禁用。仅把 Codex 工作目录设为空目录，不能阻止进程
+通过文件系统或继承配置读取仓库、开发者笔记和凭据，因此不满足本项目的黑盒安全边界。
+命令行和程序化入口都会在启动 Godot、Codex 或创建运行产物前拒绝该 adapter。
 
-```text
-ai_host/runs/latest/attempt_N/codex_workspace
-```
-
-这样 Codex 看不到仓库源码、`game_script/` 或场景文件；它只能通过 MCP briefing、
-observe、act、stop 等工具获得允许公开的运行时信息。
-
-```bash
-PYTHONPATH=. .venv/bin/python -m ai_host \
-  --adapter codex-local \
-  --model gpt-5.6-sol \
-  --codex-reasoning-effort xhigh \
-  --scenario daily_routine_cleanup \
-  --scene dailyroutine/scenes/home_daily_routine.tscn \
-  --max-attempts 3 \
-  --max-mcp-interactions 1000
-```
-
-本地 Codex 模型目录中没有 `gpt-5.6-high-extra` 这个模型 slug；对应的可用配置是
-`--model gpt-5.6-sol --codex-reasoning-effort xhigh`。`codex-local` 默认使用这组配置。
-
-如果本地 Codex 命令不叫 `codex`，可以用：
-
-```bash
---codex-command /path/to/codex
-```
-
-`codex-local` 会使用 `codex exec --output-schema --output-last-message` 获取结构化结果；
-报告写入每局目录的 `report.json`。
+需要本地 Codex 黑盒多局验收时，使用受维护的
+[`tools/ai_play_codex_orchestrator.py`](../tools/ai_play_codex_orchestrator.py)。该入口会建立
+临时 `CODEX_HOME`、工具白名单、受限网络 profile、可信日志侧和独立 Godot 环境；具体命令与
+确认要求见 [`ai_play/README.md`](../ai_play/README.md#黑盒-codex-玩家连续-3-局)。
 
 ### 通用外部命令模式
 

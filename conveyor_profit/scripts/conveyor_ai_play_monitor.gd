@@ -6,6 +6,7 @@ signal game_finished(outcome: String, reason: String)
 @export var scenario_id: String = "conveyor_profit"
 @export var gameplay: ConveyorGameplay
 @export var camera: Camera3D
+@export var game_over_screen: Node
 
 
 func _ready() -> void:
@@ -48,3 +49,8 @@ func execute_semantic_action(action: Dictionary) -> Dictionary:
 
 func _on_game_finished(outcome: String, reason: String) -> void:
 	game_finished.emit(outcome, reason)
+
+
+func show_result(outcome: String, reason: String) -> void:
+	if game_over_screen != null and game_over_screen.has_method("show_result"):
+		game_over_screen.show_result(outcome, reason)

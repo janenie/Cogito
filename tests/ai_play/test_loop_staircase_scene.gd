@@ -1,6 +1,7 @@
 extends SceneTree
 
 var _failures: Array[String] = []
+var _test_scene_root: Node
 
 
 func _initialize() -> void:
@@ -8,6 +9,7 @@ func _initialize() -> void:
 
 
 func _run_test() -> void:
+	_ensure_current_scene()
 	var scene: PackedScene = load(
 		"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn"
 	)
@@ -42,6 +44,11 @@ func _run_test() -> void:
 		"AIPlayController/LoopStaircaseManager"
 	)
 	_assert(manager != null, "AIPlayController includes loop staircase monitor")
+	_assert(
+		manager != null
+		and manager.game_over_screen == manager.get_node_or_null("GameOverScreen"),
+		"loop staircase uses the shared terminal exit screen",
+	)
 	var observer: Node = root_node.get_node_or_null("AIPlayController/Observer")
 	_assert(
 		observer != null
@@ -288,10 +295,19 @@ func _run_test() -> void:
 		}],
 		"space-style submit chooses the current floor",
 	)
+	if _is_selected_scenario():
+		_assert(
+			manager.game_over_screen != null
+			and manager.game_over_screen.visible,
+			"selected loop terminal shows the shared exit screen",
+		)
 
+	var expected_scenario := (
+		"loop_staircase_anomaly" if _is_selected_scenario() else "find_contract"
+	)
 	_assert(
-		controller.get_active_scenario_id() == "find_contract",
-		"normal scene launch keeps default scenario without command-line override",
+		controller.get_active_scenario_id() == expected_scenario,
+		"controller uses the requested scenario or the documented default",
 	)
 	_assert(
 		manager.scenario_id == "loop_staircase_anomaly",
@@ -299,11 +315,28 @@ func _run_test() -> void:
 	)
 
 	root_node.queue_free()
+	paused = false
+	if _test_scene_root != null:
+		_test_scene_root.queue_free()
 	await process_frame
 	_finish()
 
 
+func _is_selected_scenario() -> bool:
+	return "--ai-play-scenario=loop_staircase_anomaly" in OS.get_cmdline_user_args()
+
+
+func _ensure_current_scene() -> void:
+	if current_scene != null:
+		return
+	_test_scene_root = Node.new()
+	_test_scene_root.name = "AIPlayHeadlessTestScene"
+	root.add_child(_test_scene_root)
+	current_scene = _test_scene_root
+
+
 func _finish() -> void:
+	paused = false
 	if _failures.is_empty():
 		print("Loop staircase scene test passed")
 		quit(0)

@@ -119,7 +119,7 @@ class GameSession:
                 self._scenario_id = previous_scenario_id
                 self._round_act_request_limit = previous_round_act_request_limit
                 raise
-            if self._state in {"stopped", "game_over"}:
+            if self._state in {"stopped", "game_over", "disconnected"}:
                 self._clear_terminal_attempt_locked()
             self._act_request_count = 0
             self._request_limit_pending = False
@@ -188,8 +188,10 @@ class GameSession:
             self._close_log()
 
     def receive_observation(self, value):
+        with self._condition:
+            scenario_id = self._scenario_id
         try:
-            safe = validate_observation(value)
+            safe = validate_observation(value, scenario_id)
         except ObservationValidationError as error:
             raise SessionError("invalid_observation") from error
 
@@ -429,7 +431,10 @@ class GameSession:
                 raise SessionError("transport_unavailable")
 
             while True:
-                if self._pending_next_observation is not None:
+                if (
+                    self._pending_next_observation is not None
+                    and self._pending_results is not None
+                ):
                     return self._complete_turn_locked()
                 if self._game_over is not None:
                     return self._complete_terminal_turn_locked()

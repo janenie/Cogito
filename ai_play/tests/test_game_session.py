@@ -805,6 +805,21 @@ def test_successful_attach_resets_act_request_count():
     assert session.act_request_count == 0
 
 
+def test_reconnect_waits_for_first_observation_from_new_controller():
+    session, sent = make_session(max_act_requests=10)
+    session.receive_observation(observation(7))
+    session.detach("connection_closed")
+
+    session.attach(lambda packet: sent.append(packet) or True)
+
+    with pytest.raises(SessionError, match="observation_timeout"):
+        session.observe(timeout=0.01)
+    session.receive_observation(observation(1))
+    result = session.observe(timeout=0.1)
+    assert result.status == "ready"
+    assert result.observation["observation_id"] == 1
+
+
 def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
     session, sent = make_session()
     session.receive_observation(observation(7))
@@ -826,6 +841,34 @@ def test_act_sends_valid_batch_and_waits_for_results_and_next_observation():
 
     session.receive_action_results(7, wait_action_results())
     session.receive_observation(observation(8))
+    thread.join()
+
+    assert result_holder == [SessionResult(
+        status="ready",
+        observation=observation(8),
+        action_results=wait_action_results(),
+    )]
+
+
+def test_act_waits_for_results_when_next_observation_arrives_first():
+    session, sent = make_session()
+    session.receive_observation(observation(7))
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            session.act(
+                7,
+                [{"type": "wait", "duration_ms": 50}],
+                timeout=0.5,
+            )
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) == 1)
+
+    session.receive_observation(observation(8))
+    assert thread.is_alive()
+    session.receive_action_results(7, wait_action_results())
     thread.join()
 
     assert result_holder == [SessionResult(

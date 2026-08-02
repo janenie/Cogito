@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_loop_staircase_observer.gd" id="4_loop_observer"]
 [ext_resource type="Script" uid="uid://btnha2whsheir" path="res://addons/cogito/InventoryPD/cogito_inventory.gd" id="4_8hmf0"]
 [ext_resource type="Script" uid="uid://diyqphburmsyf" path="res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_manager.gd" id="4_manager"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="4_game_over"]
 [ext_resource type="PackedScene" uid="uid://cml4428ohsdq0" path="res://addons/cogito/DemoScenes/DemoPrefabs/lounge_sofa_corner.tscn" id="5_sofa"]
 [ext_resource type="PackedScene" uid="uid://dlhn1jwgx0wjr" path="res://addons/cogito/DemoScenes/DemoPrefabs/table_coffee_glass.tscn" id="6_table"]
 [ext_resource type="PackedScene" uid="uid://u2b6ss4xaxp8" path="res://addons/cogito/DemoScenes/DemoPrefabs/coffee_mug.tscn" id="7_mug"]
@@ -60,10 +61,13 @@ script = ExtResource("4_loop_observer")
 player = NodePath("../../Player")
 manager = NodePath("../LoopStaircaseManager")
 
-[node name="LoopStaircaseManager" type="Node3D" parent="AIPlayController" unique_id=1086605585 node_paths=PackedStringArray("player")]
+[node name="LoopStaircaseManager" type="Node3D" parent="AIPlayController" unique_id=1086605585 node_paths=PackedStringArray("player", "game_over_screen")]
 script = ExtResource("4_manager")
 build_scene_on_ready = true
 player = NodePath("../../Player")
+game_over_screen = NodePath("GameOverScreen")
+
+[node name="GameOverScreen" parent="AIPlayController/LoopStaircaseManager" instance=ExtResource("4_game_over")]
 
 [node name="CurrentFloorRoom" type="Node3D" parent="AIPlayController/LoopStaircaseManager" unique_id=1389556477]
 

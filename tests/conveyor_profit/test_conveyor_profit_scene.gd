@@ -66,6 +66,11 @@ func _run_test() -> void:
 				monitor.gameplay == preview.get_node("Environment/Gameplay"),
 				"monitor controls the preview gameplay",
 			)
+			_check(
+				monitor.game_over_screen
+				== monitor.get_node_or_null("GameOverScreen"),
+				"conveyor monitor uses the shared terminal exit screen",
+			)
 		var observer: Node = controller.get_node_or_null("Observer")
 		_check(observer != null, "conveyor observer is wired")
 		_check(observer is ConveyorAIPlayObserver, "preview uses the fixed-camera observer")

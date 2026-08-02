@@ -14,7 +14,9 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   - `InventoryPD/` 和 `Wieldables/`：库存数据、物品资源、武器和消耗品。
   - `CogitoNPC/`：可复用的 NPC 和状态机实现。
   - `SceneManagement/`、`QuestSystem/` 和 `EasyMenus/`：由自动加载单例支持的全局系统。
-  - `DemoScenes/`：可游玩内容。`COGITO_3_Lobby.tscn` 是 AI First Play 场景。
+  - `DemoScenes/`：可游玩内容。`COGITO_3_Lobby.tscn` 承载六个 Lobby 任务，
+    `LoopStaircase/loop_staircase_anomaly.tscn` 和 `COGITO_4_Laboratory.tscn` 分别承载
+    循环楼梯与实验室 AI First Play 任务。
   - `AIPlay/`：观察器、执行器、WebSocket 桥接器、控制器和可复用控制器场景。
 - `addons/input_helper/` 和 `addons/quick_audio/`：仓库内附带的第三方插件。除非任务明确涉及它们，否则不要修改。
 - `ai_play/src/ai_play/`：Python 边车源代码。
@@ -36,7 +38,8 @@ Cogito 是一个基于 Godot 4 的第一人称沉浸式模拟游戏模板。引�
   `daily_routine_cleanup` AI Play 任务。
 - `garden/`：独立的社区花园场景及脚本，对应 `garden_watering` AI Play 任务。
 - `conveyor_profit/`：独立的十窗口经营场景及语义动作实现，对应 `conveyor_profit` 任务。
-- `ai_host/`：保留用于兼容和实验的旧多局 Host；当前受维护入口是 `tools/` 下的 orchestrator。
+- `ai_host/`：保留用于 API 和外部命令兼容实验的旧多局 Host；不安全的 `codex-local` adapter
+  已禁用，当前本地 Codex 受维护入口是 `tools/` 下的 orchestrator。
 - `tests/ai_play/`：Godot 无界面契约测试。
 - `tests/garden/`：花园玩法和 AI Play 接线的 Godot 无界面测试。
 - `tests/*.sh`：场景、启动、NPC 和凭据的静态检查。

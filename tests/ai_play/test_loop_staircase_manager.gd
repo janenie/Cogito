@@ -61,6 +61,13 @@ func _run_test() -> void:
 		}],
 		"correct answer emits success exactly once",
 	)
+	var finished_floor: int = second.get_current_floor()
+	second.move_up()
+	second.move_down()
+	_assert(
+		second.get_current_floor() == finished_floor,
+		"finished round ignores further floor navigation",
+	)
 
 	var third: Node = manager_script.new()
 	root.add_child(third)

@@ -109,7 +109,12 @@ godot --headless --path . --script tests/garden/test_garden_ai_play.gd
 godot --headless --path . --script tests/garden/test_garden_game1.gd
 godot --headless --path . --script tests/garden/test_garden_scene.gd
 godot --headless --path . --script tests/dailyroutine/test_home_ai_play_observer.gd
+bash tests/check_ai_play_laboratory.sh
+bash tests/check_loop_staircase.sh
 ```
+
+实验室和循环楼梯使用包装脚本，是因为它们除进程退出码外还会检查 Godot 日志中的脚本解析、
+编译和无效 UID 错误，避免测试脚本因场景装载失败而假绿。
 
 隔离 Codex 玩家多局验收的 Godot 生命周期由 supervisor 管理；真实运行前还须获得用户对截图、
 令牌、费用和轨迹持久化的明确确认：

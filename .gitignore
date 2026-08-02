@@ -22,6 +22,9 @@ data_*/
 
 # AI Play local secrets and runtime data
 .venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 api_key.py
 new_ak.py
 ai_play/.env

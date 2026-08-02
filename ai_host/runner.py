@@ -14,7 +14,10 @@ from .reflection import sanitize_items, sanitize_reflection
 
 def default_agent_factory(config: HostConfig):
     if config.adapter == "codex-local":
-        return CodexLocalAgent(config)
+        raise RuntimeError(
+            "legacy codex-local adapter is disabled; use "
+            "tools/ai_play_codex_orchestrator.py"
+        )
     if config.adapter == "external-command":
         return ExternalCommandAgent(config)
     return OpenAIResponsesAgent(config)
@@ -27,6 +30,11 @@ async def run_host(
     godot_factory=GodotAttemptProcess,
     mcp_client_factory=None,
 ) -> FinalReport:
+    if config.adapter == "codex-local":
+        raise RuntimeError(
+            "legacy codex-local adapter is disabled; use "
+            "tools/ai_play_codex_orchestrator.py"
+        )
     config.run_dir.mkdir(parents=True, exist_ok=True)
     attempts: list[AttemptResult] = []
     reflection = ReflectionMemory()
