@@ -7,7 +7,7 @@ AI First Play 是一套需要显式启用的自主游玩系统：
 - `addons/cogito/AIPlay/` 下的 Godot 代码捕获获准公开的观察数据，并执行有严格限制的输入动作。
 - `ai_play/` 下的 Python 进程是 MCP Server，负责暴露 `briefing`、`workflow_memory_read`、
   `observe`、`act`、`workflow_memory_update`、`stop`，验证 DTO，并通过本机回环 WebSocket
-  桥与 Godot 串行交换观察和动作结果；隔离 Codex 玩家不获准使用 `stop`。
+  桥与 Godot 串行交换观察和动作结果；隔离模型玩家不获准使用 `stop`。
 - 外部 MCP 客户端负责游玩决策；Python 不调用模型 API、不读取任务源码，只把获准公开的 MCP 游玩轨迹和截图保存到操作者配置的本地日志目录。
 - Godot 与 Python 默认通过精确地址 `127.0.0.1:8765` 通信，内部桥协议版本为 4。
 - 同一 Lobby 可用 `--ai-play-scenario=<id>` 选择玩法脚本；省略时默认
@@ -30,7 +30,7 @@ Godot 桥的安全边界。
   和运行时按键绑定。
 - 绝不能把场景源码、节点路径、隐藏状态、仓库文件、谜题答案，或来自 `game_script/`、`code_read/`、测试、规格和计划的事实加入提示词、种子记忆、API 载荷或黑盒验收提示。
 - 除非用户明确要求，并且了解截图、令牌、费用和本地轨迹持久化的影响，否则不要运行真实外部 MCP/模型验收。自动化测试必须不依赖真实凭据。
-- 隔离 Codex 玩家多局验收应由外部 supervisor 重启 Godot。玩家 Codex 只使用
+- 隔离模型玩家多局验收应由外部 supervisor 重启 Godot。玩家只使用
   `briefing`、`workflow_memory_read`、`observe`、`act`、`workflow_memory_update`；supervisor
   只监听 Godot 终局标识和进程状态，
   不读取轨迹、截图、源码或模型上下文。
@@ -192,6 +192,36 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 该本机方案限制 Codex 会话通过配置工具读取文件和使用网络的范围，但不是容器、VM 或独立 OS
 用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
 会涉及截图、令牌、费用和本地轨迹持久化，仍须用户单独确认。
+
+### Claude Code orchestrator
+
+> 状态：已于 2026-08-04 实施；设计来源见
+> [`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)。
+
+Claude 入口保留 Codex 入口，并通过 `ai_play_orchestrator_common.py` 与其复用可信 MCP HTTP 边车、Godot supervisor、隔离运行目录、
+玩家提示词、进程监控和失败收束公共层。仓库侧可信编排器只从操作者指定的
+`.claude/settings.local.json` 提取白名单 Claude 服务环境变量，写入本局私有临时配置；玩家不读取
+源 settings，也不获得其仓库路径。临时配置在正常和异常退出路径都必须删除。
+
+Claude 玩家在空目录中使用 `--bare`、`--print`、`--no-session-persistence`、
+`--strict-mcp-config` 和显式 MCP/工具配置启动。一次非交互 agent turn 可以连续调用多次 MCP 工具，
+直到完成全部有效局次。启用 workflow memory 时只开放五个玩家工具；禁用时只开放
+`briefing`、`observe`、`act`；两种模式都排除 `stop`，并且不加载仓库指令、skills、plugins、
+hooks、agents 或其他 MCP Server。真实 Claude/Godot 验收同样需要用户事先确认截图、令牌、费用和
+本地轨迹持久化影响；自动化测试不得发起模型请求或依赖真实凭据。
+
+```bash
+python3 tools/ai_play_claude_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model opus \
+  --effort high \
+  --claude-settings .claude/settings.local.json
+```
+
+settings `env` 白名单为 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`、
+`ANTHROPIC_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL`；必须存在 API key 或 auth token，自定义 base URL
+必须使用 HTTPS。`--model` 和 `--effort` 必填。
 
 ### 会话级 Agent Workflow Memory
 
@@ -604,4 +634,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md) 和 [`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。

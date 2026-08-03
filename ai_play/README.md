@@ -130,7 +130,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 `find_contract`。Godot 在 `hello` 中上报实际 ID，Python 只接受
 `ai_play.scenarios` 白名单中的玩法，并使用同一 ID 选择公开简报。
 
-## 黑盒 Codex 玩家连续 3 局
+## 黑盒模型玩家连续多局
+
+### Codex
 
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧
 由 orchestrator 启动 MCP HTTP 边车与 Godot supervisor；玩家 Codex 只可发现
@@ -240,6 +242,36 @@ supervisor 返回 `stopped` 并立即中止整次多局运行，不重试也不�
 MCP shutdown、超时和没有正式终局的提前退出属于异常，只重试同一个有效局次；重试耗尽后以
 退出码 2 收束。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。
+
+### Claude Code
+
+`tools/ai_play_claude_orchestrator.py` 已按
+[`Claude AI Player spec`](../docs/scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)
+实施。它保留 Codex 入口，并通过 `tools/ai_play_orchestrator_common.py` 复用可信 MCP HTTP 边车、
+Godot supervisor、隔离运行目录、玩家提示词、进程监控和失败收束；Claude 专用层只处理 settings
+白名单、临时认证配置和 CLI 参数。
+
+可信编排器从操作者指定的 `.claude/settings.local.json` 提取白名单 Claude 服务环境变量，写入
+本局私有临时配置；玩家进程不读取源 settings，也不获得其仓库路径。Claude 在空目录中使用
+`--bare`、`--print`、`--no-session-persistence`、`--strict-mcp-config` 和显式工具白名单启动，
+不加载仓库指令、skills、plugins、hooks、agents 或其他 MCP Server。workflow memory 启用时只
+开放五个玩家工具，禁用时只开放 `briefing`、`observe`、`act`，两种模式都排除 `stop`。
+
+源 settings 的 `env` 只允许 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
+`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL` 和 `ANTHROPIC_SMALL_FAST_MODEL`；必须提供前两个凭据之一，
+自定义 base URL 必须使用 HTTPS。模型和 effort 没有默认值：
+
+```bash
+python3 tools/ai_play_claude_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model opus \
+  --effort high \
+  --claude-settings .claude/settings.local.json
+```
+
+`--effort` 只接受 `low`、`medium`、`high`、`xhigh` 或 `max`。真实 Claude/Godot 多局验收仍须另行确认截图、令牌、
+费用和本地轨迹持久化影响；自动化测试不得使用真实凭据或发起模型请求。
 
 ### 会话级 Agent Workflow Memory
 

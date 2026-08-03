@@ -54,6 +54,23 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 HTTP MCP 默认端口为 8766�
 它不是容器或独立 OS 用户级别的安全边界。涉及真实 Codex、截图、令牌、费用或本地轨迹持久化的
 验收，仍需用户单独确认。
 
+### 黑盒 Claude 玩家约定
+
+> 状态：已于 2026-08-04 实施。设计来源见
+> [`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)。
+
+Claude 入口保留 Codex 入口，并与其复用 MCP 边车、Godot supervisor、隔离运行目录、玩家提示词、
+进程监控和失败收束公共层。仓库侧可信编排器可读取操作者显式指定的
+`.claude/settings.local.json`，但只把白名单 Claude 服务环境变量复制到本局私有临时配置；
+玩家进程不得获得源 settings 路径、仓库路径、可信日志根目录或其他主机凭据。
+
+玩家应在空目录中使用 Claude Code 的 `--bare`、`--print`、`--no-session-persistence`、
+`--strict-mcp-config` 和显式工具白名单运行。启用 workflow memory 时只开放
+`briefing`、`workflow_memory_read`、`observe`、`act`、`workflow_memory_update`；禁用时只开放
+`briefing`、`observe`、`act`；始终排除 `stop`。自动化测试只能使用临时 settings 和伪进程，
+不得发起真实模型请求或依赖真实凭据。真实 Claude/Godot 验收仍需用户单独确认截图、令牌、费用和
+本地轨迹持久化影响。
+
 ## 验证
 
 先运行与改动最相关的最小测试，再运行受影响的完整测试套件。
@@ -75,21 +92,21 @@ PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest \
 MCP 相关测试还必须验证工具列表、结构化结果、图片内容、串行动作、过期观察 ID、
 Godot 断线和停止时的输入释放；测试不得启动真实外部模型或使用真实凭据。
 
-修改 Codex orchestrator 或 Godot supervisor 时，运行对应的纯本地 Python 单元测试：
+修改玩家 orchestrator 或 Godot supervisor 时，运行对应的纯本地 Python 单元测试：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_supervisor.py -q
+.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_claude_orchestrator.py tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_supervisor.py -q
 ```
 
-这些测试只使用临时目录和伪进程，覆盖隔离运行目录、临时认证副本、HTTP MCP 工具白名单、
+这些测试只使用临时目录和伪进程，覆盖隔离运行目录、两种玩家的临时认证配置、HTTP MCP 工具白名单、
 异常重试及停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。controller 的 Escape
 或 MCP stop 会让 supervisor 返回 `stopped` 并中止整次运行；桥断开、MCP shutdown、超时和
 无正式终局的提前退出只重试当前有效局次，不能计入任务成功率。
 
-黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时副本清理、空且隔离的玩家目录、
-确定性临时 Codex 配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
+黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时配置清理、空且隔离的玩家目录、
+确定性临时模型配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
 玩家/可信侧环境隔离、提示词不含游戏实现信息，
-以及 MCP/Codex/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、MCP Server 或 Godot。
+以及 MCP/玩家/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、Claude、MCP Server 或 Godot。
 
 Godot AI 契约测试：
 
@@ -163,4 +180,5 @@ sphinx-build -b html docs docs/_build/html
 
 本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的
 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md) 和已实施的
-[`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)。
+[`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md) 和
+已实施的 [`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)。
