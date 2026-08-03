@@ -27,6 +27,7 @@ __pycache__/
 .pytest_cache/
 api_key.py
 new_ak.py
+opus.py
 ai_play/.env
 ai_play/runtime/
 ai_play/**/*.log
