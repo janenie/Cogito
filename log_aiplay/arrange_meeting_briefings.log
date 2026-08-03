@@ -1,0 +1,32 @@
+benchmark_id: bmk-20260803-003929
+task: arrange_meeting_briefings
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605
+trusted_log_root: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36
+run_summary: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/run.json
+
+run_1:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+run_2:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+run_3:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+run_4:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+aggregate: 0/4 success, 4/4 failure/max_requests

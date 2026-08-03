@@ -1,0 +1,32 @@
+benchmark_id: bmk-20260803-003929
+task: repair_lighting_circuit
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835
+trusted_log_root: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48
+run_summary: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/run.json
+
+run_1:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-01/trajectory.json
+  result: failure/wrong_breaker
+  total_steps: 100
+
+run_2:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+run_3:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-03/trajectory.json
+  result: failure/wrong_breaker
+  total_steps: 97
+
+run_4:
+  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+
+aggregate: 0/4 success, 2/4 failure/wrong_breaker, 2/4 failure/max_requests

@@ -99,6 +99,8 @@ def test_put_book_registry_loads_bounded_public_briefing():
         "逐本对准",
         "HUD 名称",
         "返回的截图",
+        "公开英文标识",
+        "保持打开",
     ]:
         assert required in serialized
     for obsolete in [

@@ -23,6 +23,10 @@ const BOOK_CARRY_DISTANCE_OFFSET := -0.75
 const BOOK_CARRYING_VELOCITY_MULTIPLIER := 12.0
 const BOOK_DROP_DISTANCE := 2.5
 const ASSISTED_DROP_RANGE := 2.0
+const BOOK_INTERACTION_DISTANCE := 2.4
+const BOOK_INTERACTION_CAST_RADIUS := 0.14
+const BOOK_INTERACTION_HOTSPOT_DISTANCE := 1.8
+const BOOK_INTERACTION_COLLISION_SIZE := Vector3(0.39, 0.32, 0.36)
 
 @export var scenario_id: String = "put_book"
 @export var game_over_screen: Node
@@ -52,6 +56,7 @@ var _current_carried_book: RigidBody3D = null
 var _completed_books: Array[RigidBody3D] = []
 var _books_carried_once: Dictionary = {}
 var _delivery_in_progress := false
+var _interaction_assist_configured := false
 
 
 func _ready() -> void:
@@ -72,6 +77,8 @@ func configure_round(seed_value: int = 0) -> void:
 	if not _has_required_nodes():
 		return
 	_ensure_runtime_books()
+	_configure_runtime_book_interaction_bounds()
+	_configure_book_interaction_assist()
 	if _runtime_books.size() != ROUND_BOOK_COUNT:
 		push_error("AIPlayPutBookMonitor needs six runtime book instances")
 		return
@@ -281,9 +288,46 @@ func _activate_destination() -> void:
 
 func _reset_ceo_door() -> void:
 	ceo_door.is_locked = false
-	ceo_door.is_open = false
+	ceo_door.is_open = true
 	ceo_door.is_moving = false
 	ceo_door.set_state()
+
+
+func _configure_book_interaction_assist() -> void:
+	if _interaction_assist_configured:
+		return
+	var interaction_component: Variant = _player_interaction_component()
+	if interaction_component == null or "interaction_raycast" not in interaction_component:
+		push_error("AIPlayPutBookMonitor player is missing its interaction raycast")
+		return
+	var raycast := interaction_component.interaction_raycast as InteractionRayCast
+	if raycast == null or raycast.shapecast == null or raycast.hotspot == null:
+		push_error("AIPlayPutBookMonitor interaction raycast is not ready")
+		return
+	var assist_shape := raycast.shapecast.shape.duplicate() as SphereShape3D
+	if assist_shape == null:
+		push_error("AIPlayPutBookMonitor interaction shapecast must use a sphere")
+		return
+	assist_shape.radius = BOOK_INTERACTION_CAST_RADIUS
+	raycast.shapecast.shape = assist_shape
+	raycast.target_position.z = -BOOK_INTERACTION_DISTANCE
+	raycast.shapecast.target_position.z = -BOOK_INTERACTION_DISTANCE
+	raycast.hotspot.position.z = -BOOK_INTERACTION_HOTSPOT_DISTANCE
+	raycast.hotspot_base_pos_z = -BOOK_INTERACTION_HOTSPOT_DISTANCE
+	_interaction_assist_configured = true
+
+
+func _configure_runtime_book_interaction_bounds() -> void:
+	for book: RigidBody3D in _runtime_books:
+		var collision := book.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if collision == null or not collision.shape is BoxShape3D:
+			push_error("AIPlayPutBookMonitor runtime book must use box collision bounds")
+			continue
+		if (collision.shape as BoxShape3D).size == BOOK_INTERACTION_COLLISION_SIZE:
+			continue
+		var interaction_shape := collision.shape.duplicate() as BoxShape3D
+		interaction_shape.size = BOOK_INTERACTION_COLLISION_SIZE
+		collision.shape = interaction_shape
 
 
 func can_assisted_drop_to_destination() -> bool:

@@ -809,6 +809,25 @@ shadow_mesh = SubResource("ArrayMesh_0cd07")
 [sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_2ie67"]
 data = PackedVector3Array(0.3679, 0.2435, 0, 0, 0.2435, 0, 0, 0.2435, -1.58, 0, 0.2435, -1.58, 0.3679, 0.2435, -1.58, 0.3679, 0.2435, 0, 2.6232, 2.1919, -1.58, 2.6232, 2.1919, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, -1.58, 2.6232, 2.1919, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.9484, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.8875, -1.58, 2.6631, 1.8875, -1.58, 2.6631, 1.9484, -1.58, 2.6631, 1.9484, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.8875, -1.58, 1.0236, 0.7306, 0, 0.6558, 0.7306, 0, 0.6558, 0.7306, -1.58, 0.6558, 0.7306, -1.58, 1.0236, 0.7306, -1.58, 1.0236, 0.7306, 0, 3.3189, 2.4355, 0, 2.9511, 2.4355, 0, 2.9511, 2.4355, -1.58, 2.9511, 2.4355, -1.58, 3.3189, 2.4355, -1.58, 3.3189, 2.4355, 0, 2.6631, 1.9484, 0, 2.2952, 1.9484, 0, 2.2952, 1.9484, -1.58, 2.2952, 1.9484, -1.58, 2.6631, 1.9484, -1.58, 2.6631, 1.9484, 0, 0.6958, 0.4871, 0, 0.3279, 0.4871, 0, 0.3279, 0.4871, -1.58, 0.3279, 0.4871, -1.58, 0.6958, 0.4871, -1.58, 0.6958, 0.4871, 0, 2.3353, 1.7048, 0, 1.9674, 1.7048, 0, 1.9674, 1.7048, -1.58, 1.9674, 1.7048, -1.58, 2.3353, 1.7048, -1.58, 2.3353, 1.7048, 0, 2.0074, 1.4613, 0, 1.6394, 1.4613, 0, 1.6394, 1.4613, -1.58, 1.6394, 1.4613, -1.58, 2.0074, 1.4613, -1.58, 2.0074, 1.4613, 0, 2.9911, 2.1919, 0, 2.6232, 2.1919, 0, 2.6232, 2.1919, -1.58, 2.6232, 2.1919, -1.58, 2.9911, 2.1919, -1.58, 2.9911, 2.1919, 0, 1.3516, 0.9742, 0, 0.9837, 0.9742, 0, 0.9837, 0.9742, -1.58, 0.9837, 0.9742, -1.58, 1.3516, 0.9742, -1.58, 1.3516, 0.9742, 0, 3.6469, 2.6791, 0, 3.2789, 2.6791, 0, 3.2789, 2.6791, -1.58, 3.2789, 2.6791, -1.58, 3.6469, 2.6791, -1.58, 3.6469, 2.6791, 0, 1.6794, 1.2178, 0, 1.3116, 1.2178, 0, 1.3116, 1.2178, -1.58, 1.3116, 1.2178, -1.58, 1.6794, 1.2178, -1.58, 1.6794, 1.2178, 0, 2.9511, 2.4355, -1.58, 2.9511, 2.3746, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.4355, -1.58, 2.9511, 2.4355, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.3746, 0, 3.3189, 2.4355, 0, 3.3189, 2.4355, 0, 3.3189, 2.4355, -1.58, 3.3189, 2.3746, -1.58, 2.9511, 2.4355, -1.58, 2.9511, 2.4355, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, -1.58, 2.9511, 2.4355, -1.58, 2.6232, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1919, -1.58, 2.9911, 2.1919, -1.58, 2.6232, 2.1919, -1.58, 2.6232, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1311, 0, 2.9911, 2.1919, 0, 2.9911, 2.1919, 0, 2.9911, 2.1919, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.6232, 2.1311, -1.58, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.9911, 2.1311, 0, 2.9911, 2.1311, -1.58, 1.6394, 1.4004, -1.58, 2.0074, 1.4004, -1.58, 2.0074, 1.4613, -1.58, 2.0074, 1.4613, -1.58, 1.6394, 1.4613, -1.58, 1.6394, 1.4004, -1.58, 1.9674, 1.6439, -1.58, 2.3353, 1.6439, -1.58, 2.3353, 1.7048, -1.58, 2.3353, 1.7048, -1.58, 1.9674, 1.7048, -1.58, 1.9674, 1.6439, -1.58, 0.9837, 0.9133, -1.58, 1.3516, 0.9133, -1.58, 1.3516, 0.9742, -1.58, 1.3516, 0.9742, -1.58, 0.9837, 0.9742, -1.58, 0.9837, 0.9133, -1.58, 0.3279, 0.4262, -1.58, 0.6958, 0.4262, -1.58, 0.6958, 0.4871, -1.58, 0.6958, 0.4871, -1.58, 0.3279, 0.4871, -1.58, 0.3279, 0.4262, -1.58, 0.3679, 0.2435, 0, 0.3679, 0.1827, 0, 0, 0.1827, 0, 0, 0.1827, 0, 0, 0.2435, 0, 0.3679, 0.2435, 0, 1.0236, 0.7306, 0, 1.0236, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.7306, 0, 1.0236, 0.7306, 0, 1.3516, 0.9742, 0, 1.3516, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9742, 0, 1.3516, 0.9742, 0, 1.3516, 0.9133, -1.58, 1.3516, 0.9133, 0, 1.3516, 0.9742, 0, 1.3516, 0.9742, 0, 1.3516, 0.9742, -1.58, 1.3516, 0.9133, -1.58, 0.3679, 0.1827, -1.58, 0, 0.1827, -1.58, 0, 0.1827, 0, 0, 0.1827, 0, 0.3679, 0.1827, 0, 0.3679, 0.1827, -1.58, 2.6631, 1.9484, 0, 2.6631, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.9484, 0, 2.6631, 1.9484, 0, 2.9911, 2.1919, 0, 2.9911, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1919, 0, 2.9911, 2.1919, 0, 3.2789, 2.6791, -1.58, 3.2789, 2.6791, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, -1.58, 3.2789, 2.6791, -1.58, 2.0074, 1.4004, -1.58, 2.0074, 1.4004, 0, 2.0074, 1.4613, 0, 2.0074, 1.4613, 0, 2.0074, 1.4613, -1.58, 2.0074, 1.4004, -1.58, 1.3116, 1.2178, -1.58, 1.3116, 1.2178, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, -1.58, 1.3116, 1.2178, -1.58, 0.6958, 0.4871, 0, 0.6958, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4871, 0, 0.6958, 0.4871, 0, 3.6469, 2.6791, 0, 3.6469, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6791, 0, 3.6469, 2.6791, 0, 3.3189, 2.4355, 0, 3.3189, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.4355, 0, 3.3189, 2.4355, 0, 2.6631, 1.8875, -1.58, 2.6631, 1.8875, 0, 2.6631, 1.9484, 0, 2.6631, 1.9484, 0, 2.6631, 1.9484, -1.58, 2.6631, 1.8875, -1.58, 2.3353, 1.6439, -1.58, 1.9674, 1.6439, -1.58, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 2.3353, 1.6439, 0, 2.3353, 1.6439, -1.58, 0, 0.2435, -1.58, 0, 0.2435, 0, 0, 0.1827, 0, 0, 0.1827, 0, 0, 0.1827, -1.58, 0, 0.2435, -1.58, 1.6794, 1.1568, -1.58, 1.3116, 1.1568, -1.58, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.6794, 1.1568, 0, 1.6794, 1.1568, -1.58, 1.6394, 1.4613, -1.58, 1.6394, 1.4613, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, -1.58, 1.6394, 1.4613, -1.58, 1.0236, 0.6698, -1.58, 0.6558, 0.6698, -1.58, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 1.0236, 0.6698, 0, 1.0236, 0.6698, -1.58, 0.3679, 0.1827, -1.58, 0.3679, 0.1827, 0, 0.3679, 0.2435, 0, 0.3679, 0.2435, 0, 0.3679, 0.2435, -1.58, 0.3679, 0.1827, -1.58, 1.6794, 1.1568, -1.58, 1.6794, 1.1568, 0, 1.6794, 1.2178, 0, 1.6794, 1.2178, 0, 1.6794, 1.2178, -1.58, 1.6794, 1.1568, -1.58, 2.0074, 1.4613, 0, 2.0074, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4613, 0, 2.0074, 1.4613, 0, 2.3353, 1.6439, -1.58, 2.3353, 1.6439, 0, 2.3353, 1.7048, 0, 2.3353, 1.7048, 0, 2.3353, 1.7048, -1.58, 2.3353, 1.6439, -1.58, 1.9674, 1.7048, -1.58, 1.9674, 1.7048, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, -1.58, 1.9674, 1.7048, -1.58, 0.6958, 0.4262, -1.58, 0.3279, 0.4262, -1.58, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.6958, 0.4262, 0, 0.6958, 0.4262, -1.58, 0.3279, 0.4871, -1.58, 0.3279, 0.4871, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, -1.58, 0.3279, 0.4871, -1.58, 0, 0.1827, -1.58, 0.3679, 0.1827, -1.58, 0.3679, 0.2435, -1.58, 0.3679, 0.2435, -1.58, 0, 0.2435, -1.58, 0, 0.1827, -1.58, 1.6794, 1.2178, 0, 1.6794, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.2178, 0, 1.6794, 1.2178, 0, 2.3353, 1.7048, 0, 2.3353, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.7048, 0, 2.3353, 1.7048, 0, 1.3516, 0.9133, -1.58, 0.9837, 0.9133, -1.58, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 1.3516, 0.9133, 0, 1.3516, 0.9133, -1.58, 1.0236, 0.6698, -1.58, 1.0236, 0.6698, 0, 1.0236, 0.7306, 0, 1.0236, 0.7306, 0, 1.0236, 0.7306, -1.58, 1.0236, 0.6698, -1.58, 0.6558, 0.6698, -1.58, 1.0236, 0.6698, -1.58, 1.0236, 0.7306, -1.58, 1.0236, 0.7306, -1.58, 0.6558, 0.7306, -1.58, 0.6558, 0.6698, -1.58, 0.6958, 0.4262, -1.58, 0.6958, 0.4262, 0, 0.6958, 0.4871, 0, 0.6958, 0.4871, 0, 0.6958, 0.4871, -1.58, 0.6958, 0.4262, -1.58, 0.9837, 0.9742, -1.58, 0.9837, 0.9742, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, -1.58, 0.9837, 0.9742, -1.58, 3.6469, 2.6182, 0, 3.6469, 2.6182, -1.54, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.6469, 2.6182, -1.54, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.2789, 2.6182, -1.58, 3.2789, 2.6182, 0, 3.3189, 2.3746, -1.58, 2.9511, 2.3746, -1.58, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 3.3189, 2.3746, 0, 3.3189, 2.3746, -1.58, 2.2952, 1.8875, -1.58, 2.2952, 1.8875, 0, 2.6631, 1.8875, 0, 2.6631, 1.8875, 0, 2.6631, 1.8875, -1.58, 2.2952, 1.8875, -1.58, 0.6558, 0.7306, -1.58, 0.6558, 0.7306, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, -1.58, 0.6558, 0.7306, -1.58, 1.3116, 1.1568, -1.58, 1.6794, 1.1568, -1.58, 1.6794, 1.2178, -1.58, 1.6794, 1.2178, -1.58, 1.3116, 1.2178, -1.58, 1.3116, 1.1568, -1.58, 1.6394, 1.4004, -1.58, 1.6394, 1.4004, 0, 2.0074, 1.4004, 0, 2.0074, 1.4004, 0, 2.0074, 1.4004, -1.58, 1.6394, 1.4004, -1.58, 3.2789, 2.6791, -1.58, 3.2789, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6791, -1.58, 3.2789, 2.6791, -1.58, 3.6469, 2.6182, -1.54, 3.6469, 2.6182, 0, 3.6469, 2.6791, 0, 3.6469, 2.6791, 0, 3.6469, 2.6791, -1.58, 3.6469, 2.6182, -1.54, 3.6469, 2.6791, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.54)
 
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_stair_ramp"]
+points = PackedVector3Array(0, -0.0297, 0, 3.6469, 2.6791, 0, 3.6469, -0.15, 0, 0, -0.15, 0, 0, -0.0297, -1.58, 3.6469, 2.6791, -1.58, 3.6469, -0.15, -1.58, 0, -0.15, -1.58)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_stair_guard"]
+points = PackedVector3Array(0, -0.0297, -0.04, 3.6469, 2.6791, -0.04, 3.6469, 3.6291, -0.04, 0, 0.9203, -0.04, 0, -0.0297, 0.04, 3.6469, 2.6791, 0.04, 3.6469, 3.6291, 0.04, 0, 0.9203, 0.04)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stair_guard"]
+albedo_color = Color(0.12, 0.15, 0.18, 1)
+metallic = 0.65
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_stair_guard_rail"]
+material = SubResource("StandardMaterial3D_stair_guard")
+size = Vector3(4.55, 0.08, 0.08)
+
+[sub_resource type="BoxMesh" id="BoxMesh_stair_guard_post"]
+material = SubResource("StandardMaterial3D_stair_guard")
+size = Vector3(0.08, 0.95, 0.08)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mthlw"]
 resource_name = "wood"
 albedo_color = Color(0.952921, 0.798667, 0.660025, 1)
@@ -3849,7 +3868,47 @@ mesh = SubResource("ArrayMesh_a4fre")
 skeleton = NodePath("")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=456919369]
-shape = SubResource("ConcavePolygonShape3D_2ie67")
+shape = SubResource("ConvexPolygonShape3D_stair_ramp")
+
+[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.04)
+shape = SubResource("ConvexPolygonShape3D_stair_guard")
+
+[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.62)
+shape = SubResource("ConvexPolygonShape3D_stair_guard")
+
+[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_rail")
+
+[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_rail")
+
+[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
 
 [node name="stairsOpenSingle2" type="StaticBody3D" parent="MAIN_LOBBY" unique_id=1871114720]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, -2.1, 0, 4.25366)
@@ -3865,7 +3924,55 @@ mesh = SubResource("ArrayMesh_a4fre")
 skeleton = NodePath("")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=664530394]
-shape = SubResource("ConcavePolygonShape3D_2ie67")
+shape = SubResource("ConvexPolygonShape3D_stair_ramp")
+
+[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.04)
+shape = SubResource("ConvexPolygonShape3D_stair_guard")
+
+[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.62)
+shape = SubResource("ConvexPolygonShape3D_stair_guard")
+
+[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_rail")
+
+[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_rail")
+
+[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, 0.04)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, -1.62)
+mesh = SubResource("BoxMesh_stair_guard_post")
+
+[node name="Label_CEO_Stairs" type="Label3D" parent="MAIN_LOBBY"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.155, 2.35, -4.18)
+billboard = 1
+text = "CEO OFFICE\nUPSTAIRS"
+font = ExtResource("12_72tca")
+font_size = 24
+outline_size = 8
 
 [node name="FloorUnit" type="StaticBody3D" parent="MAIN_LOBBY" unique_id=1154201609]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
@@ -6539,11 +6646,12 @@ is_on = true
 
 [node name="Label_CEO" type="Label3D" parent="UPPER_OFFICE_CEO" unique_id=1925898273]
 transform = Transform3D(-4.37112e-08, 0, 1, 0, 1, 0, -1, 0, -4.37112e-08, 6.10525, 1.70807, -3.52599)
+billboard = 1
 text = "CEO
 OFFICE"
 font = ExtResource("26_bxlmn")
-font_size = 16
-outline_size = 6
+font_size = 48
+outline_size = 10
 horizontal_alignment = 0
 
 [node name="PutBookDestination" parent="UPPER_OFFICE_CEO" instance=ExtResource("ai_play_put_book_destination")]

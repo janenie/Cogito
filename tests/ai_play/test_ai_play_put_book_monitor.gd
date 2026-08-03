@@ -38,6 +38,54 @@ func _run_test() -> void:
 	var lobby: Node = lobby_scene.instantiate()
 	root.add_child(lobby)
 	await process_frame
+	await physics_frame
+	for stair_path: String in [
+		"MAIN_LOBBY/stairsOpenSingle",
+		"MAIN_LOBBY/stairsOpenSingle2",
+	]:
+		var stair := lobby.get_node(stair_path) as StaticBody3D
+		var ramp := stair.get_node("CollisionShape3D") as CollisionShape3D
+		_assert(ramp.shape is ConvexPolygonShape3D, "%s uses a continuous convex ramp" % stair_path)
+		for guard_name: String in ["NearGuardCollision", "FarGuardCollision"]:
+			var guard := stair.get_node(guard_name) as CollisionShape3D
+			_assert(
+				guard.shape is ConvexPolygonShape3D,
+				"%s exposes continuous side protection" % stair_path,
+			)
+		for rail_name: String in ["NearGuardRail", "FarGuardRail"]:
+			var rail := stair.get_node_or_null(rail_name) as MeshInstance3D
+			_assert(
+				rail != null,
+				"%s makes its side protection visible" % stair_path,
+			)
+			if rail != null:
+				_assert(
+					rail.transform.basis.x.x * rail.transform.basis.x.y > 0.0,
+					"%s aligns %s with the rising stair surface" % [stair_path, rail_name],
+				)
+		_assert(
+			_stair_surface_is_continuous(stair),
+			"%s exposes a continuous walkable collision surface" % stair_path,
+		)
+		_assert(
+			_stair_guards_block_both_edges(stair),
+			"%s collision guards cover both visible rail edges" % stair_path,
+		)
+	var stair_wayfinding := lobby.get_node("MAIN_LOBBY/Label_CEO_Stairs") as Label3D
+	_assert(
+		stair_wayfinding.text.contains("CEO OFFICE"),
+		"the correct lobby staircase has public CEO wayfinding",
+	)
+	var ceo_label := lobby.get_node("UPPER_OFFICE_CEO/Label_CEO") as Label3D
+	_assert(ceo_label.font_size >= 48, "the CEO doorway label is readable from the upper route")
+	var lobby_player := lobby.get_node("Player") as CharacterBody3D
+	_assert(
+		await _player_climbs_stair(
+			lobby_player,
+			lobby.get_node("MAIN_LOBBY/stairsOpenSingle") as StaticBody3D,
+		),
+		"ordinary forward input carries the player from the lobby floor to the upper route",
+	)
 	var slot_root := lobby.get_node_or_null("ARCHIVE/PutBookShelfSlots") as Node3D
 	_assert(slot_root != null, "archive exposes put-book shelf slots")
 	var slots: Array[Marker3D] = []
@@ -103,6 +151,10 @@ func _run_test() -> void:
 	)
 	_assert(book_collision.shape is BoxShape3D, "runtime book uses box collision bounds")
 	var book_collision_size := (book_collision.shape as BoxShape3D).size
+	_assert(
+		book_collision_size == monitor.BOOK_INTERACTION_COLLISION_SIZE,
+		"put-book enlarges only its runtime book interaction bounds",
+	)
 	var tray_mesh := monitor.destination.get_node("TrayMesh") as MeshInstance3D
 	_assert(tray_mesh.mesh is BoxMesh, "CEO destination tray uses measurable box geometry")
 	var tray_size := (tray_mesh.mesh as BoxMesh).size
@@ -120,6 +172,23 @@ func _run_test() -> void:
 		"all completed-book collision bounds fit inside the one cyan tray with margin",
 	)
 	_assert(not monitor.ceo_door.is_locked, "CEO office door unlocks for put-book")
+	_assert(monitor.ceo_door.is_open, "CEO office door opens for put-book route visibility")
+	var interaction_raycast := monitor._player_interaction_component().interaction_raycast as InteractionRayCast
+	_assert(
+		is_equal_approx(
+			absf(interaction_raycast.target_position.z),
+			monitor.BOOK_INTERACTION_DISTANCE,
+		),
+		"put-book extends the close-range interaction ray",
+	)
+	_assert(
+		interaction_raycast.shapecast.shape is SphereShape3D
+			and is_equal_approx(
+				(interaction_raycast.shapecast.shape as SphereShape3D).radius,
+				monitor.BOOK_INTERACTION_CAST_RADIUS,
+			),
+		"put-book widens interaction alignment without exposing book identity",
+	)
 
 	var player_body := monitor.player.get_node("Body") as Node3D
 	var player_neck := monitor.player.get_node("Body/Neck") as Node3D
@@ -251,16 +320,16 @@ func _run_test() -> void:
 		"same seed reproduces actual runtime book transforms",
 	)
 
-	monitor.ceo_door.is_open = true
+	monitor.ceo_door.is_open = false
 	monitor.ceo_door.is_moving = true
 	monitor.ceo_door.set_state()
 	monitor.configure_round(73421)
-	_assert(not monitor.ceo_door.is_open, "repeated setup restores the CEO door to closed")
+	_assert(monitor.ceo_door.is_open, "repeated setup restores the CEO door to open")
 	_assert(not monitor.ceo_door.is_locked, "repeated setup leaves the CEO door unlocked")
 	_assert(not monitor.ceo_door.is_moving, "CEO door reset cancels stale movement")
 	_assert(
-		monitor.ceo_door.rotation_degrees.distance_to(monitor.ceo_door.closed_rotation) < 0.001,
-		"repeated setup restores the CEO door authored closed transform",
+		monitor.ceo_door.rotation_degrees.distance_to(monitor.ceo_door.open_rotation) < 0.001,
+		"repeated setup restores the CEO door authored open transform",
 	)
 
 	monitor.configure_round(0)
@@ -591,6 +660,60 @@ func _display_slots_clear_book_bounds(
 			if not separated:
 				return false
 	return true
+
+
+func _stair_surface_is_continuous(stair: StaticBody3D) -> bool:
+	for local_x: float in [0.15, 0.9, 1.65, 2.4, 3.15, 3.5]:
+		var surface_y := 0.7428 * local_x - 0.0297
+		var ray_from := stair.to_global(Vector3(local_x, surface_y + 0.45, -0.79))
+		var ray_to := stair.to_global(Vector3(local_x, surface_y - 0.45, -0.79))
+		if not _physics_ray_hits(stair, ray_from, ray_to):
+			return false
+	return true
+
+
+func _stair_guards_block_both_edges(stair: StaticBody3D) -> bool:
+	var local_x := 1.82
+	var guard_y := 0.7428 * local_x - 0.0297 + 0.45
+	var near_from := stair.to_global(Vector3(local_x, guard_y, 0.3))
+	var near_to := stair.to_global(Vector3(local_x, guard_y, -0.3))
+	var far_from := stair.to_global(Vector3(local_x, guard_y, -1.88))
+	var far_to := stair.to_global(Vector3(local_x, guard_y, -1.28))
+	return (
+		_physics_ray_hits(stair, near_from, near_to)
+		and _physics_ray_hits(stair, far_from, far_to)
+	)
+
+
+func _physics_ray_hits(collider: CollisionObject3D, ray_from: Vector3, ray_to: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(ray_from, ray_to, collider.collision_layer)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := collider.get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.get("collider") == collider
+
+
+func _player_climbs_stair(player: CharacterBody3D, stair: StaticBody3D) -> bool:
+	var body := player.get_node("Body") as Node3D
+	body.rotation = Vector3.ZERO
+	player.set("is_movement_paused", false)
+	player.set("direction", Vector3.ZERO)
+	player.set("main_velocity", Vector3.ZERO)
+	player.velocity = Vector3.ZERO
+	var stair_forward := (stair.global_basis * Vector3.RIGHT).normalized()
+	var start_transform := player.global_transform
+	start_transform.basis = Basis.looking_at(stair_forward, Vector3.UP)
+	start_transform.origin = stair.to_global(Vector3(-0.35, 0.871, -0.79))
+	player.global_transform = start_transform
+	for _settle_frame: int in range(8):
+		await physics_frame
+	Input.action_press("forward")
+	for _movement_frame: int in range(100):
+		await physics_frame
+	Input.action_release("forward")
+	await physics_frame
+	var local_position := stair.to_local(player.global_position)
+	return local_position.x > 3.4 and local_position.y > 3.1
 
 
 func _display_slots_fit_tray(
