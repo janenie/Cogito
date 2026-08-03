@@ -267,3 +267,184 @@ def test_resolve_claude_bin_rejects_missing_command(monkeypatch):
 
     with pytest.raises(ValueError, match="could not locate Claude executable"):
         orchestrator.resolve_claude_bin("claude")
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        [],
+        ["--model", "claude-test"],
+        ["--effort", "high"],
+    ],
+)
+def test_parse_args_requires_model_and_effort(argv):
+    orchestrator = load_orchestrator()
+
+    with pytest.raises(SystemExit) as error:
+        orchestrator.parse_args(argv)
+
+    assert error.value.code == 2
+
+
+def test_parse_args_exposes_only_hardened_claude_options():
+    orchestrator = load_orchestrator()
+
+    args = orchestrator.parse_args(
+        ["--model", "claude-test", "--effort", "high"]
+    )
+
+    assert args.claude_settings == orchestrator.DEFAULT_CLAUDE_SETTINGS
+    assert args.mcp_port == 8766
+    assert args.timeout_seconds == 100000.0
+    assert args.idle_timeout_seconds == 600.0
+    assert args.claude_final_grace_seconds == 30.0
+    assert args.workflow_memory == "enabled"
+    assert not hasattr(args, "dangerously_skip_permissions")
+    assert not hasattr(args, "add_dir")
+    assert not hasattr(args, "tools")
+
+
+def test_main_rejects_unknown_scenario_before_provider_setup(monkeypatch, tmp_path):
+    orchestrator = load_orchestrator()
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "load_claude_provider_env",
+        lambda _path: pytest.fail("Claude settings must not be loaded"),
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "create_run_paths",
+        lambda *args, **kwargs: pytest.fail("run paths must not be created"),
+    )
+
+    with pytest.raises(SystemExit, match="unsupported AI Play scenario"):
+        orchestrator.main(
+            [
+                "--session-root",
+                str(tmp_path / "runs"),
+                "--model",
+                "claude-test",
+                "--effort",
+                "high",
+                "--scenario",
+                "unknown",
+            ]
+        )
+
+
+def test_main_rejects_matching_ports_before_creating_run_paths(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    settings = tmp_path / "settings.json"
+    settings.write_text(
+        json.dumps({"env": {"ANTHROPIC_AUTH_TOKEN": "fixture-token"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+    monkeypatch.setattr(orchestrator, "resolve_claude_bin", lambda _bin: "claude")
+    monkeypatch.setattr(
+        orchestrator,
+        "create_run_paths",
+        lambda *args, **kwargs: pytest.fail("run paths must not be created"),
+    )
+
+    with pytest.raises(SystemExit, match="must differ"):
+        orchestrator.main(
+            [
+                "--session-root",
+                str(tmp_path / "runs"),
+                "--claude-settings",
+                str(settings),
+                "--model",
+                "claude-test",
+                "--effort",
+                "high",
+                "--mcp-port",
+                "8765",
+            ]
+        )
+
+
+def test_main_wires_claude_session_and_removes_private_config(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    settings = tmp_path / "settings.json"
+    settings.write_text(
+        json.dumps(
+            {
+                "env": {
+                    "ANTHROPIC_AUTH_TOKEN": "fixture-token",
+                    "ANTHROPIC_BASE_URL": "https://example.invalid",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    captured = {}
+    monkeypatch.setattr(orchestrator, "is_port_listening", lambda *args: False)
+    monkeypatch.setattr(
+        orchestrator,
+        "resolve_claude_bin",
+        lambda _claude_bin: "/safe/bin/claude",
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+        settings_path = Path(
+            kwargs["player_command"][kwargs["player_command"].index("--settings") + 1]
+        )
+        mcp_path = Path(
+            kwargs["player_command"][kwargs["player_command"].index("--mcp-config") + 1]
+        )
+        captured["temporary_root"] = settings_path.parent
+        assert settings_path.is_file()
+        assert mcp_path.is_file()
+        return 0
+
+    monkeypatch.setattr(orchestrator, "run_orchestrated_session", fake_run)
+
+    result = orchestrator.main(
+        [
+            "--runs",
+            "2",
+            "--session-root",
+            str(tmp_path / "runs"),
+            "--claude-settings",
+            str(settings),
+            "--model",
+            "claude-test",
+            "--effort",
+            "high",
+            "--workflow-memory",
+            "disabled",
+        ]
+    )
+
+    assert result == 0
+    assert captured["player_label"] == "claude"
+    assert captured["player_command"][:2] == ["/safe/bin/claude", "--bare"]
+    assert captured["player_cwd"].name == "player_workspace"
+    assert captured["player_env"]["ANTHROPIC_AUTH_TOKEN"] == "fixture-token"
+    assert "CODEX_HOME" not in captured["player_env"]
+    assert "workflow_memory" not in captured["player_command"][
+        captured["player_command"].index("--allowed-tools") + 1
+    ]
+    assert not captured["temporary_root"].exists()
