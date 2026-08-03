@@ -171,6 +171,7 @@ def build_claude_command(
         "--bare",
         "--print",
         "--no-session-persistence",
+        "--disable-slash-commands",
         "--strict-mcp-config",
         "--settings",
         str(config.settings_path),

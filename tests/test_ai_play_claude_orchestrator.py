@@ -160,6 +160,7 @@ def test_build_claude_command_is_bare_nonpersistent_and_mcp_only(tmp_path):
     assert "--print" in command
     assert "--no-session-persistence" in command
     assert "--strict-mcp-config" in command
+    assert "--disable-slash-commands" in command
     assert command[command.index("--settings") + 1] == str(config.settings_path)
     assert command[command.index("--mcp-config") + 1] == str(config.mcp_path)
     assert command[command.index("--tools") + 1] == ""
