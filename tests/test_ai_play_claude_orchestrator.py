@@ -138,3 +138,132 @@ def test_temporary_claude_player_config_cleans_up_after_error():
             raise RuntimeError("fixture failure")
 
     assert not root.exists()
+
+
+def test_build_claude_command_is_bare_nonpersistent_and_mcp_only(tmp_path):
+    orchestrator = load_orchestrator()
+    config = orchestrator.ClaudePlayerConfig(
+        root=tmp_path,
+        settings_path=tmp_path / "settings.json",
+        mcp_path=tmp_path / "mcp.json",
+    )
+
+    command = orchestrator.build_claude_command(
+        "/usr/local/bin/claude",
+        config,
+        model="claude-opus-test",
+        effort="high",
+        workflow_memory_enabled=True,
+    )
+
+    assert command[:2] == ["/usr/local/bin/claude", "--bare"]
+    assert "--print" in command
+    assert "--no-session-persistence" in command
+    assert "--strict-mcp-config" in command
+    assert command[command.index("--settings") + 1] == str(config.settings_path)
+    assert command[command.index("--mcp-config") + 1] == str(config.mcp_path)
+    assert command[command.index("--tools") + 1] == ""
+    allowed = command[command.index("--allowed-tools") + 1]
+    assert allowed.split(",") == [
+        "mcp__cogito_ai_play__briefing",
+        "mcp__cogito_ai_play__workflow_memory_read",
+        "mcp__cogito_ai_play__observe",
+        "mcp__cogito_ai_play__act",
+        "mcp__cogito_ai_play__workflow_memory_update",
+    ]
+    assert "mcp__cogito_ai_play__stop" not in allowed
+    assert command[command.index("--permission-mode") + 1] == "dontAsk"
+    assert command[command.index("--model") + 1] == "claude-opus-test"
+    assert command[command.index("--effort") + 1] == "high"
+    assert "--system-prompt" in command
+    for forbidden in (
+        "--dangerously-skip-permissions",
+        "--add-dir",
+        "--agent",
+        "--agents",
+        "--plugin-dir",
+        "--chrome",
+        "--continue",
+        "--resume",
+    ):
+        assert forbidden not in command
+
+
+def test_build_claude_command_disables_workflow_memory_tools(tmp_path):
+    orchestrator = load_orchestrator()
+    config = orchestrator.ClaudePlayerConfig(
+        root=tmp_path,
+        settings_path=tmp_path / "settings.json",
+        mcp_path=tmp_path / "mcp.json",
+    )
+
+    command = orchestrator.build_claude_command(
+        "claude",
+        config,
+        model="claude-test",
+        effort="medium",
+        workflow_memory_enabled=False,
+    )
+
+    allowed = command[command.index("--allowed-tools") + 1]
+    assert allowed.split(",") == [
+        "mcp__cogito_ai_play__briefing",
+        "mcp__cogito_ai_play__observe",
+        "mcp__cogito_ai_play__act",
+    ]
+    assert "workflow_memory" not in allowed
+    assert "stop" not in allowed
+
+
+def test_build_claude_player_env_isolates_home_and_drops_host_secrets(tmp_path):
+    orchestrator = load_orchestrator()
+
+    env = orchestrator.build_claude_player_env(
+        tmp_path / "player-root",
+        {
+            "ANTHROPIC_AUTH_TOKEN": "fixture-token",
+            "ANTHROPIC_BASE_URL": "https://example.invalid",
+        },
+        base_env={
+            "PATH": "/safe-bin",
+            "HOME": "/host-home",
+            "OPENAI_API_KEY": "must-drop",
+            "AI_PLAY_LOG_ROOT": "/must/drop",
+            "PYTHONPATH": "/must/drop",
+            "HTTPS_PROXY": "http://must.drop",
+        },
+    )
+
+    assert env["PATH"] == "/safe-bin"
+    assert env["HOME"] == str(tmp_path / "player-root" / "home")
+    assert env["ANTHROPIC_AUTH_TOKEN"] == "fixture-token"
+    assert env["ANTHROPIC_BASE_URL"] == "https://example.invalid"
+    assert env["NO_PROXY"] == "127.0.0.1,localhost"
+    for forbidden in (
+        "CODEX_HOME",
+        "OPENAI_API_KEY",
+        "AI_PLAY_LOG_ROOT",
+        "PYTHONPATH",
+        "HTTPS_PROXY",
+    ):
+        assert forbidden not in env
+
+
+def test_resolve_claude_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
+    orchestrator = load_orchestrator()
+    resolved = tmp_path / "claude"
+    monkeypatch.setattr(
+        orchestrator.shutil,
+        "which",
+        lambda command: str(resolved) if command == "claude" else None,
+    )
+
+    assert orchestrator.resolve_claude_bin("claude") == str(resolved)
+
+
+def test_resolve_claude_bin_rejects_missing_command(monkeypatch):
+    orchestrator = load_orchestrator()
+    monkeypatch.setattr(orchestrator.shutil, "which", lambda _command: None)
+
+    with pytest.raises(ValueError, match="could not locate Claude executable"):
+        orchestrator.resolve_claude_bin("claude")

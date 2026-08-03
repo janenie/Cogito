@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -18,6 +19,10 @@ except ImportError:
 
 
 REPO_ROOT = _common.REPO_ROOT
+AWM_PLAYER_TOOL_NAMES = _common.AWM_PLAYER_TOOL_NAMES
+BASE_PLAYER_TOOL_NAMES = _common.BASE_PLAYER_TOOL_NAMES
+build_isolated_process_env = _common.build_isolated_process_env
+build_player_developer_instructions = _common.build_player_developer_instructions
 DEFAULT_CLAUDE_SETTINGS = REPO_ROOT / ".claude" / "settings.local.json"
 CLAUDE_PROVIDER_ENV_NAMES = (
     "ANTHROPIC_API_KEY",
@@ -110,3 +115,72 @@ def temporary_claude_player_config(
             settings_path=settings_path,
             mcp_path=mcp_path,
         )
+
+
+def claude_mcp_tool_names(
+    workflow_memory_enabled: bool,
+) -> tuple[str, ...]:
+    tools = (
+        AWM_PLAYER_TOOL_NAMES
+        if workflow_memory_enabled
+        else BASE_PLAYER_TOOL_NAMES
+    )
+    return tuple(f"mcp__cogito_ai_play__{name}" for name in tools)
+
+
+def resolve_claude_bin(claude_bin: str) -> str:
+    candidate = Path(claude_bin).expanduser()
+    if candidate.is_file():
+        return str(candidate.resolve())
+    resolved = shutil.which(claude_bin)
+    if resolved is None:
+        raise ValueError(f"could not locate Claude executable: {claude_bin}")
+    return resolved
+
+
+def build_claude_command(
+    claude_bin: str,
+    config: ClaudePlayerConfig,
+    model: str,
+    effort: str,
+    workflow_memory_enabled: bool = True,
+) -> list[str]:
+    return [
+        claude_bin,
+        "--bare",
+        "--print",
+        "--no-session-persistence",
+        "--strict-mcp-config",
+        "--settings",
+        str(config.settings_path),
+        "--mcp-config",
+        str(config.mcp_path),
+        "--tools",
+        "",
+        "--allowed-tools",
+        ",".join(claude_mcp_tool_names(workflow_memory_enabled)),
+        "--permission-mode",
+        "dontAsk",
+        "--model",
+        model,
+        "--effort",
+        effort,
+        "--system-prompt",
+        build_player_developer_instructions(),
+    ]
+
+
+def build_claude_player_env(
+    player_root: Path,
+    provider_env: Mapping[str, str],
+    base_env: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    env = build_isolated_process_env(player_root, base_env)
+    env.update(provider_env)
+    env.update(
+        {
+            "NO_PROXY": "127.0.0.1,localhost",
+            "no_proxy": "127.0.0.1,localhost",
+        }
+    )
+    return env
