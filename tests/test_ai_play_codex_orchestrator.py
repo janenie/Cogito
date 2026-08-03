@@ -717,31 +717,36 @@ def test_session_starts_trusted_mcp_before_codex_and_supervisor(
         "supervisor": FakeProcess(return_codes=[0]),
     }
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: (
             started.append(label) or processes[label]
         ),
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
 
     result = orchestrator.run_orchestrated_session(
         mcp_command=["python", "-m", "ai_play.mcp_server"],
-        codex_command=["codex", "exec"],
+        player_label="codex",
+        player_command=["codex", "exec"],
         supervisor_command=["python", "supervisor.py"],
         prompt="briefing",
         mcp_env={},
-        codex_env={},
+        player_env={},
         supervisor_env={},
         mcp_cwd=tmp_path,
-        codex_cwd=tmp_path,
+        player_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
-        codex_exit_grace_seconds=0.0,
+        player_exit_grace_seconds=0.0,
         idle_timeout_seconds=10.0,
-        codex_final_grace_seconds=0.0,
+        player_final_grace_seconds=0.0,
     )
 
     assert result == 0
@@ -761,29 +766,34 @@ def test_session_allows_codex_to_finish_after_supervisor_terminal_exit(
         "supervisor": FakeProcess(return_codes=[0]),
     }
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: processes[label],
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
 
     result = orchestrator.run_orchestrated_session(
         mcp_command=["python"],
-        codex_command=["codex"],
+        player_label="codex",
+        player_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
         mcp_env={},
-        codex_env={},
+        player_env={},
         supervisor_env={},
         mcp_cwd=tmp_path,
-        codex_cwd=tmp_path,
+        player_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
-        codex_exit_grace_seconds=0.0,
+        player_exit_grace_seconds=0.0,
         idle_timeout_seconds=10.0,
-        codex_final_grace_seconds=1.0,
+        player_final_grace_seconds=1.0,
     )
 
     assert result == 0
@@ -800,31 +810,40 @@ def test_session_stops_when_all_children_are_idle(monkeypatch, tmp_path):
     }
     monotonic_values = iter([0.0, 11.0])
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: processes[label],
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
-    monkeypatch.setattr(orchestrator.time, "monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr(orchestrator.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        orchestrator._common.time,
+        "monotonic",
+        lambda: next(monotonic_values),
+    )
+    monkeypatch.setattr(orchestrator._common.time, "sleep", lambda _seconds: None)
 
     result = orchestrator.run_orchestrated_session(
         mcp_command=["python"],
-        codex_command=["codex"],
+        player_label="codex",
+        player_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
         mcp_env={},
-        codex_env={},
+        player_env={},
         supervisor_env={},
         mcp_cwd=tmp_path,
-        codex_cwd=tmp_path,
+        player_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
-        codex_exit_grace_seconds=1.0,
+        player_exit_grace_seconds=1.0,
         idle_timeout_seconds=10.0,
-        codex_final_grace_seconds=1.0,
+        player_final_grace_seconds=1.0,
     )
 
     assert result == 5
@@ -839,29 +858,34 @@ def test_sidecar_readiness_failure_never_starts_codex_or_supervisor(
     started = []
     mcp = FakeProcess()
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: started.append(label) or mcp,
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: False)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: False,
+    )
 
     result = orchestrator.run_orchestrated_session(
         mcp_command=["python"],
-        codex_command=["codex"],
+        player_label="codex",
+        player_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
         mcp_env={},
-        codex_env={},
+        player_env={},
         supervisor_env={},
         mcp_cwd=tmp_path,
-        codex_cwd=tmp_path,
+        player_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
-        codex_exit_grace_seconds=0.0,
+        player_exit_grace_seconds=0.0,
         idle_timeout_seconds=10.0,
-        codex_final_grace_seconds=0.0,
+        player_final_grace_seconds=0.0,
     )
 
     assert result == 4
@@ -876,29 +900,34 @@ def test_codex_early_exit_terminates_trusted_mcp(monkeypatch, tmp_path):
         "codex": FakeProcess(return_codes=[17]),
     }
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: processes[label],
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
 
     result = orchestrator.run_orchestrated_session(
         mcp_command=["python"],
-        codex_command=["codex"],
+        player_label="codex",
+        player_command=["codex"],
         supervisor_command=["supervisor"],
         prompt="briefing",
         mcp_env={},
-        codex_env={},
+        player_env={},
         supervisor_env={},
         mcp_cwd=tmp_path,
-        codex_cwd=tmp_path,
+        player_cwd=tmp_path,
         supervisor_cwd=tmp_path,
         ws_port=8765,
         mcp_port=8766,
         mcp_start_timeout_seconds=1.0,
-        codex_exit_grace_seconds=0.0,
+        player_exit_grace_seconds=0.0,
         idle_timeout_seconds=10.0,
-        codex_final_grace_seconds=0.0,
+        player_final_grace_seconds=0.0,
     )
 
     assert result == 17
@@ -913,13 +942,17 @@ def test_keyboard_interrupt_terminates_all_started_processes(monkeypatch, tmp_pa
         "supervisor": FakeProcess(),
     }
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
         "_start_process",
         lambda label, command, cwd, env, stdin_text=None: processes[label],
     )
-    monkeypatch.setattr(orchestrator, "wait_for_listener", lambda *args, **kwargs: True)
     monkeypatch.setattr(
-        orchestrator,
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
         "_print_available_output",
         lambda outputs: (_ for _ in ()).throw(KeyboardInterrupt()),
     )
@@ -927,21 +960,22 @@ def test_keyboard_interrupt_terminates_all_started_processes(monkeypatch, tmp_pa
     with pytest.raises(KeyboardInterrupt):
         orchestrator.run_orchestrated_session(
             mcp_command=["python"],
-            codex_command=["codex"],
+            player_label="codex",
+            player_command=["codex"],
             supervisor_command=["supervisor"],
             prompt="briefing",
             mcp_env={},
-            codex_env={},
+            player_env={},
             supervisor_env={},
             mcp_cwd=tmp_path,
-            codex_cwd=tmp_path,
+            player_cwd=tmp_path,
             supervisor_cwd=tmp_path,
             ws_port=8765,
             mcp_port=8766,
             mcp_start_timeout_seconds=1.0,
-            codex_exit_grace_seconds=0.0,
+            player_exit_grace_seconds=0.0,
             idle_timeout_seconds=10.0,
-            codex_final_grace_seconds=0.0,
+            player_final_grace_seconds=0.0,
         )
 
     assert processes["supervisor"].terminated
@@ -970,7 +1004,7 @@ def test_main_removes_temporary_codex_home_after_session(monkeypatch, tmp_path):
         orchestrator,
         "run_orchestrated_session",
         lambda **kwargs: captured.update(
-            player_home=Path(kwargs["codex_env"]["CODEX_HOME"])
+            player_home=Path(kwargs["player_env"]["CODEX_HOME"])
         )
         or 0,
     )
