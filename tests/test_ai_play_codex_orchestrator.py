@@ -57,6 +57,26 @@ def test_scene_registry_covers_every_public_scenario_with_an_existing_scene():
         assert (orchestrator.REPO_ROOT / scene).is_file(), scenario
 
 
+def test_codex_entry_reexports_common_orchestration_contract():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator.DEFAULT_WS_HOST == "127.0.0.1"
+    assert orchestrator.DEFAULT_WS_PORT == 8765
+    assert orchestrator.DEFAULT_MCP_PORT == 8766
+    assert orchestrator.BASE_PLAYER_TOOL_NAMES == (
+        "briefing",
+        "observe",
+        "act",
+    )
+    assert orchestrator.AWM_PLAYER_TOOL_NAMES == (
+        "briefing",
+        "workflow_memory_read",
+        "observe",
+        "act",
+        "workflow_memory_update",
+    )
+
+
 def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
     monkeypatch,
     tmp_path,
