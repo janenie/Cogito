@@ -15,6 +15,7 @@ def test_config_has_no_model_or_credential_fields(monkeypatch):
     assert config.wait_timeout_seconds == 30.0
     assert config.stop_timeout_seconds == 5.0
     assert config.max_act_requests == 500
+    assert config.approved_image_root is None
     assert not hasattr(config, "api_key")
     assert not hasattr(config, "model")
 
@@ -66,6 +67,23 @@ def test_config_rejects_empty_log_root(monkeypatch):
     monkeypatch.setenv("AI_PLAY_LOG_ROOT", "   ")
 
     with pytest.raises(ValueError, match="AI_PLAY_LOG_ROOT"):
+        Config.from_env()
+
+
+def test_config_reads_absolute_approved_image_root(monkeypatch, tmp_path):
+    image_root = tmp_path / "approved-images"
+    monkeypatch.setenv("AI_PLAY_APPROVED_IMAGE_ROOT", str(image_root))
+
+    config = Config.from_env()
+
+    assert config.approved_image_root == image_root.resolve()
+
+
+@pytest.mark.parametrize("value", ["", "   ", "relative/images"])
+def test_config_rejects_invalid_approved_image_root(monkeypatch, value):
+    monkeypatch.setenv("AI_PLAY_APPROVED_IMAGE_ROOT", value)
+
+    with pytest.raises(ValueError, match="AI_PLAY_APPROVED_IMAGE_ROOT"):
         Config.from_env()
 
 

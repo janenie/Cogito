@@ -258,6 +258,13 @@ Godot supervisor、隔离运行目录、玩家提示词、进程监控和失败�
 不加载仓库指令、skills、plugins、hooks、agents 或其他 MCP Server。workflow memory 启用时只
 开放五个玩家工具，禁用时只开放 `briefing`、`observe`、`act`，两种模式都排除 `stop`。
 
+Claude Code 2.1.212 不会把 MCP tool result 中的 `ImageContent` 交给模型。Claude 入口因此把
+已经过同一公开投影的参考图、彩色观察和可选深度图原子写入本局私有临时目录，并在
+`approved_image_paths` 中返回对应绝对路径。玩家额外只开放内建 `Read`，其 allowlist 精确限制为
+该图片目录；不能读取源 settings、轨迹、仓库或其他本地文件。目录权限为 `0700`，图片权限为
+`0600`，会话退出时随 Claude 临时配置一并删除；这些临时路径不写入可信轨迹日志。其他 MCP
+客户端继续直接使用标准 `ImageContent`，默认不启用磁盘图片导出。
+
 源 settings 的 `env` 只允许 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
 `ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL` 和 `ANTHROPIC_SMALL_FAST_MODEL`；必须提供前两个凭据之一，
 自定义 base URL 必须使用 HTTPS。模型和 effort 没有默认值：
@@ -266,7 +273,7 @@ Godot supervisor、隔离运行目录、玩家提示词、进程监控和失败�
 python3 tools/ai_play_claude_orchestrator.py \
   --runs 3 \
   --scenario find_contract \
-  --model opus \
+  --model claude-opus-5 \
   --effort high \
   --claude-settings .claude/settings.local.json
 ```
@@ -488,6 +495,8 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 
 工具结果使用标准 MCP 多模态内容：结构化 JSON 包含简报、观察、动作结果和终局状态，
 截图、可选深度图及参考图作为 `ImageContent` 单独返回，结构化 JSON 不重复图片 Base64。
+当 Claude orchestrator 设置内部 `AI_PLAY_APPROVED_IMAGE_ROOT` 时，结构化结果会额外包含
+`approved_image_paths`，仅指向该会话的私有获准图片目录；该字段不进入可信轨迹日志。
 观察成功时，`observe` 和 `act` 先返回截图 `image/jpeg`；第一人称 3D 玩法再返回深度图
 `image/png`，`conveyor_profit` 只返回截图。结构化 `observation.image` 与可选的
 `observation.depth_image` 只保留元数据；

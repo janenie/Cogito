@@ -59,6 +59,7 @@ class ClaudePlayerConfig:
     root: Path
     settings_path: Path
     mcp_path: Path
+    image_root: Path
 
 
 def load_claude_provider_env(settings_path: Path) -> dict[str, str]:
@@ -119,6 +120,8 @@ def temporary_claude_player_config(
         os.chmod(root, 0o700)
         settings_path = root / "settings.json"
         mcp_path = root / "mcp.json"
+        image_root = root / "approved_images"
+        image_root.mkdir(mode=0o700)
         _write_private_json(settings_path, {"env": dict(provider_env)})
         _write_private_json(
             mcp_path,
@@ -135,6 +138,7 @@ def temporary_claude_player_config(
             root=root,
             settings_path=settings_path,
             mcp_path=mcp_path,
+            image_root=image_root,
         )
 
 
@@ -166,6 +170,13 @@ def build_claude_command(
     effort: str,
     workflow_memory_enabled: bool = True,
 ) -> list[str]:
+    approved_image_pattern = (
+        "//" + config.image_root.resolve().as_posix().lstrip("/") + "/**"
+    )
+    allowed_tools = (
+        f"Read({approved_image_pattern})",
+        *claude_mcp_tool_names(workflow_memory_enabled),
+    )
     return [
         claude_bin,
         "--bare",
@@ -178,9 +189,9 @@ def build_claude_command(
         "--mcp-config",
         str(config.mcp_path),
         "--tools",
-        "",
+        "Read",
         "--allowed-tools",
-        ",".join(claude_mcp_tool_names(workflow_memory_enabled)),
+        ",".join(allowed_tools),
         "--permission-mode",
         "dontAsk",
         "--model",
@@ -188,8 +199,14 @@ def build_claude_command(
         "--effort",
         effort,
         "--system-prompt",
-        build_player_developer_instructions(),
+        build_claude_developer_instructions(config.image_root),
     ]
+
+
+def build_claude_developer_instructions(image_root: Path) -> str:
+    return build_player_developer_instructions(
+        approved_image_root=image_root,
+    )
 
 
 def build_claude_player_env(
@@ -344,6 +361,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     workflow_memory_enabled = args.workflow_memory == "enabled"
     mcp_url = f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp"
     with temporary_claude_player_config(provider_env, mcp_url) as config:
+        mcp_env["AI_PLAY_APPROVED_IMAGE_ROOT"] = str(config.image_root)
         return run_orchestrated_session(
             mcp_command=mcp_command,
             player_label="claude",
@@ -359,6 +377,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.runs,
                 workflow_memory_enabled=workflow_memory_enabled,
                 scenario=args.scenario,
+                approved_image_read=True,
             ),
             mcp_env=mcp_env,
             player_env=build_claude_player_env(config.root, provider_env),

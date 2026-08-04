@@ -211,11 +211,18 @@ Claude 玩家在空目录中使用 `--bare`、`--print`、`--no-session-persiste
 hooks、agents 或其他 MCP Server。真实 Claude/Godot 验收同样需要用户事先确认截图、令牌、费用和
 本地轨迹持久化影响；自动化测试不得发起模型请求或依赖真实凭据。
 
+Claude Code 2.1.212 的 MCP 客户端不会把 tool result 中的 `ImageContent` 传给模型，因此 Claude
+入口使用一个仅该 turn 可见的获准图片交换目录。可信 MCP 仍先执行正常公开投影，再将参考图、
+彩色观察和可选深度图原子写为 `0600` 文件，并通过 `approved_image_paths` 返回路径。Claude 仅
+启用内建 `Read`，allowlist 精确绑定这个 `0700` 目录；仓库、源 settings、轨迹和其他路径不可读。
+临时目录在正常或异常退出时删除，路径不进入可信轨迹日志。非 Claude MCP 客户端默认不设置内部
+`AI_PLAY_APPROVED_IMAGE_ROOT`，继续直接消费标准 `ImageContent`。
+
 ```bash
 python3 tools/ai_play_claude_orchestrator.py \
   --runs 3 \
   --scenario find_contract \
-  --model opus \
+  --model claude-opus-5 \
   --effort high \
   --claude-settings .claude/settings.local.json
 ```

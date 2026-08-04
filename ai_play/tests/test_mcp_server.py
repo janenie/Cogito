@@ -383,6 +383,52 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
     asyncio.run(run())
 
 
+def test_observe_exports_only_approved_images_for_restricted_read(
+    monkeypatch,
+    tmp_path,
+):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+    image_root = tmp_path / "approved-images"
+    monkeypatch.setattr(
+        mcp_server,
+        "config",
+        Config(approved_image_root=image_root),
+    )
+
+    result = call_tool("observe", {})
+
+    paths = result.structuredContent["approved_image_paths"]
+    assert paths == {
+        "color": str(image_root / "observation-000007.jpg"),
+        "depth": str(image_root / "observation-000007-depth.png"),
+    }
+    assert (image_root.stat().st_mode & 0o777) == 0o700
+    color_path = Path(paths["color"])
+    depth_path = Path(paths["depth"])
+    assert color_path.read_bytes() == b"\xff\xd8\xffmcp-image\xff\xd9"
+    assert depth_path.read_bytes() == b"\x89PNG\r\n\x1a\nmcp-depthIEND\xaeB`\x82"
+    assert (color_path.stat().st_mode & 0o777) == 0o600
+    assert (depth_path.stat().st_mode & 0o777) == 0o600
+    assert "approved_image_paths" not in logger.completed[0][2]
+
+
+def test_briefing_exports_approved_reference_image(monkeypatch, tmp_path):
+    configure_server(monkeypatch)
+    image_root = tmp_path / "approved-images"
+    monkeypatch.setattr(
+        mcp_server,
+        "config",
+        Config(approved_image_root=image_root),
+    )
+
+    result = call_tool("briefing", {})
+
+    path = Path(result.structuredContent["approved_image_paths"]["reference"])
+    assert path == image_root / "briefing-reference.jpg"
+    assert path.is_file()
+
+
 def test_observe_tool_description_explains_screenshot_and_depth_images(monkeypatch):
     configure_server(monkeypatch)
 

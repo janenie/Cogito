@@ -115,8 +115,19 @@ def validate_model_argument(name: str, value: str) -> str:
     return value
 
 
-def build_player_developer_instructions() -> str:
-    return """
+def build_player_developer_instructions(
+    approved_image_root: Path | None = None,
+) -> str:
+    if approved_image_root is None:
+        visual_permission = """此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
+embedding、轨迹文件、仓库内容、场景源码或隐藏状态，也不得使用 shell、文件系统、搜索或网络扩展信息源。"""
+    else:
+        image_root = approved_image_root.resolve()
+        visual_permission = f"""Claude Code 不会把 MCP ImageContent 直接交给模型。每次 briefing、observe 或 act 返回
+approved_image_paths 后，每次都调用 Read 读取其中的 color 或 reference；只有导航需要时再读 depth。
+Read 权限严格限制在 {image_root}。不得读取该目录之外的任何路径，不得读取轨迹、仓库内容、配置、
+场景源码或隐藏状态，也不得使用 shell、搜索或网络扩展信息源。不得把图片、路径、Base64 或 embedding 写入 AWM。"""
+    return f"""
 你是通过视觉与获准 MCP 工具操作 3D 游戏的黑盒玩家。briefing 是游戏规则、目标和物体操作说明的
 唯一权威来源；每局先读取并遵守它，像人类玩家一样从第一次进入场景开始观察、探索、规划和纠错。
 
@@ -129,7 +140,7 @@ observe 和 act 在工具结果中返回的图片属于你的获准视觉输入�
 没有变化、变化方向不符或目标丢失时，应调整假设与动作，不要机械重复。
 
 look 只使用 direction 和 degrees，例如向左转 30 度是
-{"type":"look","direction":"left","degrees":30}。direction 只能是 left、right、up、down；
+{{"type":"look","direction":"left","degrees":30}}。direction 只能是 left、right、up、down；
 不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
 地标的位置、大小与遮挡变化，确认方向正确后再移动。
 
@@ -144,8 +155,7 @@ look 只使用 direction 和 degrees，例如向左转 30 度是
 交互后执行 interact 并读完任务卡。读取任务卡前不得离开出生区域；水平一圈仍没找到时，才在
 原地补充向上和向下扫描。
 
-此视觉权限只覆盖当前模型会话中工具直接返回的图片。不得读取或保存磁盘截图、图片路径、Base64、
-embedding、轨迹文件、仓库内容、场景源码或隐藏状态，也不得使用 shell、文件系统、搜索或网络扩展信息源。
+{visual_permission}
 只输出简短、可公开的决策依据，不输出隐藏推理链。
 """.strip()
 
@@ -267,15 +277,22 @@ def build_player_prompt(
     runs: int,
     workflow_memory_enabled: bool = True,
     scenario: str = "",
+    approved_image_read: bool = False,
 ) -> str:
+    local_file_rule = (
+        "每次 briefing、observe 或 act 返回 approved_image_paths 后，立即用 Read 读取这些获准图片；"
+        "不得读取其他本地文件，也不得通过文件系统建立另一套记忆。"
+        if approved_image_read
+        else "不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。"
+    )
     if workflow_memory_enabled:
         startup = "先调用 briefing，再调用 workflow_memory_read，再调用 observe"
         allowed_tools = (
             "briefing、workflow_memory_read、observe、act、\n"
             "   workflow_memory_update"
         )
-        memory_rules = """7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
-8. 不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。
+        memory_rules = f"""7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
+8. {local_file_rule}
 9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
 10. 终局后调用 workflow_memory_update，但 stopped、disconnected 或其他异常局不要更新。
 11. 成功局提交由本局公开证据支持的抽象 workflow、landmarks 和 avoid。
@@ -299,8 +316,8 @@ def build_player_prompt(
     else:
         startup = "先调用 briefing，再调用 observe"
         allowed_tools = "briefing、observe、act"
-        memory_rules = """7. 只可在普通会话上下文中保留公开的简短笔记；没有结构化经验读写工具。
-8. 不得读取任何本地轨迹或截图文件；不得通过 shell 或文件系统建立另一套记忆。
+        memory_rules = f"""7. 只可在普通会话上下文中保留公开的简短笔记；没有结构化经验读写工具。
+8. {local_file_rule}
 9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
 10. 终局后等待下一局，并重新从 briefing 开始。"""
         decision_memory = (

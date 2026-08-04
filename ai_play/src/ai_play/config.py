@@ -14,6 +14,7 @@ class Config:
     stop_timeout_seconds: float = 5.0
     max_act_requests: int = 500
     log_root: Path = Path("~/workspace/cogito_logs/mcplogs").expanduser()
+    approved_image_root: Path | None = None
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -33,6 +34,9 @@ class Config:
                 cls.max_act_requests,
             ),
             log_root=_read_path("AI_PLAY_LOG_ROOT", cls.log_root),
+            approved_image_root=_read_optional_absolute_path(
+                "AI_PLAY_APPROVED_IMAGE_ROOT"
+            ),
         )
         config.validate()
         return config
@@ -96,3 +100,15 @@ def _read_path(name: str, default: Path) -> Path:
     if not raw.strip():
         raise ValueError(f"{name} must not be empty")
     return Path(raw).expanduser()
+
+
+def _read_optional_absolute_path(name: str) -> Path | None:
+    raw = os.environ.get(name)
+    if raw is None:
+        return None
+    if not raw.strip():
+        raise ValueError(f"{name} must not be empty")
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        raise ValueError(f"{name} must be an absolute path")
+    return path.resolve()

@@ -62,6 +62,9 @@ def test_temporary_claude_player_config_is_private_and_removed(tmp_path):
         "http://127.0.0.1:8766/mcp",
     ) as config:
         assert config.root.stat().st_mode & 0o777 == 0o700
+        assert config.image_root.parent == config.root
+        assert config.image_root.name == "approved_images"
+        assert config.image_root.stat().st_mode & 0o777 == 0o700
         assert config.settings_path.stat().st_mode & 0o777 == 0o600
         assert config.mcp_path.stat().st_mode & 0o777 == 0o600
         assert json.loads(config.settings_path.read_text(encoding="utf-8")) == {
@@ -146,6 +149,7 @@ def test_build_claude_command_is_bare_nonpersistent_and_mcp_only(tmp_path):
         root=tmp_path,
         settings_path=tmp_path / "settings.json",
         mcp_path=tmp_path / "mcp.json",
+        image_root=tmp_path / "approved_images",
     )
 
     command = orchestrator.build_claude_command(
@@ -163,9 +167,10 @@ def test_build_claude_command_is_bare_nonpersistent_and_mcp_only(tmp_path):
     assert "--disable-slash-commands" in command
     assert command[command.index("--settings") + 1] == str(config.settings_path)
     assert command[command.index("--mcp-config") + 1] == str(config.mcp_path)
-    assert command[command.index("--tools") + 1] == ""
+    assert command[command.index("--tools") + 1] == "Read"
     allowed = command[command.index("--allowed-tools") + 1]
     assert allowed.split(",") == [
+        f"Read(//{config.image_root.resolve().as_posix().lstrip('/')}/**)",
         "mcp__cogito_ai_play__briefing",
         "mcp__cogito_ai_play__workflow_memory_read",
         "mcp__cogito_ai_play__observe",
@@ -196,6 +201,7 @@ def test_build_claude_command_disables_workflow_memory_tools(tmp_path):
         root=tmp_path,
         settings_path=tmp_path / "settings.json",
         mcp_path=tmp_path / "mcp.json",
+        image_root=tmp_path / "approved_images",
     )
 
     command = orchestrator.build_claude_command(
@@ -208,6 +214,7 @@ def test_build_claude_command_disables_workflow_memory_tools(tmp_path):
 
     allowed = command[command.index("--allowed-tools") + 1]
     assert allowed.split(",") == [
+        f"Read(//{config.image_root.resolve().as_posix().lstrip('/')}/**)",
         "mcp__cogito_ai_play__briefing",
         "mcp__cogito_ai_play__observe",
         "mcp__cogito_ai_play__act",
@@ -445,6 +452,12 @@ def test_main_wires_claude_session_and_removes_private_config(
     assert captured["player_cwd"].name == "player_workspace"
     assert captured["player_env"]["ANTHROPIC_AUTH_TOKEN"] == "fixture-token"
     assert "CODEX_HOME" not in captured["player_env"]
+    assert captured["mcp_env"]["AI_PLAY_APPROVED_IMAGE_ROOT"] == str(
+        captured["temporary_root"] / "approved_images"
+    )
+    assert "Read(" in captured["player_command"][
+        captured["player_command"].index("--allowed-tools") + 1
+    ]
     assert "workflow_memory" not in captured["player_command"][
         captured["player_command"].index("--allowed-tools") + 1
     ]
@@ -562,3 +575,23 @@ def test_player_prompt_requires_formal_terminal_and_does_not_infer_act_limit():
     )
     assert "同一 MCP 与 AWM 会话" in restart_prompt
     assert "workflow_memory_read、briefing、observe" in restart_prompt
+
+
+def test_claude_visual_instructions_require_reading_only_approved_images(tmp_path):
+    orchestrator = load_orchestrator()
+    image_root = tmp_path / "approved_images"
+
+    instructions = orchestrator.build_claude_developer_instructions(image_root)
+    prompt = orchestrator.build_player_prompt(
+        1,
+        workflow_memory_enabled=True,
+        scenario="greet_npc_meeting",
+        approved_image_read=True,
+    )
+
+    assert str(image_root.resolve()) in instructions
+    assert "approved_image_paths" in instructions
+    assert "每次都调用 Read" in instructions
+    assert "不得读取" in instructions
+    assert "仓库内容" in instructions
+    assert "approved_image_paths" in prompt

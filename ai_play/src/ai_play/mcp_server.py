@@ -3,8 +3,11 @@ from __future__ import annotations
 import asyncio
 import argparse
 import base64
+import os
 import sys
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, Sequence
 
 from mcp.server.fastmcp import FastMCP
@@ -107,10 +110,74 @@ def _result(payload, image_bytes=None, depth_image_bytes=None):
             data=base64.b64encode(depth_image_bytes).decode("ascii"),
             mimeType="image/png",
         ))
+    try:
+        approved_paths = _export_approved_images(
+            payload,
+            image_bytes,
+            depth_image_bytes,
+        )
+    except OSError:
+        return _error("image_export_failed")
+    if approved_paths:
+        payload = {**payload, "approved_image_paths": approved_paths}
     return CallToolResult(
         content=content,
         structuredContent=payload,
     )
+
+
+def _export_approved_images(payload, image_bytes, depth_image_bytes):
+    root = getattr(config, "approved_image_root", None)
+    if root is None or image_bytes is None:
+        return {}
+    root = Path(root).resolve()
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(root, 0o700)
+
+    observation = payload.get("observation")
+    if isinstance(observation, dict):
+        observation_id = observation.get("observation_id")
+        if type(observation_id) is not int or observation_id < 0:
+            return {}
+        stem = f"observation-{observation_id:06d}"
+        paths = {"color": _write_private_image(root, stem + ".jpg", image_bytes)}
+        if depth_image_bytes is not None:
+            paths["depth"] = _write_private_image(
+                root,
+                stem + "-depth.png",
+                depth_image_bytes,
+            )
+        return paths
+    if "briefing" in payload:
+        return {
+            "reference": _write_private_image(
+                root,
+                "briefing-reference.jpg",
+                image_bytes,
+            )
+        }
+    return {}
+
+
+def _write_private_image(root, filename, data):
+    target = root / filename
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=root,
+        prefix=".approved-image-",
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+        os.chmod(temporary_name, 0o600)
+        os.replace(temporary_name, target)
+        os.chmod(target, 0o600)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
+    return str(target)
 
 
 def _error(code):
@@ -141,10 +208,17 @@ def _begin_logged_call(tool, request):
 
 def _complete_logged_call(token, result, image_bytes=None):
     try:
+        logged_content = result.structuredContent
+        if isinstance(logged_content, dict) and "approved_image_paths" in logged_content:
+            logged_content = {
+                key: value
+                for key, value in logged_content.items()
+                if key != "approved_image_paths"
+            }
         trajectory_logger.complete_tool_call(
             token,
             bool(result.isError),
-            result.structuredContent,
+            logged_content,
             image_bytes,
         )
     except LogPersistenceError:
