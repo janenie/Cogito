@@ -483,6 +483,9 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "用短步靠近" in instructions
     assert "远距离的 not_found 不能作为排除依据" in instructions
     assert "读取任务卡前不得离开出生区域" in instructions
+    assert "首张截图已经出现该标志时，不要开始 45 度整圈扫描" in instructions
+    assert "每次只向标志方向转 5 到 15 度" in instructions
+    assert "不要把附近门的 Open 提示误认为任务卡" in instructions
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])

@@ -146,7 +146,8 @@ Streamable HTTP MCP 边车，边车连接 Godot bridge 并保存可信轨迹；C
 `NO_PROXY`。不得使用公网通配符或 `allow_local_binding` 扩大访问范围。
 高优先级 developer/system instruction 还要求：当公开 `briefing` 指定出生点附近任务卡时，
 把细杆底座上的青绿色/蓝绿色同心发光圆环标志作为最高优先级任务卡候选。玩家留在出生区，
-按 45 度扇区扫描最多 360 度，每次等待与公开朝向一致的新截图；找到标志后短步靠近、对准并
+仅在首帧未显示候选时按 45 度扇区扫描最多 360 度；首帧已显示候选时改用 5–15 度微调和短步靠近，
+且不把附近门的 `Open` 提示当作读卡提示。每次等待与公开朝向一致的新截图；找到标志后对准并
 探测，读卡后才能离开。远距离 `not_found` 不得用于排除候选。
 
 每局创建空的 `player_workspace` 和临时 `CODEX_HOME`。`--codex-auth-home` 默认
