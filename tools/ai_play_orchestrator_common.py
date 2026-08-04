@@ -334,6 +334,8 @@ def build_player_prompt(
 17. 若当前工具结果是 disconnected 且还没有完成全部 {runs} 次，继续调用 observe 等待同一局
    的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。
    stopped 表示操作者主动中止整次运行：立即停止调用工具，此时允许结束会话，无需凑满局数。
+18. observation_id 不是 act 请求计数，也不是已完成局数。不要根据 observation_id 推断动作上限、
+   自行宣布成功或失败，或提前结束会话；只有工具返回正式 game_over 才表示本局终局。
 
 {staircase_guidance.strip()}
 
@@ -389,11 +391,14 @@ def run_orchestrated_session(
     player_exit_grace_seconds: float,
     idle_timeout_seconds: float,
     player_final_grace_seconds: float,
+    player_restart_limit: int = 0,
+    player_restart_prompt: str | None = None,
 ) -> int:
     outputs: queue.Queue[tuple[str, str | None]] = queue.Queue()
     mcp = None
     player = None
     supervisor = None
+    player_restarts = 0
     try:
         mcp = _start_process("mcp", mcp_command, mcp_cwd, mcp_env)
         _start_output_reader("mcp", mcp, outputs)
@@ -473,6 +478,24 @@ def run_orchestrated_session(
                     if supervisor_code is not None:
                         return supervisor_code
                     time.sleep(0.05)
+                if player_code == 0 and player_restarts < player_restart_limit:
+                    player_restarts += 1
+                    print(
+                        "[orchestrator] %s exited before supervisor terminal; "
+                        "restarting player turn (%s/%s)"
+                        % (player_label, player_restarts, player_restart_limit),
+                        flush=True,
+                    )
+                    player = _start_process(
+                        player_label,
+                        player_command,
+                        player_cwd,
+                        player_env,
+                        stdin_text=player_restart_prompt or prompt,
+                    )
+                    _start_output_reader(player_label, player, outputs)
+                    last_activity_at = time.monotonic()
+                    continue
                 return 3 if player_code == 0 else player_code
             if time.monotonic() - last_activity_at > idle_timeout_seconds:
                 print(
@@ -608,4 +631,3 @@ def is_port_listening(host: str, port: int) -> bool:
             return True
     except OSError:
         return False
-

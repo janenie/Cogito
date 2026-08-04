@@ -273,6 +273,11 @@ python3 tools/ai_play_claude_orchestrator.py \
 `--effort` 只接受 `low`、`medium`、`high`、`xhigh` 或 `max`。真实 Claude/Godot 多局验收仍须另行确认截图、令牌、
 费用和本地轨迹持久化影响；自动化测试不得使用真实凭据或发起模型请求。
 
+Claude 以退出码 0 提前结束、但 supervisor 尚未收到正式终局时，orchestrator 会在同一 MCP/AWM
+会话内启动恢复 turn；恢复 turn 先读取 workflow memory、briefing 和当前 observation，再继续游玩。
+`--claude-max-restarts` 默认 8，用于限制恢复次数和费用；非零 Claude 退出码仍立即失败收束。
+`observation_id` 既不是 act 请求计数，也不是完成局数，只有工具返回的正式 `game_over` 才计入一局。
+
 ### 会话级 Agent Workflow Memory
 
 同一次 orchestrator 多局运行共享 MCP sidecar 进程内的 `SessionWorkflowMemory`。每局先调用

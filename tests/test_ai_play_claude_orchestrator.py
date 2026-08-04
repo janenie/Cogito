@@ -449,3 +449,116 @@ def test_main_wires_claude_session_and_removes_private_config(
         captured["player_command"].index("--allowed-tools") + 1
     ]
     assert not captured["temporary_root"].exists()
+
+
+class FakeProcess:
+    def __init__(self, return_codes=None):
+        self._return_codes = list(return_codes or [])
+        self.returncode = None
+        self.terminated = False
+
+    def poll(self):
+        if self._return_codes:
+            self.returncode = self._return_codes.pop(0)
+        return self.returncode
+
+    def terminate(self):
+        self.terminated = True
+        self.returncode = -15
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+    def kill(self):
+        self.terminated = True
+        self.returncode = -9
+
+
+def test_session_restarts_clean_claude_exit_while_supervisor_is_active(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    started = []
+    player_prompts = []
+    mcp = FakeProcess()
+    first_claude = FakeProcess(return_codes=[None, 0])
+    second_claude = FakeProcess()
+    supervisor = FakeProcess(return_codes=[None, 0])
+    claude_processes = iter([first_claude, second_claude])
+
+    def fake_start(label, command, cwd, env, stdin_text=None):
+        started.append(label)
+        if label == "mcp":
+            return mcp
+        if label == "supervisor":
+            return supervisor
+        player_prompts.append(stdin_text)
+        return next(claude_processes)
+
+    monkeypatch.setattr(orchestrator._common, "_start_process", fake_start)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_start_output_reader",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python"],
+        player_label="claude",
+        player_command=["claude"],
+        supervisor_command=["supervisor"],
+        prompt="continue until a formal terminal result",
+        mcp_env={},
+        player_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        player_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        player_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        player_final_grace_seconds=0.0,
+        player_restart_limit=1,
+        player_restart_prompt=(
+            "resume: workflow_memory_read, briefing, observe; await game_over"
+        ),
+    )
+
+    assert result == 0
+    assert started == ["mcp", "claude", "supervisor", "claude"]
+    assert player_prompts == [
+        "continue until a formal terminal result",
+        "resume: workflow_memory_read, briefing, observe; await game_over",
+    ]
+    assert first_claude.returncode == 0
+    assert second_claude.terminated
+    assert mcp.terminated
+
+
+def test_player_prompt_requires_formal_terminal_and_does_not_infer_act_limit():
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        1,
+        workflow_memory_enabled=True,
+        scenario="greet_npc_meeting",
+    )
+
+    assert "observation_id 不是 act 请求计数" in prompt
+    assert "只有工具返回正式 game_over" in prompt
+
+    restart_prompt = orchestrator.build_player_restart_prompt(
+        1,
+        workflow_memory_enabled=True,
+        scenario="greet_npc_meeting",
+    )
+    assert "同一 MCP 与 AWM 会话" in restart_prompt
+    assert "workflow_memory_read、briefing、observe" in restart_prompt

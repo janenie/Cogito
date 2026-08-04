@@ -208,6 +208,26 @@ def build_claude_player_env(
     return env
 
 
+def build_player_restart_prompt(
+    runs: int,
+    workflow_memory_enabled: bool,
+    scenario: str,
+) -> str:
+    del scenario
+    startup = (
+        "workflow_memory_read、briefing、observe"
+        if workflow_memory_enabled
+        else "briefing、observe"
+    )
+    return (
+        "这是同一 MCP 与 AWM 会话中的恢复 turn；此前 Claude turn 提前结束，但可信 "
+        "supervisor 尚未完成。不要假设新的一局已经开始，也不要把 observation_id 当作 "
+        "act 请求计数或已完成局数。先依次调用 %s 恢复公开状态，然后继续当前局或后续局。"
+        "本会话总目标仍是完成 %s 个正式终局；只有工具返回正式 game_over 才计算一局，"
+        "完成全部局数前不要输出最终回答。" % (startup, runs)
+    )
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run a hardened black-box Claude player with the Godot supervisor.",
@@ -242,6 +262,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--claude-exit-grace-seconds", type=float, default=5.0)
     parser.add_argument("--idle-timeout-seconds", type=float, default=600.0)
     parser.add_argument("--claude-final-grace-seconds", type=float, default=30.0)
+    parser.add_argument("--claude-max-restarts", type=int, default=8)
     return parser.parse_args(argv)
 
 
@@ -280,6 +301,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--idle-timeout-seconds must be positive")
     if args.claude_final_grace_seconds <= 0:
         raise SystemExit("--claude-final-grace-seconds must be positive")
+    if args.claude_max_restarts < 0:
+        raise SystemExit("--claude-max-restarts must be at least 0")
 
     for label, port in (
         ("AI Play bridge", DEFAULT_WS_PORT),
@@ -349,6 +372,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             player_exit_grace_seconds=args.claude_exit_grace_seconds,
             idle_timeout_seconds=args.idle_timeout_seconds,
             player_final_grace_seconds=args.claude_final_grace_seconds,
+            player_restart_limit=args.claude_max_restarts,
+            player_restart_prompt=build_player_restart_prompt(
+                args.runs,
+                workflow_memory_enabled=workflow_memory_enabled,
+                scenario=args.scenario,
+            ),
         )
 
 

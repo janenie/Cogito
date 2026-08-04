@@ -71,6 +71,10 @@ Claude 入口保留 Codex 入口，并与其复用 MCP 边车、Godot supervisor
 不得发起真实模型请求或依赖真实凭据。真实 Claude/Godot 验收仍需用户单独确认截图、令牌、费用和
 本地轨迹持久化影响。
 
+Claude 正常提前退出但 supervisor 尚无终局时，公共 runner 允许在同一 MCP/AWM 会话内启动有界
+恢复 turn；`--claude-max-restarts` 默认 8。恢复提示必须要求先读取公开 memory、briefing 和当前
+observation，且不得把 observation ID 当作 act 计数或完成局数。非零玩家退出仍立即收束。
+
 ## 验证
 
 先运行与改动最相关的最小测试，再运行受影响的完整测试套件。

@@ -223,6 +223,11 @@ settings `env` 白名单为 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、`ANTH
 `ANTHROPIC_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL`；必须存在 API key 或 auth token，自定义 base URL
 必须使用 HTTPS。`--model` 和 `--effort` 必填。
 
+如果 Claude 以退出码 0 提前结束而 supervisor 尚未产生正式终局，编排器会保持同一 MCP sidecar
+和 AWM，启动恢复 turn 并要求它依次读取 workflow memory、briefing 与当前 observation。默认最多
+恢复 8 次，可用 `--claude-max-restarts` 收紧；非零退出码不重试。玩家不得根据 observation ID
+推断 act 次数或局数，只有正式 `game_over` 才计入终局。
+
 ### 会话级 Agent Workflow Memory
 
 > 设计来源见 [会话级 AWM spec](../../scope/2026-07-31-session-awm/spec-session-awm.md)。
