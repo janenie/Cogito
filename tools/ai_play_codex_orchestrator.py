@@ -277,7 +277,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 % (label, DEFAULT_WS_HOST, port)
             )
 
-    paths = create_run_paths(session_root)
+    workflow_memory_enabled = args.workflow_memory == "enabled"
+    paths = create_run_paths(
+        session_root,
+        player="codex",
+        model=args.model,
+        reasoning_effort=args.reasoning_effort,
+        scenario=args.scenario,
+        workflow_memory_enabled=workflow_memory_enabled,
+        requested_runs=args.runs,
+    )
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
     mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
@@ -308,7 +317,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.model,
             args.reasoning_effort,
             f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp",
-            workflow_memory_enabled=args.workflow_memory == "enabled",
+            workflow_memory_enabled=workflow_memory_enabled,
         )
         return run_orchestrated_session(
             mcp_command=mcp_command,
@@ -320,7 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             supervisor_command=supervisor_command,
             prompt=build_player_prompt(
                 args.runs,
-                workflow_memory_enabled=args.workflow_memory == "enabled",
+                workflow_memory_enabled=workflow_memory_enabled,
                 scenario=args.scenario,
             ),
             mcp_env=mcp_env,

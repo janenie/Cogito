@@ -1,0 +1,45 @@
+task: put_book
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm
+trusted_log_root: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs
+run_manifest: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs/put_book/20260806-00-49/run.json
+aggregate: 0/4 success; all four runs ended in failure/max_requests at 150 act requests.
+
+run_1:
+  address: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs/put_book/20260806-00-49/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: Spent much of the run locating and handling the task card, then searched nearby doors and books without a successful carry. Claude exited once after concluding the archive books were not interactive; the orchestrator restarted the player turn and continued the same game.
+  final_location: ground-floor lobby area near (x=4.68, y=0.80, z=11.62); observed x=-0.87..4.68 and z=7.13..11.62.
+
+run_2:
+  address: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs/put_book/20260806-00-49/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: Reached task-card and Carry prompts, but repeatedly sent invalid interact shapes such as {"type":"interact"}, binding-based variants, and type="interact2". Late in the run it inferred the valid shape {"type":"interact","action":"interact2"}, but did not complete a book transfer.
+  final_location: ground-floor lobby/archive-adjacent area near (x=4.51, y=0.82, z=10.40); observed x=0.30..4.98 and z=9.97..11.62.
+
+run_3:
+  address: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs/put_book/20260806-00-49/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: Did not retain the valid interact schema through AWM and repeated many invalid variants. It later explored and probed but never obtained a Carry prompt. Claude exited once at observation 104 after deciding the books could not be found; a restarted player turn consumed the remaining budget.
+  final_location: ground-floor lobby area near (x=4.95, y=0.80, z=6.88); observed x=1.71..7.40 and z=6.88..10.48.
+
+run_4:
+  address: /Users/Shared/Cogito-test/20260806-004919__claude__claude-opus-5__put_book__awm/trusted_mcplogs/put_book/20260806-00-49/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: Successfully opened the task card at request 7 with {"type":"interact","action":"interact"} and closed it at request 9. Navigation then looped near the starting floor. At request 132 it aligned with a book and received Carry [E], but the next request illegally combined move and probe_interaction, moved away, and no book was carried or delivered.
+  final_location: ground-floor book/lobby area near (x=-3.55, y=0.80, z=8.82); observed x=-5.30..3.45 and z=8.09..11.62.
+
+main_findings:
+  - The interact action schema is not discoverable enough in the public briefing. The required minimal forms are {"type":"interact","action":"interact"} and {"type":"interact","action":"interact2"}; omitting action produces "action has invalid fields".
+  - probe_interaction must be a single-action batch, but Claude still combined it with move once after finding a Carry prompt.
+  - AWM was enabled, yet the correct interact schema discovered late in run 2 was not reliably reused in run 3.
+  - Claude often exited before a formal terminal; orchestrator restarts correctly kept the game alive, but the restarted model lost short-term visual and route context.
+  - Model prose sometimes claimed it had searched the archive while structured position telemetry stayed close to the starting floor; benchmark analysis should trust trajectories over self-reports.

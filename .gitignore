@@ -36,3 +36,5 @@ ai_play/.pytest_cache/
 ai_host/runs/
 ai_host/**/__pycache__/
 ai_host/.pytest_cache/
+
+.claude/settings.local.json

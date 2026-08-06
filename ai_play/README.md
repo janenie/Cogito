@@ -183,15 +183,24 @@ python3 tools/ai_play_codex_orchestrator.py \
 
 运行目录位于隔离的 `--session-root` 下。Windows 默认使用当前仓库所在驱动器根目录的
 `cogito_ai_player_runs/`，非 Windows 默认使用 `/tmp/cogito_ai_player_runs/`；自定义根及其祖先
-不得位于当前仓库内，也不得含 `.git`、`AGENTS.md` 或 `.codex/config.toml`。每局的布局为：
+不得位于当前仓库内，也不得含 `.git`、`AGENTS.md` 或 `.codex/config.toml`。每次 orchestrator
+会话的目录名同时标明玩家、模型、玩法和 AWM 模式；模型等动态参数会先转换为不含路径分隔符的
+安全目录组件，完整原值仍保存在 `session.json`。同秒同配置的后续会话追加 `-02`、`-03` 等
+序号。布局为：
 
 ```text
 <isolated-session-root>/
-└── 20260726-170000/
+└── 20260726-170000__codex__gpt-5.6__find_contract__awm/
+    ├── session.json        # 0600；安全的运行描述，不含凭据或环境变量
     ├── player_workspace/   # 创建时为空；orchestrator 不写入游戏产物
     ├── godot_environment/  # 隔离的 Godot 用户、应用数据与临时目录
     └── trusted_mcplogs/    # 仅可信 MCP 侧可见
 ```
+
+`session.json` 使用版本化结构记录 `player`、原始 `model`、`reasoning_effort`、`scenario`、
+`workflow_memory`、`requested_runs` 和 `started_at`。Claude 入口使用相同布局，例如
+`20260726-170000__claude__claude-opus-5__find_contract__awm/`。该文件不得记录 API key、
+auth token、settings/auth 路径、子进程环境或完整启动命令。
 
 Godot supervisor 使用该隔离环境写入 `user://`、着色器缓存和临时场景状态，不继承主机凭据
 环境。

@@ -462,6 +462,21 @@ def test_main_wires_claude_session_and_removes_private_config(
         captured["player_command"].index("--allowed-tools") + 1
     ]
     assert not captured["temporary_root"].exists()
+    run_dir = Path(captured["player_cwd"]).parent
+    assert run_dir.name.endswith(
+        "__claude__claude-test__find_contract__no-awm"
+    )
+    metadata = json.loads(
+        (run_dir / "session.json").read_text(encoding="utf-8")
+    )
+    assert metadata["player"] == "claude"
+    assert metadata["model"] == "claude-test"
+    assert metadata["reasoning_effort"] == "high"
+    assert metadata["scenario"] == "find_contract"
+    assert metadata["workflow_memory"] == "disabled"
+    assert metadata["requested_runs"] == 2
+    assert "ANTHROPIC_AUTH_TOKEN" not in metadata
+    assert "fixture-token" not in json.dumps(metadata)
 
 
 class FakeProcess:

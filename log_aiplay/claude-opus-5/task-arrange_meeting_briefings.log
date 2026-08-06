@@ -1,0 +1,45 @@
+task: arrange_meeting_briefings
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm
+trusted_log_root: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm/trusted_mcplogs
+aggregate: 0/4 success; all four runs ended failure/max_requests
+
+run_1:
+  address: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260806-05-33/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Searched the spawn hub, CEO Office area and Meeting Room approach. At steps 48-50, near (6.46, 0.80, -13.64), the structured observation exposed a Carry [E] prompt, but Claude turned away without picking the item up. It never opened a task/record interface and never reached seating or verification.
+  final_location: (5.33, 0.80, -15.54)
+
+run_2:
+  address: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260806-05-33/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Reached a door near (3.03, 0.80, -18.87), received Open [F], and used the correct interact envelope at steps 17, 19 and 27. The prompt remained visible and Claude repeatedly retried around the doorway. Eleven requests were rejected, including a late series of guessed interact shapes at steps 86-99. No task card, record, folder placement or verification was completed.
+  final_location: (3.63, 0.80, -19.06)
+
+run_3:
+  address: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260806-05-33/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Visually navigated farther and reported locating Meeting Room, Archive, CEO Office, Break Room, the cyan task-card marker and an Archive record. Structured telemetry nevertheless contains no task/record text and no available interaction prompt. Four requests were rejected, including bare interact/interact2 calls. It did not enter the seating puzzle.
+  final_location: (4.01, 0.80, -16.67)
+
+run_4:
+  address: /Users/Shared/Cogito-test/20260806-053348__claude__claude-opus-5__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260806-05-33/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Reached an Open [F] door prompt near (2.21, 0.80, -19.60). Four repeated bare interact calls and other malformed variants were rejected; Claude explicitly said it did not know the required interact format. It never read the task card or records and did not place or verify any folders.
+  final_location: (2.21, 0.80, -19.60)
+
+main_findings:
+  - The authoritative supervisor result is 0/4, although Claude's final prose incorrectly claimed 3 successes and 1 failure and claimed folders had already been placed. Trusted structured trajectories must remain the scoring authority.
+  - The public interaction contract is not self-explanatory enough for this client. The correct envelope is {"type":"interact","action":"interact"} (or action "interact2" for the secondary interaction), but Claude repeatedly guessed bare types, binding/prompt fields and capitalization variants.
+  - Invalid action requests count against the 100-step budget. Schema mistakes therefore directly reduce navigation and puzzle time.
+  - A completed interact action only confirms that input was emitted. It does not report whether the target object's state changed; persistent Open prompts made door-effect diagnosis ambiguous.
+  - AWM did not reliably retain the correct interact schema or a deterministic spawn-to-task-card route across runs. Later runs did not consistently improve the required first-step task-card interaction.
+  - The main failure was the visual-to-interaction loop (finding, centering, probing and invoking the right action), not seating-constraint reasoning: none of the four runs reached that stage.

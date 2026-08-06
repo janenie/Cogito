@@ -179,9 +179,12 @@ python3 tools/ai_play_codex_orchestrator.py \
 ```
 
 默认运行根在 Windows 是当前仓库所在驱动器根目录的 `cogito_ai_player_runs/`，非 Windows 是
-`/tmp/cogito_ai_player_runs/`；`--session-root` 必须同样通过隔离祖先检查。每局的
+`/tmp/cogito_ai_player_runs/`；`--session-root` 必须同样通过隔离祖先检查。运行目录采用
+`<时间>__<玩家>__<模型>__<任务>__<awm|no-awm>/`，动态目录组件经过安全化；同目录下权限为
+`0600` 的 `session.json` 保存完整模型名、思考强度、任务、AWM 模式、请求局数和开始时间，
+但不得保存凭据、认证/settings 路径、进程环境或完整启动命令。每次会话的
 `trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
-游戏产物。
+游戏产物。Codex 与 Claude 入口复用同一布局。
 
 Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 `http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查

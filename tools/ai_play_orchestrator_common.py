@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import queue
+import re
 import socket
 import subprocess
 import threading
@@ -45,6 +48,7 @@ class RunPaths:
     run_dir: Path
     player_workspace: Path
     log_root: Path
+    session_metadata: Path
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:
@@ -74,16 +78,47 @@ def validate_isolated_session_root(session_root: Path) -> Path:
     return root
 
 
+def _run_directory_component(value: str, max_length: int = 64) -> str:
+    normalized = unicodedata.normalize("NFKC", value)
+    component = re.sub(r"[^A-Za-z0-9._-]+", "_", normalized)
+    component = re.sub(r"_+", "_", component).strip("._-")
+    if not component:
+        component = "unknown"
+    if len(component) <= max_length:
+        return component
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:8]
+    prefix = component[: max_length - len(digest) - 1].rstrip("._-")
+    return f"{prefix}-{digest}"
+
+
 def create_run_paths(
     session_root: Path,
+    *,
+    player: str,
+    model: str,
+    reasoning_effort: str,
+    scenario: str,
+    workflow_memory_enabled: bool,
+    requested_runs: int,
     timestamp: str | None = None,
 ) -> RunPaths:
     root = validate_isolated_session_root(session_root)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    stamp = timestamp or datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+    started_at = datetime.now().astimezone()
+    stamp = timestamp or started_at.strftime("%Y%m%d-%H%M%S")
+    memory_label = "awm" if workflow_memory_enabled else "no-awm"
+    run_name = "__".join(
+        (
+            stamp,
+            _run_directory_component(player),
+            _run_directory_component(model),
+            _run_directory_component(scenario),
+            memory_label,
+        )
+    )
     for index in range(1, 1000):
         suffix = "" if index == 1 else "-%02d" % index
-        run_dir = root / f"{stamp}{suffix}"
+        run_dir = root / f"{run_name}{suffix}"
         try:
             run_dir.mkdir(mode=0o700)
             break
@@ -94,12 +129,30 @@ def create_run_paths(
 
     player_workspace = run_dir / "player_workspace"
     log_root = run_dir / "trusted_mcplogs"
+    session_metadata = run_dir / "session.json"
     player_workspace.mkdir(mode=0o700)
     log_root.mkdir(mode=0o700)
+    metadata = {
+        "schema_version": 1,
+        "player": player,
+        "model": model,
+        "reasoning_effort": reasoning_effort,
+        "scenario": scenario,
+        "workflow_memory": (
+            "enabled" if workflow_memory_enabled else "disabled"
+        ),
+        "requested_runs": requested_runs,
+        "started_at": started_at.isoformat(timespec="seconds"),
+    }
+    with session_metadata.open("x", encoding="utf-8") as metadata_file:
+        json.dump(metadata, metadata_file, ensure_ascii=False, indent=2)
+        metadata_file.write("\n")
+    os.chmod(session_metadata, 0o600)
     return RunPaths(
         run_dir=run_dir,
         player_workspace=player_workspace,
         log_root=log_root,
+        session_metadata=session_metadata,
     )
 
 

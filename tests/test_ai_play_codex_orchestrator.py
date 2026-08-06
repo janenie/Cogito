@@ -88,11 +88,38 @@ def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
         lambda root: Path(root).resolve(),
     )
 
-    paths = orchestrator.create_run_paths(tmp_path, timestamp="20260726-170000")
+    paths = orchestrator.create_run_paths(
+        tmp_path,
+        player="claude",
+        model="../claude opus/test",
+        reasoning_effort="high",
+        scenario="find_contract",
+        workflow_memory_enabled=True,
+        requested_runs=4,
+        timestamp="20260726-170000",
+    )
 
     assert list(paths.player_workspace.iterdir()) == []
+    assert paths.run_dir.name == (
+        "20260726-170000__claude__claude_opus_test__find_contract__awm"
+    )
     assert paths.log_root == paths.run_dir / "trusted_mcplogs"
     assert paths.log_root.is_dir()
+    assert paths.session_metadata == paths.run_dir / "session.json"
+    assert paths.session_metadata.stat().st_mode & 0o777 == 0o600
+    metadata = json.loads(
+        paths.session_metadata.read_text(encoding="utf-8")
+    )
+    assert metadata == {
+        "schema_version": 1,
+        "player": "claude",
+        "model": "../claude opus/test",
+        "reasoning_effort": "high",
+        "scenario": "find_contract",
+        "workflow_memory": "enabled",
+        "requested_runs": 4,
+        "started_at": metadata["started_at"],
+    }
 
 
 @pytest.mark.parametrize(
@@ -1007,7 +1034,8 @@ def test_main_removes_temporary_codex_home_after_session(monkeypatch, tmp_path):
         orchestrator,
         "run_orchestrated_session",
         lambda **kwargs: captured.update(
-            player_home=Path(kwargs["player_env"]["CODEX_HOME"])
+            player_home=Path(kwargs["player_env"]["CODEX_HOME"]),
+            run_dir=Path(kwargs["player_cwd"]).parent,
         )
         or 0,
     )
@@ -1027,3 +1055,15 @@ def test_main_removes_temporary_codex_home_after_session(monkeypatch, tmp_path):
 
     assert result == 0
     assert not captured["player_home"].exists()
+    assert captured["run_dir"].name.endswith(
+        "__codex__gpt-test__find_contract__awm"
+    )
+    metadata = json.loads(
+        (captured["run_dir"] / "session.json").read_text(encoding="utf-8")
+    )
+    assert metadata["player"] == "codex"
+    assert metadata["model"] == "gpt-test"
+    assert metadata["reasoning_effort"] == "high"
+    assert metadata["scenario"] == "find_contract"
+    assert metadata["workflow_memory"] == "enabled"
+    assert metadata["requested_runs"] == 3

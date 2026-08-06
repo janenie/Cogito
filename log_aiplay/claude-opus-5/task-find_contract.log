@@ -1,0 +1,44 @@
+task: find_contract
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+requested_runs: 4
+valid_model_outcomes: 3
+
+orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm
+trusted_log_root: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs
+aggregate: 1/3 valid runs succeeded; run 4 was externally stopped with escape_stop and is not counted as a model outcome
+
+run_1:
+  address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-07-19/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 300
+  final_location: approximately (1.99, 0.80, 13.33)
+  progress: explored and navigated for the full request budget but did not complete the public contract clue chain; several invalid or no-progress interaction attempts consumed requests
+
+run_2:
+  address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-07-19/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 300
+  final_location: approximately (1.53, 0.80, -0.14)
+  progress: spent the run on navigation and visual search without completing the public clue chain; legal actions were frequent but produced little task-state progress
+
+run_3:
+  address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-07-19/attempt-03/trajectory.json
+  result: success/correct_password
+  total_steps: 275
+  final_location: approximately (0.30, 0.80, 8.85)
+  progress: after extended exploration, completed the public clue chain and submitted a successful answer; the hidden password is intentionally omitted
+
+run_4:
+  address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-11-19/attempt-01/trajectory.json
+  result: stopped/escape_stop
+  total_steps: 31
+  final_location: approximately (1.53, 0.80, -0.02)
+  progress: externally interrupted before a terminal model outcome; exclude this run from capability statistics
+
+main_findings:
+  - The authoritative supervisor result is one success, two max-request failures, and one external stop.
+  - A high legal-request rate did not guarantee useful task progress; task-entry discovery and interaction-schema recall remained weak.
+  - The successful run shows the task is solvable through the public interface, but required 275 requests and did not demonstrate a reliably reusable AWM route.
+  - Do not expose the hidden answer or infer success from the model's prose; use supervisor game_over and trusted trajectories.

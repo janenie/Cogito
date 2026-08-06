@@ -1,0 +1,44 @@
+task: repair_lighting_circuit
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm
+trusted_log_root: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm/trusted_mcplogs
+aggregate: 1/4 success; two max-request failures, one circuit_repaired success, and one incorrect-configuration failure.
+
+run_1:
+  address: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260806-03-56/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Claude visually read the randomized target and located the A/B/C/D panel, but spent most of the run trying to align with it. No switch prompt was captured in the structured trajectory and no switch state changed. Claude exited once near the limit; the orchestrator restarted it to consume the remaining budget.
+  final_location: panel/spawn room near (x=4.58, y=0.80, z=-14.32); observed x=2.43..4.64 and z=-14.32..-11.40.
+
+run_2:
+  address: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260806-03-56/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: Read the task card by request 2. It located circuit A but did not change it, later switched circuit D once and saw the CEO Office breaker, then spent the remaining budget exploring and re-aligning without reaching Verify.
+  final_location: facility corridor near (x=0.04, y=0.81, z=-7.37); observed x=0.04..6.32 and z=-14.93..-4.85.
+
+run_3:
+  address: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260806-03-56/attempt-03/trajectory.json
+  result: success/circuit_repaired
+  total_steps: 83
+  progress: Read the task card in 3 requests, switched A and B to ON, toured the facility to infer affected regions, reset the Break Room lighting breaker, returned to the panel, and activated Verify successfully. It accidentally picked up an unrelated Carry object once but recovered.
+  final_location: control panel near (x=6.37, y=0.80, z=-14.16); observed x=0.05..7.29 and z=-15.80..-6.89.
+
+run_4:
+  address: /Users/Shared/Cogito-test/20260806-035558__claude__claude-opus-5__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260806-05-14/attempt-01/trajectory.json
+  result: failure/incorrect_circuit_configuration
+  total_steps: 59
+  progress: Read the task card in 3 requests and rapidly found all four switch hitboxes. It toggled A/B/C/D several times, reset the Break Room breaker, then changed multiple switches again and selected Verify at request 59. The submitted configuration was wrong, producing an immediate formal failure rather than a timeout.
+  final_location: control panel near (x=6.37, y=0.80, z=-14.07); observed x=4.36..6.37 and z=-14.07..-13.31.
+
+main_findings:
+  - AWM/session experience strongly improved the deterministic task-card phase: run 1 spent many steps searching, while runs 2-4 read it in 2-3 requests.
+  - Panel hitboxes are usable but visually hard to align with. Runs 1-2 struggled; run 3 finally discovered stable positions, and run 4 reused them quickly.
+  - The benchmark distinguishes exploration failure from reasoning failure: run 4 reached Verify quickly but submitted the wrong configuration.
+  - Nearby unrelated Carry prompts can distract the model during a circuit task and caused an unnecessary pickup in run 3.
+  - A successful terminal closes the logger's first run manifest; the fourth supervisor attempt was therefore stored under a second timestamped run directory in the same orchestrator root.

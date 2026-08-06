@@ -332,7 +332,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 % (label, DEFAULT_WS_HOST, port)
             )
 
-    paths = create_run_paths(session_root)
+    workflow_memory_enabled = args.workflow_memory == "enabled"
+    paths = create_run_paths(
+        session_root,
+        player="claude",
+        model=args.model,
+        reasoning_effort=args.effort,
+        scenario=args.scenario,
+        workflow_memory_enabled=workflow_memory_enabled,
+        requested_runs=args.runs,
+    )
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
     mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
@@ -358,7 +367,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         flush=True,
     )
 
-    workflow_memory_enabled = args.workflow_memory == "enabled"
     mcp_url = f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp"
     with temporary_claude_player_config(provider_env, mcp_url) as config:
         mcp_env["AI_PLAY_APPROVED_IMAGE_ROOT"] = str(config.image_root)
