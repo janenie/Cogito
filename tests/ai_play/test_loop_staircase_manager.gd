@@ -44,6 +44,25 @@ func _run_test() -> void:
 	var first: Node = manager_script.new()
 	root.add_child(first)
 	first.configure_round(424242)
+	var coordinator_methods: Array[String] = [
+		"get_visible_clue_lines",
+		"get_missing_floor_labels",
+		"mark_floor_observed",
+		"toggle_candidate",
+		"is_candidate_marked",
+	]
+	var coordinator_ready: bool = true
+	for method_name: String in coordinator_methods:
+		var has_method: bool = first.has_method(method_name)
+		_assert(has_method, "manager provides %s" % method_name)
+		coordinator_ready = coordinator_ready and has_method
+	if not coordinator_ready:
+		first.queue_free()
+		await process_frame
+		_finish()
+		return
+	_assert_investigation_coordinator(first)
+	first.configure_round(424242)
 	var first_snapshot: Dictionary = first.get_round_snapshot()
 	first.queue_free()
 	await process_frame
@@ -53,17 +72,13 @@ func _run_test() -> void:
 	second.configure_round(424242)
 	var second_snapshot: Dictionary = second.get_round_snapshot()
 	_assert(first_snapshot == second_snapshot, "fixed round seed produces deterministic puzzle state")
-	_assert_long_clue_round(second, second_snapshot, "fixed seed")
 	second.configure_round(424243)
 	var third_snapshot: Dictionary = second.get_round_snapshot()
 	_assert(
-		_clue_texts(first_snapshot) != _clue_texts(third_snapshot),
-		"different round seeds produce different visible clue sequence",
+		first_snapshot["victim_name"] != third_snapshot["victim_name"]
+		or first_snapshot["true_floor"] != third_snapshot["true_floor"],
+		"different round seeds vary the generated case",
 	)
-
-	for seed: int in range(1, 301):
-		second.configure_round(seed)
-		_assert_long_clue_round(second, second.get_round_snapshot(), "seed %d" % seed)
 
 	var terminal_results: Array[Dictionary] = []
 	second.configure_round(424242)
@@ -75,6 +90,7 @@ func _run_test() -> void:
 				"reason": reason,
 			})
 	)
+	_unlock_final_round(second)
 	second.select_floor(true_floor)
 	second.select_floor(true_floor)
 	_assert(
@@ -106,6 +122,7 @@ func _run_test() -> void:
 	var wrong_floor: int = 2
 	if wrong_floor == true_floor:
 		wrong_floor = 3
+	_unlock_final_round(third)
 	third.select_floor(wrong_floor)
 	_assert(
 		wrong_results == [{
@@ -119,6 +136,47 @@ func _run_test() -> void:
 	third.queue_free()
 	await process_frame
 	_finish()
+
+
+func _unlock_final_round(manager: Node) -> void:
+	while not manager.is_final_unlocked():
+		for floor_number: int in range(2, 10):
+			manager.mark_floor_observed(floor_number)
+		manager.set_current_floor(9)
+		manager.move_up()
+
+
+func _assert_investigation_coordinator(manager: Node) -> void:
+	var lines: Array[String] = manager.get_visible_clue_lines()
+	_assert(lines.size() == 1, "round one exposes exactly one clue")
+	_assert(lines[0].begins_with("本轮线索："), "round one clue uses the current label")
+	manager.mark_floor_observed(2)
+	manager.set_current_floor(9)
+	manager.mark_floor_observed(9)
+	manager.move_up()
+	_assert(manager.current_loop == 0, "incomplete observation cannot advance")
+	_assert(
+		manager.get_missing_floor_labels() == ["3F", "4F", "5F", "6F", "7F", "8F"],
+		"incomplete feedback lists only missing floors",
+	)
+	for floor_number: int in range(2, 10):
+		manager.mark_floor_observed(floor_number)
+	manager.move_up()
+	_assert(manager.current_loop == 1, "eight observed floors advance the round")
+	lines = manager.get_visible_clue_lines()
+	_assert(lines.size() == 2, "round two exposes no future clues")
+	_assert(lines[0].begins_with("第一轮线索："), "old clue receives a fixed round label")
+	_assert(lines[1].begins_with("本轮线索："), "new clue retains the current label")
+	var terminal_results: Array[Dictionary] = []
+	manager.game_finished.connect(
+		func(outcome: String, reason: String) -> void:
+			terminal_results.append({"outcome": outcome, "reason": reason})
+	)
+	manager.submit_current_floor()
+	_assert(terminal_results.is_empty(), "round two cannot submit an answer")
+	manager.toggle_candidate(3)
+	_assert(manager.is_candidate_marked(3), "manual candidate mark is stored")
+	_assert(terminal_results.is_empty(), "manual candidate mark has no correctness feedback")
 
 
 func _assert_murder_case(case_script: Script, seed_value: int) -> void:

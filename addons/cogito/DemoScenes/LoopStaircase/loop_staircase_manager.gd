@@ -37,6 +37,9 @@ const LOBBY_COMPUTER_KEYBOARD_SCENE: String = "res://addons/cogito/DemoScenes/De
 const LOBBY_COMPUTER_MOUSE_SCENE: String = "res://addons/cogito/DemoScenes/DemoPrefabs/computer_mouse.tscn"
 const NAVIGATION_SCRIPT: String = "res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_navigation.gd"
 const BASIC_INTERACTION_SCENE: String = "res://addons/cogito/Components/Interactions/BasicInteraction.tscn"
+const CASE_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_case.gd"
+)
 
 @export var scenario_id: String = SCENARIO_ID
 @export var round_seed: int = 0
@@ -59,6 +62,9 @@ var _stable_room_number_floors: Array[int] = []
 var _stable_furniture_floors: Array[int] = []
 var _scene_player_spawn_transform := Transform3D.IDENTITY
 var _has_scene_player_spawn_transform: bool = false
+var _case: RefCounted
+var _observed_by_round: Array[Dictionary] = []
+var _manual_candidates: Dictionary = {}
 
 
 func _ready() -> void:
@@ -70,22 +76,15 @@ func _ready() -> void:
 
 
 func configure_round(seed_value: int = 0) -> void:
-	_rng = RandomNumberGenerator.new()
-	if seed_value == 0:
-		_rng.randomize()
-	else:
-		_rng.seed = seed_value
+	_case = CASE_SCRIPT.generate(seed_value)
 	current_loop = 0
 	_current_floor = FLOOR_MIN
 	_round_finished = false
-	_true_floor = _rng.randi_range(FLOOR_MIN, FLOOR_MAX)
-	_exit_symbol = SYMBOLS[_rng.randi_range(0, SYMBOLS.size() - 1)]
-	_clue_floors = _pick_distinct_floors(4)
-	_two_box_candidate_floors = _pick_two_box_candidate_floors()
-	_pick_stability_floors()
-	_generate_base_floors()
-	_generate_loop_states()
-	_generate_round_clues()
+	_true_floor = int(_case.get("true_floor"))
+	_observed_by_round.clear()
+	for round_index: int in range(TOTAL_LOOPS):
+		_observed_by_round.append({})
+	_manual_candidates.clear()
 
 
 func advance_loop() -> void:
@@ -125,8 +124,12 @@ func move_up() -> void:
 	if _round_finished:
 		return
 	if _current_floor >= FLOOR_MAX:
-		_current_floor = FLOOR_MIN
-		advance_loop()
+		if not get_missing_floor_labels().is_empty():
+			_update_floor_displays()
+			return
+		if current_loop < TOTAL_LOOPS - 1:
+			_current_floor = FLOOR_MIN
+			advance_loop()
 	else:
 		_current_floor += 1
 		_update_floor_displays()
@@ -148,7 +151,7 @@ func submit_current_floor() -> void:
 
 
 func select_floor(floor_number: int) -> void:
-	if _round_finished:
+	if _round_finished or not is_final_unlocked():
 		return
 	_round_finished = true
 	if floor_number == _true_floor:
@@ -158,16 +161,9 @@ func select_floor(floor_number: int) -> void:
 
 
 func get_floor_state(floor_number: int, loop_index: int = current_loop) -> Dictionary:
-	if not _base_floors.has(floor_number):
+	if _case == null or floor_number < FLOOR_MIN or floor_number > FLOOR_MAX:
 		return {}
-	var state: Dictionary = (_base_floors[floor_number] as Dictionary).duplicate(true)
-	var anomalies: Dictionary = _loop_states[clamp(loop_index, 0, TOTAL_LOOPS - 1)]["anomalies"]
-	if not anomalies.has(floor_number):
-		return state
-	var anomaly_list: Array = anomalies[floor_number]
-	for anomaly_type: String in anomaly_list:
-		_apply_anomaly(state, anomaly_type)
-	return state
+	return _case.visible_state(floor_number, loop_index)
 
 
 func _apply_anomaly(state: Dictionary, anomaly_type: String) -> void:
@@ -192,26 +188,13 @@ func _apply_anomaly(state: Dictionary, anomaly_type: String) -> void:
 
 
 func get_round_snapshot() -> Dictionary:
-	var floors: Array[Dictionary] = []
-	for floor_number: int in range(FLOOR_MIN, FLOOR_MAX + 1):
-		var final_state: Dictionary = get_floor_state(floor_number, TOTAL_LOOPS - 1)
-		final_state["is_solution"] = _is_solution_floor(final_state)
-		floors.append(final_state)
-	return {
-		"scenario_id": scenario_id,
-		"true_floor": _true_floor,
-		"exit_symbol": _exit_symbol,
-		"current_loop": current_loop,
-		"total_loops": TOTAL_LOOPS,
-		"clue_floors": _clue_floors.duplicate(),
-		"clues": _round_clues.duplicate(true),
-		"two_box_candidate_floors": _two_box_candidate_floors.duplicate(),
-		"stable_room_number_floors": _stable_room_number_floors.duplicate(),
-		"stable_furniture_floors": _stable_furniture_floors.duplicate(),
-		"distractor_fields": DISTRACTOR_FIELDS.duplicate(),
-		"floors": floors,
-		"loops": _loop_states.duplicate(true),
-	}
+	var snapshot: Dictionary = _case.test_snapshot()
+	snapshot["scenario_id"] = scenario_id
+	snapshot["current_loop"] = current_loop
+	snapshot["total_loops"] = TOTAL_LOOPS
+	snapshot["observed_by_round"] = _observed_by_round.duplicate(true)
+	snapshot["manual_candidates"] = _manual_candidates.duplicate(true)
+	return snapshot
 
 
 func ai_play_public_state() -> Dictionary:
@@ -228,9 +211,52 @@ func ai_play_public_state() -> Dictionary:
 
 
 func get_current_clue_text() -> String:
-	if _round_clues.is_empty():
+	if _case == null:
 		return ""
-	return _round_clues[clamp(current_loop, 0, _round_clues.size() - 1)]["text"]
+	var visible: Array[String] = _case.visible_clues(current_loop)
+	return visible[-1] if not visible.is_empty() else ""
+
+
+func get_visible_clue_lines() -> Array[String]:
+	var result: Array[String] = []
+	if _case == null:
+		return result
+	var visible: Array[String] = _case.visible_clues(current_loop)
+	for index: int in range(visible.size()):
+		var label: String = "本轮线索" if index == current_loop else _round_label(index)
+		result.append("%s：%s" % [label, visible[index]])
+	return result
+
+
+func get_missing_floor_labels() -> Array[String]:
+	var result: Array[String] = []
+	if _observed_by_round.is_empty():
+		return result
+	var observed: Dictionary = _observed_by_round[current_loop]
+	for floor_number: int in range(FLOOR_MIN, FLOOR_MAX + 1):
+		if not observed.has(floor_number):
+			result.append("%dF" % floor_number)
+	return result
+
+
+func mark_floor_observed(floor_number: int) -> void:
+	if floor_number < FLOOR_MIN or floor_number > FLOOR_MAX or _observed_by_round.is_empty():
+		return
+	_observed_by_round[current_loop][floor_number] = true
+
+
+func toggle_candidate(floor_number: int) -> void:
+	if floor_number < FLOOR_MIN or floor_number > FLOOR_MAX:
+		return
+	_manual_candidates[floor_number] = not _manual_candidates.get(floor_number, false)
+
+
+func is_candidate_marked(floor_number: int) -> bool:
+	return _manual_candidates.get(floor_number, false)
+
+
+func _round_label(round_index: int) -> String:
+	return ["第一轮线索", "第二轮线索", "第三轮线索", "第四轮线索", "第五轮线索"][round_index]
 
 
 func build_scene() -> void:
