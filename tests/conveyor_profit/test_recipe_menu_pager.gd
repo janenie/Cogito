@@ -19,6 +19,7 @@ func _run_test() -> void:
 	root.add_child(environment)
 	await process_frame
 	var menu := environment.get_node("Stations/MenuBoard")
+	menu.set_category_multipliers({"salad": 1.0, "soup": 1.0, "burger": 1.0, "omelet": 1.0, "sandwich": 1.0})
 	_check(menu.get_script() == pager_script, "menu board uses the catalog-driven pager")
 	_check(menu.get_page_recipe_ids(0) == [
 		"garden_salad", "avocado_salad", "carrot_sausage_soup",
@@ -37,6 +38,9 @@ func _run_test() -> void:
 	_check(_page_text(page_one).contains("LETTUCE + TOMATO + CARROT"), "page one shows full ingredients")
 	_check(_page_text(page_one).contains("COST $3  ·  SALE $7"), "page one shows cost and sale")
 	_check(_page_text(page_one).contains("PROFIT +$4"), "page one shows profit")
+	menu.set_category_multipliers({"salad": 1.0, "soup": 1.0, "burger": 1.5, "omelet": 1.0, "sandwich": 1.0})
+	_check(menu.get_displayed_economy("avocado_burger") == {"sale": 45, "profit": 33}, "menu reflects current burger demand")
+	_check(_page_text(page_two).contains("SALE $45"), "hidden page price is refreshed before display")
 	menu.get_node("NextButton").activate()
 	_check(not page_one.visible and page_two.visible, "next control switches to page two")
 	_check(menu.get_node("PageLabel").text == "PAGE 2 / 2", "page indicator follows next control")

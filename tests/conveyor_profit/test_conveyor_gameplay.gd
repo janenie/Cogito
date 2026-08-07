@@ -33,12 +33,16 @@ func _run_test() -> void:
 		)
 	var public_state: Dictionary = gameplay.get_public_state()
 	for field: String in [
-		"total_time", "window", "window_time", "dish", "net_profit", "tray", "last_receipt", "finished",
+		"total_time", "window", "window_time", "dish", "net_profit", "tray", "last_receipt", "market", "finished",
 	]:
 		_check(public_state.has(field), "public state contains %s" % field)
+	var public_market: Dictionary = public_state.get("market", {})
+	_check(public_market.get("category_multipliers", {}).keys().size() == 5, "public market contains five categories")
+	_check(public_market.get("signals", []).size() == 2, "first window exposes two next-round signals")
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",
-		"deck_id", "recipe_counts", "missing_ingredient", "theoretical_profit", "optimal_route",
+		"deck_id", "campaign_id", "candidate_recipe_ids", "recipe_counts", "missing_ingredient",
+		"baseline_recipe_id", "baseline_profit", "omniscient_profit", "optimal_route", "draw_index",
 	]:
 		_check(not public_state.has(hidden_field), "public state hides %s" % hidden_field)
 
@@ -82,11 +86,14 @@ func _run_test() -> void:
 			if interactable != null:
 				interactable.select()
 		environment.get_node("Stations/MakeButton").activate()
-		_check(gameplay.get_profit() == recipe["profit"], "legal dish earns its net profit")
+		var economy: GDScript = load("res://conveyor_profit/scripts/market_economy.gd")
+		var multipliers: Dictionary = gameplay.get_public_state()["market"]["category_multipliers"]
+		var expected_profit: int = economy.adjusted_profit(String(recipe["id"]), float(multipliers[String(recipe["category"])]))
+		_check(gameplay.get_profit() == expected_profit, "legal dish earns current market profit")
 		_check(gameplay.window_session.dish_made, "legal dish locks the active window")
 		_check(gameplay.request_make()["outcome"] == "window_locked", "second make is rejected")
 		var profit_label := environment.get_node("HUD/ProfitLabel") as Label
-		_check(profit_label.text == "NET PROFIT  $%d" % recipe["profit"], "HUD publishes net profit")
+		_check(profit_label.text == "NET PROFIT  $%d" % expected_profit, "HUD publishes net profit")
 	gameplay.advance_time(60.0)
 	_check(gameplay.window_session.current_window_index == 2, "next boundary enters window three")
 	_check(not gameplay.window_session.dish_made, "new window restores dish allowance")

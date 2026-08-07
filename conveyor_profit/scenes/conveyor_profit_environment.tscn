@@ -679,3 +679,40 @@ theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 24
 text = "从传送带选择食材 / CHOOSE INGREDIENTS FROM THE BELT"
 horizontal_alignment = 1
+
+[node name="MarketPanel" type="Panel" parent="HUD"]
+offset_left = 970.0
+offset_top = 18.0
+offset_right = 1890.0
+offset_bottom = 214.0
+modulate = Color(0.08, 0.1, 0.12, 0.86)
+
+[node name="DemandLabel" type="Label" parent="HUD/MarketPanel"]
+offset_left = 18.0
+offset_top = 10.0
+offset_right = 902.0
+offset_bottom = 78.0
+theme_override_colors/font_color = Color(1, 0.86, 0.48, 1)
+theme_override_font_sizes/font_size = 22
+text = "当前需求 / CURRENT DEMAND"
+horizontal_alignment = 1
+
+[node name="SignalOneLabel" type="Label" parent="HUD/MarketPanel"]
+offset_left = 18.0
+offset_top = 86.0
+offset_right = 902.0
+offset_bottom = 128.0
+theme_override_colors/font_color = Color(0.94, 0.95, 0.9, 1)
+theme_override_font_sizes/font_size = 22
+text = "下一轮线索 1"
+autowrap_mode = 2
+
+[node name="SignalTwoLabel" type="Label" parent="HUD/MarketPanel"]
+offset_left = 18.0
+offset_top = 136.0
+offset_right = 902.0
+offset_bottom = 182.0
+theme_override_colors/font_color = Color(0.94, 0.95, 0.9, 1)
+theme_override_font_sizes/font_size = 22
+text = "下一轮线索 2"
+autowrap_mode = 2

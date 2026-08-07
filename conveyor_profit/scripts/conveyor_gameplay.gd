@@ -7,6 +7,7 @@ const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
 const PROFIT_SESSION := preload("res://conveyor_profit/scripts/profit_session.gd")
 const PROFIT_WINDOW_SESSION := preload("res://conveyor_profit/scripts/profit_window_session.gd")
 const WINDOW_SUPPLY_GENERATOR := preload("res://conveyor_profit/scripts/window_supply_generator.gd")
+const MARKET_CAMPAIGNS := preload("res://conveyor_profit/scripts/market_campaigns.gd")
 const MAX_TRAY_INGREDIENTS: int = 5
 
 const MODEL_PATHS := {
@@ -35,6 +36,7 @@ const MODEL_PATHS := {
 var session: RefCounted
 var window_session: RefCounted
 var window_supplies: Array[Dictionary] = []
+var campaign: Dictionary = {}
 var pending_supply: Array[String] = []
 var _ingredient_path: Path3D
 var _tray_visuals: Node3D
@@ -44,6 +46,10 @@ var _window_label: Label
 var _dish_label: Label
 var _profit_label: Label
 var _status_label: Label
+var _demand_label: Label
+var _signal_one_label: Label
+var _signal_two_label: Label
+var _menu_board: RecipeMenuPager
 var _make_button: StaticBody3D
 var _undo_button: StaticBody3D
 var _next_selection_id: int = 1
@@ -63,6 +69,10 @@ func initialize(
 	dish_label: Label,
 	profit_label: Label,
 	status_label: Label,
+	demand_label: Label,
+	signal_one_label: Label,
+	signal_two_label: Label,
+	menu_board: RecipeMenuPager,
 	make_button: StaticBody3D,
 	undo_button: StaticBody3D,
 ) -> void:
@@ -74,13 +84,18 @@ func initialize(
 	_dish_label = dish_label
 	_profit_label = profit_label
 	_status_label = status_label
+	_demand_label = demand_label
+	_signal_one_label = signal_one_label
+	_signal_two_label = signal_two_label
+	_menu_board = menu_board
 	_make_button = make_button
 	_undo_button = undo_button
 	session = PROFIT_SESSION.new()
 	_semantic_random.seed = supply_seed
-	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(supply_seed, 10)
+	campaign = MARKET_CAMPAIGNS.campaign_for_draw(supply_seed, 0)
+	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(campaign, supply_seed)
 	window_count = window_supplies.size()
-	window_session = PROFIT_WINDOW_SESSION.new(window_supplies, window_seconds)
+	window_session = PROFIT_WINDOW_SESSION.new(campaign, window_supplies, window_seconds)
 	_make_button.activated.connect(_on_action_requested)
 	_undo_button.activated.connect(_on_action_requested)
 	_load_window(0)
@@ -125,7 +140,19 @@ func get_public_state() -> Dictionary:
 		"net_profit": session.get_profit(),
 		"tray": session.selected_ingredients.duplicate(),
 		"last_receipt": _last_receipt.duplicate(true),
+		"market": _get_public_market(),
 		"finished": window_session.is_terminal(),
+	}
+
+
+func _get_public_market() -> Dictionary:
+	var window: Dictionary = window_supplies[window_session.current_window_index]
+	var signal_texts: Array[String] = []
+	for signal_data: Dictionary in window.get("signals", []):
+		signal_texts.append(String(signal_data.get("text", "")))
+	return {
+		"category_multipliers": window.get("category_multipliers", {}).duplicate(),
+		"signals": signal_texts,
 	}
 
 
@@ -161,7 +188,8 @@ func request_make() -> Dictionary:
 	if window_session.dish_made:
 		return {"outcome": "window_locked"}
 	var counts_before: Dictionary = session.get_recipe_counts()
-	var result: Dictionary = session.make()
+	var market: Dictionary = window_supplies[window_session.current_window_index]
+	var result: Dictionary = session.make(market.get("category_multipliers", {}))
 	if not result.get("accepted", false):
 		return {"outcome": "tray_empty"}
 	_clear_tray_visuals()
@@ -363,6 +391,7 @@ func _update_public_display(message: String) -> void:
 	_dish_label.text = "DISH  %s" % ("1 / 1" if window_session.dish_made else "0 / 1")
 	_profit_label.text = "NET PROFIT  $%d" % session.get_profit()
 	_status_label.text = message
+	_update_market_display()
 
 
 func _set_input_enabled(value: bool) -> void:
@@ -380,7 +409,30 @@ func _load_window(index: int) -> void:
 	_refill_index = 0
 	for follower: Node in _ingredient_path.get_children():
 		_fill_follower(follower as PathFollow3D)
+	_menu_board.set_category_multipliers(window_supplies[index]["category_multipliers"])
+	_update_market_display()
 	_set_input_enabled(true)
+
+
+func _update_market_display() -> void:
+	if window_session == null or window_supplies.is_empty():
+		return
+	var market := _get_public_market()
+	var multipliers: Dictionary = market["category_multipliers"]
+	_demand_label.text = (
+		"当前需求 / CURRENT DEMAND\n"
+		+ "沙拉 ×%.2f  汤类 ×%.2f  汉堡 ×%.2f\n煎蛋卷 ×%.2f  三明治 ×%.2f"
+		% [
+			float(multipliers.get("salad", 1.0)),
+			float(multipliers.get("soup", 1.0)),
+			float(multipliers.get("burger", 1.0)),
+			float(multipliers.get("omelet", 1.0)),
+			float(multipliers.get("sandwich", 1.0)),
+		]
+	)
+	var signals: Array = market["signals"]
+	_signal_one_label.text = "下一轮线索 1：%s" % (signals[0] if signals.size() > 0 else "无")
+	_signal_two_label.text = "下一轮线索 2：%s" % (signals[1] if signals.size() > 1 else "无")
 
 
 func _expire_current_window() -> void:
@@ -426,9 +478,9 @@ func _finish_game() -> void:
 	_set_input_enabled(false)
 	var metrics: Dictionary = window_session.get_developer_metrics(session.get_profit())
 	print(
-		"CONVEYOR_PROFIT_RESULT optimal_windows=%d completed_windows=%d total_windows=%d efficiency=%d"
+		"CONVEYOR_PROFIT_RESULT baseline_windows=%d completed_windows=%d total_windows=%d efficiency=%d"
 		% [
-			metrics["optimal_windows"],
+			metrics["baseline_windows"],
 			metrics["completed_windows"],
 			metrics["total_windows"],
 			metrics["efficiency_percent"],

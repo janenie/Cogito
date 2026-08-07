@@ -31,6 +31,12 @@ func _run_test() -> void:
 	_check(environment.has_node("HUD/DishLabel"), "dish label exists")
 	_check(environment.has_node("HUD/ProfitLabel"), "profit label exists")
 	_check(environment.has_node("HUD/StatusLabel"), "status label exists")
+	_check(environment.has_node("HUD/MarketPanel/DemandLabel"), "market demand label exists")
+	_check(environment.has_node("HUD/MarketPanel/SignalOneLabel"), "first market signal exists")
+	_check(environment.has_node("HUD/MarketPanel/SignalTwoLabel"), "second market signal exists")
+	for label_name: String in ["DemandLabel", "SignalOneLabel", "SignalTwoLabel"]:
+		var market_label := environment.get_node("HUD/MarketPanel/%s" % label_name) as Label
+		_check(market_label.get_theme_font_size("font_size") >= 22, "%s is readable" % label_name)
 	_check_recipe_pages(environment)
 
 	var path := environment.get_node_or_null("Architecture/Conveyor/IngredientPath") as Path3D
@@ -45,12 +51,7 @@ func _run_test() -> void:
 		_check(ingredient_ids.size() == 16, "all sixteen food slots are filled")
 		var catalog: GDScript = load("res://conveyor_profit/scripts/recipe_catalog.gd")
 		var candidates: Array[Dictionary] = catalog.attainable_single_dishes(ingredient_ids)
-		_check(candidates.size() == 2, "active window has exactly two candidate dishes")
-		if candidates.size() == 2:
-			_check(
-				int(candidates[0]["profit"]) != int(candidates[1]["profit"]),
-				"active candidate dish profits differ",
-			)
+		_check(candidates.size() == 3, "active window has exactly three candidate dishes")
 
 	var preview := (load(PREVIEW_PATH) as PackedScene).instantiate()
 	root.add_child(preview)

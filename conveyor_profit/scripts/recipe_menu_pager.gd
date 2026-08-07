@@ -2,6 +2,7 @@ class_name RecipeMenuPager
 extends Node3D
 
 const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
+const MARKET_ECONOMY := preload("res://conveyor_profit/scripts/market_economy.gd")
 const RECIPES_PER_PAGE: int = 5
 const DISPLAY_NAMES := {
 	"garden_salad": "花园沙拉\nGARDEN SALAD",
@@ -29,6 +30,14 @@ const TITLE_COLORS: Array[Color] = [
 ]
 
 var current_page: int = 0
+var _category_multipliers: Dictionary = {
+	"salad": 1.0,
+	"soup": 1.0,
+	"burger": 1.0,
+	"omelet": 1.0,
+	"sandwich": 1.0,
+}
+var _economy_labels: Dictionary = {}
 
 
 func _ready() -> void:
@@ -54,6 +63,23 @@ func show_page(page_index: int) -> void:
 	$Pages/Page1.visible = current_page == 0
 	$Pages/Page2.visible = current_page == 1
 	$PageLabel.text = "PAGE %d / 2" % (current_page + 1)
+
+
+func set_category_multipliers(values: Dictionary) -> void:
+	_category_multipliers = values.duplicate()
+	for recipe_id: String in _economy_labels:
+		_update_economy_label(recipe_id)
+
+
+func get_displayed_economy(recipe_id: String) -> Dictionary:
+	var recipe: Dictionary = CATALOG.recipe_by_id(recipe_id)
+	if recipe.is_empty():
+		return {}
+	var multiplier := float(_category_multipliers.get(String(recipe["category"]), 1.0))
+	return {
+		"sale": MARKET_ECONOMY.adjusted_sale_price(recipe_id, multiplier),
+		"profit": MARKET_ECONOMY.adjusted_profit(recipe_id, multiplier),
+	}
 
 
 func _on_page_action(action: String) -> void:
@@ -106,18 +132,29 @@ func _build_card(card: Node3D, recipe: Dictionary, color_index: int) -> void:
 			ingredients[0], ingredients[1], ingredients[2], ingredients[3],
 		]
 	_add_label(card, "Ingredients", Vector3(0, -0.02, -0.09), ingredient_text, 25, 2)
-	_add_label(
+	var economy_label := _add_label(
 		card,
 		"Economy",
 		Vector3(0, -0.55, -0.09),
-		"COST $%d  ·  SALE $%d\nPROFIT +$%d" % [
-			ingredient_cost,
-			int(recipe["sale_price"]),
-			int(recipe["profit"]),
-		],
+		"",
 		22,
 		2,
 	)
+	economy_label.set_meta("ingredient_cost", ingredient_cost)
+	_economy_labels[recipe_id] = economy_label
+	_update_economy_label(recipe_id)
+
+
+func _update_economy_label(recipe_id: String) -> void:
+	var label := _economy_labels.get(recipe_id) as Label3D
+	if label == null:
+		return
+	var economy := get_displayed_economy(recipe_id)
+	label.text = "COST $%d  ·  SALE $%d\nPROFIT +$%d" % [
+		int(label.get_meta("ingredient_cost", 0)),
+		int(economy.get("sale", 0)),
+		int(economy.get("profit", 0)),
+	]
 
 
 func _add_label(
@@ -127,7 +164,7 @@ func _add_label(
 	label_text: String,
 	font_size: int,
 	outline_size: int,
-) -> void:
+) -> Label3D:
 	var label := Label3D.new()
 	label.name = label_name
 	label.position = label_position
@@ -137,3 +174,4 @@ func _add_label(
 	label.outline_size = outline_size
 	label.modulate = Color(0.08, 0.09, 0.075)
 	card.add_child(label)
+	return label

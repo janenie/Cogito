@@ -18,6 +18,10 @@ func _ready() -> void:
 		$HUD/DishLabel,
 		$HUD/ProfitLabel,
 		$HUD/StatusLabel,
+		$HUD/MarketPanel/DemandLabel,
+		$HUD/MarketPanel/SignalOneLabel,
+		$HUD/MarketPanel/SignalTwoLabel,
+		$Stations/MenuBoard,
 		$Stations/MakeButton,
 		$Stations/UndoButton,
 	)
