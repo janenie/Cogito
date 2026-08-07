@@ -2,6 +2,7 @@ class_name CampaignProfitPlanner
 extends RefCounted
 
 const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
+const ECONOMY := preload("res://conveyor_profit/scripts/market_economy.gd")
 const RECIPE_LIMIT: int = 2
 const IMPOSSIBLE_PROFIT: int = -1_000_000
 
@@ -37,7 +38,7 @@ static func is_optimal_choice(
 
 	var next_counts: Array[int] = normalized.duplicate()
 	next_counts[recipe_index] += 1
-	var chosen_total := int(CATALOG.RECIPES[recipe_index]["profit"]) + _max_from(
+	var chosen_total := _recipe_profit(window, recipe_id) + _max_from(
 		windows,
 		window_index + 1,
 		next_counts,
@@ -69,7 +70,7 @@ static func _max_from(
 		var continuation := _max_from(windows, window_index + 1, next_counts, memo)
 		if continuation == IMPOSSIBLE_PROFIT:
 			continue
-		best = maxi(best, int(CATALOG.RECIPES[recipe_index]["profit"]) + continuation)
+		best = maxi(best, _recipe_profit(window, recipe_id) + continuation)
 	memo[key] = best
 	return best
 
@@ -93,6 +94,15 @@ static func _recipe_index(recipe_id: String) -> int:
 		if String(CATALOG.RECIPES[index]["id"]) == recipe_id:
 			return index
 	return -1
+
+
+static func _recipe_profit(window: Dictionary, recipe_id: String) -> int:
+	var recipe := CATALOG.recipe_by_id(recipe_id)
+	if recipe.is_empty():
+		return IMPOSSIBLE_PROFIT
+	var multipliers: Dictionary = window.get("category_multipliers", {})
+	var multiplier := float(multipliers.get(String(recipe["category"]), 1.0))
+	return ECONOMY.adjusted_profit(recipe_id, multiplier)
 
 
 static func _count_signature(counts: Array[int]) -> String:

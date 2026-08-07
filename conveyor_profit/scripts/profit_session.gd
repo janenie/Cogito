@@ -2,6 +2,7 @@ class_name ProfitSession
 extends RefCounted
 
 const CATALOG := preload("res://conveyor_profit/scripts/recipe_catalog.gd")
+const ECONOMY := preload("res://conveyor_profit/scripts/market_economy.gd")
 const RECIPE_LIMIT: int = 2
 
 var selected_ingredients: Array[String] = []
@@ -29,7 +30,7 @@ func undo() -> String:
 	return selected_ingredients.pop_back()
 
 
-func make() -> Dictionary:
+func make(category_multipliers: Dictionary = {}) -> Dictionary:
 	if is_terminal() or selected_ingredients.is_empty():
 		return {
 			"accepted": false,
@@ -49,8 +50,10 @@ func make() -> Dictionary:
 		outcome = "recipe_limit_exceeded"
 	elif not recipe.is_empty():
 		outcome = "accepted"
-		dish_profit = int(recipe.get("profit", 0))
-		revenue += int(recipe.get("sale_price", 0))
+		var category := String(recipe.get("category", ""))
+		var multiplier := float(category_multipliers.get(category, 1.0))
+		dish_profit = ECONOMY.adjusted_profit(recipe_id, multiplier)
+		revenue += ECONOMY.adjusted_sale_price(recipe_id, multiplier)
 		_recipe_counts[recipe_id] = int(_recipe_counts.get(recipe_id, 0)) + 1
 	selected_ingredients.clear()
 

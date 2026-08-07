@@ -64,6 +64,17 @@ func _initialize() -> void:
 	_check(negative_session.get_profit() == -5, "invalid combination can make profit negative")
 	_check(not negative_session.is_terminal(), "economics do not decide the terminal state")
 
+	var market_session: RefCounted = session_script.new()
+	for ingredient_id: String in ["bread", "meat", "avocado", "tomato"]:
+		market_session.select_ingredient(ingredient_id)
+	var market_result: Dictionary = market_session.make({"burger": 1.5})
+	_check(market_result.get("outcome", "") == "accepted", "market recipe is accepted")
+	_check(market_result.get("recipe_id", "") == "avocado_burger", "market receipt names recipe")
+	_check(market_result.get("dish_profit", -1) == 33, "market receipt reports adjusted profit")
+	_check(market_session.spent == 12, "market demand does not change ingredient cost")
+	_check(market_session.revenue == 45, "market demand changes sale revenue")
+	_check(market_session.get_profit() == 33, "market settlement uses adjusted net profit")
+
 	session.freeze("success", "efficiency_target_reached")
 	_check(session.terminal_status == "success", "explicit freeze stores status")
 	_check(session.terminal_reason == "efficiency_target_reached", "explicit freeze stores reason")
