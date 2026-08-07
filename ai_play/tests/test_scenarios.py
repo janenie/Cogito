@@ -60,6 +60,8 @@ def test_loop_staircase_briefing_exposes_key_controls_without_walk_hint():
     assert '"up"' in text
     assert '"down"' in text
     assert '"space"' in text
+    assert '"tab"' in text
+    assert "调查板" in text
     assert "move 和 sprint" not in text
 
 
@@ -327,16 +329,27 @@ def test_loop_staircase_anomaly_loads_public_briefing():
     briefing, image_bytes = load_scenario_briefing("loop_staircase_anomaly")
 
     assert briefing["game_id"] == "loop_staircase_anomaly"
-    assert briefing["success_condition"] == "选择唯一满足五条累计线索的楼层。"
+    assert briefing["success_condition"] == "第五轮选择唯一满足完整累计证据链的楼层。"
     serialized = str(briefing)
     assert "exactly two boxes" not in serialized.lower()
-    assert "五轮观察" in serialized
+    assert "五轮" in serialized
     assert "2F 到 9F" in serialized
-    assert "候选集合" in serialized
-    assert "线索顺序可能变化" in serialized
+    assert "调查板" in serialized
+    assert "跨轮" in serialized or "逐轮" in serialized
     assert "target symbol" not in serialized.lower()
     for symbol in ("circle", "triangle", "square", "star"):
         assert symbol not in serialized.lower()
+    for secret in (
+        "受害者姓名",
+        "清洁员",
+        "垃圾",
+        "ABAB",
+        "红蓝红蓝",
+        "访客时间",
+        "8 → 6 → 5 → 3 → 2 → 1",
+        "凶案楼层",
+    ):
+        assert secret not in serialized
     assert image_bytes is None
 
 
