@@ -10,6 +10,16 @@ const EXPECTED_ROOM_TYPES: Dictionary = {
 	8: "meeting",
 	9: "meeting",
 }
+const EXPECTED_ROOM_SCENES: Dictionary = {
+	2: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_2_lounge_window.tscn",
+	3: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_3_lounge_reading.tscn",
+	4: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_4_archive_paper.tscn",
+	5: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_5_archive_digital.tscn",
+	6: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_6_office_manager.tscn",
+	7: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_7_office_open.tscn",
+	8: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_8_meeting_round.tscn",
+	9: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_9_meeting_boardroom.tscn",
+}
 
 var _failures: Array[String] = []
 var _test_scene_root: Node
@@ -21,6 +31,7 @@ func _initialize() -> void:
 
 func _run_test() -> void:
 	_ensure_current_scene()
+	_assert_authored_room_scenes()
 	var scene: PackedScene = load(
 		"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tscn"
 	)
@@ -34,6 +45,7 @@ func _run_test() -> void:
 	var controller: Node = root_node.get_node_or_null("AIPlayController")
 	var manager: Node = root_node.get_node_or_null("AIPlayController/LoopStaircaseManager")
 	var observer: Node = root_node.get_node_or_null("AIPlayController/Observer")
+	var player := root_node.get_node_or_null("Player") as Node3D
 	_assert(controller != null, "scene includes AIPlayController")
 	_assert(manager != null, "controller includes loop staircase manager")
 	_assert(observer != null, "scene includes the restricted staircase observer")
@@ -64,6 +76,18 @@ func _run_test() -> void:
 		_assert(room != null, "%dF renders a room" % floor_number)
 		if room == null:
 			continue
+		_assert(
+			room.scene_file_path == EXPECTED_ROOM_SCENES[floor_number],
+			"%dF is instanced from its authored room scene" % floor_number,
+		)
+		_assert_room_has_floor_collision(room, "%dF active room" % floor_number)
+		var player_spawn := room.get_node_or_null("PlayerSpawn") as Node3D
+		_assert(
+			player != null
+			and player_spawn != null
+			and player.global_position.is_equal_approx(player_spawn.global_position),
+			"%dF switch resets the player to the authored spawn" % floor_number,
+		)
 		var theme_id: String = str(room.get_meta("theme_id", ""))
 		var room_type: String = str(room.get_meta("room_type", ""))
 		_assert(room_type == EXPECTED_ROOM_TYPES[floor_number], "%dF has its fixed function" % floor_number)
@@ -84,6 +108,9 @@ func _run_test() -> void:
 		_assert(room.get_node_or_null("Evidence/SignalLight") is MeshInstance3D, "%dF has a signal light" % floor_number)
 		_assert(visitor_record == null or not "访问轮次" in visitor_record.text, "%dF hides visit time before round five" % floor_number)
 		_assert(not room.has_meta("is_solution"), "%dF does not visually tag the answer" % floor_number)
+	for frame_index: int in range(12):
+		await physics_frame
+	_assert(player != null and player.global_position.y > -0.5, "player remains supported after physics settles")
 	_assert(theme_ids.size() == 8, "all eight room themes are distinct")
 	for lower_floor: int in [2, 4, 6, 8]:
 		_assert(
@@ -112,6 +139,52 @@ func _run_test() -> void:
 		_test_scene_root.queue_free()
 	await process_frame
 	_finish()
+
+
+func _assert_authored_room_scenes() -> void:
+	for floor_number: int in range(2, 10):
+		var scene_path: String = EXPECTED_ROOM_SCENES[floor_number]
+		_assert(ResourceLoader.exists(scene_path), "%dF authored room scene exists" % floor_number)
+		if not ResourceLoader.exists(scene_path):
+			continue
+		var room_scene := load(scene_path) as PackedScene
+		_assert(room_scene != null, "%dF authored room scene loads" % floor_number)
+		if room_scene == null:
+			continue
+		var room := room_scene.instantiate() as Node3D
+		_assert(room != null, "%dF authored room scene instantiates" % floor_number)
+		if room == null:
+			continue
+		_assert(
+			str(room.get_meta("room_type", "")) == EXPECTED_ROOM_TYPES[floor_number],
+			"%dF authored room declares its fixed function" % floor_number,
+		)
+		_assert_room_has_floor_collision(room, "%dF authored room" % floor_number)
+		room.free()
+
+
+func _assert_room_has_floor_collision(room: Node, label: String) -> void:
+	var player_spawn := room.get_node_or_null("PlayerSpawn") as Node3D
+	_assert(player_spawn != null, "%s declares its own player spawn" % label)
+	var floor_body := room.get_node_or_null("LobbyFloor") as StaticBody3D
+	_assert(floor_body != null, "%s uses a static floor body" % label)
+	if floor_body == null or player_spawn == null:
+		return
+	var collision := floor_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	_assert(
+		collision != null and collision.shape is BoxShape3D and not collision.disabled,
+		"%s has an enabled box collision below the player spawn" % label,
+	)
+	if collision == null or not collision.shape is BoxShape3D:
+		return
+	var box := collision.shape as BoxShape3D
+	var local_spawn: Vector3 = floor_body.transform.affine_inverse() * player_spawn.position
+	_assert(
+		absf(local_spawn.x) <= box.size.x * 0.5
+		and absf(local_spawn.z) <= box.size.z * 0.5
+		and local_spawn.y >= box.size.y * 0.5,
+		"%s spawn is geometrically supported by its floor collision" % label,
+	)
 
 
 func _assert_investigation_board(manager: Node, board: Control) -> void:

@@ -1,0 +1,39 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.4, 0.32, 0.44, 1)
+roughness = 0.72
+
+[sub_resource type="CylinderMesh" id="TableMesh"]
+top_radius = 1.0
+bottom_radius = 1.0
+height = 0.74
+
+[sub_resource type="BoxMesh" id="SeatMesh"]
+size = Vector3(3.2, 0.82, 3)
+
+[sub_resource type="BoxMesh" id="DisplayMesh"]
+size = Vector3(2, 1.1, 0.12)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "meeting_round"
+metadata/room_type = "meeting"
+
+[node name="RoundMeetingTable" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(0, 0.37, 0.1)
+mesh = SubResource("TableMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="FourSeatCluster" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(0, 0.41, 0.1)
+mesh = SubResource("SeatMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="WallDisplay" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(0.8, 1.65, -2.38)
+mesh = SubResource("DisplayMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]

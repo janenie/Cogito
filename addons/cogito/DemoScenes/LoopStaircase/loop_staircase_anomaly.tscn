@@ -8,13 +8,7 @@
 [ext_resource type="Script" uid="uid://btnha2whsheir" path="res://addons/cogito/InventoryPD/cogito_inventory.gd" id="4_8hmf0"]
 [ext_resource type="Script" uid="uid://diyqphburmsyf" path="res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_manager.gd" id="4_manager"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="4_game_over"]
-[ext_resource type="PackedScene" uid="uid://cml4428ohsdq0" path="res://addons/cogito/DemoScenes/DemoPrefabs/lounge_sofa_corner.tscn" id="5_sofa"]
-[ext_resource type="PackedScene" uid="uid://dlhn1jwgx0wjr" path="res://addons/cogito/DemoScenes/DemoPrefabs/table_coffee_glass.tscn" id="6_table"]
-[ext_resource type="PackedScene" uid="uid://u2b6ss4xaxp8" path="res://addons/cogito/DemoScenes/DemoPrefabs/coffee_mug.tscn" id="7_mug"]
-[ext_resource type="PackedScene" uid="uid://cmqx5jkkx5yas" path="res://addons/cogito/DemoScenes/DemoPrefabs/cardboard_box_closed.tscn" id="8_box"]
-[ext_resource type="PackedScene" uid="uid://duxk3xlhddnvt" path="res://addons/cogito/DemoScenes/DemoPrefabs/potted_plant.tscn" id="9_plant"]
-[ext_resource type="PackedScene" uid="uid://dkundghktg5ol" path="res://addons/cogito/DemoScenes/DemoPrefabs/lamp_round_floor.tscn" id="10_lamp"]
-[ext_resource type="PackedScene" uid="uid://bkxux3pftqxvq" path="res://addons/cogito/DemoScenes/DemoPrefabs/books.tscn" id="11_books"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_2_lounge_window.tscn" id="5_room_preview"]
 
 [sub_resource type="Resource" id="Resource_ysc72"]
 resource_local_to_scene = true
@@ -22,19 +16,6 @@ script = ExtResource("4_8hmf0")
 grid = true
 inventory_size = Vector2i(6, 3)
 inventory_slots = Array[ExtResource("3_4mh12")]([null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null])
-
-[sub_resource type="StandardMaterial3D" id="PreviewFloorMaterial"]
-albedo_color = Color(0.42, 0.34, 0.25, 1)
-
-[sub_resource type="StandardMaterial3D" id="PreviewWallMaterial"]
-albedo_color = Color(0.92, 0.92, 0.86, 1)
-roughness = 0.82
-emission_enabled = true
-emission = Color(0.72, 0.72, 0.64, 1)
-emission_energy_multiplier = 0.45
-
-[sub_resource type="StandardMaterial3D" id="PreviewDoorMaterial"]
-albedo_color = Color(0.46, 0.31, 0.2, 1)
 
 [node name="LoopStaircaseAnomaly" type="Node3D" unique_id=1774492388]
 script = ExtResource("1_scene")
@@ -69,78 +50,4 @@ game_over_screen = NodePath("GameOverScreen")
 
 [node name="GameOverScreen" parent="AIPlayController/LoopStaircaseManager" instance=ExtResource("4_game_over")]
 
-[node name="CurrentFloorRoom" type="Node3D" parent="AIPlayController/LoopStaircaseManager" unique_id=1389556477]
-metadata/theme_id = "lounge_window"
-metadata/room_type = "lounge"
-
-[node name="StableTheme" type="Node3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom"]
-
-[node name="Evidence" type="Node3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom"]
-
-[node name="LobbyFloor" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1677881823]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.0958271)
-size = Vector3(7, 0.16, 5)
-material = SubResource("PreviewFloorMaterial")
-
-[node name="BackWall" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=20395323]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.45, -2.55)
-size = Vector3(7, 3.1, 0.18)
-material = SubResource("PreviewWallMaterial")
-
-[node name="LeftWall" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1043920600]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.55, 1.45, 0)
-size = Vector3(0.18, 3.1, 5)
-material = SubResource("PreviewWallMaterial")
-
-[node name="RightWall" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1456615745]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.55, 1.45, 0)
-size = Vector3(0.18, 3.1, 5)
-material = SubResource("PreviewWallMaterial")
-
-[node name="RightDoorFrame" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=159953785]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.35, 1, -2.45)
-size = Vector3(1.1, 2.1, 0.16)
-material = SubResource("PreviewDoorMaterial")
-
-[node name="LobbySofa" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=2136806485 instance=ExtResource("5_sofa")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -2.45, 0.04, -0.95)
-
-[node name="CoffeeTable" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1171191097 instance=ExtResource("6_table")]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0.25, 0.02, 0.55)
-
-[node name="CoffeeMug" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1647612968 instance=ExtResource("7_mug")]
-transform = Transform3D(1.30404, 0, 0.349379, 0, 1.35, 0, -0.349379, 0, 1.30404, -0.25, 0.62, 0.35)
-
-[node name="LobbyBooks" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=939091088 instance=ExtResource("11_books")]
-transform = Transform3D(0.724444, 0, -0.194114, 0, 0.75, 0, 0.194114, 0, 0.724444, 1.85, 0.2, 0.15)
-
-[node name="LobbyPlant" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=2127007215 instance=ExtResource("9_plant")]
-transform = Transform3D(0.696601, 0, -0.487685, 0, 0.85, 0, 0.487685, 0, 0.696601, -3, 0.02, 1.65)
-
-[node name="LobbyLamp" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=756603149 instance=ExtResource("10_lamp")]
-transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, -2.9, 0.02, -2)
-
-[node name="WallWashLight" type="SpotLight3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 1.65)
-light_energy = 7.0
-shadow_enabled = false
-spot_range = 7.0
-spot_angle = 52.0
-
-[node name="Boxes" type="Node3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1939187066]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.05, 0.02, 1.35)
-
-[node name="LobbyBox_1" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom/Boxes" unique_id=858988261 instance=ExtResource("8_box")]
-transform = Transform3D(0.72, 0, 0, 0, 0.72, 0, 0, 0, 0.72, 0, 0, 0)
-
-[node name="FloorSign" type="Label3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1784940163]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 2.1, -2.34)
-pixel_size = 0.01
-text = "2F"
-font_size = 46
-
-[node name="ObservationLabel" type="Label3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=2053078074]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, -2.34)
-pixel_size = 0.0055
-text = "Editor preview: one room, many floor states"
-font_size = 24
+[node name="CurrentFloorRoom" parent="AIPlayController/LoopStaircaseManager" instance=ExtResource("5_room_preview")]

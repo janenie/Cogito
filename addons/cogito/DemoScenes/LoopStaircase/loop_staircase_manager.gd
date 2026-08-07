@@ -40,9 +40,19 @@ const BASIC_INTERACTION_SCENE: String = "res://addons/cogito/Components/Interact
 const CASE_SCRIPT: Script = preload(
 	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_case.gd"
 )
-const ROOM_BUILDER_SCRIPT: Script = preload(
-	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_room_builder.gd"
+const EVIDENCE_RENDERER_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_evidence_renderer.gd"
 )
+const ROOM_SCENES: Dictionary = {
+	2: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_2_lounge_window.tscn"),
+	3: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_3_lounge_reading.tscn"),
+	4: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_4_archive_paper.tscn"),
+	5: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_5_archive_digital.tscn"),
+	6: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_6_office_manager.tscn"),
+	7: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_7_office_open.tscn"),
+	8: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_8_meeting_round.tscn"),
+	9: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_9_meeting_boardroom.tscn"),
+}
 const INVESTIGATION_BOARD_SCRIPT: Script = preload(
 	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_investigation_board.gd"
 )
@@ -71,7 +81,7 @@ var _has_scene_player_spawn_transform: bool = false
 var _case: RefCounted
 var _observed_by_round: Array[Dictionary] = []
 var _manual_candidates: Dictionary = {}
-var _room_builder: RefCounted = ROOM_BUILDER_SCRIPT.new()
+var _evidence_renderer: RefCounted = EVIDENCE_RENDERER_SCRIPT.new()
 
 
 func _ready() -> void:
@@ -109,7 +119,9 @@ func advance_loop_and_reset_player(body: Node3D) -> void:
 func reset_player_to_spawn(body: Node3D = null) -> void:
 	if body == null:
 		body = player
-	var spawn: Node3D = get_node_or_null("SpawnPoint")
+	var spawn: Node3D = get_node_or_null("CurrentFloorRoom/PlayerSpawn")
+	if spawn == null:
+		spawn = get_node_or_null("SpawnPoint")
 	if spawn != null and body != null:
 		body.global_transform = spawn.global_transform
 
@@ -425,10 +437,17 @@ func _create_current_floor_room() -> void:
 	if existing != null:
 		remove_child(existing)
 		existing.free()
-	var room := Node3D.new()
+	var room_scene: PackedScene = ROOM_SCENES.get(_current_floor)
+	if room_scene == null:
+		push_error("No authored loop staircase room for %dF" % _current_floor)
+		return
+	var room := room_scene.instantiate() as Node3D
+	if room == null:
+		push_error("Authored loop staircase room for %dF has an invalid root" % _current_floor)
+		return
 	room.name = "CurrentFloorRoom"
 	add_child(room)
-	_room_builder.build(room, get_floor_state(_current_floor))
+	_evidence_renderer.apply_state(room, get_floor_state(_current_floor))
 	_add_wall_wash_light(room)
 	var floor_sign := Label3D.new()
 	floor_sign.name = "FloorSign"
@@ -460,6 +479,7 @@ func _create_current_floor_room() -> void:
 	answer.visible = is_final_unlocked()
 	answer.monitoring = is_final_unlocked()
 	answer.collision_layer = 2 if is_final_unlocked() else 0
+	reset_player_to_spawn()
 
 
 func _create_legacy_current_floor_room() -> void:

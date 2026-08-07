@@ -1,0 +1,38 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.33, 0.43, 0.48, 1)
+metallic = 0.25
+roughness = 0.64
+
+[sub_resource type="BoxMesh" id="CabinetMesh"]
+size = Vector3(1.25, 1.65, 0.55)
+
+[sub_resource type="BoxMesh" id="WorkbenchMesh"]
+size = Vector3(2.3, 0.78, 0.8)
+
+[sub_resource type="BoxMesh" id="ConsoleMesh"]
+size = Vector3(0.9, 1.15, 0.6)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "archive_digital"
+metadata/room_type = "archive"
+
+[node name="ArchiveCabinet" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(-2.25, 0.825, -1.85)
+mesh = SubResource("CabinetMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="DigitalWorkbench" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(0.7, 0.39, -0.3)
+mesh = SubResource("WorkbenchMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="ScannerConsole" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(2.35, 0.575, -1.55)
+mesh = SubResource("ConsoleMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]

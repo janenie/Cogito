@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.32, 0.4, 0.37, 1)
+roughness = 0.68
+
+[sub_resource type="BoxMesh" id="TableMesh"]
+size = Vector3(1.7, 0.76, 3.2)
+
+[sub_resource type="BoxMesh" id="SeatMesh"]
+size = Vector3(3.5, 0.86, 3.6)
+
+[sub_resource type="BoxMesh" id="WhiteboardMesh"]
+size = Vector3(2.8, 1.2, 0.12)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "meeting_boardroom"
+metadata/room_type = "meeting"
+
+[node name="LongBoardroomTable" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(0, 0.38, 0.15)
+mesh = SubResource("TableMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="SixSeatRows" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(0, 0.43, 0.15)
+mesh = SubResource("SeatMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="WideWhiteboard" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(-0.4, 1.65, -2.38)
+mesh = SubResource("WhiteboardMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]

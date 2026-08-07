@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.56, 0.46, 0.37, 1)
+roughness = 0.82
+
+[sub_resource type="BoxMesh" id="SofaMesh"]
+size = Vector3(2.5, 0.72, 0.82)
+
+[sub_resource type="BoxMesh" id="BenchMesh"]
+size = Vector3(1.5, 0.55, 0.55)
+
+[sub_resource type="BoxMesh" id="TableMesh"]
+size = Vector3(1.3, 0.18, 0.8)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "lounge_window"
+metadata/room_type = "lounge"
+
+[node name="CornerSofa" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(-1.7, 0.36, 0.8)
+mesh = SubResource("SofaMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="WindowBench" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(1.8, 0.275, -1.8)
+mesh = SubResource("BenchMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="GlassTeaTable" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(0, 0.42, 0.45)
+mesh = SubResource("TableMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]

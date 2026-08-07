@@ -1,0 +1,34 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.42, 0.35, 0.25, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="ShelfMesh"]
+size = Vector3(1, 2.3, 0.45)
+
+[sub_resource type="BoxMesh" id="StandMesh"]
+size = Vector3(1.4, 0.78, 0.75)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "archive_paper"
+metadata/room_type = "archive"
+
+[node name="PaperShelfLeft" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(-2.5, 1.15, -1.9)
+mesh = SubResource("ShelfMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="PaperShelfRight" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(-1.15, 1.15, -1.9)
+mesh = SubResource("ShelfMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="ReadingStand" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(1.1, 0.39, 0.2)
+mesh = SubResource("StandMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]

@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.44, 0.31, 0.25, 1)
+roughness = 0.78
+
+[sub_resource type="BoxMesh" id="DeskMesh"]
+size = Vector3(2.4, 0.78, 0.85)
+
+[sub_resource type="BoxMesh" id="ChairMesh"]
+size = Vector3(0.8, 1.2, 0.75)
+
+[sub_resource type="BoxMesh" id="SofaMesh"]
+size = Vector3(1.9, 0.72, 0.78)
+
+[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+metadata/theme_id = "office_manager"
+metadata/room_type = "office"
+
+[node name="ManagerDesk" type="MeshInstance3D" parent="StableTheme" index="0"]
+position = Vector3(0.45, 0.39, -0.7)
+mesh = SubResource("DeskMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="ExecutiveChair" type="MeshInstance3D" parent="StableTheme" index="1"]
+position = Vector3(0.45, 0.6, -1.65)
+mesh = SubResource("ChairMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="GuestSofa" type="MeshInstance3D" parent="StableTheme" index="2"]
+position = Vector3(-2.15, 0.36, 0.75)
+mesh = SubResource("SofaMesh")
+material_override = SubResource("AccentMaterial")
+
+[editable path="StableTheme"]
