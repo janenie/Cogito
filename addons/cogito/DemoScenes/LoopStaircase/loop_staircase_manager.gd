@@ -40,6 +40,9 @@ const BASIC_INTERACTION_SCENE: String = "res://addons/cogito/Components/Interact
 const CASE_SCRIPT: Script = preload(
 	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_case.gd"
 )
+const ROOM_BUILDER_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_room_builder.gd"
+)
 
 @export var scenario_id: String = SCENARIO_ID
 @export var round_seed: int = 0
@@ -65,6 +68,7 @@ var _has_scene_player_spawn_transform: bool = false
 var _case: RefCounted
 var _observed_by_round: Array[Dictionary] = []
 var _manual_candidates: Dictionary = {}
+var _room_builder: RefCounted = ROOM_BUILDER_SCRIPT.new()
 
 
 func _ready() -> void:
@@ -397,6 +401,48 @@ func _create_static_camera() -> void:
 
 
 func _create_current_floor_room() -> void:
+	var existing: Node = get_node_or_null("CurrentFloorRoom")
+	if existing != null:
+		remove_child(existing)
+		existing.free()
+	var room := Node3D.new()
+	room.name = "CurrentFloorRoom"
+	add_child(room)
+	_room_builder.build(room, get_floor_state(_current_floor))
+	_add_wall_wash_light(room)
+	var floor_sign := Label3D.new()
+	floor_sign.name = "FloorSign"
+	floor_sign.position = Vector3(1.55, 2.05, -2.4)
+	floor_sign.pixel_size = 0.009
+	floor_sign.font_size = 46
+	floor_sign.text = "%dF" % _current_floor
+	room.add_child(floor_sign)
+	var clue_label := Label3D.new()
+	clue_label.name = "ObservationLabel"
+	clue_label.position = Vector3(0.25, 1.05, -2.42)
+	clue_label.pixel_size = 0.0042
+	clue_label.font_size = 25
+	clue_label.text = "\n".join(get_visible_clue_lines())
+	room.add_child(clue_label)
+	_add_navigation_marker(
+		room, "UpStairsTrigger", "up", Vector3(2.85, 0.55, -0.9),
+		"Go Up", "UP", Color(0.18, 0.48, 0.85)
+	)
+	_add_navigation_marker(
+		room, "DownStairsTrigger", "down", Vector3(2.85, 0.55, 1.1),
+		"Go Down", "DOWN", Color(0.26, 0.55, 0.32)
+	)
+	_add_navigation_marker(
+		room, "AnswerCurrentFloor", "answer", Vector3(0, 0.75, 1.95),
+		"Choose Current Floor", "CHOOSE", Color(0.7, 0.46, 0.16)
+	)
+	var answer := room.get_node("AnswerCurrentFloor") as Area3D
+	answer.visible = is_final_unlocked()
+	answer.monitoring = is_final_unlocked()
+	answer.collision_layer = 2 if is_final_unlocked() else 0
+
+
+func _create_legacy_current_floor_room() -> void:
 	var existing: Node = get_node_or_null("CurrentFloorRoom")
 	if existing != null:
 		remove_child(existing)
@@ -1107,6 +1153,24 @@ func _add_wall_body(
 
 
 func _update_floor_displays() -> void:
+	if get_node_or_null("CurrentFloorRoom") == null:
+		return
+	_create_current_floor_room()
+	var status := get_node_or_null("GameUI/StatusPanel/Status") as Label
+	if status != null:
+		var missing: Array[String] = get_missing_floor_labels()
+		status.text = (
+			"当前楼层：%dF\n轮次：%d/%d\n%s"
+			% [
+				_current_floor,
+				current_loop + 1,
+				TOTAL_LOOPS,
+				("可提交最终楼层" if is_final_unlocked() else "未观察：%s" % "、".join(missing)),
+			]
+		)
+
+
+func _update_legacy_floor_displays() -> void:
 	if get_node_or_null("CurrentFloorRoom") == null:
 		return
 	_create_current_floor_room()

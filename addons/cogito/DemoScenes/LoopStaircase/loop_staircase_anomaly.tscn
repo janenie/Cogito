@@ -70,6 +70,12 @@ game_over_screen = NodePath("GameOverScreen")
 [node name="GameOverScreen" parent="AIPlayController/LoopStaircaseManager" instance=ExtResource("4_game_over")]
 
 [node name="CurrentFloorRoom" type="Node3D" parent="AIPlayController/LoopStaircaseManager" unique_id=1389556477]
+metadata/theme_id = "lounge_window"
+metadata/room_type = "lounge"
+
+[node name="StableTheme" type="Node3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom"]
+
+[node name="Evidence" type="Node3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom"]
 
 [node name="LobbyFloor" type="CSGBox3D" parent="AIPlayController/LoopStaircaseManager/CurrentFloorRoom" unique_id=1677881823]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0.0958271)
