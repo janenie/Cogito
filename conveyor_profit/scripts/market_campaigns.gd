@@ -30,7 +30,7 @@ const A7 := {"salad": 1.5, "soup": 1.0, "burger": 1.0, "omelet": 0.75, "sandwich
 const A8 := {"salad": 1.0, "soup": 0.75, "burger": 1.5, "omelet": 1.0, "sandwich": 1.0}
 const A10 := {"salad": 1.0, "soup": 1.5, "burger": 1.0, "omelet": 1.0, "sandwich": 1.5}
 
-const CAMPAIGNS: Array[Dictionary] = [
+const RAW_CAMPAIGNS: Array[Dictionary] = [
 	{
 		"id": "A", "strategy": "history_quota", "rounds": [
 			{"candidate_recipe_ids": ["avocado_burger", "classic_burger", "garden_salad"], "category_multipliers": NORMAL, "signals": [{"category": "burger", "direction": "up", "text": "中型球赛即将散场，下一轮汉堡需求可能升高。"}, {"category": "burger", "direction": "down", "text": "末班车延误，下一轮汉堡需求可能降低。"}], "baseline_recipe_id": "avocado_burger"},
@@ -102,6 +102,56 @@ const CAMPAIGNS: Array[Dictionary] = [
 		]
 	},
 ]
+
+const CLOSED_CANDIDATE_OVERRIDES := {
+	"A": {
+		0: ["avocado_salad", "classic_burger", "avocado_burger"],
+		1: ["carrot_sausage_soup", "avocado_burger", "avocado_fish_sandwich"],
+		2: ["pumpkin_sausage_soup", "classic_burger", "garden_fish_sandwich"],
+		3: ["avocado_salad", "broccoli_bacon_omelet", "corn_bacon_omelet"],
+	},
+	"B": {
+		1: ["avocado_salad", "classic_burger", "avocado_burger"],
+		2: ["pumpkin_sausage_soup", "classic_burger", "garden_fish_sandwich"],
+		3: ["avocado_salad", "broccoli_bacon_omelet", "corn_bacon_omelet"],
+		5: ["avocado_salad", "classic_burger", "avocado_burger"],
+		6: ["pumpkin_sausage_soup", "broccoli_bacon_omelet", "avocado_fish_sandwich"],
+		8: ["pumpkin_sausage_soup", "classic_burger", "broccoli_bacon_omelet"],
+	},
+	"C": {
+		0: ["pumpkin_sausage_soup", "avocado_burger", "broccoli_bacon_omelet"],
+		1: ["avocado_salad", "classic_burger", "avocado_burger"],
+		2: ["pumpkin_sausage_soup", "broccoli_bacon_omelet", "avocado_fish_sandwich"],
+		3: ["avocado_salad", "broccoli_bacon_omelet", "corn_bacon_omelet"],
+		4: ["corn_bacon_omelet", "garden_fish_sandwich", "avocado_fish_sandwich"],
+		5: ["garden_salad", "avocado_salad", "broccoli_bacon_omelet"],
+		6: ["garden_salad", "corn_bacon_omelet", "garden_fish_sandwich"],
+		8: ["avocado_burger", "broccoli_bacon_omelet", "corn_bacon_omelet"],
+		9: ["garden_salad", "classic_burger", "garden_fish_sandwich"],
+	},
+	"D": {
+		0: ["avocado_salad", "pumpkin_sausage_soup", "broccoli_bacon_omelet"],
+		3: ["pumpkin_sausage_soup", "avocado_burger", "broccoli_bacon_omelet"],
+		4: ["avocado_salad", "classic_burger", "avocado_burger"],
+		5: ["avocado_salad", "garden_fish_sandwich", "avocado_fish_sandwich"],
+	},
+	"E": {
+		0: ["avocado_salad", "classic_burger", "avocado_burger"],
+		1: ["avocado_salad", "classic_burger", "avocado_burger"],
+		2: ["avocado_salad", "pumpkin_sausage_soup", "broccoli_bacon_omelet"],
+	},
+}
+
+static var CAMPAIGNS: Array[Dictionary] = _build_closed_campaigns()
+
+
+static func _build_closed_campaigns() -> Array[Dictionary]:
+	var result: Array[Dictionary] = RAW_CAMPAIGNS.duplicate(true)
+	for campaign: Dictionary in result:
+		var overrides: Dictionary = CLOSED_CANDIDATE_OVERRIDES.get(String(campaign["id"]), {})
+		for round_index: Variant in overrides:
+			campaign["rounds"][int(round_index)]["candidate_recipe_ids"] = overrides[round_index].duplicate()
+	return result
 
 
 static func campaign_by_id(campaign_id: String) -> Dictionary:

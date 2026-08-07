@@ -41,6 +41,18 @@ func _initialize() -> void:
 			_check(_unique_count(candidates) == 3, "%s round %d candidates are unique" % [campaign_id, round_index + 1])
 			for recipe_id: Variant in candidates:
 				_check(not catalog.recipe_by_id(String(recipe_id)).is_empty(), "%s round %d candidate is public recipe" % [campaign_id, round_index + 1])
+			var required_ingredients: Array[String] = []
+			for recipe_id: Variant in candidates:
+				for ingredient_id: String in catalog.recipe_by_id(String(recipe_id))["ingredients"]:
+					if ingredient_id not in required_ingredients:
+						required_ingredients.append(ingredient_id)
+			var closure_ids: Array[String] = []
+			for recipe: Dictionary in catalog.attainable_single_dishes(required_ingredients):
+				closure_ids.append(String(recipe["id"]))
+			closure_ids.sort()
+			var sorted_candidates: Array = candidates.duplicate()
+			sorted_candidates.sort()
+			_check(closure_ids == sorted_candidates, "%s round %d candidate set is physically closed" % [campaign_id, round_index + 1])
 			var multipliers: Dictionary = round_data.get("category_multipliers", {})
 			_check(multipliers.keys().size() == 5, "%s round %d has five market categories" % [campaign_id, round_index + 1])
 			for category: String in economy.CATEGORIES:
