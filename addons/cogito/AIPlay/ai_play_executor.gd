@@ -38,6 +38,7 @@ const PRESS_KEYCODES: Dictionary = {
 	"up": KEY_UP,
 	"down": KEY_DOWN,
 	"space": KEY_SPACE,
+	"tab": KEY_TAB,
 }
 
 @export var player: Node3D

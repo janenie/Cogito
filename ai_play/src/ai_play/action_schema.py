@@ -37,7 +37,7 @@ CONVEYOR_INGREDIENT_IDS = frozenset({
     "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
     "broccoli", "corn", "fish",
 })
-ALLOWED_PRESS_KEYS = {"up", "down", "space"}
+ALLOWED_PRESS_KEYS = {"up", "down", "space", "tab"}
 
 
 def _require_number(value, lower, upper, field):

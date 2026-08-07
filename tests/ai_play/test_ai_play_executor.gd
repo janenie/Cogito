@@ -171,12 +171,25 @@ func _run_tests() -> void:
 		_key_events_match(recorder.events, KEY_UP),
 		"press_key emits a dedicated up key press and release",
 	)
+	recorder.events.clear()
+	executor.execute_batch([{"type": "press_key", "key": "tab"}], {})
+	await process_frame
+	_assert(
+		_key_events_match(recorder.events, KEY_TAB),
+		"press_key emits a dedicated Tab key press and release",
+	)
 	executor.active_scenario_id = "find_contract"
 	_assert_invalid(
 		executor,
 		{"type": "press_key", "key": "up"},
 		{},
 		"press_key outside loop_staircase_anomaly",
+	)
+	_assert_invalid(
+		executor,
+		{"type": "press_key", "key": "tab"},
+		{},
+		"Tab outside loop_staircase_anomaly",
 	)
 
 	executor.queue_free()

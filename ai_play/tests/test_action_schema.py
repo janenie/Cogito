@@ -28,12 +28,26 @@ def test_validate_action_batch_accepts_loop_staircase_key_presses():
         False,
         scenario_id="loop_staircase_anomaly",
     ) == actions
+    tab_action = [{"type": "press_key", "key": "tab"}]
+    assert validate_action_batch(
+        tab_action,
+        set(),
+        False,
+        scenario_id="loop_staircase_anomaly",
+    ) == tab_action
 
 
 def test_validate_action_batch_rejects_key_presses_outside_loop_staircase():
     with pytest.raises(ActionValidationError, match="not allowed for this scenario"):
         validate_action_batch(
             [{"type": "press_key", "key": "up"}],
+            set(),
+            False,
+            scenario_id="find_contract",
+        )
+    with pytest.raises(ActionValidationError, match="not allowed for this scenario"):
+        validate_action_batch(
+            [{"type": "press_key", "key": "tab"}],
             set(),
             False,
             scenario_id="find_contract",
