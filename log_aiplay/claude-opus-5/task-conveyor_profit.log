@@ -1,0 +1,41 @@
+task: conveyor_profit
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm
+trusted_log_root: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm/trusted_mcplogs
+aggregate: 3/4 success; the first run missed the efficiency target and the next three reached it
+orchestrator_finalization: Claude reported an execution error after the supervisor had recorded all four terminal outcomes; the batch process returned nonzero, but no game result is missing
+
+run_1:
+  address: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260806-23-58/attempt-01/trajectory.json
+  result: failure/efficiency_below_target
+  total_steps: 73
+  progress: completed window 10/10; the last public observation reported net_profit 92 and an accepted carrot_sausage_soup receipt, but final efficiency was below target
+
+run_2:
+  address: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260806-23-58/attempt-02/trajectory.json
+  result: success/efficiency_target_reached
+  total_steps: 68
+  progress: completed window 10/10; the last public observation reported net_profit 119 and the supervisor confirmed the efficiency target
+
+run_3:
+  address: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260807-00-49/attempt-01/trajectory.json
+  result: success/efficiency_target_reached
+  total_steps: 53
+  progress: completed window 10/10; the last public observation reported net_profit 127 and the supervisor confirmed the efficiency target
+
+run_4:
+  address: /Users/Shared/Cogito-test/20260806-235829__claude__claude-opus-5__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260807-01-09/attempt-01/trajectory.json
+  result: success/efficiency_target_reached
+  total_steps: 57
+  progress: completed window 10/10 with net_profit 121; the terminal report recorded 8 optimal windows and efficiency 89
+
+main_findings:
+  - The authoritative result is three successes and one task-level failure, with no stopped or disconnected attempts in this rerun.
+  - After the first failure, all remaining runs reached the target and used fewer requests (68, 53, and 57 versus 73).
+  - The sequence is consistent with useful within-session adaptation or AWM, but this AWM-only batch cannot establish causality without a disabled-memory control.
+  - Task completion is driven by conveyor decisions rather than 3D navigation; the public conveyor state and terminal game_over were sufficient for reliable scoring.
+  - The post-terminal Claude execution error is an orchestrator finalization issue and should be investigated separately from task capability.

@@ -3,11 +3,11 @@ model: claude-opus-5
 reasoning_effort: high
 mode: awm
 requested_runs: 4
-valid_model_outcomes: 3
+valid_model_outcomes: 4
 
-orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm
-trusted_log_root: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs
-aggregate: 1/3 valid runs succeeded; run 4 was externally stopped with escape_stop and is not counted as a model outcome
+primary_orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm
+replacement_orchestrator_run_dir: /Users/Shared/Cogito-test/20260806-222144__claude__claude-opus-5__find_contract__awm
+aggregate: 1/4 valid runs succeeded; the replacement run used a fresh AWM session because the original process memory was not persistent
 
 run_1:
   address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-07-19/attempt-01/trajectory.json
@@ -31,6 +31,14 @@ run_3:
   progress: after extended exploration, completed the public clue chain and submitted a successful answer; the hidden password is intentionally omitted
 
 run_4:
+  address: /Users/Shared/Cogito-test/20260806-222144__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-22-21/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 300
+  final_location: approximately (-10.21, 0.82, -1.02)
+  progress: replacement for the interrupted fourth run; exhausted the request budget without completing the public clue chain
+  comparability_note: AWM was enabled but began empty, so this is a valid independent model outcome rather than a continuation of the first three runs' session memory
+
+interrupted_attempt_not_counted:
   address: /Users/Shared/Cogito-test/20260806-071950__claude__claude-opus-5__find_contract__awm/trusted_mcplogs/find_contract/20260806-11-19/attempt-01/trajectory.json
   result: stopped/escape_stop
   total_steps: 31
@@ -38,7 +46,7 @@ run_4:
   progress: externally interrupted before a terminal model outcome; exclude this run from capability statistics
 
 main_findings:
-  - The authoritative supervisor result is one success, two max-request failures, and one external stop.
+  - Across four valid model outcomes, the authoritative supervisor result is one success and three max-request failures; one additional external stop is excluded.
   - A high legal-request rate did not guarantee useful task progress; task-entry discovery and interaction-schema recall remained weak.
-  - The successful run shows the task is solvable through the public interface, but required 275 requests and did not demonstrate a reliably reusable AWM route.
+  - The successful run shows the task is solvable through the public interface, but required 275 requests; the fresh-session replacement also failed, so this batch does not demonstrate a reliably reusable route.
   - Do not expose the hidden answer or infer success from the model's prose; use supervisor game_over and trusted trajectories.
