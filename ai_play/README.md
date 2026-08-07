@@ -397,10 +397,11 @@ MCP 结果、玩家提示或轨迹日志。
 Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
-`loop_staircase_anomaly` 是循环楼梯异常任务。玩家在 2F 到 9F 之间用 Up/Down 切换楼层，
-经过五轮观察后用 Space 选择当前楼层。每轮只有截图中的一条新线索，线索顺序每局变化；
-玩家必须累积线索维护候选集合。成功产生 `success/correct_floor_selected`，选错产生
-`failure/wrong_floor_selected`。
+`loop_staircase_anomaly` 是五轮累计证据调查任务。玩家在 2F 到 9F 之间用 Up/Down
+切换楼层，每轮收齐八个房间的截图后才能推进；每轮只新增一条可见线索，旧线索继续保留。
+Tab 打开调查板后，Up/Down 选择楼层行，Space 只切换玩家自己的候选标记；调查板不自动
+比较、计数或判断正误。第五轮关闭调查板后，Space 提交当前楼层。成功产生
+`success/correct_floor_selected`，选错产生 `failure/wrong_floor_selected`。
 
 `laboratory_experiment` 是随机实验回路任务。玩家读取 HUD 上的目标、环境和公开条件，
 搬运并安装电池、样本、处理模块和金属棒，再根据公开测量反馈调整组合。只有完整配置才
@@ -454,8 +455,8 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
   已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
   `undo` 恢复。四种动作均不得在其他玩法使用。
-- `loop_staircase_anomaly` 额外允许 `press_key`，且 `key` 只能是 `up`、`down` 或
-  `space`；其他玩法必须拒绝该动作。
+- `loop_staircase_anomaly` 额外允许 `press_key`，且 `key` 只能是 `up`、`down`、
+  `space` 或 `tab`；其他玩法必须拒绝该动作。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，
