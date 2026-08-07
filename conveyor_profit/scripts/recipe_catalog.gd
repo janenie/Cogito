@@ -40,21 +40,28 @@ const INGREDIENT_COSTS := {
 }
 
 const RECIPES: Array[Dictionary] = [
-	{"id": "garden_salad", "ingredients": ["lettuce", "tomato", "carrot"], "sale_price": 7, "profit": 4},
-	{"id": "avocado_salad", "ingredients": ["lettuce", "tomato", "avocado"], "sale_price": 19, "profit": 13},
-	{"id": "carrot_sausage_soup", "ingredients": ["sausage", "mushroom", "onion", "carrot"], "sale_price": 14, "profit": 6},
-	{"id": "pumpkin_sausage_soup", "ingredients": ["sausage", "mushroom", "onion", "pumpkin"], "sale_price": 24, "profit": 15},
-	{"id": "classic_burger", "ingredients": ["bread", "meat", "lettuce", "tomato"], "sale_price": 17, "profit": 8},
-	{"id": "avocado_burger", "ingredients": ["bread", "meat", "avocado", "tomato"], "sale_price": 30, "profit": 18},
-	{"id": "broccoli_bacon_omelet", "ingredients": ["egg", "cheese", "bacon", "broccoli"], "sale_price": 18, "profit": 7},
-	{"id": "corn_bacon_omelet", "ingredients": ["egg", "cheese", "bacon", "corn"], "sale_price": 27, "profit": 16},
-	{"id": "garden_fish_sandwich", "ingredients": ["bread", "fish", "lettuce", "onion"], "sale_price": 15, "profit": 7},
-	{"id": "avocado_fish_sandwich", "ingredients": ["bread", "fish", "avocado", "onion"], "sale_price": 28, "profit": 17},
+	{"id": "garden_salad", "category": "salad", "ingredients": ["lettuce", "tomato", "carrot"], "ingredient_cost": 3, "sale_price": 7, "profit": 4},
+	{"id": "avocado_salad", "category": "salad", "ingredients": ["lettuce", "tomato", "avocado"], "ingredient_cost": 6, "sale_price": 19, "profit": 13},
+	{"id": "carrot_sausage_soup", "category": "soup", "ingredients": ["sausage", "mushroom", "onion", "carrot"], "ingredient_cost": 8, "sale_price": 14, "profit": 6},
+	{"id": "pumpkin_sausage_soup", "category": "soup", "ingredients": ["sausage", "mushroom", "onion", "pumpkin"], "ingredient_cost": 9, "sale_price": 24, "profit": 15},
+	{"id": "classic_burger", "category": "burger", "ingredients": ["bread", "meat", "lettuce", "tomato"], "ingredient_cost": 9, "sale_price": 17, "profit": 8},
+	{"id": "avocado_burger", "category": "burger", "ingredients": ["bread", "meat", "avocado", "tomato"], "ingredient_cost": 12, "sale_price": 30, "profit": 18},
+	{"id": "broccoli_bacon_omelet", "category": "omelet", "ingredients": ["egg", "cheese", "bacon", "broccoli"], "ingredient_cost": 11, "sale_price": 18, "profit": 7},
+	{"id": "corn_bacon_omelet", "category": "omelet", "ingredients": ["egg", "cheese", "bacon", "corn"], "ingredient_cost": 11, "sale_price": 27, "profit": 16},
+	{"id": "garden_fish_sandwich", "category": "sandwich", "ingredients": ["bread", "fish", "lettuce", "onion"], "ingredient_cost": 8, "sale_price": 15, "profit": 7},
+	{"id": "avocado_fish_sandwich", "category": "sandwich", "ingredients": ["bread", "fish", "avocado", "onion"], "ingredient_cost": 11, "sale_price": 28, "profit": 17},
 ]
 
 
 static func ingredient_cost(ingredient_id: String) -> int:
 	return int(INGREDIENT_COSTS.get(ingredient_id, -1))
+
+
+static func recipe_by_id(recipe_id: String) -> Dictionary:
+	for recipe: Dictionary in RECIPES:
+		if String(recipe["id"]) == recipe_id:
+			return recipe.duplicate(true)
+	return {}
 
 
 static func find_recipe(ingredient_ids: Array) -> Dictionary:
