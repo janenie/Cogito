@@ -43,12 +43,31 @@ func capture_observation(last_results: Array) -> Dictionary:
 		},
 		"bindings": _unbound_bindings(),
 		"last_action_results": _sanitize_last_results(last_results),
-		"conveyor": gameplay.get_public_state(),
+		"conveyor": _public_conveyor_state(),
 	}
 
 
 func get_available_interactions() -> Array[Dictionary]:
 	return []
+
+
+func _public_conveyor_state() -> Dictionary:
+	var state: Dictionary = gameplay.get_public_state()
+	var market: Dictionary = state.get("market", {})
+	return {
+		"total_time": state.get("total_time", "00:00"),
+		"window": state.get("window", "1 / 10"),
+		"window_time": state.get("window_time", "00:00"),
+		"dish": state.get("dish", "0 / 1"),
+		"net_profit": state.get("net_profit", 0),
+		"tray": state.get("tray", []).duplicate(),
+		"last_receipt": state.get("last_receipt", {}).duplicate(true),
+		"market": {
+			"category_multipliers": market.get("category_multipliers", {}).duplicate(),
+			"signals": market.get("signals", []).duplicate(),
+		},
+		"finished": state.get("finished", false),
+	}
 
 
 func _capture_image() -> Image:

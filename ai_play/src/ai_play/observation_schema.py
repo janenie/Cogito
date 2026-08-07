@@ -57,6 +57,8 @@ CONVEYOR_RECIPE_IDS = {
     "broccoli_bacon_omelet", "corn_bacon_omelet",
     "garden_fish_sandwich", "avocado_fish_sandwich",
 }
+CONVEYOR_CATEGORIES = {"salad", "soup", "burger", "omelet", "sandwich"}
+CONVEYOR_MULTIPLIERS = {0.75, 1.0, 1.25, 1.5}
 CONVEYOR_OUTCOMES = {
     "selected", "undone", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
@@ -517,7 +519,7 @@ def validate_observation(value, scenario_id=None):
             conveyor,
             {
                 "total_time", "window", "window_time", "dish",
-                "net_profit", "tray", "last_receipt", "finished",
+                "net_profit", "tray", "last_receipt", "market", "finished",
             },
             "conveyor",
         )
@@ -563,6 +565,31 @@ def validate_observation(value, scenario_id=None):
                 "recipe_id": recipe_id,
                 "profit": _signed_integer(receipt["profit"], "conveyor receipt profit"),
             }
+        market = conveyor["market"]
+        _exact(market, {"category_multipliers", "signals"}, "conveyor market")
+        multipliers = market["category_multipliers"]
+        _exact(multipliers, CONVEYOR_CATEGORIES, "conveyor market multipliers")
+        safe_multipliers = {}
+        for category in CONVEYOR_CATEGORIES:
+            multiplier = _number(
+                multipliers[category], f"conveyor {category} multiplier"
+            )
+            if multiplier not in CONVEYOR_MULTIPLIERS:
+                raise ObservationValidationError("conveyor multiplier is invalid")
+            safe_multipliers[category] = float(multiplier)
+        signals = market["signals"]
+        if not isinstance(signals, list):
+            raise ObservationValidationError("conveyor market signals are invalid")
+        current_window, total_windows = (int(part) for part in window.split(" / "))
+        if total_windows != 10 or not 1 <= current_window <= total_windows:
+            raise ObservationValidationError("conveyor window is invalid")
+        expected_signal_count = 0 if current_window == total_windows == 10 else 2
+        if len(signals) != expected_signal_count:
+            raise ObservationValidationError("conveyor market signals are invalid")
+        safe_signals = [
+            _text(item, "conveyor market signal", 240, allow_empty=False)
+            for item in signals
+        ]
         safe_conveyor = {
             "total_time": conveyor["total_time"],
             "window": window,
@@ -571,6 +598,10 @@ def validate_observation(value, scenario_id=None):
             "net_profit": _signed_integer(conveyor["net_profit"], "conveyor net_profit"),
             "tray": list(tray),
             "last_receipt": safe_receipt,
+            "market": {
+                "category_multipliers": safe_multipliers,
+                "signals": safe_signals,
+            },
             "finished": conveyor["finished"],
         }
 

@@ -35,13 +35,22 @@ func _run_test() -> void:
 	public_keys.sort()
 	_check(
 		public_keys == [
-			"dish", "finished", "last_receipt", "net_profit", "total_time", "tray", "window", "window_time",
+			"dish", "finished", "last_receipt", "market", "net_profit", "total_time", "tray", "window", "window_time",
 		],
 		"observer exposes only HUD-level conveyor fields",
 	)
+	var market: Dictionary = public_state.get("market", {})
+	_check(
+		market.keys().size() == 2
+		and market.get("category_multipliers", {}).keys().size() == 5
+		and market.get("signals", []).size() == 2,
+		"observer exposes only current market evidence",
+	)
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",
-		"deck_id", "recipe_counts", "missing_ingredient", "theoretical_profit", "optimal_route",
+		"deck_id", "campaign_id", "candidate_recipe_ids", "baseline_recipe_id", "baseline_profit",
+		"recipe_counts", "missing_ingredient", "theoretical_profit", "omniscient_profit",
+		"optimal_route", "draw_index", "future_multipliers",
 	]:
 		_check(not public_state.has(hidden_field), "observer hides %s" % hidden_field)
 

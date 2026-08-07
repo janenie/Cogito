@@ -9,6 +9,7 @@ from ai_play.action_schema import CONVEYOR_INGREDIENT_IDS as ACTION_INGREDIENT_I
 from ai_play.action_schema import CONVEYOR_ACTIONS
 from ai_play.conveyor_profit_briefing import PUBLIC_BRIEFING
 from ai_play.observation_schema import (
+    CONVEYOR_CATEGORIES,
     CONVEYOR_INGREDIENT_IDS as OBSERVATION_INGREDIENT_IDS,
     CONVEYOR_RECIPE_IDS,
 )
@@ -47,3 +48,5 @@ def test_python_and_godot_publish_the_same_catalog_ids():
     assert set(godot_catalog["executor_action_types"]) == set(CONVEYOR_ACTIONS)
     assert set(godot_catalog["recipe_ids"]) == briefing_recipe_ids
     assert briefing_recipe_ids == set(CONVEYOR_RECIPE_IDS)
+    assert set(godot_catalog["category_ids"]) == set(PUBLIC_BRIEFING["category_ids"])
+    assert set(PUBLIC_BRIEFING["category_ids"]) == set(CONVEYOR_CATEGORIES)

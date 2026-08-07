@@ -105,9 +105,11 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
 ```
 
 `conveyor_profit` 的白名单 `briefing` 会返回墙上同样可见的十道固定菜谱，包括十六种食材
-ID、成本、完整配方、售价和净利润，并公开每道菜整局最多成功制作两次的规则。当前窗口的
-结构化食材清单、可行菜、缺失食材、累计次数表、未来供给、随机牌组和绝对目标金额仍不公开；
-客户端必须根据 `observe` 截图识别当前可见食材，与公开菜单比较，并根据 accepted 收据自行记账。
+ID、成本、完整配方、基础售价和基础净利润，并公开每道菜整局最多成功制作两次的规则。
+每轮 `observation.conveyor.market` 只公开五类菜品的精确当前需求倍率，以及前九轮各两条
+指向下一轮涨跌方向的自然语言线索；线索可能强化或冲突。客户端必须根据截图识别当前可见
+食材，按当前倍率重算售价，并根据 accepted 收据自行维护次数。当前窗口的结构化食材清单、
+可行菜、缺失食材、累计次数表、未来倍率与供给、内部脚本标识和绝对目标金额仍不公开。
 
 循环楼梯异常玩法位于独立场景，实验室推理玩法位于 Cogito Laboratory 场景；两者也可普通启动：
 
@@ -394,7 +396,7 @@ MCP 结果、玩家提示或轨迹日志。
 制作一次；成功、非法组合和次数超限的 MAKE 都会锁定窗口。同一道菜整局最多成功制作两次；
 第三次正确提交返回 `recipe_limit_exceeded`，扣除食材成本但没有收入。AI 使用
 `select_ingredient`、`undo`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；等待模型期间
-Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
+Godot 暂停窗口时钟。十个窗口结束时，达到隐藏在线策略基准的 90% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
 `loop_staircase_anomaly` 是五轮累计证据调查任务。真人玩家在 2F 到 9F 之间用 Up/Down

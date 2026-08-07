@@ -5,15 +5,18 @@ PUBLIC_BRIEFING = {
     "game_id": "conveyor_profit",
     "title": "回转食材利润挑战 / CONVEYOR PROFIT CHALLENGE",
     "background": (
-        "像人类玩家一样观察传送带和固定公开菜单。不要只按价格选择；"
-        "逐项核对当前画面是否具有一道菜要求的每份食材。"
+        "像人类玩家一样观察传送带、固定公开菜单、当前需求倍率和市场线索。"
+        "不要只按基础价格选择；逐项核对当前画面是否具有一道菜要求的每份食材，"
+        "并结合配方次数与下一轮预告规划。"
     ),
-    "objective": "完成十个一分钟窗口，并让实际净利润达到整局理论最优净利润的 80%。",
-    "success_condition": "十分钟结束时达到 80% 全局利润效率目标。",
-    "failure_condition": "十分钟结束时低于 80% 利润效率，或达到最大 act 请求数。",
+    "objective": "完成十个一分钟窗口，并让实际净利润达到隐藏在线基准的 90%。",
+    "success_condition": "十分钟结束时达到 90% 隐藏在线基准效率目标。",
+    "failure_condition": "十分钟结束时低于 90% 隐藏在线基准，或达到最大 act 请求数。",
     "rules": [
         "observe 只提供截图和 HUD 级状态；根据画面识别当前窗口的十六盘食材。",
         "每个一分钟窗口只能提交一次 make；配方必须严格包含菜单列出的全部且仅有的食材。",
+        "market.category_multipliers 给出本轮五类菜品的精确当前需求倍率；菜单售价是基础售价，实际售价按基础售价乘倍率并四舍五入，食材成本不变。",
+        "前九轮各公开两条明确指向下一轮涨跌方向的市场线索；两条线索可能互相强化，也可能冲突，需要从事件规模判断力度。第十轮没有下一轮线索。",
         "同一道菜整局最多成功制作两次；根据每次 accepted 收据自行记录已成功制作次数。",
         "第三次提交配方正确但次数已满的菜会返回 recipe_limit_exceeded：收入为零、扣除托盘食材成本并锁定窗口。",
         "非法组合返回 invalid_combo：收入为零、扣除托盘食材成本并锁定窗口。",
@@ -100,6 +103,7 @@ PUBLIC_BRIEFING = {
         "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
         "broccoli", "corn", "fish",
     ],
+    "category_ids": ["salad", "soup", "burger", "omelet", "sandwich"],
     "ingredient_costs": {
         "lettuce": 1,
         "tomato": 1,

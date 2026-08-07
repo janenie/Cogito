@@ -397,6 +397,19 @@ def test_conveyor_observation_is_hud_level_and_bounded():
             "recipe_id": "garden_salad",
             "profit": -3,
         },
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0,
+                "soup": 1.25,
+                "burger": 0.75,
+                "omelet": 1.0,
+                "sandwich": 1.5,
+            },
+            "signals": [
+                "强冷空气抵达，下一轮汤类需求可能升高。",
+                "部分办公楼恢复供暖，下一轮汤类需求可能降低。",
+            ],
+        },
         "finished": False,
     }
 
@@ -409,8 +422,10 @@ def test_conveyor_observation_is_hud_level_and_bounded():
     "hidden_field",
     [
         "ingredients", "candidate_recipes", "best_profit", "future_supply", "seed",
-        "passing_profit", "deck_id", "recipe_counts", "missing_ingredient",
-        "theoretical_profit", "optimal_route",
+        "passing_profit", "deck_id", "campaign_id", "candidate_recipe_ids",
+        "baseline_recipe_id", "baseline_profit", "recipe_counts", "missing_ingredient",
+        "theoretical_profit", "omniscient_profit", "optimal_route", "draw_index",
+        "future_multipliers",
     ],
 )
 def test_conveyor_observation_rejects_hidden_fields(hidden_field):
@@ -423,6 +438,13 @@ def test_conveyor_observation_rejects_hidden_fields(hidden_field):
         "net_profit": 0,
         "tray": [],
         "last_receipt": {},
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0, "soup": 1.0, "burger": 1.0,
+                "omelet": 1.0, "sandwich": 1.0,
+            },
+            "signals": ["下一轮汤类需求可能升高。", "下一轮汉堡需求可能降低。"],
+        },
         "finished": False,
         hidden_field: [],
     }
@@ -557,6 +579,13 @@ def test_conveyor_observation_accepts_five_item_tray_and_empty_receipt():
         "net_profit": 0,
         "tray": ["egg", "cheese", "bacon", "corn", "avocado"],
         "last_receipt": {},
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0, "soup": 1.0, "burger": 1.0,
+                "omelet": 1.0, "sandwich": 1.0,
+            },
+            "signals": ["下一轮汤类需求可能升高。", "下一轮汉堡需求可能降低。"],
+        },
         "finished": False,
     }
 
@@ -564,6 +593,70 @@ def test_conveyor_observation_accepts_five_item_tray_and_empty_receipt():
 
     assert len(public["conveyor"]["tray"]) == 5
     assert public["conveyor"]["last_receipt"] == {}
+
+
+@pytest.mark.parametrize("bad_multiplier", [0.5, 0.8, 1.1, 2.0, True, "1.0"])
+def test_conveyor_market_rejects_unknown_multipliers(bad_multiplier):
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["market"]["category_multipliers"]["soup"] = bad_multiplier
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+
+def test_conveyor_market_requires_exact_categories_and_signal_count():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["market"]["category_multipliers"]["dessert"] = 1.0
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["market"]["signals"] = ["only one"]
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+
+def test_conveyor_tenth_window_requires_no_future_signals():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["window"] = "10 / 10"
+    observation["conveyor"]["market"]["signals"] = []
+    public, _image_bytes, _depth_image_bytes = prepare_mcp_observation(observation)
+    assert public["conveyor"]["market"]["signals"] == []
+
+    observation["conveyor"]["market"]["signals"] = ["x", "y"]
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+
+def test_conveyor_market_signals_are_bounded():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["market"]["signals"][0] = "x" * 241
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+
+def _valid_conveyor_market_state():
+    return {
+        "total_time": "09:42",
+        "window": "1 / 10",
+        "window_time": "00:42",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": [],
+        "last_receipt": {},
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0, "soup": 1.25, "burger": 0.75,
+                "omelet": 1.0, "sandwich": 1.5,
+            },
+            "signals": ["下一轮汤类需求可能升高。", "下一轮汤类需求可能降低。"],
+        },
+        "finished": False,
+    }
 
 
 def test_conveyor_full_tray_result_is_recoverable_and_bounded():
