@@ -43,6 +43,9 @@ const CASE_SCRIPT: Script = preload(
 const ROOM_BUILDER_SCRIPT: Script = preload(
 	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_room_builder.gd"
 )
+const INVESTIGATION_BOARD_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_investigation_board.gd"
+)
 
 @export var scenario_id: String = SCENARIO_ID
 @export var round_seed: int = 0
@@ -283,6 +286,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _round_finished:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
+		var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+		if event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB:
+			if board != null:
+				board.visible = not board.visible
+				if board.visible:
+					board.set_clue_lines(get_visible_clue_lines())
+			get_viewport().set_input_as_handled()
+			return
+		if board != null and board.visible:
+			if event.keycode == KEY_UP or event.physical_keycode == KEY_UP:
+				board.select_next_floor()
+			elif event.keycode == KEY_DOWN or event.physical_keycode == KEY_DOWN:
+				board.select_previous_floor()
+			elif event.keycode == KEY_SPACE or event.physical_keycode == KEY_SPACE:
+				board.toggle_candidate()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_UP or event.physical_keycode == KEY_UP:
 			move_up()
 		elif event.keycode == KEY_DOWN or event.physical_keycode == KEY_DOWN:
@@ -623,6 +643,17 @@ func _create_game_ui() -> void:
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 15)
 	status_margin.add_child(status)
+
+	var board := INVESTIGATION_BOARD_SCRIPT.new() as Control
+	board.name = "InvestigationBoard"
+	board.visible = false
+	ui.add_child(board)
+	board.set_clue_lines(get_visible_clue_lines())
+	board.candidate_changed.connect(_on_board_candidate_changed)
+
+
+func _on_board_candidate_changed(floor_number: int, marked: bool) -> void:
+	_manual_candidates[floor_number] = marked
 
 
 func _mug_position(state: Dictionary) -> Vector3:
@@ -1168,6 +1199,28 @@ func _update_floor_displays() -> void:
 				("可提交最终楼层" if is_final_unlocked() else "未观察：%s" % "、".join(missing)),
 			]
 		)
+	_schedule_snapshot_capture()
+
+
+func _schedule_snapshot_capture() -> void:
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	if board == null or board.visible or not is_inside_tree():
+		return
+	call_deferred("_capture_snapshot_after_draw", _current_floor, current_loop)
+
+
+func _capture_snapshot_after_draw(floor_number: int, round_index: int) -> void:
+	await RenderingServer.frame_post_draw
+	if _round_finished or floor_number != _current_floor or round_index != current_loop:
+		return
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	if board == null or board.visible:
+		return
+	var image: Image = get_viewport().get_texture().get_image()
+	if image == null or image.is_empty():
+		return
+	board.record_snapshot(floor_number, round_index, image)
+	mark_floor_observed(floor_number)
 
 
 func _update_legacy_floor_displays() -> void:

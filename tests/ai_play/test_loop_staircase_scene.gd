@@ -48,6 +48,14 @@ func _run_test() -> void:
 	_assert_public_state(observer.capture_observation([]))
 	_assert(manager.get_node_or_null("GameUI") is CanvasLayer, "manager builds HUD")
 	_assert(manager.get_node_or_null("SpawnPoint") is Node3D, "manager preserves a playable spawn")
+	var board := manager.get_node_or_null("GameUI/InvestigationBoard") as Control
+	_assert(board != null, "HUD includes an investigation board")
+	if board == null:
+		root_node.queue_free()
+		await process_frame
+		_finish()
+		return
+	_assert_investigation_board(manager, board)
 	var theme_ids: Array[String] = []
 	var pair_signatures: Dictionary = {}
 	for floor_number: int in range(2, 10):
@@ -104,6 +112,42 @@ func _run_test() -> void:
 		_test_scene_root.queue_free()
 	await process_frame
 	_finish()
+
+
+func _assert_investigation_board(manager: Node, board: Control) -> void:
+	var sample := Image.create(64, 36, false, Image.FORMAT_RGB8)
+	sample.fill(Color("3d5068"))
+	board.record_snapshot(2, 0, sample)
+	_assert(board.has_snapshot(2, 0), "board stores a floor-round image")
+	_assert(board.get_snapshot_count(0) == 1, "board counts stored images")
+	_assert(board.get_floor_row_count() == 8, "board displays eight floor rows")
+	_assert(board.get_round_column_count() == 5, "board displays five round columns")
+	board.toggle_candidate(2)
+	_assert(board.is_candidate_marked(2), "manual candidate mark toggles on")
+	board.toggle_candidate(2)
+	_assert(not board.is_candidate_marked(2), "manual candidate mark toggles off")
+	_assert(not board.has_method("compute_difference"), "board has no automatic diff API")
+	_assert(not board.has_method("candidate_is_correct"), "board has no correctness API")
+	var floor_before: int = manager.get_current_floor()
+	var tab_event := InputEventKey.new()
+	tab_event.keycode = KEY_TAB
+	tab_event.pressed = true
+	manager._unhandled_input(tab_event)
+	_assert(board.visible, "Tab opens the investigation board")
+	var up_event := InputEventKey.new()
+	up_event.keycode = KEY_UP
+	up_event.pressed = true
+	manager._unhandled_input(up_event)
+	_assert(manager.get_current_floor() == floor_before, "board Up does not navigate rooms")
+	_assert(board.selected_floor == 3, "board Up selects the next floor row")
+	var space_event := InputEventKey.new()
+	space_event.keycode = KEY_SPACE
+	space_event.pressed = true
+	manager._unhandled_input(space_event)
+	_assert(board.is_candidate_marked(3), "board Space toggles the selected row")
+	_assert(manager.is_candidate_marked(3), "board mark is kept in manager notebook state")
+	manager._unhandled_input(tab_event)
+	_assert(not board.visible, "Tab closes the investigation board")
 
 
 func _assert_public_state(observation: Dictionary) -> void:
