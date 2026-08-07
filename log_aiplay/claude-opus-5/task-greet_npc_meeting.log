@@ -1,0 +1,43 @@
+task: greet_npc_meeting
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm
+trusted_log_root: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm/trusted_mcplogs
+aggregate: 3/4 success; three meeting_door_closed successes and one max-request failure. Three stopped infrastructure attempts were retried and excluded from the four formal outcomes.
+
+run_1:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260807-00-50/attempt-03/trajectory.json
+  result: success/meeting_door_closed
+  total_steps: 81
+  progress: After two infrastructure retries, the formal run completed the meeting sequence and closed the meeting door. One early Claude exit was recovered within the same run.
+
+run_2:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260807-01-36/attempt-01/trajectory.json
+  result: success/meeting_door_closed
+  total_steps: 37
+  progress: It reused the task-card and route experience and completed the full sequence in the shortest run of the batch.
+
+run_3:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260807-01-45/attempt-01/trajectory.json
+  result: success/meeting_door_closed
+  total_steps: 64
+  progress: It again completed the meeting sequence and closed the door, with more navigation overhead than run 2.
+
+run_4:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-004952__claude__claude-opus-5__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260807-02-03/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: After one zero-step infrastructure retry, the formal run explored until the request limit without completing the meeting-door terminal.
+
+infrastructure:
+  - Run 1 had stopped/bridge_disconnected attempts at 11 and 1 steps before its successful retry.
+  - Run 4 had a stopped/bridge_disconnected attempt at 0 steps before its formal max-request failure.
+  - Supervisor output correlated these stops with MoltenVK/Vulkan GPU timeouts; none were counted as formal capability outcomes.
+
+main_findings:
+  - AWM produced a large run-2 efficiency gain, from 81 steps in the first successful formal run to 37.
+  - The later 64-step success and 100-step failure show substantial navigation variance despite shared workflow memory.
+  - Logger manifests split after each success, so the four formal results span four timestamped run directories.

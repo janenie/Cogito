@@ -1,0 +1,38 @@
+task: find_key
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm
+trusted_log_root: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm/trusted_mcplogs
+aggregate: 2/4 success; two max-request failures followed by two key_picked_up successes.
+
+run_1:
+  address: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm/trusted_mcplogs/find_key/20260806-23-43/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 50
+  progress: The model spent the request budget scanning and navigating near the starting area without picking up the key.
+
+run_2:
+  address: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm/trusted_mcplogs/find_key/20260806-23-43/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 50
+  progress: It found and read the task card during the run, then explored without reaching a successful pickup before the limit.
+
+run_3:
+  address: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm/trusted_mcplogs/find_key/20260806-23-43/attempt-03/trajectory.json
+  result: success/key_picked_up
+  total_steps: 32
+  progress: It read the task card early, navigated to a valid pickup target, and completed the interaction.
+
+run_4:
+  address: /Users/Shared/Cogito-ai-play-runs/20260806-234337__claude__claude-opus-5__find_key__awm/trusted_mcplogs/find_key/20260807-00-36/attempt-01/trajectory.json
+  result: success/key_picked_up
+  total_steps: 21
+  progress: It reused the task-card and navigation experience and completed the pickup in the shortest run of the batch.
+
+main_findings:
+  - AWM improved the task-card phase and converted the final two runs into successes.
+  - Successful run length dropped from 32 to 21 steps, while both pre-success runs exhausted the 50-step limit.
+  - A successful terminal closed the first logger manifest, so run 4 is stored under a second timestamped directory in the same orchestrator root.

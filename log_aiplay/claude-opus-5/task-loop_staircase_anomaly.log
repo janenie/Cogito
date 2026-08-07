@@ -1,0 +1,38 @@
+task: loop_staircase_anomaly
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm
+trusted_log_root: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm/trusted_mcplogs
+aggregate: 3/4 success; three correct_floor_selected successes and one wrong_floor_selected failure.
+
+run_1:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260807-05-33/attempt-01/trajectory.json
+  result: success/correct_floor_selected
+  total_steps: 42
+  progress: The public state reached 5 of 5 loops, unlocked the final phase, and the model selected a valid exit.
+
+run_2:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260807-05-46/attempt-01/trajectory.json
+  result: success/correct_floor_selected
+  total_steps: 42
+  progress: It reproduced the full 5-loop route and again selected a valid exit in 42 steps.
+
+run_3:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260807-06-01/attempt-01/trajectory.json
+  result: success/correct_floor_selected
+  total_steps: 56
+  progress: It completed all 5 loops and selected a valid exit after additional final-phase navigation.
+
+run_4:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-053340__claude__claude-opus-5__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260807-06-16/attempt-01/trajectory.json
+  result: failure/wrong_floor_selected
+  total_steps: 44
+  progress: It completed all 5 loops and unlocked the final phase, but selected an invalid exit and received an immediate formal failure.
+
+main_findings:
+  - AWM supported consistent completion of the deterministic 5-loop traversal in all four runs.
+  - Final selection remained fallible: three valid selections were followed by one wrong selection despite the shared workflow memory.
+  - No stopped infrastructure attempts occurred; the 3/4 result reflects formal game outcomes only.

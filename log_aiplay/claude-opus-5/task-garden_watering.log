@@ -1,0 +1,38 @@
+task: garden_watering
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm
+trusted_log_root: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm/trusted_mcplogs
+aggregate: 0/4 success; all four runs ended failure/garden_task_failed.
+
+run_1:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm/trusted_mcplogs/garden_watering/20260807-05-02/attempt-01/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 24
+  progress: The terminal public state showed rain, 0 of 4 lawns watered, no watering can held, and the active alert unresolved.
+
+run_2:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm/trusted_mcplogs/garden_watering/20260807-05-02/attempt-02/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 19
+  progress: It reached a watering-can interaction prompt but did not acquire the can or resolve the active alert before the formal failure.
+
+run_3:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm/trusted_mcplogs/garden_watering/20260807-05-02/attempt-03/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 22
+  progress: The public state remained at 0 of 4 lawns, no held watering can, and an unresolved active alert. One early Claude exit was recovered within this formal run.
+
+run_4:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-050149__claude__claude-opus-5__garden_watering__awm/trusted_mcplogs/garden_watering/20260807-05-02/attempt-04/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 37
+  progress: It again reached a watering-can prompt but ended with no can held, 0 of 4 lawns watered, and the alert unresolved.
+
+main_findings:
+  - AWM did not convert exploration into a completed critical interaction during the scenario's limited time window.
+  - Runs 2 and 4 visually reached a useful interaction prompt, but neither converted that prompt into task progress.
+  - No stopped infrastructure attempts occurred; all four results were scene-authored formal failures.

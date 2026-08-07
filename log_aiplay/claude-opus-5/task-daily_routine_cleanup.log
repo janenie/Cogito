@@ -1,0 +1,38 @@
+task: daily_routine_cleanup
+model: claude-opus-5
+reasoning_effort: high
+mode: awm
+runs: 4
+
+orchestrator_run_dir: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm
+trusted_log_root: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm/trusted_mcplogs
+aggregate: 0/4 success; all four runs ended failure/max_requests at 150 steps.
+
+run_1:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260807-02-29/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: The public terminal state recorded 1 of 5 trash items collected and no held item. A Claude recovery turn continued the same formal run after an early player exit.
+
+run_2:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260807-02-29/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: AWM accelerated the early collection route; the terminal public state reached 4 of 5 items with no held item.
+
+run_3:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260807-02-29/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: The run again reached 4 of 5 collected items but exhausted the budget before completing the last item.
+
+run_4:
+  address: /Users/Shared/Cogito-ai-play-runs/20260807-022930__claude__claude-opus-5__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260807-02-29/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 150
+  progress: It reproduced a 4-of-5 terminal state, with no held item, and failed to complete the final collection before the limit.
+
+main_findings:
+  - AWM improved terminal progress from 1/5 in run 1 to 4/5 in runs 2-4.
+  - The remaining item was a persistent search and interaction bottleneck; three full 150-step runs plateaued at the same public progress.
+  - No bridge-disconnected or other stopped infrastructure attempts occurred in this batch.
