@@ -312,6 +312,12 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 玩家 Codex 提示词，也不访问仓库内部知识；本次 `AI_PLAY_LOG_ROOT` 只属于可信 MCP
 边车，绝不授权给隔离玩家 Codex。
 
+`conveyor_profit` 的 supervisor 还会为第 N 个逻辑局次传入可信参数
+`--conveyor-draw-index=N-1`。同一 seed 的前五个索引映射到五套不重复市场脚本，第六个索引才
+循环；基础设施重试必须原样复用当前命令和索引，不能借重启换题。该索引属于可信启动状态，
+不得进入玩家 HUD、briefing、observation、动作结果或 AWM。人工在同一 Godot 进程内重开时
+使用私有进程内计数器。
+
 ## 增加同一 Lobby 的新玩法
 
 不要复制完整的 `COGITO_3_Lobby.tscn`。新玩法应作为 `AIPlayController` 的直属子节点
@@ -332,7 +338,8 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 ## conveyor_profit 语义动作契约
 
 > 设计来源见 [完整玩法与 AI Play spec](../../scope/2026-08-01-conveyor-profit-ai-play/spec-conveyor-profit-ai-play.md)
-> 和 [固定关卡与近似菜谱设计](../../superpowers/specs/2026-08-02-conveyor-authored-decks-design.md)。
+>、[固定关卡与近似菜谱设计](../../superpowers/specs/2026-08-02-conveyor-authored-decks-design.md)
+> 和 [市场推理与在线经营脚本](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)。
 
 `conveyor_profit` 使用与其他玩法相同的 `briefing`、`observe`、`act`、`stop` MCP 工具，
 但不要求 AI 模拟移动、转向、瞄准或鼠标点击。仅当
@@ -353,22 +360,30 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
   进入正常终局。它不允许跳过尚未制作的窗口。
 - AI 的选材、撤销和制作动作与人类鼠标点击、UNDO 和 MAKE 按钮共用同一套托盘、配方和
   经济入口。
-- `briefing` 白名单返回墙上同样可见的十道固定菜谱，包括十六种公开食材、成本、售价和
-  净利润，并说明同一道菜整局最多成功制作两次。AI 必须根据成功收据自行维护菜谱次数；
+- `briefing` 白名单返回墙上同样可见的十道固定菜谱，包括十六种公开食材、类别、成本、基础
+  售价和基础净利润，并说明同一道菜整局最多成功制作两次。AI 必须根据成功收据自行维护菜谱次数；
   briefing、HUD、`observe` 和动作结果均不返回累计次数表。`observe` 只保留当前窗口最近一次
   制作收据；accepted 和 `recipe_limit_exceeded` 动作结果只额外公开本次 `recipe_id`。
   `observe` 仍不返回当前窗口的结构化食材清单或候选菜；AI 必须根据截图判断当前可见食材，
-  再与公开菜单匹配并比较利润。
-- 动作结果不得公开节点、位置、隐藏库存、候选菜、窗口最优菜、未来供应、生成 seed 或
-  理论利润门槛。无效或当前不可用的食材请求只返回公开失败状态，不扣钱、不改变托盘。
+  再与公开菜单匹配并比较利润。`observe.conveyor.market` 只增加五类精确当前倍率和本轮公开
+  信号：前九轮恰好两条、第十轮为零条；每条最多 240 字。未来准确倍率仍不公开。
+- 动作结果不得公开节点、位置、隐藏库存、候选菜、窗口最优菜、未来供应、未来倍率、生成 seed、
+  脚本 ID、draw index、在线基准或全知利润。无效或当前不可用的食材请求只返回公开失败状态，
+  不扣钱、不改变托盘。
 - 这些动作继续遵守 `observation_id` 新鲜度、每批最多三个动作、双端 DTO 验证、日志和
   断连安全退出约束。其他玩法必须拒绝它们。
 
-十分钟规则由十个连续的 60 秒窗口组成。游戏维护五套手写关卡，每套包含十个有序窗口；
-新一局随机选择一套，窗口顺序固定，只打乱每窗 16 个食材盘的位置。开发者验证必须确认每窗
-恰好有两道净利润不同的完整菜，并有且仅有一道利润更高、恰缺一份食材的指定诱饵；五套关卡
-各自至少包含两次由菜谱次数上限造成的低价选择压力。这些关卡结构、组 ID、诱饵、缺失食材、
-候选和窗口答案不得进入任何模型输入。
+十分钟规则由十个连续的 60 秒窗口组成。游戏维护五套手写市场脚本，每套包含十个有序窗口。
+每窗脚本保存三个候选菜、五类当前倍率、两条下一轮信号（最终窗为零条）和开发者在线推荐菜。
+供给生成器先合并三道候选的必需食材，再随机加入不会产生第四道菜的真实食材至 16 盘，并用
+独立随机源打乱盘位；有限重抽失败时只重复已验证安全的必需食材。开发者测试必须确认每窗恰好
+支持指定三道菜，并对多脚本、多 seed 均无死局或第四道菜。脚本内容、候选、推荐菜和生成验证
+数据不得进入任何模型输入。
+
+五类当前需求倍率只允许 `0.75/1.0/1.25/1.5`。食材成本固定，售价使用
+`floor(base_sale_price * multiplier + 0.5)`，菜单、实际结算、HUD 和测试共用同一公式。
+前九轮每轮公开两条明确类别与升降方向的自然语言信号；信号可能指向不同类别、同类强化或
+同类冲突，玩家从事件规模判断力度。briefing 只说明通用读法，不包含逐轮信号或脚本答案。
 
 每个窗口只有一次制作机会：合法且本局成功次数少于两次的组合获得售价并扣除成本；非法组合
 收入为零并扣除所选食材成本。第三次提交同一道合法菜返回 `recipe_limit_exceeded`，同样零收入、
@@ -376,10 +391,11 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 已完成”及剩余时间，人工模式到 60 秒边界再进入下一窗口。
 
 AI 模式的窗口时钟由 Godot 控制；controller 等待外部模型返回期间不推进经营倒计时，避免把
-API 延迟计入策略表现。人工模式仍按真实 Godot 时间运行。整局理论基准由动态规划计算：状态
-包含窗口索引和十道菜各自 0、1、2 次的成功次数，转移只能选择当前窗口完整且未达两次上限的
-菜。实际净利润达到全局理论最优的 80% 向上取整才成功。运行中不得公开单窗口最优答案、
-剩余次数、理论最高总利润或绝对通关金额。
+API 延迟计入策略表现。人工模式仍按真实 Godot 时间运行。终局基准是每套脚本显式审核的在线
+路线，只使用当前盘面/倍率、本轮对下一轮的公开信号和此前成功次数；通过金额为该路线利润的
+90% 向上取整。玩家可以超过 100% 基准效率。完整十轮动态规划只生成开发者
+`omniscient_profit` 对照指标，不决定胜负。运行中不得公开单窗口候选、推荐路线、剩余次数、
+在线基准利润、全知利润或绝对通关金额。
 
 ## find_contract 回合规则
 
@@ -674,4 +690,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md) 和 [`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。

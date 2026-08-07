@@ -107,6 +107,13 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 或 MCP stop 会让 supervisor 返回 `stopped` 并中止整次运行；桥断开、MCP shutdown、超时和
 无正式终局的提前退出只重试当前有效局次，不能计入任务成功率。
 
+修改 `conveyor_profit` 市场脚本、供给闭包、动态经济、观察白名单或轮换逻辑时，先生成 Godot
+导入缓存，再逐个运行 `tests/conveyor_profit/*.gd`；逐个进程执行可避免共享 `user://` 日志冲突。
+还要运行 `tests/conveyor_profit/test_protocol_parity.py` 和 `tests/test_ai_play_supervisor.py`。
+供给测试必须覆盖多脚本、多 seed 下每窗恰好 16 盘且候选闭包恰好为三道菜；轮换测试必须覆盖
+五个逻辑局不重复、基础设施重试复用索引。全知 DP 只允许作为开发指标，终局测试必须以 90%
+在线基准断言。
+
 黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时配置清理、空且隔离的玩家目录、
 确定性临时模型配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
 玩家/可信侧环境隔离、提示词不含游戏实现信息，
