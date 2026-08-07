@@ -828,7 +828,7 @@ func _test_interval_recapture_force_draws_after_render_timeout(
 		"type": "action_batch",
 		"protocol_version": 4,
 		"observation_id": 17,
-		"actions": [{"type": "look", "direction": "left", "degrees": 45.0}],
+		"actions": [{"type": "look", "yaw": -45.0, "pitch": 0.0}],
 	})
 	fixture.executor.batch_finished.emit([{"status": "completed", "type": "look"}])
 	fixture.timer.stop()
@@ -850,9 +850,9 @@ func _test_async_terminal_uses_completed_action_observation_id(controller_script
 		"type": "action_batch",
 		"protocol_version": 4,
 		"observation_id": 17,
-		"actions": [{"type": "press_key", "key": "space"}],
+		"actions": [{"type": "submit_floor"}],
 	})
-	var results: Array = [{"status": "completed", "type": "press_key"}]
+	var results: Array = [{"status": "completed", "type": "submit_floor"}]
 	fixture.executor.batch_finished.emit(results)
 	fixture.terminal_monitor.game_finished.emit(
 		"success",

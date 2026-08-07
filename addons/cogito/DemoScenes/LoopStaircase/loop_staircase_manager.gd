@@ -37,6 +37,25 @@ const LOBBY_COMPUTER_KEYBOARD_SCENE: String = "res://addons/cogito/DemoScenes/De
 const LOBBY_COMPUTER_MOUSE_SCENE: String = "res://addons/cogito/DemoScenes/DemoPrefabs/computer_mouse.tscn"
 const NAVIGATION_SCRIPT: String = "res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_navigation.gd"
 const BASIC_INTERACTION_SCENE: String = "res://addons/cogito/Components/Interactions/BasicInteraction.tscn"
+const CASE_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_case.gd"
+)
+const EVIDENCE_RENDERER_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_evidence_renderer.gd"
+)
+const ROOM_SCENES: Dictionary = {
+	2: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_2_lounge_window.tscn"),
+	3: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_3_lounge_reading.tscn"),
+	4: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_4_archive_paper.tscn"),
+	5: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_5_archive_digital.tscn"),
+	6: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_6_office_manager.tscn"),
+	7: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_7_office_open.tscn"),
+	8: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_8_meeting_round.tscn"),
+	9: preload("res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_9_meeting_boardroom.tscn"),
+}
+const INVESTIGATION_BOARD_SCRIPT: Script = preload(
+	"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_investigation_board.gd"
+)
 
 @export var scenario_id: String = SCENARIO_ID
 @export var round_seed: int = 0
@@ -59,6 +78,10 @@ var _stable_room_number_floors: Array[int] = []
 var _stable_furniture_floors: Array[int] = []
 var _scene_player_spawn_transform := Transform3D.IDENTITY
 var _has_scene_player_spawn_transform: bool = false
+var _case: RefCounted
+var _observed_by_round: Array[Dictionary] = []
+var _manual_candidates: Dictionary = {}
+var _evidence_renderer: RefCounted = EVIDENCE_RENDERER_SCRIPT.new()
 
 
 func _ready() -> void:
@@ -70,22 +93,15 @@ func _ready() -> void:
 
 
 func configure_round(seed_value: int = 0) -> void:
-	_rng = RandomNumberGenerator.new()
-	if seed_value == 0:
-		_rng.randomize()
-	else:
-		_rng.seed = seed_value
+	_case = CASE_SCRIPT.generate(seed_value)
 	current_loop = 0
 	_current_floor = FLOOR_MIN
 	_round_finished = false
-	_true_floor = _rng.randi_range(FLOOR_MIN, FLOOR_MAX)
-	_exit_symbol = SYMBOLS[_rng.randi_range(0, SYMBOLS.size() - 1)]
-	_clue_floors = _pick_distinct_floors(4)
-	_two_box_candidate_floors = _pick_two_box_candidate_floors()
-	_pick_stability_floors()
-	_generate_base_floors()
-	_generate_loop_states()
-	_generate_round_clues()
+	_true_floor = int(_case.get("true_floor"))
+	_observed_by_round.clear()
+	for round_index: int in range(TOTAL_LOOPS):
+		_observed_by_round.append({})
+	_manual_candidates.clear()
 
 
 func advance_loop() -> void:
@@ -103,7 +119,9 @@ func advance_loop_and_reset_player(body: Node3D) -> void:
 func reset_player_to_spawn(body: Node3D = null) -> void:
 	if body == null:
 		body = player
-	var spawn: Node3D = get_node_or_null("SpawnPoint")
+	var spawn: Node3D = get_node_or_null("CurrentFloorRoom/PlayerSpawn")
+	if spawn == null:
+		spawn = get_node_or_null("SpawnPoint")
 	if spawn != null and body != null:
 		body.global_transform = spawn.global_transform
 
@@ -125,8 +143,12 @@ func move_up() -> void:
 	if _round_finished:
 		return
 	if _current_floor >= FLOOR_MAX:
-		_current_floor = FLOOR_MIN
-		advance_loop()
+		if not get_missing_floor_labels().is_empty():
+			_update_floor_displays()
+			return
+		if current_loop < TOTAL_LOOPS - 1:
+			_current_floor = FLOOR_MIN
+			advance_loop()
 	else:
 		_current_floor += 1
 		_update_floor_displays()
@@ -148,7 +170,7 @@ func submit_current_floor() -> void:
 
 
 func select_floor(floor_number: int) -> void:
-	if _round_finished:
+	if _round_finished or not is_final_unlocked():
 		return
 	_round_finished = true
 	if floor_number == _true_floor:
@@ -157,17 +179,49 @@ func select_floor(floor_number: int) -> void:
 		game_finished.emit("failure", "wrong_floor_selected")
 
 
+func execute_semantic_action(action: Dictionary) -> Dictionary:
+	var action_type: String = str(action.get("type", ""))
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	match action_type:
+		"floor_up":
+			if board != null and board.visible:
+				return {"status": "error", "error": "floor navigation requires a closed board"}
+			move_up()
+		"floor_down":
+			if board != null and board.visible:
+				return {"status": "error", "error": "floor navigation requires a closed board"}
+			move_down()
+		"toggle_board":
+			if board == null:
+				return {"status": "error", "error": "investigation board is unavailable"}
+			board.visible = not board.visible
+			if board.visible:
+				board.set_clue_lines(get_visible_clue_lines())
+		"board_up":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.select_previous_floor()
+		"board_down":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.select_next_floor()
+		"toggle_mark":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.toggle_candidate()
+		"submit_floor":
+			if board != null and board.visible:
+				return {"status": "error", "error": "submit_floor requires a closed board"}
+			submit_current_floor()
+		_:
+			return {"status": "error", "error": "semantic action is not allowed"}
+	return {"status": "completed", "type": action_type}
+
+
 func get_floor_state(floor_number: int, loop_index: int = current_loop) -> Dictionary:
-	if not _base_floors.has(floor_number):
+	if _case == null or floor_number < FLOOR_MIN or floor_number > FLOOR_MAX:
 		return {}
-	var state: Dictionary = (_base_floors[floor_number] as Dictionary).duplicate(true)
-	var anomalies: Dictionary = _loop_states[clamp(loop_index, 0, TOTAL_LOOPS - 1)]["anomalies"]
-	if not anomalies.has(floor_number):
-		return state
-	var anomaly_list: Array = anomalies[floor_number]
-	for anomaly_type: String in anomaly_list:
-		_apply_anomaly(state, anomaly_type)
-	return state
+	return _case.visible_state(floor_number, loop_index)
 
 
 func _apply_anomaly(state: Dictionary, anomaly_type: String) -> void:
@@ -192,26 +246,13 @@ func _apply_anomaly(state: Dictionary, anomaly_type: String) -> void:
 
 
 func get_round_snapshot() -> Dictionary:
-	var floors: Array[Dictionary] = []
-	for floor_number: int in range(FLOOR_MIN, FLOOR_MAX + 1):
-		var final_state: Dictionary = get_floor_state(floor_number, TOTAL_LOOPS - 1)
-		final_state["is_solution"] = _is_solution_floor(final_state)
-		floors.append(final_state)
-	return {
-		"scenario_id": scenario_id,
-		"true_floor": _true_floor,
-		"exit_symbol": _exit_symbol,
-		"current_loop": current_loop,
-		"total_loops": TOTAL_LOOPS,
-		"clue_floors": _clue_floors.duplicate(),
-		"clues": _round_clues.duplicate(true),
-		"two_box_candidate_floors": _two_box_candidate_floors.duplicate(),
-		"stable_room_number_floors": _stable_room_number_floors.duplicate(),
-		"stable_furniture_floors": _stable_furniture_floors.duplicate(),
-		"distractor_fields": DISTRACTOR_FIELDS.duplicate(),
-		"floors": floors,
-		"loops": _loop_states.duplicate(true),
-	}
+	var snapshot: Dictionary = _case.test_snapshot()
+	snapshot["scenario_id"] = scenario_id
+	snapshot["current_loop"] = current_loop
+	snapshot["total_loops"] = TOTAL_LOOPS
+	snapshot["observed_by_round"] = _observed_by_round.duplicate(true)
+	snapshot["manual_candidates"] = _manual_candidates.duplicate(true)
+	return snapshot
 
 
 func ai_play_public_state() -> Dictionary:
@@ -228,9 +269,52 @@ func ai_play_public_state() -> Dictionary:
 
 
 func get_current_clue_text() -> String:
-	if _round_clues.is_empty():
+	if _case == null:
 		return ""
-	return _round_clues[clamp(current_loop, 0, _round_clues.size() - 1)]["text"]
+	var visible: Array[String] = _case.visible_clues(current_loop)
+	return visible[-1] if not visible.is_empty() else ""
+
+
+func get_visible_clue_lines() -> Array[String]:
+	var result: Array[String] = []
+	if _case == null:
+		return result
+	var visible: Array[String] = _case.visible_clues(current_loop)
+	for index: int in range(visible.size()):
+		var label: String = "本轮线索" if index == current_loop else _round_label(index)
+		result.append("%s：%s" % [label, visible[index]])
+	return result
+
+
+func get_missing_floor_labels() -> Array[String]:
+	var result: Array[String] = []
+	if _observed_by_round.is_empty():
+		return result
+	var observed: Dictionary = _observed_by_round[current_loop]
+	for floor_number: int in range(FLOOR_MIN, FLOOR_MAX + 1):
+		if not observed.has(floor_number):
+			result.append("%dF" % floor_number)
+	return result
+
+
+func mark_floor_observed(floor_number: int) -> void:
+	if floor_number < FLOOR_MIN or floor_number > FLOOR_MAX or _observed_by_round.is_empty():
+		return
+	_observed_by_round[current_loop][floor_number] = true
+
+
+func toggle_candidate(floor_number: int) -> void:
+	if floor_number < FLOOR_MIN or floor_number > FLOOR_MAX:
+		return
+	_manual_candidates[floor_number] = not _manual_candidates.get(floor_number, false)
+
+
+func is_candidate_marked(floor_number: int) -> bool:
+	return _manual_candidates.get(floor_number, false)
+
+
+func _round_label(round_index: int) -> String:
+	return ["第一轮线索", "第二轮线索", "第三轮线索", "第四轮线索", "第五轮线索"][round_index]
 
 
 func build_scene() -> void:
@@ -253,6 +337,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _round_finished:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
+		var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+		if event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB:
+			if board != null:
+				board.visible = not board.visible
+				if board.visible:
+					board.set_clue_lines(get_visible_clue_lines())
+			get_viewport().set_input_as_handled()
+			return
+		if board != null and board.visible:
+			if event.keycode == KEY_UP or event.physical_keycode == KEY_UP:
+				board.select_next_floor()
+			elif event.keycode == KEY_DOWN or event.physical_keycode == KEY_DOWN:
+				board.select_previous_floor()
+			elif event.keycode == KEY_SPACE or event.physical_keycode == KEY_SPACE:
+				board.toggle_candidate()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_UP or event.physical_keycode == KEY_UP:
 			move_up()
 		elif event.keycode == KEY_DOWN or event.physical_keycode == KEY_DOWN:
@@ -371,6 +472,56 @@ func _create_static_camera() -> void:
 
 
 func _create_current_floor_room() -> void:
+	var existing: Node = get_node_or_null("CurrentFloorRoom")
+	if existing != null:
+		remove_child(existing)
+		existing.free()
+	var room_scene: PackedScene = ROOM_SCENES.get(_current_floor)
+	if room_scene == null:
+		push_error("No authored loop staircase room for %dF" % _current_floor)
+		return
+	var room := room_scene.instantiate() as Node3D
+	if room == null:
+		push_error("Authored loop staircase room for %dF has an invalid root" % _current_floor)
+		return
+	room.name = "CurrentFloorRoom"
+	add_child(room)
+	_evidence_renderer.apply_state(room, get_floor_state(_current_floor))
+	_add_wall_wash_light(room)
+	var floor_sign := Label3D.new()
+	floor_sign.name = "FloorSign"
+	floor_sign.position = Vector3(1.55, 2.65, -2.4)
+	floor_sign.pixel_size = 0.009
+	floor_sign.font_size = 46
+	floor_sign.text = "%dF" % _current_floor
+	room.add_child(floor_sign)
+	var clue_label := Label3D.new()
+	clue_label.name = "ObservationLabel"
+	clue_label.position = Vector3(-0.2, 2.2, -2.42)
+	clue_label.pixel_size = 0.0037
+	clue_label.font_size = 34
+	clue_label.text = "\n".join(get_visible_clue_lines())
+	room.add_child(clue_label)
+	_add_navigation_marker(
+		room, "UpStairsTrigger", "up", Vector3(2.85, 0.55, -0.9),
+		"Go Up", "UP", Color(0.18, 0.48, 0.85)
+	)
+	_add_navigation_marker(
+		room, "DownStairsTrigger", "down", Vector3(2.85, 0.55, 1.1),
+		"Go Down", "DOWN", Color(0.26, 0.55, 0.32)
+	)
+	_add_navigation_marker(
+		room, "AnswerCurrentFloor", "answer", Vector3(0, 0.75, 1.95),
+		"Choose Current Floor", "CHOOSE", Color(0.7, 0.46, 0.16)
+	)
+	var answer := room.get_node("AnswerCurrentFloor") as Area3D
+	answer.visible = is_final_unlocked()
+	answer.monitoring = is_final_unlocked()
+	answer.collision_layer = 2 if is_final_unlocked() else 0
+	reset_player_to_spawn()
+
+
+func _create_legacy_current_floor_room() -> void:
 	var existing: Node = get_node_or_null("CurrentFloorRoom")
 	if existing != null:
 		remove_child(existing)
@@ -551,6 +702,17 @@ func _create_game_ui() -> void:
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 15)
 	status_margin.add_child(status)
+
+	var board := INVESTIGATION_BOARD_SCRIPT.new() as Control
+	board.name = "InvestigationBoard"
+	board.visible = false
+	ui.add_child(board)
+	board.set_clue_lines(get_visible_clue_lines())
+	board.candidate_changed.connect(_on_board_candidate_changed)
+
+
+func _on_board_candidate_changed(floor_number: int, marked: bool) -> void:
+	_manual_candidates[floor_number] = marked
 
 
 func _mug_position(state: Dictionary) -> Vector3:
@@ -1081,6 +1243,46 @@ func _add_wall_body(
 
 
 func _update_floor_displays() -> void:
+	if get_node_or_null("CurrentFloorRoom") == null:
+		return
+	_create_current_floor_room()
+	var status := get_node_or_null("GameUI/StatusPanel/Status") as Label
+	if status != null:
+		var missing: Array[String] = get_missing_floor_labels()
+		status.text = (
+			"当前楼层：%dF\n轮次：%d/%d\n%s"
+			% [
+				_current_floor,
+				current_loop + 1,
+				TOTAL_LOOPS,
+				("可提交最终楼层" if is_final_unlocked() else "未观察：%s" % "、".join(missing)),
+			]
+		)
+	_schedule_snapshot_capture()
+
+
+func _schedule_snapshot_capture() -> void:
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	if board == null or board.visible or not is_inside_tree():
+		return
+	call_deferred("_capture_snapshot_after_draw", _current_floor, current_loop)
+
+
+func _capture_snapshot_after_draw(floor_number: int, round_index: int) -> void:
+	await RenderingServer.frame_post_draw
+	if _round_finished or floor_number != _current_floor or round_index != current_loop:
+		return
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	if board == null or board.visible:
+		return
+	var image: Image = get_viewport().get_texture().get_image()
+	if image == null or image.is_empty():
+		return
+	board.record_snapshot(floor_number, round_index, image)
+	mark_floor_observed(floor_number)
+
+
+func _update_legacy_floor_displays() -> void:
 	if get_node_or_null("CurrentFloorRoom") == null:
 		return
 	_create_current_floor_room()

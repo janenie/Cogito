@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://ccus63ewt78sh"]
+
+[ext_resource type="PackedScene" uid="uid://bw6b55oidtifb" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://dde0446htvad5" path="res://addons/cogito/Assets/Models/Kenney/Furniture/GLTF format/tableRound.glb" id="2_table"]
+[ext_resource type="PackedScene" uid="uid://qxbx5yllijej" path="res://addons/cogito/DemoScenes/DemoPrefabs/chair_modern_frame_cushion.tscn" id="3_chair"]
+[ext_resource type="PackedScene" uid="uid://crehxwgpwoblf" path="res://addons/cogito/DemoScenes/DemoPrefabs/television_modern.tscn" id="4_tv"]
+[ext_resource type="PackedScene" uid="uid://c0mrdx8eegxuj" path="res://addons/cogito/DemoScenes/DemoPrefabs/rug_round.tscn" id="5_rug"]
+
+[node name="CurrentFloorRoom" unique_id=1290148976 instance=ExtResource("1_base")]
+metadata/theme_id = "meeting_round"
+metadata/room_type = "meeting"
+
+[node name="RoundMeetingTable" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="0" unique_id=2119128250 instance=ExtResource("2_table")]
+transform = Transform3D(1.25, 0, 0, 0, 1, 0, 0, 0, 1.25, -1.2514558, -0.0514549, 1.7902653)
+
+[node name="ChairNorth" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="1" unique_id=473477634 instance=ExtResource("3_chair")]
+transform = Transform3D(0.7851789, 0, 0.619269, 0, 1, 0, -0.619269, 0, 0.7851789, -1.5319655, 0, -0.16853046)
+
+[node name="ChairEast" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="2" unique_id=1058180824 instance=ExtResource("3_chair")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 1.256182, 0, 0.84257764)
+
+[node name="ChairWest" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="3" unique_id=1576556749 instance=ExtResource("3_chair")]
+transform = Transform3D(0.7694665, 0, -0.6386872, 0, 1, 0, 0.6386872, 0, 0.7694665, 0.9684046, 0, -0.7777359)
+
+[node name="ChairSouth" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="4" unique_id=815757864 instance=ExtResource("3_chair")]
+transform = Transform3D(-0.037393358, 0, 0.9993006, 0, 1, 0, -0.9993006, 0, -0.037393358, -1.9421837, 0, 0.78)
+
+[node name="MeetingDisplay" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="5" unique_id=700750491 instance=ExtResource("4_tv")]
+transform = Transform3D(0.996158, 0, -0.08757588, 0, 1, 0, 0.08757588, 0, 0.996158, -0.34392715, 0.033762574, -1.180489)
+
+[node name="MeetingRug" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="6" unique_id=233924177 instance=ExtResource("5_rug")]
+transform = Transform3D(-1.35, 0, -2.0384434e-07, 0, 1, 0, 2.0384434e-07, 0, -1.35, 0.8, 0.01, -0.45)
+
+[node name="Book1" parent="Evidence/ItemSlot/BookSlots" index="0"]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -1.5899202, -0.6256632, 1.6418967)
+
+[node name="Book2" parent="Evidence/ItemSlot/BookSlots" index="1"]
+transform = Transform3D(0.475328, 0, -0.066806, 0, 0.48, 0, 0.066806, 0, 0.475328, -0.90110725, -0.63134396, 1.3361712)
+
+[node name="Book3" parent="Evidence/ItemSlot/BookSlots" index="2"]
+transform = Transform3D(0.478174, 0, 0.041835, 0, 0.48, 0, -0.041835, 0, 0.478174, -1.0409858, -0.6338268, 1.8256197)
+
+[node name="Book4" parent="Evidence/ItemSlot/BookSlots" index="3"]
+transform = Transform3D(0.478831, 0, -0.033483, 0, 0.48, 0, 0.033483, 0, 0.478831, -1.6003656, -0.6258589, 1.1124771)
+
+[node name="Book5" parent="Evidence/ItemSlot/BookSlots" index="4"]
+transform = Transform3D(0.476422, 0, 0.058498, 0, 0.48, 0, -0.058498, 0, 0.476422, 0.55800825, -0.29979926, 1.642674)
+
+[node name="Book6" parent="Evidence/ItemSlot/BookSlots" index="5"]
+transform = Transform3D(0.47737, 0, -0.050172, 0, 0.48, 0, 0.050172, 0, 0.47737, 0.28406018, -0.30692828, -0.42781526)
+
+[node name="ItemLabel" parent="Evidence/ItemSlot" parent_id_path=PackedInt32Array(1514566062) index="2" unique_id=1355298514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1650356, -0.47820026, 1.8485634)
+
+[node name="Prop" parent="Evidence/Trash/PaperBallA" parent_id_path=PackedInt32Array(487968020) index="0" unique_id=1246953954]
+transform = Transform3D(1, 0, 0, 0, 0.72, 0, 0, 0, 0.86, 3.791573, -0.04984373, 2.2782073)
+
+[node name="Prop" parent="Evidence/Trash/CoffeeCup" parent_id_path=PackedInt32Array(299131652) index="0" unique_id=995815299]
+transform = Transform3D(0.6980406, 0, 0.17646334, 0, 0.72, 0, -0.17646334, 0, 0.6980406, 0.885151, 0.851885, -0.218148)
+
+[node name="Prop" parent="Evidence/Trash/PaperBallB" parent_id_path=PackedInt32Array(1942097237) index="0" unique_id=1973455438]
+transform = Transform3D(0.8, 0, 0, 0, 0.65, 0, 0, 0, 0.9, 0, -0.050248027, 0)
+
+[node name="Prop" parent="Evidence/Trash/SmallBox" parent_id_path=PackedInt32Array(907075777) index="0" unique_id=1141216536]
+transform = Transform3D(0.18, 0, 0, 0, 0.18, 0, 0, 0, 0.18, -4.35076, 7.07805e-08, 10.8832)
+
+[node name="Prop" parent="Evidence/Trash/LoosePages" parent_id_path=PackedInt32Array(668147046) index="0" unique_id=1572559552]
+transform = Transform3D(0.35, 0, 0, 0, 0.12, 0, 0, 0, 0.35, -6.05588, 1.22, 9.32646)

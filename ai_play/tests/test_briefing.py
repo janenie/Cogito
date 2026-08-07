@@ -383,11 +383,11 @@ def test_all_scenario_briefings_teach_look_based_spatial_estimation():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
         serialized_rules = "\n".join(briefing["rules"])
         assert "look" in serialized_rules
-        assert "direction" in serialized_rules
-        assert "degrees" in serialized_rules
-        assert "left、right、up、down" in serialized_rules
+        assert "yaw" in serialized_rules
+        assert "pitch" in serialized_rules
+        assert "-45 到 45" in serialized_rules
         assert "上一张截图" in serialized_rules
-        assert "不要填写 yaw、pitch 或正负号" in serialized_rules
+        assert "yaw 为负数时左转" in serialized_rules
         assert "测距" in serialized_rules
         assert "probe_interaction" in serialized_rules
         assert "避免碰撞" in serialized_rules
@@ -399,8 +399,7 @@ def test_all_scenario_briefings_forbid_cancelling_look_batches():
         serialized_rules = "\n".join(briefing["rules"])
         assert "批次结束后返回一张截图" in serialized_rules
         assert "每个批次只提交一个 look" in serialized_rules
-        assert "left 和 right" in serialized_rules
-        assert "up 和 down" in serialized_rules
+        assert "yaw、pitch 都为 0" in serialized_rules
         assert "互相抵消" in serialized_rules
 
 

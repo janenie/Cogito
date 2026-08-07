@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="StandardMaterial3D" id="PaperMaterial"]
+albedo_color = Color(0.78, 0.76, 0.68, 1)
+roughness = 0.95
+
+[sub_resource type="SphereMesh" id="PaperMesh"]
+material = SubResource("PaperMaterial")
+radius = 0.11
+height = 0.18
+radial_segments = 7
+rings = 4
+
+[node name="PaperBall" type="MeshInstance3D"]
+scale = Vector3(1.0, 0.72, 0.86)
+mesh = SubResource("PaperMesh")

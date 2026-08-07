@@ -42,8 +42,9 @@ ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
     "select_ingredient", "undo", "make",
-    "wait_next_window",
-    "press_key",
+    "wait_next_window", "front", "back", "left", "right",
+    "floor_up", "floor_down", "toggle_board", "board_up", "board_down",
+    "toggle_mark", "submit_floor",
 }
 CONVEYOR_INGREDIENT_IDS = {
     "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",

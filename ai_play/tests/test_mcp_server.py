@@ -252,18 +252,30 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
                 "undo",
                 "make",
                 "wait_next_window",
-                "press_key",
+                "front",
+                "back",
+                "left",
+                "right",
+                "floor_up",
+                "floor_down",
+                "toggle_board",
+                "board_up",
+                "board_down",
+                "toggle_mark",
+                "submit_floor",
             }
+            look = definitions["LookAction"]
+            assert set(look["properties"]) == {"type", "yaw", "pitch"}
+            assert look["properties"]["yaw"]["minimum"] == -45
+            assert look["properties"]["yaw"]["maximum"] == 45
             move = definitions["MoveAction"]
             assert move["additionalProperties"] is False
             assert move["properties"]["forward"]["minimum"] == -1
             assert move["properties"]["forward"]["maximum"] == 1
             assert move["properties"]["duration_ms"]["minimum"] == 50
             assert move["properties"]["duration_ms"]["maximum"] == 250
-            press_key = definitions["PressKeyAction"]
-            assert set(press_key["properties"]["key"]["enum"]) == {
-                "up", "down", "space",
-            }
+            front = definitions["FrontAction"]
+            assert set(front["properties"]["step"]["enum"]) == {"small", "large"}
             select_ingredient = definitions["SelectIngredientAction"]
             assert set(select_ingredient["properties"]["ingredient"]["enum"]) == {
                 "lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom",

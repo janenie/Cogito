@@ -145,8 +145,12 @@ def test_probe_result_accepts_completed_outcome(outcome):
     assert validate_action_results(results) == results
 
 
-def test_press_key_result_accepts_completed_action_type():
-    results = [{"status": "completed", "type": "press_key"}]
+@pytest.mark.parametrize("action_type", [
+    "front", "back", "left", "right", "floor_up", "floor_down",
+    "toggle_board", "board_up", "board_down", "toggle_mark", "submit_floor",
+])
+def test_loop_semantic_result_accepts_completed_action_type(action_type):
+    results = [{"status": "completed", "type": action_type}]
 
     assert validate_action_results(results) == results
 

@@ -7,7 +7,7 @@ from ai_play.action_schema import ActionValidationError, validate_action_batch
 
 def test_validate_action_batch_accepts_current_safe_actions():
     actions = [
-        {"type": "look", "direction": "left", "degrees": 5},
+        {"type": "look", "yaw": -5, "pitch": 0},
         {"type": "move", "forward": 1, "right": 0, "duration_ms": 100},
         {"type": "interact", "action": "interact"},
     ]
@@ -15,11 +15,11 @@ def test_validate_action_batch_accepts_current_safe_actions():
     assert validate_action_batch(actions, {"interact"}, False) == actions
 
 
-def test_validate_action_batch_accepts_loop_staircase_key_presses():
+def test_validate_action_batch_accepts_loop_staircase_semantic_actions():
     actions = [
-        {"type": "press_key", "key": "up"},
-        {"type": "press_key", "key": "down"},
-        {"type": "press_key", "key": "space"},
+        {"type": "front", "step": "small"},
+        {"type": "left", "step": "large"},
+        {"type": "floor_up"},
     ]
 
     assert validate_action_batch(
@@ -28,12 +28,48 @@ def test_validate_action_batch_accepts_loop_staircase_key_presses():
         False,
         scenario_id="loop_staircase_anomaly",
     ) == actions
+    board_actions = [
+        {"type": "board_down"},
+        {"type": "toggle_mark"},
+    ]
+    assert validate_action_batch(
+        board_actions,
+        set(),
+        False,
+        scenario_id="loop_staircase_anomaly",
+    ) == board_actions
+    assert validate_action_batch(
+        [{"type": "toggle_board"}],
+        set(),
+        False,
+        scenario_id="loop_staircase_anomaly",
+    ) == [{"type": "toggle_board"}]
+    assert validate_action_batch(
+        [{"type": "floor_down"}, {"type": "submit_floor"}],
+        set(),
+        False,
+        scenario_id="loop_staircase_anomaly",
+    ) == [{"type": "floor_down"}, {"type": "submit_floor"}]
 
 
-def test_validate_action_batch_rejects_key_presses_outside_loop_staircase():
+@pytest.mark.parametrize(
+    "action",
+    [
+        {"type": "back", "step": "small"},
+        {"type": "right", "step": "large"},
+        {"type": "floor_up"},
+        {"type": "floor_down"},
+        {"type": "toggle_board"},
+        {"type": "board_up"},
+        {"type": "board_down"},
+        {"type": "toggle_mark"},
+        {"type": "submit_floor"},
+    ],
+)
+def test_validate_action_batch_rejects_loop_actions_outside_loop_staircase(action):
     with pytest.raises(ActionValidationError, match="not allowed for this scenario"):
         validate_action_batch(
-            [{"type": "press_key", "key": "up"}],
+            [action],
             set(),
             False,
             scenario_id="find_contract",
@@ -55,7 +91,7 @@ def test_validate_action_batch_rejects_unavailable_interaction():
         [{"type": "wait", "duration_ms": 50}] * 4,
         [{"type": "made_up"}],
         [{"type": "stop"}],
-        [{"type": "look", "direction": "left"}],
+        [{"type": "look", "yaw": 5}],
         [{"type": "move", "forward": 0, "right": 0, "duration_ms": 100, "extra": 1}],
     ],
 )
@@ -67,18 +103,19 @@ def test_validate_action_batch_rejects_invalid_shape(actions):
 @pytest.mark.parametrize(
     "action",
     [
-        {"type": "look", "yaw": -15, "pitch": 0},
+        {"type": "look", "yaw": -45.1, "pitch": 0},
+        {"type": "look", "yaw": 0, "pitch": 45.1},
+        {"type": "look", "yaw": math.inf, "pitch": 0},
         {"type": "look", "direction": "north", "degrees": 10},
-        {"type": "look", "direction": "left", "degrees": 0},
-        {"type": "look", "direction": "left", "degrees": 45.1},
-        {"type": "look", "direction": "left", "degrees": math.inf},
         {"type": "move", "forward": -1.1, "right": 0, "duration_ms": 50},
         {"type": "move", "forward": 0, "right": 0, "duration_ms": 251},
         {"type": "sprint", "forward": 0, "right": 0, "duration_ms": 251},
-        {"type": "look", "direction": "left", "degrees": True},
+        {"type": "look", "yaw": True, "pitch": 0},
         {"type": "enter_digits", "digits": "12A"},
         {"type": "press_key", "key": "escape"},
         {"type": "press_key", "key": 1},
+        {"type": "front", "step": "medium"},
+        {"type": "back", "step": 80},
     ],
 )
 def test_validate_action_batch_rejects_unsafe_action_values(action):
@@ -86,15 +123,21 @@ def test_validate_action_batch_rejects_unsafe_action_values(action):
         validate_action_batch([action], {"interact"}, False)
 
 
-@pytest.mark.parametrize("direction", ["left", "right", "up", "down"])
-@pytest.mark.parametrize("degrees", [1, 45])
-def test_validate_action_batch_accepts_semantic_look_directions(
-    direction,
-    degrees,
-):
-    action = {"type": "look", "direction": direction, "degrees": degrees}
+@pytest.mark.parametrize(("yaw", "pitch"), [(-45, 0), (45, 0), (0, -45), (0, 45)])
+def test_validate_action_batch_accepts_bounded_look_axes(yaw, pitch):
+    action = {"type": "look", "yaw": yaw, "pitch": pitch}
 
     assert validate_action_batch([action], set(), False) == [action]
+
+
+def test_validate_action_batch_rejects_legacy_loop_key_press():
+    with pytest.raises(ActionValidationError, match="not allowed"):
+        validate_action_batch(
+            [{"type": "press_key", "key": "up"}],
+            set(),
+            False,
+            scenario_id="loop_staircase_anomaly",
+        )
 
 
 @pytest.mark.parametrize(

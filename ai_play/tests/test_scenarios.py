@@ -52,15 +52,40 @@ def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
         load_scenario_briefing("unknown")
 
 
-def test_loop_staircase_briefing_exposes_key_controls_without_walk_hint():
+def test_loop_staircase_briefing_exposes_distinct_semantic_controls():
     briefing, _image_bytes = load_scenario_briefing("loop_staircase_anomaly")
     text = " ".join(briefing["rules"])
 
-    assert "press_key" in text
-    assert '"up"' in text
-    assert '"down"' in text
-    assert '"space"' in text
-    assert "move 和 sprint" not in text
+    assert "press_key" not in text
+    assert '"front"' in text
+    assert '"back"' in text
+    assert '"left"' in text
+    assert '"right"' in text
+    assert '"floor_up"' in text
+    assert '"floor_down"' in text
+    assert '"toggle_board"' in text
+    assert '"board_up"' in text
+    assert '"board_down"' in text
+    assert '"toggle_mark"' in text
+    assert '"submit_floor"' in text
+    assert "调查板" in text
+    assert "small" in text
+    assert "large" in text
+
+
+def test_loop_staircase_briefing_recommends_scanning_room_blind_spots():
+    briefing, _image_bytes = load_scenario_briefing("loop_staircase_anomaly")
+    exploration_rules = [
+        rule for rule in briefing["rules"] if "视野盲区" in rule
+    ]
+
+    assert len(exploration_rules) == 1
+    rule = exploration_rules[0]
+    assert rule.startswith("推荐")
+    assert "look" in rule
+    assert "前、后、左、右" in rule
+    assert "单张初始截图可能无法覆盖" in rule
+    assert "必须" not in rule
 
 
 def test_scenario_request_limits_are_hard_caps():
@@ -327,16 +352,27 @@ def test_loop_staircase_anomaly_loads_public_briefing():
     briefing, image_bytes = load_scenario_briefing("loop_staircase_anomaly")
 
     assert briefing["game_id"] == "loop_staircase_anomaly"
-    assert briefing["success_condition"] == "选择唯一满足五条累计线索的楼层。"
+    assert briefing["success_condition"] == "第五轮选择唯一满足完整累计证据链的楼层。"
     serialized = str(briefing)
     assert "exactly two boxes" not in serialized.lower()
-    assert "五轮观察" in serialized
+    assert "五轮" in serialized
     assert "2F 到 9F" in serialized
-    assert "候选集合" in serialized
-    assert "线索顺序可能变化" in serialized
+    assert "调查板" in serialized
+    assert "跨轮" in serialized or "逐轮" in serialized
     assert "target symbol" not in serialized.lower()
     for symbol in ("circle", "triangle", "square", "star"):
         assert symbol not in serialized.lower()
+    for secret in (
+        "受害者姓名",
+        "清洁员",
+        "垃圾",
+        "ABAB",
+        "红蓝红蓝",
+        "访客时间",
+        "8 → 6 → 5 → 3 → 2 → 1",
+        "凶案楼层",
+    ):
+        assert secret not in serialized
     assert image_bytes is None
 
 

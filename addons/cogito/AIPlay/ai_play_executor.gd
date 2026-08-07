@@ -4,7 +4,7 @@ extends Node
 signal batch_finished(results: Array)
 
 const ACTION_FIELDS: Dictionary = {
-	"look": ["type", "direction", "degrees"],
+	"look": ["type", "yaw", "pitch"],
 	"move": ["type", "forward", "right", "duration_ms"],
 	"sprint": ["type", "forward", "right", "duration_ms"],
 	"jump": ["type"],
@@ -19,7 +19,17 @@ const ACTION_FIELDS: Dictionary = {
 	"undo": ["type"],
 	"make": ["type"],
 	"wait_next_window": ["type"],
-	"press_key": ["type", "key"],
+	"front": ["type", "step"],
+	"back": ["type", "step"],
+	"left": ["type", "step"],
+	"right": ["type", "step"],
+	"floor_up": ["type"],
+	"floor_down": ["type"],
+	"toggle_board": ["type"],
+	"board_up": ["type"],
+	"board_down": ["type"],
+	"toggle_mark": ["type"],
+	"submit_floor": ["type"],
 }
 const CONVEYOR_ACTIONS: Array[String] = [
 	"select_ingredient", "undo", "make", "wait_next_window",
@@ -28,17 +38,16 @@ const CONVEYOR_INGREDIENT_IDS: Array[String] = [
 	"lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom", "onion", "pumpkin",
 	"bread", "meat", "egg", "cheese", "bacon", "broccoli", "corn", "fish",
 ]
+const LOOP_STAIRCASE_ACTIONS: Array[String] = [
+	"front", "back", "left", "right", "floor_up", "floor_down", "toggle_board", "board_up",
+	"board_down", "toggle_mark", "submit_floor",
+]
+const LOOP_STEP_DURATION_MS: Dictionary = {"small": 80.0, "large": 180.0}
 const HELD_INPUTS: Array[String] = ["forward", "back", "left", "right", "sprint"]
 const SYNTHETIC_DEVICE_ID: int = 0x7ffffffe
 const MIN_BLOCKED_DISTANCE_THRESHOLD: float = 0.01
-const LOOK_DIRECTIONS: Array[String] = ["left", "right", "up", "down"]
 const LOOK_MAX_DEGREES: float = 45.0
 const MOVE_MAX_DURATION_MS: float = 250.0
-const PRESS_KEYCODES: Dictionary = {
-	"up": KEY_UP,
-	"down": KEY_DOWN,
-	"space": KEY_SPACE,
-}
 
 @export var player: Node3D
 @export_range(0.01, 10.0, 0.01) var blocked_distance_threshold: float = 0.05
@@ -69,19 +78,21 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 		return _invalid("action has invalid fields")
 	if action_type in CONVEYOR_ACTIONS and active_scenario_id != "conveyor_profit":
 		return _invalid("action is not allowed for this scenario")
-	if action_type == "press_key" and active_scenario_id != "loop_staircase_anomaly":
+	if action_type in LOOP_STAIRCASE_ACTIONS and active_scenario_id != "loop_staircase_anomaly":
 		return _invalid("action is not allowed for this scenario")
 
 	match action_type:
 		"look":
-			var direction: Variant = action_dictionary["direction"]
-			if not direction is String or direction not in LOOK_DIRECTIONS:
-				return _invalid("look direction is not allowed")
-			var error: String = _number_error(
-				action_dictionary["degrees"], 1.0, LOOK_MAX_DEGREES, "degrees"
-			)
-			if not error.is_empty():
-				return _invalid(error)
+			for field: String in ["yaw", "pitch"]:
+				var error: String = _number_error(
+					action_dictionary[field], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, field
+				)
+				if not error.is_empty():
+					return _invalid(error)
+		"front", "back", "left", "right":
+			var step: Variant = action_dictionary["step"]
+			if not step is String or not LOOP_STEP_DURATION_MS.has(step):
+				return _invalid("step must be small or large")
 		"move", "sprint":
 			for field: String in ["forward", "right"]:
 				var error: String = _number_error(action_dictionary[field], -1.0, 1.0, field)
@@ -127,10 +138,6 @@ func validate_action(action: Variant, context: Dictionary) -> Dictionary:
 			var ingredient: Variant = action_dictionary["ingredient"]
 			if not ingredient is String or ingredient not in CONVEYOR_INGREDIENT_IDS:
 				return _invalid("ingredient is not allowed")
-		"press_key":
-			var key: Variant = action_dictionary["key"]
-			if not key is String or not PRESS_KEYCODES.has(key):
-				return _invalid("press_key key is not allowed")
 
 	return {"valid": true}
 
@@ -147,7 +154,10 @@ func validate_batch(actions: Variant, context: Dictionary) -> Dictionary:
 		if actions[index]["type"] == "wait_next_window" and actions.size() != 1:
 			return _invalid("wait_next_window must be the only action")
 		if (
-			actions[index]["type"] in ["stop", "interact", "enter_digits", "close_ui", "make"]
+			actions[index]["type"] in [
+				"stop", "interact", "enter_digits", "close_ui", "make", "toggle_board",
+				"submit_floor",
+			]
 			and index != actions.size() - 1
 		):
 			return _invalid("context-changing action must be last")
@@ -192,9 +202,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 	var action_type: String = action["type"]
 	match action_type:
 		"look":
-			var look_delta := _semantic_look_delta(
-				action["direction"], float(action["degrees"])
-			)
+			var look_delta := _look_action_delta(action)
 			if player != null and player.has_method("ai_play_look_degrees"):
 				player.ai_play_look_degrees(look_delta.x, look_delta.y)
 			else:
@@ -234,6 +242,21 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 					< _effective_blocked_distance_threshold(requested_strength)
 				):
 					return {"status": "blocked", "type": action_type}
+		"front", "back", "left", "right":
+			var movement_axes := _loop_movement_axes(action_type)
+			var start_position := Vector2.ZERO
+			if player != null:
+				start_position = Vector2(player.global_position.x, player.global_position.z)
+			_press_axis("forward", "back", movement_axes.x)
+			_press_axis("right", "left", movement_axes.y)
+			await get_tree().create_timer(_loop_step_duration_ms(action["step"]) / 1000.0).timeout
+			if generation != _cancel_generation:
+				return {"status": "cancelled"}
+			_release_held_actions()
+			if player != null:
+				var end_position := Vector2(player.global_position.x, player.global_position.z)
+				if start_position.distance_to(end_position) < _effective_blocked_distance_threshold():
+					return {"status": "blocked", "type": action_type}
 		"jump", "crouch":
 			_emit_action_pair(action_type)
 		"interact":
@@ -265,27 +288,35 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"stop":
 			_release_held_actions()
 			return {"status": "stopped", "type": "stop"}
-		"select_ingredient", "undo", "make", "wait_next_window":
+		"select_ingredient", "undo", "make", "wait_next_window", \
+		"floor_up", "floor_down", "toggle_board", "board_up", "board_down", \
+		"toggle_mark", "submit_floor":
 			if semantic_action_provider == null:
 				return {"status": "error", "error": "semantic action provider is unavailable"}
 			return semantic_action_provider.execute_semantic_action(action)
-		"press_key":
-			_emit_key_pair(PRESS_KEYCODES[action["key"]])
 		_:
 			return {"status": "error", "error": "action type is not allowed"}
 	return {"status": "completed", "type": action_type}
 
 
-func _semantic_look_delta(direction: String, degrees: float) -> Vector2:
+func _look_action_delta(action: Dictionary) -> Vector2:
+	return Vector2(float(action["yaw"]), -float(action["pitch"]))
+
+
+func _loop_step_duration_ms(step: String) -> float:
+	return float(LOOP_STEP_DURATION_MS.get(step, 0.0))
+
+
+func _loop_movement_axes(direction: String) -> Vector2:
 	match direction:
+		"front":
+			return Vector2(1.0, 0.0)
+		"back":
+			return Vector2(-1.0, 0.0)
 		"left":
-			return Vector2(-degrees, 0.0)
+			return Vector2(0.0, -1.0)
 		"right":
-			return Vector2(degrees, 0.0)
-		"up":
-			return Vector2(0.0, -degrees)
-		"down":
-			return Vector2(0.0, degrees)
+			return Vector2(0.0, 1.0)
 	return Vector2.ZERO
 
 

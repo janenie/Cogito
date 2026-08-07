@@ -397,10 +397,14 @@ MCP 结果、玩家提示或轨迹日志。
 Godot 暂停窗口时钟。十个窗口结束时，达到隐藏理论最高利润的 80% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
-`loop_staircase_anomaly` 是循环楼梯异常任务。玩家在 2F 到 9F 之间用 Up/Down 切换楼层，
-经过五轮观察后用 Space 选择当前楼层。每轮只有截图中的一条新线索，线索顺序每局变化；
-玩家必须累积线索维护候选集合。成功产生 `success/correct_floor_selected`，选错产生
-`failure/wrong_floor_selected`。
+`loop_staircase_anomaly` 是五轮累计证据调查任务。真人玩家在 2F 到 9F 之间用 Up/Down
+切换楼层，每轮收齐八个房间的截图后才能推进；每轮只新增一条可见线索，旧线索继续保留。
+部分证据位于不同墙面和初始视野盲区，briefing 推荐 AI 进入每层后用 `look(yaw,pitch)`
+环顾，并用 `front/back/left/right` 的小步或普通步绕开遮挡；单张初始截图可能无法覆盖
+该楼层的全部证据。
+Tab 打开调查板后，Up/Down 选择楼层行，Space 只切换玩家自己的候选标记；调查板不自动
+比较、计数或判断正误。第五轮关闭调查板后，Space 提交当前楼层。成功产生
+`success/correct_floor_selected`，选错产生 `failure/wrong_floor_selected`。
 
 `laboratory_experiment` 是随机实验回路任务。玩家读取 HUD 上的目标、环境和公开条件，
 搬运并安装电池、样本、处理模块和金属棒，再根据公开测量反馈调整组合。只有完整配置才
@@ -424,7 +428,7 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `observe()`：等待并返回最新获准观察和截图；第一人称 3D 玩法还返回当前画面的深度图。通常只在
   `briefing` 后调用一次；已有观察会立即返回，未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。
-  工具声明使用十五种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
+  工具声明使用二十五种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
   `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
   不要再调用 `observe` 获取同一帧。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid, failure_review=null)`：在可信
@@ -433,10 +437,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 
 动作批次使用现有安全白名单：
 
-- `look`：只接受 `{"type":"look","direction":"left|right|up|down","degrees":1..45}`；
-  `degrees` 是有限、非布尔的正数。调用方不填写 `yaw`、`pitch` 或正负号；30～45 度适合
-  扫视房间，5～15 度适合微调准星。一次动作只改变一个方向轴；Godot 映射会抵消玩家的
-  垂直轴反转设置，因此语义 `up` / `down` 始终与最终画面方向一致。
+- `look`：只接受 `{"type":"look","yaw":-45..45,"pitch":-45..45}`；两个轴都必须是
+  有限、非布尔数。`yaw` 负数左转、正数右转；`pitch` 负数向下、正数向上。30～45 度适合
+  扫视房间，5～15 度适合微调准星。Godot 映射会抵消玩家的垂直轴反转设置。
 - `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
   `forward` 与 `right` 组成的输入向量长度会保留为实际移动力度（上限为 1）；单轴绝对值 1
   是满强度，0.2～0.4 适合精细对位。`duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move`
@@ -454,8 +457,10 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
   已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
   `undo` 恢复。四种动作均不得在其他玩法使用。
-- `loop_staircase_anomaly` 额外允许 `press_key`，且 `key` 只能是 `up`、`down` 或
-  `space`；其他玩法必须拒绝该动作。
+- `loop_staircase_anomaly` 额外允许 `front/back/left/right`，其 `step` 只能是映射为
+  80ms 的 `small` 或映射为 180ms 的 `large`；`floor_up/floor_down` 只切换楼层；
+  `toggle_board`、`board_up/board_down`、`toggle_mark` 只操作调查板；`submit_floor`
+  只提交当前楼层。其他玩法必须拒绝这十一种动作，旧 `press_key` 不再公开。
 
 Python 会先校验批次，Godot 会再次校验。Godot 在可信边界把语义方向映射为内部相机轴；
 上下文变化动作必须是批次最后一个动作，非法批次不会产生 Godot 输入。AI 控制启用期间，

@@ -85,13 +85,16 @@ Godot 桥的安全边界。
   `briefing`、`observe`、MCP `stop()` 和工作流记忆工具不计数。第 N 次请求先按正常规则
   处理，合法玩法终局优先，否则返回
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
-- Godot 执行器必须在可信边界把语义 `look` 映射为内部相机轴，使用 COGITO 的常规输入并用
+- Godot 执行器必须在可信边界把带符号的 `look(yaw,pitch)` 映射为内部相机轴，两个轴均限制
+  在 `-45..45` 度；yaw 负数左转、正数右转，pitch 负数向下、正数向上。执行器使用 COGITO 的常规输入并用
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
-  不受过滤；垂直映射必须抵消玩家的反转轴设置，使 `up` / `down` 与最终画面一致。停用、错误、
+  不受过滤；垂直映射必须抵消玩家的反转轴设置，使 pitch 符号与最终画面方向一致。停用、错误、
   终局和节点销毁路径必须恢复普通鼠标控制并释放持续按下的移动输入。
-- `press_key` 只允许精确的 `up`、`down`、`space`，且 Python 与 Godot 都必须在
-  `loop_staircase_anomaly` 之外拒绝它；传送带四种语义动作也必须继续只对
-  `conveyor_profit` 开放。
+- `loop_staircase_anomaly` 的房间移动使用 `front/back/left/right(step)`，其中 `small`
+  固定映射为 80ms、`large` 固定映射为 180ms；楼层使用 `floor_up/floor_down`；调查板使用
+  `toggle_board`、`board_up/board_down`、`toggle_mark`，最终提交使用 `submit_floor`。
+  Python 与 Godot 都必须在其他场景拒绝这十一种语义动作，旧 `press_key` 不再公开；
+  传送带四种语义动作继续只对 `conveyor_profit` 开放。
 - 所有动作的后续 observation（包括普通 interval、即时和恢复捕获）都必须在 Godot 内部先留出
   一个完整输入/处理帧，再等待最多 1 秒的 `RenderingServer.frame_post_draw` 后捕获截图；后台窗口
   没有产生信号时，必须在主线程调用 `RenderingServer.force_draw(false)` 重绘当前 Viewport，而不是
@@ -614,6 +617,8 @@ godot --path . garden/scenes/garden_vertical_slice.tscn \
 
 ## loop_staircase_anomaly 回合规则
 
+> 设计来源见 [五轮凶案推理 spec](../../scope/2026-08-07-loop-staircase-murder-case/spec-loop-staircase-murder-case.md)。
+
 普通游玩与 AI 游玩分别使用同一独立场景；只有后者增加精确的 `--ai-play`：
 
 ```bash
@@ -624,10 +629,29 @@ godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tsc
   -- --ai-play --ai-play-scenario=loop_staircase_anomaly
 ```
 
-- 玩家用 Up/Down 在 2F 到 9F 之间切换状态，第五轮观察后用 Space 选择当前楼层。
-- 每轮只有截图中的一条新线索，顺序每局变化；第五轮才把累积候选缩小到唯一出口。
-- 结构化公开状态只包含当前楼层、当前轮次和终局布尔值。线索文字、家具变化、随机种子、
-  答案楼层和完整楼层表不得进入结构化观察、briefing 或其他模型输入。
+- 2F–3F 是休息区，4F–5F 是档案室，6F–7F 是办公室，8F–9F 是会议室；同功能楼层
+  保留明显不同的布局和陈设，作为配对比较与干扰项。八层分别由独立的 authored room
+  场景承载，主要复用 `COGITO_3_Lobby.tscn` 已使用的沙发、桌椅、书柜、电脑、电视、绿植
+  等 prefab；切换楼层时实例化对应场景并把玩家重置到该房间的固定出生点。
+- 所有楼层使用一致的证据语义位置：访客记录固定在左墙，彩色状态壁灯固定在右墙，普通
+  物品放在桌面锚点，垃圾位于地面角落。出生视角不能同时看全两侧墙面证据，玩家必须转头
+  环顾，但不会因随机摆放而误判跨轮次规律。
+- 状态灯复用 Lobby 的 `lampWall.glb` 并由真实灯光节点表现颜色。垃圾由六个固定槽位组成，
+  混合饮料罐、纸团、杯子、小纸箱和散页等外观；每轮只切换固定槽位的显隐来表现数量减少。
+  房间家具、桌面线索和垃圾中的刚体及交互区域在运行时冻结，玩家不能移动证据改变案发曲线。
+- 案件由种子确定，五轮候选依次收敛为 `8 → 6 → 5 → 3 → 2 → 1`。每轮只公开一条
+  新线索，同时保留并标注此前线索；未来轮次线索不得提前出现。
+- 第一轮按遇害者姓名筛选访客记录；第二轮比较杯子、书、台灯、电脑、沙发、电视、箱子等
+  日常陈设变化，不使用显眼的作案物品；第三轮根据“清洁员每次只带走一件垃圾”识别跨轮次
+  严格减一的房间；第四轮从多色状态灯历史中识别严格的双色 `ABAB`；第五轮再公开时间关系，
+  只有把访客时间、同功能楼层之间的物品转移、垃圾阶段和灯光相位对齐，才能确定凶案楼层。
+- Tab 打开调查板；板内 Up/Down 选择楼层，Space 只切换玩家自己的候选标记。调查板保存
+  楼层与轮次截图，但不自动比较、计数或判定标记；收齐八个楼层的本轮截图后才能推进。
+  调查板关闭时 Up/Down 切换楼层，只有第五轮的 Space 才提交最终答案。
+- AI 接口不得把房间前后左右移动、楼层上下切换与调查板上下选行复用成同一按键动作；
+  结构化公开状态只包含当前楼层、当前轮次和终局
+  布尔值；线索文字、截图内容、陈设变化、候选集合、随机种子、答案楼层和完整楼层表不得
+  进入结构化观察、briefing 或其他模型输入。成功、失败与 160 次动作上限沿用既有终局契约。
 
 ## laboratory_experiment 回合规则
 

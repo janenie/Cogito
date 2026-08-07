@@ -15,13 +15,16 @@ class _StrictToolInput(BaseModel):
 
 
 class LookAction(_StrictToolInput):
-    """Turn one semantic camera axis by a positive number of degrees."""
+    """Turn the camera by signed yaw and pitch degrees."""
 
     type: Literal["look"]
-    direction: Literal["left", "right", "up", "down"]
-    degrees: Annotated[
+    yaw: Annotated[
         float,
-        Field(ge=1, le=45, description="Positive semantic turn amount."),
+        Field(ge=-45, le=45, description="Negative left, positive right."),
+    ]
+    pitch: Annotated[
+        float,
+        Field(ge=-45, le=45, description="Negative down, positive up."),
     ]
 
 
@@ -141,11 +144,52 @@ class WaitNextWindowAction(_StrictToolInput):
     type: Literal["wait_next_window"]
 
 
-class PressKeyAction(_StrictToolInput):
-    """Press one allowlisted key in the loop-staircase scenario."""
+class FrontAction(_StrictToolInput):
+    type: Literal["front"]
+    step: Literal["small", "large"]
 
-    type: Literal["press_key"]
-    key: Literal["up", "down", "space"]
+
+class BackAction(_StrictToolInput):
+    type: Literal["back"]
+    step: Literal["small", "large"]
+
+
+class LeftAction(_StrictToolInput):
+    type: Literal["left"]
+    step: Literal["small", "large"]
+
+
+class RightAction(_StrictToolInput):
+    type: Literal["right"]
+    step: Literal["small", "large"]
+
+
+class FloorUpAction(_StrictToolInput):
+    type: Literal["floor_up"]
+
+
+class FloorDownAction(_StrictToolInput):
+    type: Literal["floor_down"]
+
+
+class ToggleBoardAction(_StrictToolInput):
+    type: Literal["toggle_board"]
+
+
+class BoardUpAction(_StrictToolInput):
+    type: Literal["board_up"]
+
+
+class BoardDownAction(_StrictToolInput):
+    type: Literal["board_down"]
+
+
+class ToggleMarkAction(_StrictToolInput):
+    type: Literal["toggle_mark"]
+
+
+class SubmitFloorAction(_StrictToolInput):
+    type: Literal["submit_floor"]
 
 
 ActionInput = Union[
@@ -163,7 +207,17 @@ ActionInput = Union[
     UndoAction,
     MakeAction,
     WaitNextWindowAction,
-    PressKeyAction,
+    FrontAction,
+    BackAction,
+    LeftAction,
+    RightAction,
+    FloorUpAction,
+    FloorDownAction,
+    ToggleBoardAction,
+    BoardUpAction,
+    BoardDownAction,
+    ToggleMarkAction,
+    SubmitFloorAction,
 ]
 ActionBatchInput = SkipValidation[
     Annotated[
