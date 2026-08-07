@@ -1,6 +1,7 @@
 extends SceneTree
 
 const EXPECTED_CANDIDATE_COUNTS: Array[int] = [6, 4, 3, 2, 1]
+const EXPECTED_MURDER_CANDIDATE_COUNTS: Array[int] = [8, 6, 5, 3, 2, 1]
 
 var _failures: Array[String] = []
 
@@ -10,6 +11,28 @@ func _initialize() -> void:
 
 
 func _run_test() -> void:
+	var case_script_path := (
+		"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_case.gd"
+	)
+	_assert(
+		ResourceLoader.exists(case_script_path),
+		"Loop staircase murder case model script exists",
+	)
+	if not ResourceLoader.exists(case_script_path):
+		_finish()
+		return
+	var case_script: Script = load(case_script_path)
+	_assert(case_script != null, "Loop staircase murder case model script loads")
+	_assert(
+		case_script != null and case_script.can_instantiate(),
+		"Loop staircase murder case model script compiles",
+	)
+	if case_script == null or not case_script.can_instantiate():
+		_finish()
+		return
+	for seed_value: int in range(1, 301):
+		_assert_murder_case(case_script, seed_value)
+
 	var manager_script: Script = load(
 		"res://addons/cogito/DemoScenes/LoopStaircase/loop_staircase_manager.gd"
 	)
@@ -96,6 +119,107 @@ func _run_test() -> void:
 	third.queue_free()
 	await process_frame
 	_finish()
+
+
+func _assert_murder_case(case_script: Script, seed_value: int) -> void:
+	var first: RefCounted = case_script.generate(seed_value)
+	var second: RefCounted = case_script.generate(seed_value)
+	var snapshot: Dictionary = first.test_snapshot()
+	_assert(snapshot == second.test_snapshot(), "case seed %d is deterministic" % seed_value)
+	_assert(first.is_consistent(), "case seed %d is internally consistent" % seed_value)
+	var candidates: Array = snapshot.get("candidate_sets", [])
+	_assert(
+		candidates.size() == EXPECTED_MURDER_CANDIDATE_COUNTS.size(),
+		"case seed %d stores every candidate stage" % seed_value,
+	)
+	if candidates.size() != EXPECTED_MURDER_CANDIDATE_COUNTS.size():
+		return
+	for index: int in range(candidates.size()):
+		_assert(
+			candidates[index].size() == EXPECTED_MURDER_CANDIDATE_COUNTS[index],
+			"case seed %d stage %d has the required candidate count" % [seed_value, index],
+		)
+	var true_floor: int = snapshot.get("true_floor", 0)
+	_assert(candidates[-1] == [true_floor], "case seed %d has one final floor" % seed_value)
+	var floors: Dictionary = snapshot.get("floors", {})
+	_assert(floors.size() == 8, "case seed %d stores eight floors" % seed_value)
+	var theme_ids: Array[String] = []
+	var expected_types: Dictionary = {
+		2: "lounge", 3: "lounge", 4: "archive", 5: "archive",
+		6: "office", 7: "office", 8: "meeting", 9: "meeting",
+	}
+	for floor_number: int in range(2, 10):
+		var floor_data: Dictionary = floors.get(floor_number, {})
+		_assert(
+			floor_data.get("room_type", "") == expected_types[floor_number],
+			"case seed %d floor %d has its fixed function" % [seed_value, floor_number],
+		)
+		var theme_id: String = floor_data.get("theme_id", "")
+		_assert(not theme_id.is_empty(), "case seed %d floor %d has a theme" % [seed_value, floor_number])
+		_assert(not theme_id in theme_ids, "case seed %d floor themes are distinct" % seed_value)
+		theme_ids.append(theme_id)
+		_assert(
+			floor_data.get("paired_floor", 0) == (floor_number + 1 if floor_number % 2 == 0 else floor_number - 1),
+			"case seed %d floor %d points to its functional pair" % [seed_value, floor_number],
+		)
+	var victim_name: String = snapshot.get("victim_name", "")
+	var victim_floors: Array[int] = []
+	for floor_number: int in range(2, 10):
+		if victim_name in floors[floor_number].get("visitor_names", []):
+			victim_floors.append(floor_number)
+	_assert(victim_floors == candidates[1], "case seed %d victim rule leaves six floors" % seed_value)
+	var item_floors: Array[int] = []
+	for floor_number: int in candidates[1]:
+		var counts: Array = floors[floor_number].get("item_counts", [])
+		if counts.size() == 5 and counts[1] != counts[0]:
+			item_floors.append(floor_number)
+	_assert(item_floors == candidates[2], "case seed %d item rule leaves five floors" % seed_value)
+	var exact_trash: Array[int] = []
+	var zero_trash: Array[int] = []
+	var noisy_trash: Array[int] = []
+	for floor_number: int in candidates[2]:
+		var counts: Array = floors[floor_number].get("trash_counts", [])
+		if counts.slice(0, 3) == [0, 0, 0]:
+			zero_trash.append(floor_number)
+		elif counts.size() == 5 and counts[1] == counts[0] - 1 and counts[2] == counts[1] - 1:
+			exact_trash.append(floor_number)
+		else:
+			noisy_trash.append(floor_number)
+	_assert(exact_trash == candidates[3], "case seed %d cleaner rule leaves three floors" % seed_value)
+	_assert(zero_trash.size() == 1, "case seed %d has one zero-trash role" % seed_value)
+	_assert(noisy_trash.size() == 1, "case seed %d has one noisy-trash role" % seed_value)
+	_assert(_has_shared_current_value(floors, exact_trash, noisy_trash, "trash_counts", 2), "case seed %d trash needs history" % seed_value)
+	var abab_floors: Array[int] = []
+	var signal_decoys: Array[int] = []
+	for floor_number: int in candidates[3]:
+		var colors: Array = floors[floor_number].get("signal_colors", [])
+		if colors.size() == 5 and colors[0] == colors[2] and colors[1] == colors[3] and colors[0] != colors[1]:
+			abab_floors.append(floor_number)
+		else:
+			signal_decoys.append(floor_number)
+	_assert(abab_floors == candidates[4], "case seed %d signal rule leaves two floors" % seed_value)
+	_assert(signal_decoys.size() == 1, "case seed %d has one signal decoy" % seed_value)
+	_assert(_has_shared_current_value(floors, abab_floors, signal_decoys, "signal_colors", 3), "case seed %d signal needs history" % seed_value)
+	for evidence_kind: String in ["visitor", "item", "trash", "signal"]:
+		_assert(
+			first.matching_floors_without(evidence_kind).size() > 1,
+			"case seed %d final answer needs %s evidence" % [seed_value, evidence_kind],
+		)
+	_assert(first.matching_floors_without("") == [true_floor], "case seed %d four-way timing is unique" % seed_value)
+
+
+func _has_shared_current_value(
+	floors: Dictionary,
+	left_floors: Array[int],
+	right_floors: Array[int],
+	field: String,
+	round_index: int,
+) -> bool:
+	for left_floor: int in left_floors:
+		for right_floor: int in right_floors:
+			if floors[left_floor][field][round_index] == floors[right_floor][field][round_index]:
+				return true
+	return false
 
 
 func _assert_long_clue_round(manager: Node, snapshot: Dictionary, label: String) -> void:
