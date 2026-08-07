@@ -232,6 +232,16 @@ func _assert_murder_case(case_script: Script, seed_value: int) -> void:
 		if counts.size() == 5 and counts[1] != counts[0]:
 			item_floors.append(floor_number)
 	_assert(item_floors == candidates[2], "case seed %d item rule leaves five floors" % seed_value)
+	var paired_floor: int = floors[true_floor].get("paired_floor", 0)
+	var true_item_counts: Array = floors[true_floor].get("item_counts", [])
+	var paired_item_counts: Array = floors.get(paired_floor, {}).get("item_counts", [])
+	_assert(
+		true_item_counts.size() == 5
+		and paired_item_counts.size() == 5
+		and true_item_counts[1] - true_item_counts[0] == 1
+		and paired_item_counts[1] - paired_item_counts[0] == -1,
+		"case seed %d shows a same-time transfer from the paired room" % seed_value,
+	)
 	var exact_trash: Array[int] = []
 	var zero_trash: Array[int] = []
 	var noisy_trash: Array[int] = []

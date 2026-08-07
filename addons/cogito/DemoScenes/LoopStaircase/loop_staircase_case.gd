@@ -107,13 +107,20 @@ func matching_floors_without(excluded_kind: String) -> Array[int]:
 func _evidence_matches(floor_number: int) -> Dictionary:
 	var data: Dictionary = floor_states[floor_number]
 	var item_counts: Array = data["item_counts"]
+	var paired_counts: Array = floor_states[data["paired_floor"]]["item_counts"]
 	var trash_counts: Array = data["trash_counts"]
 	var signal_colors: Array = data["signal_colors"]
+	var item_delta: int = item_counts[1] - item_counts[0]
+	var paired_delta: int = paired_counts[1] - paired_counts[0]
 	return {
 		"visitor": victim_name in data["visitor_names"] and data["visitor_round"] == 1,
-		"item": item_counts[1] == item_counts[0] + 1,
+		"item": item_delta != 0 and paired_delta == -item_delta,
 		"trash": trash_counts[1] == trash_counts[0] - 1 and trash_counts[1] == 2,
-		"signal": signal_colors[1] == "blue",
+		"signal": (
+			signal_colors[0] == signal_colors[2]
+			and signal_colors[1] == signal_colors[3]
+			and signal_colors[0] != signal_colors[1]
+		),
 	}
 
 
@@ -166,11 +173,19 @@ func _generate(seed_value: int) -> void:
 	var shuffled: Array[int] = _all_floors()
 	_shuffle_ints(shuffled)
 	true_floor = shuffled[0]
-	var visitor_miss: int = shuffled[1]
-	var signal_miss: int = shuffled[2]
-	var zero_trash: int = shuffled[3]
-	var trash_miss: int = shuffled[4]
-	var item_miss: int = shuffled[5]
+	var visitor_miss: int = _paired_floor(true_floor)
+	var pair_starts: Array[int] = [2, 4, 6, 8]
+	pair_starts.erase(mini(true_floor, visitor_miss))
+	_shuffle_ints(pair_starts)
+	var second_pair_start: int = pair_starts[0]
+	var signal_miss: int = second_pair_start + _rng.randi_range(0, 1)
+	var trash_miss: int = _paired_floor(signal_miss)
+	var remaining: Array[int] = _all_floors()
+	for selected_floor: int in [true_floor, visitor_miss, signal_miss, trash_miss]:
+		remaining.erase(selected_floor)
+	_shuffle_ints(remaining)
+	var zero_trash: int = remaining[0]
+	var item_miss: int = remaining[1]
 	var round_four: Array[int] = _sorted([true_floor, visitor_miss])
 	var round_three: Array[int] = _sorted(round_four + [signal_miss])
 	var round_two: Array[int] = _sorted(round_three + [zero_trash, trash_miss])
@@ -181,10 +196,10 @@ func _generate(seed_value: int) -> void:
 	_generate_floor_states(visitor_miss, signal_miss, zero_trash, trash_miss, item_miss)
 	clues = [
 		"寻找访客记录中出现“%s”的房间。" % victim_name,
-		"比较前两轮，保留“%s”数量增加的房间。" % tracked_item,
+		"比较前两轮，寻找“%s”数量发生普通变化的房间。" % tracked_item,
 		"清洁员每次经过房间，只会顺手带走一件垃圾。",
 		"秘密相关的状态灯只使用两种颜色，并保持一明一暗式交替。",
-		"对齐已公开的访问轮次：配对房间的物品转移、清洁阶段与状态灯相位必须在同一时点成立。",
+		"受害者的关键访问发生在第二轮：同功能配对房间的物品转移、第一次顺手清理与双色交替的第二相位必须同时成立。",
 	]
 
 
@@ -202,8 +217,10 @@ func _generate_floor_states(
 			visitors.append(victim_name)
 		var item_base: int = 1 + ((floor_number + _rng.randi_range(0, 2)) % 3)
 		var item_counts: Array[int] = [item_base, item_base, item_base, item_base, item_base]
-		if floor_number in candidate_sets[2]:
+		if floor_number in [true_floor, signal_miss, zero_trash]:
 			item_counts = [item_base, item_base + 1, item_base + 1, item_base + 1, item_base + 1]
+		elif floor_number in [visitor_miss, trash_miss]:
+			item_counts = [item_base, item_base - 1, item_base - 1, item_base - 1, item_base - 1]
 		var trash_counts: Array[int] = [2, 2, 2, 1, 1]
 		if floor_number in [true_floor, visitor_miss, signal_miss, item_miss]:
 			trash_counts = [3, 2, 1, 0, 0]
@@ -221,9 +238,9 @@ func _generate_floor_states(
 		elif floor_number == signal_miss:
 			signal_colors = ["blue", "red", "red", "blue", "white"]
 		elif floor_number == item_miss:
-			signal_colors = ["green", "blue", "white", "blue", "green"]
+			signal_colors = ["green", "blue", "green", "blue", "green"]
 		elif floor_number == trash_miss:
-			signal_colors = ["red", "blue", "green", "blue", "white"]
+			signal_colors = ["red", "blue", "red", "blue", "white"]
 		floor_states[floor_number] = {
 			"floor": floor_number,
 			"room_type": ROOM_TYPES[floor_number],
@@ -245,6 +262,10 @@ func _all_floors() -> Array[int]:
 	for floor_number: int in range(FLOOR_MIN, FLOOR_MAX + 1):
 		result.append(floor_number)
 	return result
+
+
+func _paired_floor(floor_number: int) -> int:
+	return floor_number + 1 if floor_number % 2 == 0 else floor_number - 1
 
 
 func _sorted(values: Array) -> Array[int]:
