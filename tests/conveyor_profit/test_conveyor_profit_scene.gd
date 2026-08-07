@@ -31,11 +31,24 @@ func _run_test() -> void:
 	_check(environment.has_node("HUD/DishLabel"), "dish label exists")
 	_check(environment.has_node("HUD/ProfitLabel"), "profit label exists")
 	_check(environment.has_node("HUD/StatusLabel"), "status label exists")
-	_check(environment.has_node("HUD/MarketPanel/DemandLabel"), "market demand label exists")
-	_check(environment.has_node("HUD/MarketPanel/SignalOneLabel"), "first market signal exists")
-	_check(environment.has_node("HUD/MarketPanel/SignalTwoLabel"), "second market signal exists")
+	_check(environment.has_node("HUD/MarketPanel/Content/DemandLabel"), "market demand label exists")
+	_check(environment.has_node("HUD/MarketPanel/Content/SignalOneLabel"), "first market signal exists")
+	_check(environment.has_node("HUD/MarketPanel/Content/SignalTwoLabel"), "second market signal exists")
+	var market_panel := environment.get_node("HUD/MarketPanel") as PanelContainer
+	_check(market_panel != null, "market panel uses automatic container layout")
+	_check(
+		(environment.get_node("HUD/StatusLabel") as Label).offset_right
+			<= market_panel.offset_left,
+		"status text and market panel occupy separate HUD regions",
+	)
+	_check(
+		environment.get_node("HUD/MarketPanel/Content") is VBoxContainer,
+		"market labels stack without overlap",
+	)
+	_check(market_panel.modulate == Color.WHITE, "market panel does not dim child labels")
+	_check(market_panel.self_modulate.r < 0.2, "market panel darkens only its own background")
 	for label_name: String in ["DemandLabel", "SignalOneLabel", "SignalTwoLabel"]:
-		var market_label := environment.get_node("HUD/MarketPanel/%s" % label_name) as Label
+		var market_label := environment.get_node("HUD/MarketPanel/Content/%s" % label_name) as Label
 		_check(market_label.get_theme_font_size("font_size") >= 22, "%s is readable" % label_name)
 	_check_recipe_pages(environment)
 

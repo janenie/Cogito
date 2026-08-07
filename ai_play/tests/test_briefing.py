@@ -307,6 +307,7 @@ def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state
         "select_ingredient", "undo", "make", "wait_next_window",
         "90%", "一分钟", "十六", "最多成功制作两次", "自行记录", "五份",
         "当前需求倍率", "两条", "下一轮", "强化", "冲突", "隐藏在线基准",
+        "market.signals",
     ]:
         assert term in serialized
     for forbidden in [

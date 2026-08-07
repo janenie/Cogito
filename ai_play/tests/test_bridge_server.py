@@ -156,6 +156,19 @@ def _conveyor_observation(observation_id=7):
         "net_profit": 0,
         "tray": [],
         "last_receipt": {},
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0,
+                "soup": 1.0,
+                "burger": 1.0,
+                "omelet": 1.0,
+                "sandwich": 1.0,
+            },
+            "signals": [
+                "下一轮汤类需求可能升高。",
+                "下一轮汉堡需求可能降低。",
+            ],
+        },
         "finished": False,
     }
     return observation
