@@ -143,6 +143,7 @@ const CLOSED_CANDIDATE_OVERRIDES := {
 }
 
 static var CAMPAIGNS: Array[Dictionary] = _build_closed_campaigns()
+static var _manual_draw_index: int = 0
 
 
 static func _build_closed_campaigns() -> Array[Dictionary]:
@@ -171,6 +172,12 @@ static func campaign_for_draw(seed_value: int, draw_index: int) -> Dictionary:
 		indices[index] = indices[swap_index]
 		indices[swap_index] = temporary
 	return CAMPAIGNS[indices[posmod(draw_index, indices.size())]].duplicate(true)
+
+
+static func next_manual_draw_index() -> int:
+	var result := _manual_draw_index
+	_manual_draw_index += 1
+	return result
 
 
 static func baseline_profit(campaign: Dictionary) -> int:

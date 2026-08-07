@@ -63,6 +63,43 @@ def test_supervisor_resolves_conveyor_scene_without_override():
         supervisor.resolve_scene("unknown", None)
 
 
+def test_conveyor_command_receives_trusted_logical_draw_index():
+    supervisor = load_supervisor()
+
+    command = supervisor.build_godot_command(
+        "godot", "conveyor_profit/scenes/conveyor_profit_preview.tscn",
+        "conveyor_profit", conveyor_draw_index=0,
+    )
+    assert command[-1] == "--conveyor-draw-index=0"
+
+    other = supervisor.build_godot_command(
+        "godot", "scene.tscn", "find_contract", conveyor_draw_index=4,
+    )
+    assert all(not item.startswith("--conveyor-draw-index=") for item in other)
+
+
+def test_supervisor_assigns_five_logical_attempt_indices(monkeypatch):
+    supervisor = load_supervisor()
+    commands = []
+
+    def fake_run(**kwargs):
+        commands.append(list(kwargs["command"]))
+        return supervisor.AttemptResult(
+            attempt=kwargs["attempt_number"], status="success", reason="done",
+            exit_code=0, retries=0,
+        )
+
+    monkeypatch.setattr(supervisor, "run_supervised_attempt", fake_run)
+    assert supervisor.main([
+        "--runs", "5", "--scenario", "conveyor_profit", "--godot-bin", "godot",
+    ]) == 0
+    assert [command[-1] for command in commands] == [
+        "--conveyor-draw-index=0", "--conveyor-draw-index=1",
+        "--conveyor-draw-index=2", "--conveyor-draw-index=3",
+        "--conveyor-draw-index=4",
+    ]
+
+
 def test_parse_game_over_marker_rejects_unrelated_output():
     supervisor = load_supervisor()
 
@@ -155,6 +192,35 @@ def test_supervisor_retries_abnormal_exit_until_terminal_attempt_completes(tmp_p
     assert result.reason == "wrong_password"
     assert result.retries == 1
     assert result.exit_code == 1
+
+
+def test_infrastructure_retries_reuse_the_same_draw_index(monkeypatch, tmp_path):
+    supervisor = load_supervisor()
+    commands = []
+
+    def fake_once(**kwargs):
+        commands.append(list(kwargs["command"]))
+        if len(commands) == 1:
+            return supervisor.AttemptResult(
+                attempt=1, status="abnormal", reason="boot_failed",
+                exit_code=3, retries=0,
+            )
+        return supervisor.AttemptResult(
+            attempt=1, status="failure", reason="target_missed",
+            exit_code=1, retries=1,
+        )
+
+    monkeypatch.setattr(supervisor, "_run_process_once", fake_once)
+    command = supervisor.build_godot_command(
+        "godot", "scene.tscn", "conveyor_profit", conveyor_draw_index=3,
+    )
+    result = supervisor.run_supervised_attempt(
+        command=command, cwd=tmp_path, attempt_number=1, max_retries=1,
+        timeout_seconds=5.0, game_over_exit_timeout_seconds=1.0,
+    )
+
+    assert result.status == "failure"
+    assert commands == [command, command]
 
 
 def test_supervisor_finishes_stopped_attempt_without_waiting_for_timeout(tmp_path):

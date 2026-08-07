@@ -65,8 +65,9 @@ def build_godot_command(
     godot_bin: str,
     scene: str,
     scenario: str,
+    conveyor_draw_index: int | None = None,
 ) -> list[str]:
-    return [
+    command = [
         godot_bin,
         "--path",
         ".",
@@ -76,6 +77,11 @@ def build_godot_command(
         f"--ai-play-scenario={scenario}",
         "--ai-play-exit-on-game-over",
     ]
+    if scenario == "conveyor_profit" and conveyor_draw_index is not None:
+        if conveyor_draw_index < 0:
+            raise ValueError("conveyor_draw_index must be nonnegative")
+        command.append(f"--conveyor-draw-index={conveyor_draw_index}")
+    return command
 
 
 def run_supervised_attempt(
@@ -259,13 +265,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         scene = resolve_scene(args.scenario, args.scene)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    command = build_godot_command(
-        godot_bin=args.godot_bin,
-        scene=scene,
-        scenario=args.scenario,
-    )
     results: list[AttemptResult] = []
     for attempt in range(1, args.runs + 1):
+        command = build_godot_command(
+            godot_bin=args.godot_bin,
+            scene=scene,
+            scenario=args.scenario,
+            conveyor_draw_index=attempt - 1,
+        )
         result = run_supervised_attempt(
             command=command,
             cwd=REPO_ROOT,

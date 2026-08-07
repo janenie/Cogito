@@ -21,6 +21,25 @@ func _run_test() -> void:
 		environment.queue_free()
 		quit(1)
 		return
+	_check(gameplay.parse_conveyor_draw_index(["--conveyor-draw-index=0"]) == 0, "draw index zero parses")
+	_check(gameplay.parse_conveyor_draw_index(["--conveyor-draw-index=42"]) == 42, "positive draw index parses")
+	for invalid_args: Array in [
+		[], ["--conveyor-draw-index="], ["--conveyor-draw-index=-1"],
+		["--conveyor-draw-index=+1"], ["--conveyor-draw-index=01"],
+		["--conveyor-draw-index=1.0"],
+	]:
+		_check(gameplay.parse_conveyor_draw_index(invalid_args) == -1, "malformed draw index is ignored")
+	var campaigns_script: GDScript = load("res://conveyor_profit/scripts/market_campaigns.gd")
+	var campaign_ids: Array[String] = []
+	for draw_index: int in 5:
+		campaign_ids.append(String(campaigns_script.campaign_for_draw(1337, draw_index)["id"]))
+	var unique_campaign_ids := campaign_ids.duplicate()
+	unique_campaign_ids.sort()
+	_check(unique_campaign_ids == ["A", "B", "C", "D", "E"], "first five draws use every campaign once")
+	_check(
+		campaigns_script.campaign_for_draw(1337, 5)["id"] == campaign_ids[0],
+		"sixth draw restarts the seeded permutation",
+	)
 	_check(gameplay.get_profit() == 0, "initial profit is zero")
 	_check(gameplay.get_selected_count() == 0, "initial tray is empty")
 	_check(gameplay.get_remaining_count() > 0, "finite supply is available")

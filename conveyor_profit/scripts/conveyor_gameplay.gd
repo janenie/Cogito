@@ -9,6 +9,7 @@ const PROFIT_WINDOW_SESSION := preload("res://conveyor_profit/scripts/profit_win
 const WINDOW_SUPPLY_GENERATOR := preload("res://conveyor_profit/scripts/window_supply_generator.gd")
 const MARKET_CAMPAIGNS := preload("res://conveyor_profit/scripts/market_campaigns.gd")
 const MAX_TRAY_INGREDIENTS: int = 5
+const DRAW_INDEX_ARG_PREFIX: String = "--conveyor-draw-index="
 
 const MODEL_PATHS := {
 	"lettuce": "res://conveyor_profit/assets/kenney_food_kit/models/lettuce.glb",
@@ -92,7 +93,10 @@ func initialize(
 	_undo_button = undo_button
 	session = PROFIT_SESSION.new()
 	_semantic_random.seed = supply_seed
-	campaign = MARKET_CAMPAIGNS.campaign_for_draw(supply_seed, 0)
+	var draw_index := parse_conveyor_draw_index(OS.get_cmdline_user_args())
+	if draw_index < 0:
+		draw_index = MARKET_CAMPAIGNS.next_manual_draw_index()
+	campaign = MARKET_CAMPAIGNS.campaign_for_draw(supply_seed, draw_index)
 	window_supplies = WINDOW_SUPPLY_GENERATOR.generate(campaign, supply_seed)
 	window_count = window_supplies.size()
 	window_session = PROFIT_WINDOW_SESSION.new(campaign, window_supplies, window_seconds)
@@ -109,6 +113,21 @@ func _process(delta: float) -> void:
 
 func set_ai_control_active(value: bool) -> void:
 	_ai_control_active = value
+
+
+static func parse_conveyor_draw_index(user_args: Array) -> int:
+	for raw_arg: Variant in user_args:
+		var argument := String(raw_arg)
+		if not argument.begins_with(DRAW_INDEX_ARG_PREFIX):
+			continue
+		var value_text := argument.trim_prefix(DRAW_INDEX_ARG_PREFIX)
+		if value_text.is_empty() or not value_text.is_valid_int():
+			return -1
+		var value := value_text.to_int()
+		if value < 0 or str(value) != value_text:
+			return -1
+		return value
+	return -1
 
 
 func get_profit() -> int:
