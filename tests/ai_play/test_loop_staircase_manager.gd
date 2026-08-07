@@ -50,6 +50,7 @@ func _run_test() -> void:
 		"mark_floor_observed",
 		"toggle_candidate",
 		"is_candidate_marked",
+		"execute_semantic_action",
 	]
 	var coordinator_ready: bool = true
 	for method_name: String in coordinator_methods:
@@ -62,6 +63,7 @@ func _run_test() -> void:
 		_finish()
 		return
 	_assert_investigation_coordinator(first)
+	_assert_semantic_ai_actions(first)
 	first.configure_round(424242)
 	var first_snapshot: Dictionary = first.get_round_snapshot()
 	first.queue_free()
@@ -179,6 +181,56 @@ func _assert_investigation_coordinator(manager: Node) -> void:
 	_assert(terminal_results.is_empty(), "manual candidate mark has no correctness feedback")
 
 
+func _assert_semantic_ai_actions(manager: Node) -> void:
+	if not manager.has_method("execute_semantic_action"):
+		return
+	manager.configure_round(424242)
+	manager.build_scene()
+	var wall_clues := manager.get_node_or_null("CurrentFloorRoom/ObservationLabel") as Label3D
+	_assert(wall_clues != null and wall_clues.font_size == 34, "wall clue text uses readable size 34")
+	manager.set_current_floor(2)
+	_assert(
+		manager.execute_semantic_action({"type": "floor_up"})["status"] == "completed",
+		"floor_up semantic action completes",
+	)
+	_assert(manager.get_current_floor() == 3, "floor_up advances one floor")
+	manager.execute_semantic_action({"type": "floor_down"})
+	_assert(manager.get_current_floor() == 2, "floor_down returns one floor")
+	var board := manager.get_node_or_null("GameUI/InvestigationBoard") as Control
+	_assert(board != null and not board.visible, "investigation board starts closed")
+	if board == null:
+		return
+	var board_clues := board.get_node_or_null("BoardPanel/Layout/VisibleClues") as Label
+	_assert(
+		board_clues != null and board_clues.get_theme_font_size("font_size") == 20,
+		"investigation board clue text uses size 20",
+	)
+	_assert(
+		board_clues != null and board_clues.custom_minimum_size.y >= 100.0,
+		"investigation board reserves height for five clue lines",
+	)
+	_assert(
+		manager.execute_semantic_action({"type": "board_down"})["status"] == "error",
+		"board navigation is rejected while the board is closed",
+	)
+	manager.execute_semantic_action({"type": "toggle_board"})
+	_assert(board != null and board.visible, "toggle_board opens the investigation board")
+	var floor_before_board_action: int = manager.get_current_floor()
+	_assert(
+		manager.execute_semantic_action({"type": "floor_up"})["status"] == "error",
+		"floor navigation is rejected while the board is open",
+	)
+	_assert(manager.get_current_floor() == floor_before_board_action, "open board keeps room floor stable")
+	manager.execute_semantic_action({"type": "board_down"})
+	_assert(board.selected_floor == 3, "board_down selects the next floor row")
+	manager.execute_semantic_action({"type": "toggle_mark"})
+	_assert(manager.is_candidate_marked(3), "toggle_mark updates the selected candidate")
+	manager.execute_semantic_action({"type": "board_up"})
+	_assert(board.selected_floor == 2, "board_up selects the previous floor row")
+	manager.execute_semantic_action({"type": "toggle_board"})
+	_assert(not board.visible, "toggle_board closes the investigation board")
+
+
 func _assert_murder_case(case_script: Script, seed_value: int) -> void:
 	var first: RefCounted = case_script.generate(seed_value)
 	var second: RefCounted = case_script.generate(seed_value)
@@ -201,6 +253,10 @@ func _assert_murder_case(case_script: Script, seed_value: int) -> void:
 	_assert(candidates[-1] == [true_floor], "case seed %d has one final floor" % seed_value)
 	var floors: Dictionary = snapshot.get("floors", {})
 	_assert(floors.size() == 8, "case seed %d stores eight floors" % seed_value)
+	_assert(
+		snapshot.get("tracked_item", "") == "书本",
+		"case seed %d always uses the six authored book slots" % seed_value,
+	)
 	var theme_ids: Array[String] = []
 	var expected_types: Dictionary = {
 		2: "lounge", 3: "lounge", 4: "archive", 5: "archive",
@@ -220,6 +276,11 @@ func _assert_murder_case(case_script: Script, seed_value: int) -> void:
 			floor_data.get("paired_floor", 0) == (floor_number + 1 if floor_number % 2 == 0 else floor_number - 1),
 			"case seed %d floor %d points to its functional pair" % [seed_value, floor_number],
 		)
+		for item_count: int in floor_data.get("item_counts", []):
+			_assert(
+				item_count >= 1 and item_count <= 6,
+				"case seed %d floor %d keeps item evidence within six authored slots" % [seed_value, floor_number],
+			)
 	var victim_name: String = snapshot.get("victim_name", "")
 	var victim_floors: Array[int] = []
 	for floor_number: int in range(2, 10):

@@ -52,17 +52,40 @@ def test_scenario_registry_loads_public_briefing_and_rejects_unknown():
         load_scenario_briefing("unknown")
 
 
-def test_loop_staircase_briefing_exposes_key_controls_without_walk_hint():
+def test_loop_staircase_briefing_exposes_distinct_semantic_controls():
     briefing, _image_bytes = load_scenario_briefing("loop_staircase_anomaly")
     text = " ".join(briefing["rules"])
 
-    assert "press_key" in text
-    assert '"up"' in text
-    assert '"down"' in text
-    assert '"space"' in text
-    assert '"tab"' in text
+    assert "press_key" not in text
+    assert '"front"' in text
+    assert '"back"' in text
+    assert '"left"' in text
+    assert '"right"' in text
+    assert '"floor_up"' in text
+    assert '"floor_down"' in text
+    assert '"toggle_board"' in text
+    assert '"board_up"' in text
+    assert '"board_down"' in text
+    assert '"toggle_mark"' in text
+    assert '"submit_floor"' in text
     assert "调查板" in text
-    assert "move 和 sprint" not in text
+    assert "small" in text
+    assert "large" in text
+
+
+def test_loop_staircase_briefing_recommends_scanning_room_blind_spots():
+    briefing, _image_bytes = load_scenario_briefing("loop_staircase_anomaly")
+    exploration_rules = [
+        rule for rule in briefing["rules"] if "视野盲区" in rule
+    ]
+
+    assert len(exploration_rules) == 1
+    rule = exploration_rules[0]
+    assert rule.startswith("推荐")
+    assert "look" in rule
+    assert "前、后、左、右" in rule
+    assert "单张初始截图可能无法覆盖" in rule
+    assert "必须" not in rule
 
 
 def test_scenario_request_limits_are_hard_caps():

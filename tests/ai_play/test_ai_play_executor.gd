@@ -45,39 +45,32 @@ func _run_tests() -> void:
 	await process_frame
 
 	_assert_invalid(executor, {"type": "teleport"}, {}, "unknown action")
-	_assert_invalid(executor, {
+	_assert(executor.validate_action({
 		"type": "look",
 		"yaw": 15.0,
 		"pitch": 0.0,
-	}, {}, "legacy numeric look")
+	}, {}).get("valid", false), "accepts signed-axis look")
 	_assert_invalid(executor, {
 		"type": "look",
 		"direction": "left",
-		"degrees": 0.0,
-	}, {}, "zero-degree semantic look")
-	_assert_invalid(executor, {
-		"type": "look",
-		"direction": "left",
-		"degrees": 45.1,
-	}, {}, "semantic look over 45 degrees")
-	_assert_invalid(executor, {
-		"type": "look",
-		"direction": "north",
 		"degrees": 15.0,
-	}, {}, "unknown semantic look direction")
-	var semantic_look_cases: Array[Dictionary] = [
-		{"action": {"type": "look", "direction": "left", "degrees": 30}, "delta": Vector2(-30, 0)},
-		{"action": {"type": "look", "direction": "right", "degrees": 30}, "delta": Vector2(30, 0)},
-		{"action": {"type": "look", "direction": "up", "degrees": 15}, "delta": Vector2(0, -15)},
-		{"action": {"type": "look", "direction": "down", "degrees": 15}, "delta": Vector2(0, 15)},
-	]
-	for test_case: Dictionary in semantic_look_cases:
-		var action: Dictionary = test_case["action"]
-		_assert(executor.validate_action(action, {}).get("valid", false), "accepts semantic look")
-		_assert(
-			executor._semantic_look_delta(action["direction"], action["degrees"]) == test_case["delta"],
-			"maps semantic look direction",
-		)
+	}, {}, "legacy semantic look")
+	_assert_invalid(executor, {
+		"type": "look",
+		"yaw": 45.1,
+		"pitch": 0.0,
+	}, {}, "look yaw over 45 degrees")
+	_assert_invalid(executor, {
+		"type": "look",
+		"yaw": 0.0,
+		"pitch": -45.1,
+	}, {}, "look pitch under -45 degrees")
+	_assert(
+		executor._look_action_delta({"type": "look", "yaw": -30, "pitch": 15})
+		== Vector2(-30, -15),
+		"maps public positive pitch to an upward camera delta",
+	)
+	_test_loop_movement_semantics(executor)
 	_assert_invalid(executor, {
 		"type": "move",
 		"forward": 1.0,
@@ -143,7 +136,7 @@ func _run_tests() -> void:
 		_assert(not Input.is_action_pressed(action_name), "cancel_all releases %s" % action_name)
 
 	recorder.events.clear()
-	executor.execute_batch([{"type": "look", "direction": "up", "degrees": 2.0}], {})
+	executor.execute_batch([{"type": "look", "yaw": 0.0, "pitch": 2.0}], {})
 	await process_frame
 	_assert(
 		_all_events_of_type_use_device(recorder.events, InputEventMouseMotion, executor.SYNTHETIC_DEVICE_ID),
@@ -163,33 +156,23 @@ func _run_tests() -> void:
 		_all_events_of_type_use_device(recorder.events, InputEventKey, executor.SYNTHETIC_DEVICE_ID),
 		"synthetic key events use the dedicated device ID",
 	)
-	recorder.events.clear()
 	executor.active_scenario_id = "loop_staircase_anomaly"
-	executor.execute_batch([{"type": "press_key", "key": "up"}], {})
-	await process_frame
 	_assert(
-		_key_events_match(recorder.events, KEY_UP),
-		"press_key emits a dedicated up key press and release",
-	)
-	recorder.events.clear()
-	executor.execute_batch([{"type": "press_key", "key": "tab"}], {})
-	await process_frame
-	_assert(
-		_key_events_match(recorder.events, KEY_TAB),
-		"press_key emits a dedicated Tab key press and release",
+		executor.validate_action({"type": "floor_up"}, {}).get("valid", false),
+		"loop staircase accepts floor_up",
 	)
 	executor.active_scenario_id = "find_contract"
 	_assert_invalid(
 		executor,
-		{"type": "press_key", "key": "up"},
+		{"type": "floor_up"},
 		{},
-		"press_key outside loop_staircase_anomaly",
+		"floor_up outside loop_staircase_anomaly",
 	)
 	_assert_invalid(
 		executor,
-		{"type": "press_key", "key": "tab"},
+		{"type": "front", "step": "small"},
 		{},
-		"Tab outside loop_staircase_anomaly",
+		"front outside loop_staircase_anomaly",
 	)
 
 	executor.queue_free()
@@ -206,6 +189,21 @@ func _run_tests() -> void:
 func _assert_invalid(executor: Node, action: Dictionary, context: Dictionary, label: String) -> void:
 	var result: Dictionary = executor.validate_action(action, context)
 	_assert(not result.get("valid", false), "rejects %s" % label)
+
+
+func _test_loop_movement_semantics(executor: Node) -> void:
+	executor.active_scenario_id = "loop_staircase_anomaly"
+	for direction: String in ["front", "back", "left", "right"]:
+		_assert(
+			executor.validate_action({"type": direction, "step": "small"}, {}).get("valid", false),
+			"loop staircase accepts %s movement" % direction,
+		)
+	_assert(executor._loop_step_duration_ms("small") == 80.0, "small step lasts 80 ms")
+	_assert(executor._loop_step_duration_ms("large") == 180.0, "large step lasts 180 ms")
+	_assert(executor._loop_movement_axes("front") == Vector2(1, 0), "front maps forward")
+	_assert(executor._loop_movement_axes("back") == Vector2(-1, 0), "back maps backward")
+	_assert(executor._loop_movement_axes("left") == Vector2(0, -1), "left maps left")
+	_assert(executor._loop_movement_axes("right") == Vector2(0, 1), "right maps right")
 
 
 func _test_fractional_movement_strength(executor: Node) -> void:
@@ -246,7 +244,7 @@ func _test_batch_validation(executor: Node, recorder: InputRecorder) -> void:
 		_assert(not size_result.get("valid", false), "batch size must be one to three")
 
 	var context_cases: Array[Dictionary] = [
-		{"actions": [{"type": "stop"}, {"type": "look", "direction": "left", "degrees": 1.0}], "context": {}},
+		{"actions": [{"type": "stop"}, {"type": "look", "yaw": -1.0, "pitch": 0.0}], "context": {}},
 		{
 			"actions": [
 				{"type": "interact", "action": "interact"},
@@ -280,7 +278,7 @@ func _test_batch_validation(executor: Node, recorder: InputRecorder) -> void:
 	executor.batch_finished.connect(collect)
 	recorder.events.clear()
 	executor.execute_batch(
-		[{"type": "stop"}, {"type": "look", "direction": "left", "degrees": 1.0}],
+		[{"type": "stop"}, {"type": "look", "yaw": -1.0, "pitch": 0.0}],
 		{},
 	)
 	_assert(
@@ -407,7 +405,7 @@ func _test_blocked_movement(executor: Node, recorder: InputRecorder) -> void:
 			"right": 0.0,
 			"duration_ms": 50,
 		},
-		{"type": "look", "direction": "up", "degrees": 2.0},
+		{"type": "look", "yaw": 0.0, "pitch": 2.0},
 	], {})
 	await create_timer(0.08).timeout
 	_assert(
@@ -473,7 +471,7 @@ func _test_home_player_look_is_applied_directly(executor: Node, recorder: InputR
 	var emitted: Array = []
 	var collect := func(results: Array) -> void: emitted.append(results.duplicate(true))
 	executor.batch_finished.connect(collect)
-	executor.execute_batch([{"type": "look", "direction": "right", "degrees": 15.0}], {})
+	executor.execute_batch([{"type": "look", "yaw": 15.0, "pitch": 0.0}], {})
 	await process_frame
 	_assert(
 		emitted == [[{"status": "completed", "type": "look"}]],

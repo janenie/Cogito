@@ -6,12 +6,11 @@ COMMON_CONTROL_RULES = [
         "走动；不要只依据初始视野判断。"
     ),
     (
-        "look 使用 direction 和 degrees；direction 只能是 left、right、up、down，"
-        "degrees 是 1 到 45 度。"
+        "look 使用 yaw 和 pitch，两个轴的范围都是 -45 到 45 度；yaw 为负数时左转、"
+        "正数时右转，pitch 为负数时向下、正数时向上。"
     ),
     (
-        "例如向左转 30 度使用 {\"type\":\"look\",\"direction\":\"left\","
-        "\"degrees\":30}；不要填写 yaw、pitch 或正负号。"
+        "例如向左转 30 度使用 {\"type\":\"look\",\"yaw\":-30,\"pitch\":0}。"
     ),
     (
         "look 的角度单位是度；30 到 45 度适合扫视房间，5 到 15 度适合微调准星。"
@@ -23,8 +22,8 @@ COMMON_CONTROL_RULES = [
     ),
     (
         "act 只会在整个动作批次结束后返回一张截图；探索转向时每个批次只提交一个 look。"
-        "不要在同一批次组合方向相反的 look，例如 left 和 right 或 up 和 down；它们会"
-        "互相抵消，使批末截图没有变化。"
+        "不要在同一批次组合互相抵消的 look，也不要提交 yaw、pitch 都为 0 的 look；"
+        "否则批末截图可能没有变化。"
     ),
     (
         "像人一样从不同方向观察房间、门口、平台边缘、目标物和障碍物，估计自己与"

@@ -179,6 +179,45 @@ func select_floor(floor_number: int) -> void:
 		game_finished.emit("failure", "wrong_floor_selected")
 
 
+func execute_semantic_action(action: Dictionary) -> Dictionary:
+	var action_type: String = str(action.get("type", ""))
+	var board := get_node_or_null("GameUI/InvestigationBoard") as Control
+	match action_type:
+		"floor_up":
+			if board != null and board.visible:
+				return {"status": "error", "error": "floor navigation requires a closed board"}
+			move_up()
+		"floor_down":
+			if board != null and board.visible:
+				return {"status": "error", "error": "floor navigation requires a closed board"}
+			move_down()
+		"toggle_board":
+			if board == null:
+				return {"status": "error", "error": "investigation board is unavailable"}
+			board.visible = not board.visible
+			if board.visible:
+				board.set_clue_lines(get_visible_clue_lines())
+		"board_up":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.select_previous_floor()
+		"board_down":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.select_next_floor()
+		"toggle_mark":
+			if board == null or not board.visible:
+				return {"status": "error", "error": "board action requires an open board"}
+			board.toggle_candidate()
+		"submit_floor":
+			if board != null and board.visible:
+				return {"status": "error", "error": "submit_floor requires a closed board"}
+			submit_current_floor()
+		_:
+			return {"status": "error", "error": "semantic action is not allowed"}
+	return {"status": "completed", "type": action_type}
+
+
 func get_floor_state(floor_number: int, loop_index: int = current_loop) -> Dictionary:
 	if _case == null or floor_number < FLOOR_MIN or floor_number > FLOOR_MAX:
 		return {}
@@ -451,16 +490,16 @@ func _create_current_floor_room() -> void:
 	_add_wall_wash_light(room)
 	var floor_sign := Label3D.new()
 	floor_sign.name = "FloorSign"
-	floor_sign.position = Vector3(1.55, 2.05, -2.4)
+	floor_sign.position = Vector3(1.55, 2.65, -2.4)
 	floor_sign.pixel_size = 0.009
 	floor_sign.font_size = 46
 	floor_sign.text = "%dF" % _current_floor
 	room.add_child(floor_sign)
 	var clue_label := Label3D.new()
 	clue_label.name = "ObservationLabel"
-	clue_label.position = Vector3(0.25, 1.05, -2.42)
-	clue_label.pixel_size = 0.0042
-	clue_label.font_size = 25
+	clue_label.position = Vector3(-0.2, 2.2, -2.42)
+	clue_label.pixel_size = 0.0037
+	clue_label.font_size = 34
 	clue_label.text = "\n".join(get_visible_clue_lines())
 	room.add_child(clue_label)
 	_add_navigation_marker(

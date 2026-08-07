@@ -192,9 +192,9 @@ observe 和 act 在工具结果中返回的图片属于你的获准视觉输入�
 逐步建立以可见地标为依据的空间理解。动作后必须用新截图验证实际变化；
 没有变化、变化方向不符或目标丢失时，应调整假设与动作，不要机械重复。
 
-look 只使用 direction 和 degrees，例如向左转 30 度是
-{{"type":"look","direction":"left","degrees":30}}。direction 只能是 left、right、up、down；
-不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
+look 使用 yaw 和 pitch，例如向左转 30 度是
+{{"type":"look","yaw":-30,"pitch":0}}。两个轴都只能在 -45 到 45 度之间；
+yaw 为负数时左转、正数时右转，pitch 为负数时向下、正数时向上。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
 地标的位置、大小与遮挡变化，确认方向正确后再移动。
 
 如果 briefing 明确要求先读取出生点附近的任务卡，任务卡不是普通纸张：它在画面中表现为
@@ -383,10 +383,10 @@ def build_player_prompt(
     if scenario == "loop_staircase_anomaly":
         staircase_guidance = """
 循环楼梯专用规则：
-1. 不要使用 move 或 sprint；上下楼只用 press_key 的 "up"/"down"。
-2. 每次 press_key 后直接使用 act 返回的新观察，不要额外刷新 observe。
+1. 不要使用 move 或 sprint；房间内移动只用 front/back/left/right，并选择 step；small=80ms，large=180ms。
+2. 上下楼只用 floor_up/floor_down；调查板只用 toggle_board、board_up/board_down、toggle_mark。
 3. 完整观察五轮 2F 到 9F，维护候选楼层集合；不能只凭单张截图或当前楼层号作答。
-4. 只有证据唯一时才用 press_key 的 "space" 提交当前楼层。
+4. 每次 action 后直接使用 act 返回的新观察，不要额外刷新 observe；只有证据唯一时才用 submit_floor。
 """
     return f"""
 你是 Cogito AI First Play 的隔离黑盒玩家。
@@ -413,9 +413,9 @@ def build_player_prompt(
 
 像人一样玩：
 1. 不要把游戏当 API 猜参数。先看清画面、HUD、标牌、物体和可见提示，再小步移动或转身。
-   look 只使用 direction、degrees，例如向左转 30 度是
-   {{"type":"look","direction":"left","degrees":30}}；direction 只能是 left、right、up、down，
-   不要填写 yaw、pitch 或正负号。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
+   look 只使用 yaw、pitch，例如向左转 30 度是
+   {{"type":"look","yaw":-30,"pitch":0}}；两个轴范围都是 -45 到 45 度，
+   yaw 为负数时左转、正数时右转，pitch 为负数时向下、正数时向上。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
    地标的位置、大小与遮挡变化，确认方向正确后再移动。
 2. 避免贴着地图边界、围栏或不可通行表面移动，优先沿可见道路、门口和开阔区域前进；
    迷路时停下、环顾，并回到 briefing 或可见标牌提到的可靠地标。

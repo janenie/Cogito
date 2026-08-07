@@ -491,8 +491,8 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "游戏规则" in instructions
     assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in instructions
     assert "相对位移、转向、遮挡变化和地标关系" in instructions
-    assert '{"type":"look","direction":"left","degrees":30}' in instructions
-    assert "不要填写 yaw、pitch 或正负号" in instructions
+    assert '{"type":"look","yaw":-30,"pitch":0}' in instructions
+    assert "yaw 为负数时左转" in instructions
     assert "地标的位置、大小与遮挡变化" in instructions
     assert "第一张图片" in instructions
     assert "JPEG" in instructions
@@ -516,7 +516,7 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])
-def test_player_prompt_teaches_identical_semantic_look_control(workflow_memory_enabled):
+def test_player_prompt_teaches_identical_signed_axis_look_control(workflow_memory_enabled):
     orchestrator = load_orchestrator()
 
     prompt = orchestrator.build_player_prompt(
@@ -524,8 +524,8 @@ def test_player_prompt_teaches_identical_semantic_look_control(workflow_memory_e
         workflow_memory_enabled=workflow_memory_enabled,
     )
 
-    assert "direction、degrees" in prompt
-    assert "不要填写 yaw、pitch" in prompt
+    assert "yaw、pitch" in prompt
+    assert '"yaw":-30,"pitch":0' in prompt
     assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in prompt
     assert "成功的 act 返回下一份观察" in prompt
     assert "movement_feedback" in prompt
@@ -607,7 +607,7 @@ def test_player_prompt_without_awm_uses_only_in_context_notes():
     assert "普通会话上下文" in prompt
 
 
-def test_loop_staircase_prompt_uses_key_controls_not_world_navigation():
+def test_loop_staircase_prompt_distinguishes_room_floor_and_board_actions():
     orchestrator = load_orchestrator()
 
     prompt = orchestrator.build_player_prompt(
@@ -615,11 +615,15 @@ def test_loop_staircase_prompt_uses_key_controls_not_world_navigation():
         scenario="loop_staircase_anomaly",
     )
 
-    assert "press_key" in prompt
-    assert "press_key 后直接使用 act 返回的新观察" in prompt
-    assert '"up"' in prompt
-    assert '"down"' in prompt
-    assert '"space"' in prompt
+    assert "press_key" not in prompt
+    assert "front/back/left/right" in prompt
+    assert "small=80ms" in prompt
+    assert "large=180ms" in prompt
+    assert "floor_up/floor_down" in prompt
+    assert "toggle_board" in prompt
+    assert "board_up/board_down" in prompt
+    assert "toggle_mark" in prompt
+    assert "submit_floor" in prompt
     assert "不要使用 move 或 sprint" in prompt
 
 

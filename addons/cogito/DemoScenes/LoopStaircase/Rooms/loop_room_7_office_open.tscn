@@ -1,34 +1,74 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://dt4navkrm6o33"]
 
-[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://bw6b55oidtifb" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://drd1xq0u7ua3b" path="res://addons/cogito/DemoScenes/DemoPrefabs/desk.tscn" id="2_desk"]
+[ext_resource type="PackedScene" uid="uid://b8nhffak4g0c6" path="res://addons/cogito/DemoScenes/DemoPrefabs/chair_desk.tscn" id="3_chair"]
+[ext_resource type="PackedScene" uid="uid://cknhaj0w7yuyg" path="res://addons/cogito/DemoScenes/DemoPrefabs/computer_screen.tscn" id="4_screen"]
+[ext_resource type="PackedScene" uid="uid://bf25uu3piq1by" path="res://addons/cogito/DemoScenes/DemoPrefabs/computer_keyboard.tscn" id="5_keyboard"]
+[ext_resource type="PackedScene" uid="uid://1erdqt8uhlj5" path="res://addons/cogito/DemoScenes/DemoPrefabs/computer_mouse.tscn" id="6_mouse"]
+[ext_resource type="PackedScene" uid="uid://bqe44f6qeagyx" path="res://addons/cogito/DemoScenes/DemoPrefabs/plant_small_2.tscn" id="7_plant"]
 
-[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
-albedo_color = Color(0.38, 0.44, 0.49, 1)
-roughness = 0.74
-
-[sub_resource type="BoxMesh" id="DeskMesh"]
-size = Vector3(1.8, 0.76, 0.72)
-
-[sub_resource type="BoxMesh" id="StorageMesh"]
-size = Vector3(1.2, 1.25, 0.5)
-
-[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+[node name="CurrentFloorRoom" unique_id=1443906623 instance=ExtResource("1_base")]
 metadata/theme_id = "office_open"
 metadata/room_type = "office"
 
-[node name="OpenDeskLeft" type="MeshInstance3D" parent="StableTheme" index="0"]
-position = Vector3(-1.35, 0.38, -0.65)
-mesh = SubResource("DeskMesh")
-material_override = SubResource("AccentMaterial")
+[node name="MeshInstance3D" parent="LobbyFloor" parent_id_path=PackedInt32Array(448251325) index="1" unique_id=42745082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0021321774, 0.0027136803, -0.0027167797)
 
-[node name="OpenDeskRight" type="MeshInstance3D" parent="StableTheme" index="1"]
-position = Vector3(1.2, 0.38, 0.55)
-mesh = SubResource("DeskMesh")
-material_override = SubResource("AccentMaterial")
+[node name="WorkstationA" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="0" unique_id=1769008951 instance=ExtResource("2_desk")]
+transform = Transform3D(0.9999664, 0, 0.008201745, 0, 1, 0, -0.008201745, 0, 0.9999664, -0.3623743, -0.008517265, 0.48642832)
 
-[node name="SharedStorage" type="MeshInstance3D" parent="StableTheme" index="2"]
-position = Vector3(2.6, 0.625, -1.75)
-mesh = SubResource("StorageMesh")
-material_override = SubResource("AccentMaterial")
+[node name="WorkstationB" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="1" unique_id=1046982669 instance=ExtResource("2_desk")]
+transform = Transform3D(0.99939257, 0, 0.034849375, 0, 1, 0, -0.034849375, 0, 0.99939257, -1.75, 0, 0.55494785)
 
-[editable path="StableTheme"]
+[node name="ChairA" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="2" unique_id=490520579 instance=ExtResource("3_chair")]
+transform = Transform3D(0.13213557, 0, -0.9912317, 0, 1, 0, 0.9912317, 0, 0.13213557, 2.0828044, 0, 1.1933527)
+
+[node name="ChairB" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="3" unique_id=1186111533 instance=ExtResource("3_chair")]
+transform = Transform3D(0.13261352, 0, 0.99116784, 0, 1, 0, -0.99116784, 0, 0.13261352, -3.1093354, 0, 0.944785)
+
+[node name="ScreenA" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="4" unique_id=48360969 instance=ExtResource("4_screen")]
+transform = Transform3D(0.9996061, 0, -0.028065747, 0, 1, 0, 0.028065747, 0, 0.9996061, -0.803086, 0.7713815, 0.14984572)
+
+[node name="KeyboardA" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="5" unique_id=764002073 instance=ExtResource("5_keyboard")]
+transform = Transform3D(0.99539083, 0, -0.09590548, 0, 1, 0, 0.09590548, 0, 0.99539083, -0.5863357, 0.7959086, 0.44297916)
+
+[node name="MouseA" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="6" unique_id=1086376037 instance=ExtResource("6_mouse")]
+transform = Transform3D(0.81819767, 0, -0.574937, 0, 1, 0, 0.574937, 0, 0.81819767, -0.9155952, 0.79076505, 0.37778604)
+
+[node name="DeskPlant" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="7" unique_id=1723482093 instance=ExtResource("7_plant")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9603872, 0, -1.7709796)
+cogito_name = ""
+
+[node name="Book1" parent="Evidence/ItemSlot/BookSlots" index="0"]
+transform = Transform3D(0.48, 0, 0, 0, 0.48, 0, 0, 0, 0.48, -0.5, -0.004284382, 0.7507043)
+
+[node name="Book2" parent="Evidence/ItemSlot/BookSlots" index="1"]
+transform = Transform3D(0.475328, 0, -0.066806, 0, 0.48, 0, 0.066806, 0, 0.475328, -0.3, -0.006556511, 0.5026504)
+
+[node name="Book3" parent="Evidence/ItemSlot/BookSlots" index="2"]
+transform = Transform3D(0.478174, 0, 0.041835, 0, 0.48, 0, -0.041835, 0, 0.478174, -0.100000024, -0.018487215, 0.8577211)
+
+[node name="Book4" parent="Evidence/ItemSlot/BookSlots" index="3"]
+transform = Transform3D(0.478831, 0, -0.033483, 0, 0.48, 0, 0.033483, 0, 0.478831, 0.100000024, -0.022459388, 0.4288096)
+
+[node name="Book5" parent="Evidence/ItemSlot/BookSlots" index="4"]
+transform = Transform3D(0.476422, 0, 0.058498, 0, 0.48, 0, -0.058498, 0, 0.476422, -0.81401926, -0.014634252, 0.37856653)
+
+[node name="Book6" parent="Evidence/ItemSlot/BookSlots" index="5"]
+transform = Transform3D(0.47737, 0, -0.050172, 0, 0.48, 0, 0.050172, 0, 0.47737, -0.029361427, -0.027669907, 0.6332989)
+
+[node name="ItemLabel" parent="Evidence/ItemSlot" parent_id_path=PackedInt32Array(1514566062) index="2" unique_id=1355298514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.41999996, 0.5367956)
+
+[node name="Prop" parent="Evidence/Trash/CoffeeCup" parent_id_path=PackedInt32Array(299131652) index="0" unique_id=995815299]
+transform = Transform3D(0.6980405, -4.4703484e-08, 0.17646329, -1.4901161e-08, 0.72, 2.9802322e-08, -0.17646334, 4.4703484e-08, 0.6980406, 1.2973483, 0.5816927, 0.1527968)
+
+[node name="Prop" parent="Evidence/Trash/PaperBallB" parent_id_path=PackedInt32Array(1942097237) index="0" unique_id=1973455438]
+transform = Transform3D(0.8, 0, 0, 0, 0.65, 0, 0, 0, 0.9, 0, 0, -2.8892877)
+
+[node name="Prop" parent="Evidence/Trash/SmallBox" parent_id_path=PackedInt32Array(907075777) index="0" unique_id=1141216536]
+transform = Transform3D(0.18, 0, 0, 0, 0.18, 0, 0, 0, 0.18, -4.35076, 7.07805e-08, 10.8832)
+
+[node name="Prop" parent="Evidence/Trash/LoosePages" parent_id_path=PackedInt32Array(668147046) index="0" unique_id=1572559552]
+transform = Transform3D(0.35, 0, 0, 0, 0.12, 0, 0, 0, 0.35, -6.05588, 1.22, 9.32646)

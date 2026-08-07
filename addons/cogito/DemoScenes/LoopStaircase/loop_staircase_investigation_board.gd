@@ -105,6 +105,8 @@ func _build_ui() -> void:
 	_clue_label = Label.new()
 	_clue_label.name = "VisibleClues"
 	_clue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_clue_label.custom_minimum_size = Vector2(0, 110)
+	_clue_label.add_theme_font_size_override("font_size", 20)
 	_clue_label.text = "\n".join(_clue_lines)
 	layout.add_child(_clue_label)
 	var grid := GridContainer.new()

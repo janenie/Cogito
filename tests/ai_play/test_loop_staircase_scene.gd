@@ -20,6 +20,9 @@ const EXPECTED_ROOM_SCENES: Dictionary = {
 	8: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_8_meeting_round.tscn",
 	9: "res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_9_meeting_boardroom.tscn",
 }
+const SIGNAL_LAMP_SCENE: String = (
+	"res://addons/cogito/DemoScenes/LoopStaircase/Props/loop_signal_wall_lamp.tscn"
+)
 
 var _failures: Array[String] = []
 var _test_scene_root: Node
@@ -42,6 +45,18 @@ func _run_test() -> void:
 	var root_node: Node = scene.instantiate()
 	root.add_child(root_node)
 	await process_frame
+	var world_environment := root_node.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	var directional_light := root_node.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	_assert(
+		world_environment != null
+		and world_environment.environment != null
+		and world_environment.environment.tonemap_mode == Environment.TONE_MAPPER_ACES,
+		"scene uses ACES tonemapping to preserve bright wall detail",
+	)
+	_assert(
+		directional_light != null and directional_light.light_energy <= 0.7,
+		"scene key light does not overexpose the authored rooms",
+	)
 	var controller: Node = root_node.get_node_or_null("AIPlayController")
 	var manager: Node = root_node.get_node_or_null("AIPlayController/LoopStaircaseManager")
 	var observer: Node = root_node.get_node_or_null("AIPlayController/Observer")
@@ -81,6 +96,11 @@ func _run_test() -> void:
 			"%dF is instanced from its authored room scene" % floor_number,
 		)
 		_assert_room_has_floor_collision(room, "%dF active room" % floor_number)
+		var room_light := room.get_node_or_null("RoomLight") as OmniLight3D
+		_assert(
+			room_light != null and room_light.light_energy <= 1.0,
+			"%dF room fill light stays below the overexposure threshold" % floor_number,
+		)
 		var player_spawn := room.get_node_or_null("PlayerSpawn") as Node3D
 		_assert(
 			player != null
@@ -101,11 +121,57 @@ func _run_test() -> void:
 			for child: Node in stable_theme.get_children():
 				names.append(child.name)
 			pair_signatures[floor_number] = names
+			var reused_paths: Array[String] = []
+			_collect_external_scene_paths(stable_theme, reused_paths)
+			_assert(reused_paths.size() >= 4, "%dF reuses at least four authored Lobby assets" % floor_number)
+			_assert_decor_is_fixed(stable_theme, "%dF stable furniture" % floor_number)
 		var visitor_record := room.get_node_or_null("Evidence/VisitorRecord") as Label3D
 		_assert(visitor_record != null, "%dF has a visible visitor record" % floor_number)
-		_assert(room.get_node_or_null("Evidence/ItemSlot") is Node3D, "%dF has an ordinary item slot" % floor_number)
-		_assert(room.get_node_or_null("Evidence/Trash") is Node3D, "%dF has visible trash" % floor_number)
-		_assert(room.get_node_or_null("Evidence/SignalLight") is MeshInstance3D, "%dF has a signal light" % floor_number)
+		var item_slot := room.get_node_or_null("Evidence/ItemSlot") as Node3D
+		_assert(item_slot != null, "%dF has an ordinary item slot" % floor_number)
+		var book_slots := room.get_node_or_null("Evidence/ItemSlot/BookSlots") as Node3D
+		_assert(book_slots != null and book_slots.get_child_count() == 6, "%dF keeps six authored book slots" % floor_number)
+		if book_slots != null:
+			var visible_book_count: int = 0
+			for book: Node in book_slots.get_children():
+				if book is Node3D and book.visible:
+					visible_book_count += 1
+			var state: Dictionary = manager.get_floor_state(floor_number)
+			var expected_books: int = int(state["item_count"]) if state["tracked_item"] == "书本" else 0
+			_assert(visible_book_count == expected_books, "%dF book count is controlled only through authored slot visibility" % floor_number)
+		var item_label := room.get_node_or_null("Evidence/ItemSlot/ItemLabel") as Label3D
+		_assert(
+			item_label != null and item_label.text == "书本",
+			"%dF does not reveal the authored book count in text" % floor_number,
+		)
+		var trash := room.get_node_or_null("Evidence/Trash") as Node3D
+		_assert(trash != null, "%dF has visible trash" % floor_number)
+		if trash != null:
+			_assert(trash.get_child_count() == 6, "%dF keeps six authored trash slots" % floor_number)
+			var visible_trash_count: int = 0
+			for slot: Node in trash.get_children():
+				if slot is Node3D and slot.visible:
+					visible_trash_count += 1
+			_assert(
+				visible_trash_count == int(manager.get_floor_state(floor_number)["trash_count"]),
+				"%dF shows the case-controlled number of fixed trash props" % floor_number,
+			)
+			_assert_decor_is_fixed(trash, "%dF trash" % floor_number)
+		var signal_light := room.get_node_or_null("Evidence/SignalLight") as Node3D
+		_assert(
+			signal_light != null and signal_light.scene_file_path == SIGNAL_LAMP_SCENE,
+			"%dF uses the authored Lobby wall lamp signal" % floor_number,
+		)
+		var signal_spot := room.get_node_or_null("Evidence/SignalLight/SignalSpot") as SpotLight3D
+		_assert(
+			signal_spot != null and signal_spot.light_energy <= 1.0,
+			"%dF signal lamp remains readable without washing out the wall" % floor_number,
+		)
+		var observation_label := room.get_node_or_null("ObservationLabel") as Label3D
+		_assert(
+			observation_label != null and observation_label.position.y >= 2.0,
+			"%dF cumulative clues stay above furniture height" % floor_number,
+		)
 		_assert(visitor_record == null or not "访问轮次" in visitor_record.text, "%dF hides visit time before round five" % floor_number)
 		_assert(not room.has_meta("is_solution"), "%dF does not visually tag the answer" % floor_number)
 	for frame_index: int in range(12):
@@ -160,7 +226,59 @@ func _assert_authored_room_scenes() -> void:
 			"%dF authored room declares its fixed function" % floor_number,
 		)
 		_assert_room_has_floor_collision(room, "%dF authored room" % floor_number)
+		_assert_room_is_contained(room, "%dF authored room" % floor_number)
+		_assert_authored_evidence_layout(room, floor_number)
+		var reused_paths: Array[String] = []
+		_collect_external_scene_paths(room.get_node_or_null("StableTheme"), reused_paths)
+		_assert(reused_paths.size() >= 4, "%dF authored room reuses Lobby furniture prefabs" % floor_number)
 		room.free()
+
+
+func _assert_authored_evidence_layout(room: Node3D, floor_number: int) -> void:
+	var visitor_anchor := room.get_node_or_null("Evidence/VisitorRecordAnchor") as Node3D
+	var signal_light := room.get_node_or_null("Evidence/SignalLight") as Node3D
+	var item_slot := room.get_node_or_null("Evidence/ItemSlot") as Node3D
+	var book_slots := room.get_node_or_null("Evidence/ItemSlot/BookSlots") as Node3D
+	var trash := room.get_node_or_null("Evidence/Trash") as Node3D
+	_assert(visitor_anchor != null, "%dF authors the visitor record on the left wall" % floor_number)
+	_assert(
+		signal_light != null and signal_light.scene_file_path == SIGNAL_LAMP_SCENE,
+		"%dF authors the signal lamp on the right wall" % floor_number,
+	)
+	_assert(item_slot != null, "%dF authors a tabletop item anchor" % floor_number)
+	_assert(book_slots != null and book_slots.get_child_count() == 6, "%dF authors six editable book slots" % floor_number)
+	_assert(trash != null and trash.get_child_count() == 6, "%dF authors six trash slots" % floor_number)
+	if visitor_anchor != null:
+		_assert(visitor_anchor.position.x < -3.0, "%dF visitor evidence stays on the left wall" % floor_number)
+	if signal_light != null:
+		_assert(signal_light.position.x > 3.0, "%dF lamp evidence stays on the right wall" % floor_number)
+	if trash == null:
+		return
+	var trash_kinds: Dictionary = {}
+	for slot: Node in trash.get_children():
+		var trash_kind: String = str(slot.get_meta("trash_kind", ""))
+		if not trash_kind.is_empty():
+			trash_kinds[trash_kind] = true
+	_assert(trash_kinds.size() >= 4, "%dF trash pile mixes at least four prop types" % floor_number)
+
+
+func _collect_external_scene_paths(node: Node, result: Array[String]) -> void:
+	if node == null:
+		return
+	if not node.scene_file_path.is_empty():
+		result.append(node.scene_file_path)
+		return
+	for child: Node in node.get_children():
+		_collect_external_scene_paths(child, result)
+
+
+func _assert_decor_is_fixed(node: Node, label: String) -> void:
+	if node is RigidBody3D:
+		_assert(node.freeze, "%s rigid prop is frozen" % label)
+	if node is Area3D:
+		_assert(not node.monitoring and node.collision_layer == 0, "%s interaction area is disabled" % label)
+	for child: Node in node.get_children():
+		_assert_decor_is_fixed(child, label)
 
 
 func _assert_room_has_floor_collision(room: Node, label: String) -> void:
@@ -184,6 +302,30 @@ func _assert_room_has_floor_collision(room: Node, label: String) -> void:
 		and absf(local_spawn.z) <= box.size.z * 0.5
 		and local_spawn.y >= box.size.y * 0.5,
 		"%s spawn is geometrically supported by its floor collision" % label,
+	)
+
+
+func _assert_room_is_contained(room: Node, label: String) -> void:
+	var boundary := room.get_node_or_null("FrontBoundary") as StaticBody3D
+	_assert(boundary != null, "%s blocks the open edge of the floor" % label)
+	if boundary == null:
+		return
+	var collision := boundary.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	_assert(
+		collision != null and collision.shape is BoxShape3D and not collision.disabled,
+		"%s front boundary has enabled static collision" % label,
+	)
+	if collision == null or not collision.shape is BoxShape3D:
+		return
+	var shape := collision.shape as BoxShape3D
+	var spawn := room.get_node_or_null("PlayerSpawn") as Node3D
+	_assert(
+		shape.size.x >= 7.0
+		and shape.size.y >= 3.0
+		and boundary.position.z >= 2.5
+		and spawn != null
+		and spawn.position.z < boundary.position.z,
+		"%s boundary spans the exit side beyond the player spawn" % label,
 	)
 
 

@@ -1,37 +1,63 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://tcwc6qd5jtiv"]
 
-[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://bw6b55oidtifb" path="res://addons/cogito/DemoScenes/LoopStaircase/Rooms/loop_room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://84hxf8n08b4d" path="res://addons/cogito/DemoScenes/DemoPrefabs/lounge_design_sofa.tscn" id="2_sofa"]
+[ext_resource type="PackedScene" uid="uid://ccm32rl5d67al" path="res://addons/cogito/DemoScenes/DemoPrefabs/lounge_design_chair.tscn" id="3_chair"]
+[ext_resource type="PackedScene" uid="uid://dlhn1jwgx0wjr" path="res://addons/cogito/DemoScenes/DemoPrefabs/table_coffee_glass.tscn" id="4_table"]
+[ext_resource type="PackedScene" uid="uid://duxk3xlhddnvt" path="res://addons/cogito/DemoScenes/DemoPrefabs/potted_plant.tscn" id="5_plant"]
+[ext_resource type="PackedScene" uid="uid://dkundghktg5ol" path="res://addons/cogito/DemoScenes/DemoPrefabs/lamp_round_floor.tscn" id="6_lamp"]
 
-[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
-albedo_color = Color(0.56, 0.46, 0.37, 1)
-roughness = 0.82
-
-[sub_resource type="BoxMesh" id="SofaMesh"]
-size = Vector3(2.5, 0.72, 0.82)
-
-[sub_resource type="BoxMesh" id="BenchMesh"]
-size = Vector3(1.5, 0.55, 0.55)
-
-[sub_resource type="BoxMesh" id="TableMesh"]
-size = Vector3(1.3, 0.18, 0.8)
-
-[node name="CurrentFloorRoom" instance=ExtResource("1_base")]
+[node name="CurrentFloorRoom" unique_id=1000324885 instance=ExtResource("1_base")]
 metadata/theme_id = "lounge_window"
 metadata/room_type = "lounge"
 
-[node name="CornerSofa" type="MeshInstance3D" parent="StableTheme" index="0"]
-position = Vector3(-1.7, 0.36, 0.8)
-mesh = SubResource("SofaMesh")
-material_override = SubResource("AccentMaterial")
+[node name="ReceptionSofa" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="0" unique_id=1626456257 instance=ExtResource("2_sofa")]
+transform = Transform3D(0.9963956, 0, 0.08482793, 0, 1, 0, -0.08482793, 0, 0.9963956, -2.2, 0, -0.20669007)
 
-[node name="WindowBench" type="MeshInstance3D" parent="StableTheme" index="1"]
-position = Vector3(1.8, 0.275, -1.8)
-mesh = SubResource("BenchMesh")
-material_override = SubResource("AccentMaterial")
+[node name="WindowChair" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="1" unique_id=16773577 instance=ExtResource("3_chair")]
+transform = Transform3D(0.019786179, 0, -0.99980426, 0, 1, 0, 0.99980426, 0, 0.019786179, 1.7833643, 0, -0.6256442)
 
-[node name="GlassTeaTable" type="MeshInstance3D" parent="StableTheme" index="2"]
-position = Vector3(0, 0.42, 0.45)
-mesh = SubResource("TableMesh")
-material_override = SubResource("AccentMaterial")
+[node name="LobbyTable" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="2" unique_id=1453733637 instance=ExtResource("4_table")]
+transform = Transform3D(0.99871516, 0, 0.050669886, 0, 1, 0, -0.050669886, 0, 0.99871516, 0.48656183, 0, 0.95182973)
 
-[editable path="StableTheme"]
+[node name="EntrancePlant" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="3" unique_id=716173418 instance=ExtResource("5_plant")]
+transform = Transform3D(0.72, 0, 0, 0, 0.72, 0, 0, 0, 0.72, 2.493851, 0, 2.1702566)
+
+[node name="EntranceFloorLamp" parent="StableTheme" parent_id_path=PackedInt32Array(755437498) index="4" unique_id=1863629698 instance=ExtResource("6_lamp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.8402667, 0, -1.4223804)
+
+[node name="Book1" parent="Evidence/ItemSlot/BookSlots" index="0"]
+transform = Transform3D(0.47984144, 0, -0.012337096, 0, 0.47999996, 0, 0.012337096, 0, 0.47984144, -0.93448436, -0.31934953, 1.2940903)
+
+[node name="Book2" parent="Evidence/ItemSlot/BookSlots" index="1"]
+transform = Transform3D(0.475328, 0, -0.066806, 0, 0.48, 0, 0.066806, 0, 0.475328, -0.73772675, -0.30936778, 1.4882042)
+
+[node name="Book3" parent="Evidence/ItemSlot/BookSlots" index="2"]
+transform = Transform3D(0.478174, 0, 0.041835, 0, 0.48, 0, -0.041835, 0, 0.478174, -0.50554293, -0.3147744, 1.4359937)
+
+[node name="Book4" parent="Evidence/ItemSlot/BookSlots" index="3"]
+transform = Transform3D(0.478831, 0, -0.033483, 0, 0.48, 0, 0.033483, 0, 0.478831, -0.33275402, -0.3213579, 1.1361068)
+
+[node name="Book5" parent="Evidence/ItemSlot/BookSlots" index="4"]
+transform = Transform3D(0.476422, 0, 0.058498, 0, 0.48, 0, -0.058498, 0, 0.476422, -0.11577505, -0.31335574, 1.5739357)
+
+[node name="Book6" parent="Evidence/ItemSlot/BookSlots" index="5"]
+transform = Transform3D(0.6166038, 0, -0.0648056, 0, 0.62, 0, 0.0648056, 0, 0.6166038, 1.1010458, -0.31963342, 0.70957315)
+
+[node name="ItemLabel" parent="Evidence/ItemSlot" parent_id_path=PackedInt32Array(1514566062) index="2" unique_id=1355298514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02177453, 1.1197197)
+
+[node name="Prop" parent="Evidence/Trash/PaperBallA" parent_id_path=PackedInt32Array(487968020) index="0" unique_id=1246953954]
+transform = Transform3D(1, 0, 0, 0, 0.72, 0, 0, 0, 0.86, 4.4436665, 0, 2.4184008)
+
+[node name="Prop" parent="Evidence/Trash/CoffeeCup" parent_id_path=PackedInt32Array(299131652) index="0" unique_id=995815299]
+transform = Transform3D(0.9985859, 0, 0.25244063, -5.9604645e-08, 1.03, -1.4901161e-08, -0.25244063, 2.9802322e-08, 0.99858576, -0.1438644, -1.9399786, -0.3905363)
+
+[node name="Prop" parent="Evidence/Trash/PaperBallB" parent_id_path=PackedInt32Array(1942097237) index="0" unique_id=1973455438]
+transform = Transform3D(0.8, 0, 0, 0, 0.65, 0, 0, 0, 0.9, 4.1808887, 0, -3.0743184)
+
+[node name="Prop" parent="Evidence/Trash/SmallBox" parent_id_path=PackedInt32Array(907075777) index="0" unique_id=1141216536]
+transform = Transform3D(0.18, 0, 0, 0, 0.18, 0, 0, 0, 0.18, -4.35076, 7.07805e-08, 10.8832)
+
+[node name="Prop" parent="Evidence/Trash/LoosePages" parent_id_path=PackedInt32Array(668147046) index="0" unique_id=1572559552]
+transform = Transform3D(0.35, 0, 0, 0, 0.12, 0, 0, 0, 0.35, -6.05588, 1.22, 9.32646)

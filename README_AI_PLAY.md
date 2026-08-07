@@ -345,7 +345,7 @@ $env:PYTHONPATH = "ai_play/src"
 {
   "observation_id": 12,
   "actions": [
-    {"type": "look", "direction": "left", "degrees": 15},
+    {"type": "look", "yaw": -15, "pitch": 0},
     {"type": "move", "forward": 0.4, "right": 0, "duration_ms": 100}
   ]
 }
@@ -374,8 +374,8 @@ game_script、code_read 或任何隐藏的谜题答案。
 ### 视角与移动
 
 ```json
-{"type": "look", "direction": "left", "degrees": 15}
-{"type": "look", "direction": "up", "degrees": 5}
+{"type": "look", "yaw": -15, "pitch": 0}
+{"type": "look", "yaw": 0, "pitch": 5}
 {"type": "move", "forward": 0.4, "right": 0, "duration_ms": 100}
 {"type": "sprint", "forward": 1, "right": 0, "duration_ms": 250}
 {"type": "jump"}
@@ -383,8 +383,7 @@ game_script、code_read 或任何隐藏的谜题答案。
 {"type": "wait", "duration_ms": 500}
 ```
 
-- `look.direction`：`left`、`right`、`up`、`down`
-- `look.degrees`：`1..45`；不要填写 `yaw`、`pitch` 或正负号
+- `look.yaw`、`look.pitch`：`-45..45`；yaw 负数左转、正数右转，pitch 负数向下、正数向上
 - `move` / `sprint` 的 `forward`、`right`：`-1..1`
 - `move` / `sprint` 的 `duration_ms`：`50..250`
 - `wait.duration_ms`：`50..2000`

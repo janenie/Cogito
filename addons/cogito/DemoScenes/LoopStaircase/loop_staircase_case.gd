@@ -192,7 +192,7 @@ func _generate(seed_value: int) -> void:
 	var round_one: Array[int] = _sorted(round_two + [item_miss])
 	candidate_sets = [_all_floors(), round_one, round_two, round_three, round_four, [true_floor]]
 	victim_name = VICTIM_NAMES[_rng.randi_range(0, VICTIM_NAMES.size() - 1)]
-	tracked_item = TRACKED_ITEMS[_rng.randi_range(0, TRACKED_ITEMS.size() - 1)]
+	tracked_item = "书本"
 	_generate_floor_states(visitor_miss, signal_miss, zero_trash, trash_miss, item_miss)
 	clues = [
 		"寻找访客记录中出现“%s”的房间。" % victim_name,
@@ -215,7 +215,7 @@ func _generate_floor_states(
 		var visitors: Array[String] = [VISITOR_NAMES[(floor_number - FLOOR_MIN) % VISITOR_NAMES.size()]]
 		if floor_number in candidate_sets[1]:
 			visitors.append(victim_name)
-		var item_base: int = 1 + ((floor_number + _rng.randi_range(0, 2)) % 3)
+		var item_base: int = 2 + ((floor_number + _rng.randi_range(0, 3)) % 4)
 		var item_counts: Array[int] = [item_base, item_base, item_base, item_base, item_base]
 		if floor_number in [true_floor, signal_miss, zero_trash]:
 			item_counts = [item_base, item_base + 1, item_base + 1, item_base + 1, item_base + 1]

@@ -38,8 +38,8 @@ func _run_test() -> void:
 	)
 	executor.execute_batch([{
 		"type": "look",
-		"direction": "left",
-		"degrees": 45.0,
+		"yaw": -45.0,
+		"pitch": 0.0,
 	}], {})
 	while action_results.is_empty():
 		await process_frame
@@ -54,8 +54,8 @@ func _run_test() -> void:
 	)
 	executor.execute_batch([{
 		"type": "look",
-		"direction": "up",
-		"degrees": 20.0,
+		"yaw": 0.0,
+		"pitch": 20.0,
 	}], {})
 	while action_results.is_empty():
 		await process_frame
@@ -73,8 +73,8 @@ func _run_test() -> void:
 	)
 	executor.execute_batch([{
 		"type": "look",
-		"direction": "right",
-		"degrees": 30.0,
+		"yaw": 30.0,
+		"pitch": 0.0,
 	}], {})
 	while action_results.is_empty():
 		await process_frame

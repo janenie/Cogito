@@ -17,14 +17,23 @@ grid = true
 inventory_size = Vector2i(6, 3)
 inventory_slots = Array[ExtResource("3_4mh12")]([null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null])
 
+[sub_resource type="Environment" id="Environment_loop_staircase"]
+background_mode = 1
+background_color = Color(0.055, 0.06, 0.07, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.76, 0.8, 0.88, 1)
+ambient_light_energy = 0.15
+tonemap_mode = 3
+
 [node name="LoopStaircaseAnomaly" type="Node3D" unique_id=1774492388]
 script = ExtResource("1_scene")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1465021515]
+environment = SubResource("Environment_loop_staircase")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2096280424]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, -6)
-light_energy = 1.5
+light_energy = 0.45
 shadow_enabled = true
 
 [node name="Player" parent="." unique_id=340015883 instance=ExtResource("2_player")]

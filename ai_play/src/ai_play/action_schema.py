@@ -8,12 +8,12 @@ class ActionValidationError(ValueError):
     """Raised when an action is outside the safe action schema."""
 
 
-LOOK_DIRECTIONS = {"left", "right", "up", "down"}
 LOOK_MAX_DEGREES = 45
 MOVE_MAX_DURATION_MS = 250
+LOOP_STEP_SIZES = {"small", "large"}
 
 ALLOWED_KEYS = {
-    "look": {"type", "direction", "degrees"},
+    "look": {"type", "yaw", "pitch"},
     "move": {"type", "forward", "right", "duration_ms"},
     "sprint": {"type", "forward", "right", "duration_ms"},
     "jump": {"type"},
@@ -27,7 +27,17 @@ ALLOWED_KEYS = {
     "undo": {"type"},
     "make": {"type"},
     "wait_next_window": {"type"},
-    "press_key": {"type", "key"},
+    "front": {"type", "step"},
+    "back": {"type", "step"},
+    "left": {"type", "step"},
+    "right": {"type", "step"},
+    "floor_up": {"type"},
+    "floor_down": {"type"},
+    "toggle_board": {"type"},
+    "board_up": {"type"},
+    "board_down": {"type"},
+    "toggle_mark": {"type"},
+    "submit_floor": {"type"},
 }
 CONVEYOR_ACTIONS = frozenset({
     "select_ingredient", "undo", "make", "wait_next_window",
@@ -37,7 +47,10 @@ CONVEYOR_INGREDIENT_IDS = frozenset({
     "onion", "pumpkin", "bread", "meat", "egg", "cheese", "bacon",
     "broccoli", "corn", "fish",
 })
-ALLOWED_PRESS_KEYS = {"up", "down", "space", "tab"}
+LOOP_STAIRCASE_ACTIONS = frozenset({
+    "front", "back", "left", "right", "floor_up", "floor_down",
+    "toggle_board", "board_up", "board_down", "toggle_mark", "submit_floor",
+})
 
 
 def _require_number(value, lower, upper, field):
@@ -66,13 +79,21 @@ def _validate_action(action, available_interactions, interface_open, scenario_id
         raise ActionValidationError("action has invalid fields")
     if action_type in CONVEYOR_ACTIONS and scenario_id != "conveyor_profit":
         raise ActionValidationError("action is not allowed for this scenario")
-    if action_type == "press_key" and scenario_id != "loop_staircase_anomaly":
+    if (
+        action_type in LOOP_STAIRCASE_ACTIONS
+        and scenario_id != "loop_staircase_anomaly"
+    ):
         raise ActionValidationError("action is not allowed for this scenario")
 
     if action_type == "look":
-        if action["direction"] not in LOOK_DIRECTIONS:
-            raise ActionValidationError("look direction is not allowed")
-        _require_number(action["degrees"], 1, LOOK_MAX_DEGREES, "degrees")
+        _require_number(action["yaw"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "yaw")
+        _require_number(
+            action["pitch"], -LOOK_MAX_DEGREES, LOOK_MAX_DEGREES, "pitch"
+        )
+    elif action_type in {"front", "back", "left", "right"}:
+        step = action["step"]
+        if not isinstance(step, str) or step not in LOOP_STEP_SIZES:
+            raise ActionValidationError("step must be small or large")
     elif action_type in {"move", "sprint"}:
         _require_number(action["forward"], -1, 1, "forward")
         _require_number(action["right"], -1, 1, "right")
@@ -110,10 +131,6 @@ def _validate_action(action, available_interactions, interface_open, scenario_id
             or ingredient not in CONVEYOR_INGREDIENT_IDS
         ):
             raise ActionValidationError("ingredient is not allowed")
-    elif action_type == "press_key":
-        key = action["key"]
-        if not isinstance(key, str) or key not in ALLOWED_PRESS_KEYS:
-            raise ActionValidationError("press_key key is not allowed")
 
 
 def validate_action_batch(
@@ -131,7 +148,10 @@ def validate_action_batch(
         _validate_action(action, available, interface_open, scenario_id)
         if action["type"] == "wait_next_window" and len(actions) != 1:
             raise ActionValidationError("wait_next_window must be the only action")
-        if action["type"] in {"interact", "enter_digits", "close_ui", "make"}:
+        if action["type"] in {
+            "interact", "enter_digits", "close_ui", "make", "toggle_board",
+            "submit_floor",
+        }:
             if index != len(actions) - 1:
                 raise ActionValidationError("context-changing action must be last")
     if (
