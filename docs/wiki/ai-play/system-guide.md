@@ -58,9 +58,9 @@ Godot 桥的安全边界。
   不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
   `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
   50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
-- `find_contract` 的请求硬上限是 300，终局只允许 `success/correct_password`、
-  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 使用 50 次请求硬上限，
-  终局只允许 `success/key_picked_up` 和 `failure/max_requests`；`put_book` 的请求硬上限
+- `find_contract` 的请求硬上限是 150，终局只允许 `success/correct_password`、
+  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 使用 150 次请求硬上限，
+  终局只允许 `success/key_picked_up`、`failure/security_lockout` 和 `failure/max_requests`；`put_book` 的请求硬上限
   是 150，终局只允许 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和
   `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
@@ -79,7 +79,7 @@ Godot 桥的安全边界。
   `success/correct_floor_selected`、`failure/wrong_floor_selected` 和
   `failure/max_requests`；`laboratory_experiment` 的请求硬上限是 150，终局只允许
   `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
-  `failure/max_requests`。`find_key` 没有答错失败。
+  `failure/max_requests`。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
   `briefing`、`observe`、MCP `stop()` 和工作流记忆工具不计数。第 N 次请求先按正常规则
@@ -120,8 +120,8 @@ Godot 桥的安全边界。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
-- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`；当前 Godot 固定发送 50。
-  Python 为兼容旧 Godot 仍允许整数 50 或 100；省略时默认 100，其他玩法携带、非法类型
+- `find_key` 的版本 4 `hello` 可额外携带 `act_request_limit`；当前 Godot 固定发送 150。
+  Python 为兼容旧 Godot 仍允许整数 50、100 或 150；省略时默认 150，其他玩法携带、非法类型
   和值都必须拒绝。首次握手后重连上限必须一致。
   该字段只供 Python 内部计数，不进入 MCP 工具结果或轨迹日志。
 - `AI_PLAY_LOG_ROOT` 默认是 `~/workspace/cogito_logs/mcplogs`。Godot 成功附加后在
@@ -479,17 +479,23 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   -- --ai-play --ai-play-scenario=find_key
 ```
 
-- 每局只存在一张任务卡和一把目标钥匙。钥匙在四类办公家具位置中随机选择一处：有笔记本
-  电脑的办公桌、档案室旁边的沙发、会议室长桌或有大电视的茶几。任务卡用环境特征描述
-  目标位置，不公开内部节点或坐标。
-- 游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择与钥匙世界坐标
-  直线距离最远的出生点；任务卡与出生点保持 1～2 米距离。
-- 只有成功执行 Pickup 才产生 `success/key_picked_up`；仅看到钥匙不算成功，本玩法没有
-  wrong-answer 失败。
-- 无论钥匙随机出现在哪类家具位置，每局都使用 50 次请求硬上限。Godot 只向内部桥发送
-  固定的 50 步上限，不发送位置 ID。
-- 非零 `round_seed` 仅供本地确定性测试。候选坐标、所选位置、出生点计算和种子都属于
-  隐藏初始化状态，不得进入公开简报、观察或桥协议。
+- 六个办公区域各放一把外观相同的钥匙：MAIN LOBBY、UPPER OFFICE CEO 和 ARCHIVE 为
+  收纳位，MEETING ROOM、BREAK ROOM 和 CUBICLE AREA 为桌面位。前五把都是历史混淆项；
+  当前钥匙固定在上锁的 ARCHIVE 内，拾取其他钥匙不产生终局。
+- CEO OFFICE、MEETING ROOM、CUBICLE AREA 各有一份合同历史记录和一名对应 NPC。三阶段
+  依次是三个月前 `v0.1`、昨天上午 `v0.8`、昨天下午
+  `FINAL v1.0 / PREPARED FOR SUBMISSION`；最终经手人额外说明今天上午 12:00 前提交的
+  `v1.1 / SUBMITTED`，其提交时间 `HHMM` 是当前密码。所有 NPC 都说真话，历史密码也都
+  有效但只对应旧阶段。
+- 三名 NPC 的物理行为稳定：会议室 NPC 沿既有会议室—大厅—休息室路线移动，CEO NPC
+  只在 CEO OFFICE 的两个点间来回走，开放工位 NPC 固定坐在 CUBICLE AREA 的椅子上。
+- ARCHIVE 门每局重新锁定。键盘启用一次性确认：输入后先显示不可逆警告；取消不消耗机会，
+  确认错误立即产生 `failure/security_lockout`，确认正确只解锁房间。进入房间并实际拾取
+  ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 150。
+- 四套房间/经手人脚本由可信的非负 `--ai-play-round-seed=N` 确定。supervisor 对每个 cycle
+  生成连续四个对齐种子并以确定性洗牌实现不放回；异常重试复用同一命令。启动日志只显示
+  `--ai-play-round-seed=REDACTED`。脚本 ID、种子、NPC 映射、密码、正确钥匙和源码路径都属于
+  隐藏状态，不得进入 hello、公开简报、观察、MCP 工具结果或轨迹。
 
 ## put_book 回合规则
 

@@ -390,12 +390,19 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 随机谜题属于游戏规则；`-- --ai-play` 只决定是否连接 MCP 和接受 AI 控制。回合随机
 种子和生成答案只存在于 Godot 运行时，不进入 MCP 简报、观察或桥协议。
 
-`find_key` 每局把场景中唯一的钥匙放到四类办公家具位置之一：有笔记本电脑的办公桌、
-档案室旁边的沙发、会议室长桌或有大电视的茶几。任务卡只描述本局目标位置的环境特征。
-游戏先选择钥匙位置，再从入口、大厅和 ARCHIVE 门外三个安全点中选择
-与钥匙直线距离最远的出生点；任务卡仍位于出生点 1～2 米内。成功拾取钥匙产生
-`success/key_picked_up`，该玩法没有答错失败。无论钥匙随机出现在哪类家具位置，每局都
-使用 50 次请求硬上限。
+`find_key` 是六区域合同时间线排除题。MAIN LOBBY、CEO OFFICE、ARCHIVE、MEETING ROOM、
+BREAK ROOM 和 CUBICLE AREA 各有一把外观相同的钥匙；三把位于收纳处，三把位于桌面。
+CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回答的 NPC 共同描述
+合同从三个月前初稿、昨天上午审查稿、昨天下午 `FINAL v1.0 / PREPARED FOR SUBMISSION`
+到今天上午 `v1.1 / SUBMITTED` 的变化。玩家需辨别 FINAL 与真正提交状态，向最终经手人
+确认当前四位密码。档案室键盘只有一次确认提交机会；取消不消耗机会，错误确认产生
+`failure/security_lockout`，正确密码只解锁档案室，进入后拾取当前钥匙才产生
+`success/key_picked_up`。每局使用 150 次请求硬上限。
+
+可信 supervisor 可追加 `--ai-play-round-seed=N`（非负整数）复现一局。连续四次逻辑尝试
+使用同一 cycle 的四个对齐种子，确定性地覆盖四套脚本且不放回；基础设施重试复用原命令。
+启动日志会把该参数值替换为 `REDACTED`，种子、脚本 ID、NPC 映射、生成密码和正确答案均
+不得进入 MCP 简报、观察、hello、轨迹或其他工具结果。
 
 `put_book` 在档案室内彼此分开的三组书架上设置九个作者标定槽位，并以种子确定的均衡方式选择六个位置：
 每组书架两本、低中高三层各两本。书本上方不显示悬浮身份标记；玩家靠近并对准书本后，
@@ -636,7 +643,7 @@ mcplogs/
   精确字段的 `game_over_ack`。supervisor 启动的 Godot 只有收到匹配的
   `observation_id` ACK 后才退出；ACK 丢失时使用有界超时退出，避免永久挂起。
 - `find_key` 的版本 4 `hello` 可携带仅内部使用的 `act_request_limit`；当前 Godot
-  固定发送 `50`。Python 为兼容旧 Godot 仍接受整数 `50` 或 `100`，省略时默认 100，
+  固定发送 `150`。Python 为兼容旧 Godot 仍接受整数 `50`、`100` 或 `150`，省略时默认 150，
   其他玩法不得携带。该字段不进入 MCP
   工具结果或轨迹日志，重连时必须与首次握手一致。
 - Godot 会把 JSON 数值解析为浮点：Python 到 Godot 的协议版本接受非布尔且数值精确等于 `4` 的表示，并在桥内规范化为整数 `4`；有效的安全整数 `observation_id` 也会在发出信号或回复 `stop_ack`、`game_over` 前规范化为整数。字符串、布尔、非整数和越界 ID 仍会被拒绝。

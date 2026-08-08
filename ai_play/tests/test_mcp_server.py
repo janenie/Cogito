@@ -365,8 +365,12 @@ def test_find_key_briefing_and_terminal_state_use_selected_scenario(monkeypatch)
             briefing = briefing_result.structuredContent["briefing"]
             assert briefing["game_id"] == "find_key"
             serialized = str(briefing)
-            assert "DesktopDeskAnchor" not in serialized
-            assert "round_seed" not in serialized
+            for forbidden in [
+                "POLARIS", "ATLAS", "ORBIT", "NOVA", "round_seed",
+                "security_lockout", "0937", "ArchiveKey",
+                "ai_play_find_key_round.gd", "--ai-play-round-seed",
+            ]:
+                assert forbidden not in serialized
             assert any(
                 isinstance(item, ImageContent)
                 for item in briefing_result.content

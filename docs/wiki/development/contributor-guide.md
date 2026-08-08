@@ -133,6 +133,7 @@ godot --headless --path . --script tests/ai_play/test_ai_play_repair_lighting_ci
 godot --headless --path . --script tests/ai_play/test_ai_play_meeting_briefing_round.gd
 godot --headless --path . --script tests/ai_play/test_ai_play_meeting_seat_interaction.gd
 godot --headless --path . --script tests/ai_play/test_cogito_keypad_result.gd
+bash tests/check_ai_play_find_key.sh
 godot --headless --path . --script tests/garden/test_garden_ai_play.gd
 godot --headless --path . --script tests/garden/test_garden_game1.gd
 godot --headless --path . --script tests/garden/test_garden_scene.gd
