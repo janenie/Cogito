@@ -49,17 +49,25 @@ func _ready() -> void:
 		and not controller.is_requested_scenario(scenario_id)
 	):
 		return
-	configure_round(round_seed)
+	var selected_seed := round_seed
+	if controller != null and controller.has_method("get_requested_round_seed"):
+		var requested_seed: Dictionary = controller.get_requested_round_seed(
+			OS.get_cmdline_user_args()
+		)
+		if not requested_seed["valid"]:
+			return
+		if requested_seed["provided"]:
+			selected_seed = requested_seed["value"]
+		else:
+			selected_seed = int(Time.get_ticks_usec() & 0x7fffffff)
+	configure_round(selected_seed)
 
 
 func configure_round(seed_value: int = 0) -> void:
 	if not _has_required_nodes():
 		return
 	var rng := RandomNumberGenerator.new()
-	if seed_value == 0:
-		rng.randomize()
-	else:
-		rng.seed = seed_value
+	rng.seed = seed_value
 	_round_finished = false
 	var location_index: int = rng.randi_range(0, LOCATION_IDS.size() - 1)
 	_selected_location = LOCATION_IDS[location_index]

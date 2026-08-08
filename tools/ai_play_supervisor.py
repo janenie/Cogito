@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import queue
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -66,6 +67,7 @@ def build_godot_command(
     scene: str,
     scenario: str,
     conveyor_draw_index: int | None = None,
+    find_key_round_seed: int | None = None,
 ) -> list[str]:
     command = [
         godot_bin,
@@ -81,7 +83,27 @@ def build_godot_command(
         if conveyor_draw_index < 0:
             raise ValueError("conveyor_draw_index must be nonnegative")
         command.append(f"--conveyor-draw-index={conveyor_draw_index}")
+    if scenario == "find_key" and find_key_round_seed is not None:
+        if find_key_round_seed < 0:
+            raise ValueError("find_key_round_seed must be nonnegative")
+        command.append(f"--ai-play-round-seed={find_key_round_seed}")
     return command
+
+
+def find_key_round_seed(cycle_seed: int, attempt_number: int) -> int:
+    if cycle_seed < 0:
+        raise ValueError("find-key cycle seed must be nonnegative")
+    if attempt_number < 1:
+        raise ValueError("find-key attempt number must be at least 1")
+    return cycle_seed * 4 + attempt_number - 1
+
+
+def redact_command(command: Sequence[str]) -> list[str]:
+    return [
+        "--ai-play-round-seed=REDACTED"
+        if value.startswith("--ai-play-round-seed=") else value
+        for value in command
+    ]
 
 
 def run_supervised_attempt(
@@ -129,7 +151,7 @@ def _run_process_once(
 ) -> AttemptResult:
     print(
         "[supervisor] starting attempt %d retry %d: %s"
-        % (attempt_number, retry, " ".join(command)),
+        % (attempt_number, retry, " ".join(redact_command(command))),
         flush=True,
     )
     process = subprocess.Popen(
@@ -247,6 +269,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=1200.0)
     parser.add_argument("--game-over-exit-timeout-seconds", type=float, default=10.0)
+    parser.add_argument("--find-key-cycle-seed", type=int)
     return parser.parse_args(argv)
 
 
@@ -260,18 +283,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--timeout-seconds must be positive")
     if args.game_over_exit_timeout_seconds <= 0:
         raise SystemExit("--game-over-exit-timeout-seconds must be positive")
+    if args.find_key_cycle_seed is not None and args.find_key_cycle_seed < 0:
+        raise SystemExit("--find-key-cycle-seed must be nonnegative")
 
     try:
         scene = resolve_scene(args.scenario, args.scene)
     except ValueError as error:
         raise SystemExit(str(error)) from error
     results: list[AttemptResult] = []
+    cycle_seed = args.find_key_cycle_seed
+    if args.scenario == "find_key" and cycle_seed is None:
+        cycle_seed = secrets.randbelow(1_000_000_000)
     for attempt in range(1, args.runs + 1):
         command = build_godot_command(
             godot_bin=args.godot_bin,
             scene=scene,
             scenario=args.scenario,
             conveyor_draw_index=attempt - 1,
+            find_key_round_seed=(
+                find_key_round_seed(cycle_seed, attempt)
+                if args.scenario == "find_key" and cycle_seed is not None
+                else None
+            ),
         )
         result = run_supervised_attempt(
             command=command,

@@ -11,6 +11,7 @@ const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
+const ROUND_SEED_ARG_PREFIX: String = "--ai-play-round-seed="
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
 const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
 const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100, 150]
@@ -109,6 +110,9 @@ var _observation_timer: Timer
 func _ready() -> void:
 	var user_args: Array = OS.get_cmdline_user_args()
 	_active_scenario_id = get_requested_scenario_id(user_args)
+	var requested_round_seed := get_requested_round_seed(user_args)
+	if not requested_round_seed["valid"]:
+		_active_scenario_id = ""
 	_exit_on_game_over = _should_exit_on_game_over_for_user_args(user_args)
 	_observer = get_node("Observer")
 	_executor = get_node("Executor")
@@ -159,8 +163,8 @@ func _ready() -> void:
 		_terminal_monitor.game_finished.connect(_on_game_finished)
 	_observation_timer.timeout.connect(_on_observation_timer_timeout)
 	print(
-		"AI_PLAY controller ready; scenario=%s user_args=%s auto_start=%s"
-		% [_active_scenario_id, user_args, auto_start]
+		"AI_PLAY controller ready; scenario=%s auto_start=%s"
+		% [_active_scenario_id, auto_start]
 	)
 	if _active_scenario_id.is_empty():
 		push_error("AI_PLAY requested scenario is invalid or unavailable")
@@ -236,6 +240,42 @@ func get_requested_scenario_id(user_args: Array) -> String:
 		if not _is_valid_scenario_id(scenario_id):
 			return ""
 	return scenario_id
+
+
+func get_requested_round_seed(user_args: Array) -> Dictionary:
+	var result := {"valid": true, "provided": false, "value": 0}
+	var raw_value := ""
+	for value: Variant in user_args:
+		if not value is String:
+			continue
+		var argument := value as String
+		if not argument.begins_with(ROUND_SEED_ARG_PREFIX):
+			continue
+		if result["provided"]:
+			result["valid"] = false
+			return result
+		result["provided"] = true
+		raw_value = argument.trim_prefix(ROUND_SEED_ARG_PREFIX)
+	if not result["provided"]:
+		return result
+	if (
+		not _should_enable_for_user_args(user_args)
+		or get_requested_scenario_id(user_args) != "find_key"
+		or raw_value.is_empty()
+	):
+		result["valid"] = false
+		return result
+	for index: int in range(raw_value.length()):
+		var character := raw_value.unicode_at(index)
+		if character < 48 or character > 57:
+			result["valid"] = false
+			return result
+	var parsed_value := raw_value.to_int()
+	if parsed_value < 0 or parsed_value > MAX_SAFE_JSON_INTEGER:
+		result["valid"] = false
+		return result
+	result["value"] = parsed_value
+	return result
 
 
 func is_requested_scenario(scenario_id: String) -> bool:

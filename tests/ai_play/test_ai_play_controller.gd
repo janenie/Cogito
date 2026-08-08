@@ -100,6 +100,7 @@ func _run_tests() -> void:
 	_test_bridge_emits_only_exact_request_limit_terminal()
 	_test_bridge_configures_large_packet_buffers()
 	_test_user_arg_opt_in(controller_script)
+	_test_find_key_round_seed_parser(controller_script)
 	_test_exit_on_game_over_opt_in(controller_script)
 	_test_bridge_requires_exact_loopback()
 	await _test_enable_and_hello(controller_script)
@@ -312,6 +313,47 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 		controller._find_scenario_monitor("unknown") == null,
 		"unknown scenario has no active monitor",
 	)
+	controller.free()
+
+
+func _test_find_key_round_seed_parser(controller_script: GDScript) -> void:
+	var controller: Node = controller_script.new()
+	_assert(
+		controller.get_requested_round_seed([
+			"--ai-play",
+			"--ai-play-scenario=find_key",
+			"--ai-play-round-seed=0",
+		]) == {"valid": true, "provided": true, "value": 0},
+		"zero round seed is deterministic",
+	)
+	_assert(
+		controller.get_requested_round_seed([
+			"--ai-play",
+			"--ai-play-scenario=find_key",
+		]) == {"valid": true, "provided": false, "value": 0},
+		"missing round seed remains valid",
+	)
+	for args: Array in [
+		["--ai-play", "--ai-play-scenario=find_key", "--ai-play-round-seed=-1"],
+		["--ai-play", "--ai-play-scenario=find_key", "--ai-play-round-seed=one"],
+		[
+			"--ai-play",
+			"--ai-play-scenario=find_key",
+			"--ai-play-round-seed=1",
+			"--ai-play-round-seed=2",
+		],
+		["--ai-play-scenario=find_key", "--ai-play-round-seed=1"],
+		["--ai-play", "--ai-play-scenario=find_contract", "--ai-play-round-seed=1"],
+		[
+			"--ai-play",
+			"--ai-play-scenario=find_key",
+			"--ai-play-round-seed=9007199254740992",
+		],
+	]:
+		_assert(
+			not controller.get_requested_round_seed(args)["valid"],
+			"invalid or misplaced round seed is rejected",
+		)
 	controller.free()
 
 

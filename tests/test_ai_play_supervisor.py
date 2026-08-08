@@ -78,6 +78,26 @@ def test_conveyor_command_receives_trusted_logical_draw_index():
     assert all(not item.startswith("--conveyor-draw-index=") for item in other)
 
 
+def test_find_key_command_receives_aligned_redacted_round_seed():
+    supervisor = load_supervisor()
+
+    assert supervisor.find_key_round_seed(27, 1) == 108
+    assert supervisor.find_key_round_seed(27, 4) == 111
+    assert supervisor.find_key_round_seed(27, 5) == 112
+    command = supervisor.build_godot_command(
+        "godot", "scene.tscn", "find_key", find_key_round_seed=108,
+    )
+    assert command[-1] == "--ai-play-round-seed=108"
+    redacted = supervisor.redact_command(command)
+    assert redacted[-1] == "--ai-play-round-seed=REDACTED"
+    assert "108" not in " ".join(redacted)
+
+    with pytest.raises(ValueError, match="nonnegative"):
+        supervisor.find_key_round_seed(-1, 1)
+    with pytest.raises(ValueError, match="at least 1"):
+        supervisor.find_key_round_seed(0, 0)
+
+
 def test_supervisor_assigns_five_logical_attempt_indices(monkeypatch):
     supervisor = load_supervisor()
     commands = []
