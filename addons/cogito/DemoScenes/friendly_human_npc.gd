@@ -218,6 +218,23 @@ func configure_destination(target: Node3D) -> void:
 	configure_route_to_points([target])
 
 
+func configure_stationary_seat(anchor: Node3D, chair_parent_name: String) -> void:
+	if anchor == null:
+		return
+	global_transform = anchor.global_transform
+	sit_chair_parent_name = chair_parent_name
+	allow_sitting = true
+	_route_points.clear()
+	_has_arrived = true
+	_is_waiting = false
+	velocity = Vector3.ZERO
+	_try_sit_nearby_chair()
+
+
+func is_sitting() -> bool:
+	return _is_sitting
+
+
 func configure_route_to_points(targets: Array[Node3D]) -> void:
 	if targets.is_empty():
 		return

@@ -1,0 +1,102 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_key_setup.gd" id="1_setup"]
+[ext_resource type="PackedScene" uid="uid://8wkt5k4dl40u" path="res://addons/cogito/PackedScenes/Pickups/pickup_key.tscn" id="2_key"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="3_document"]
+[ext_resource type="PackedScene" uid="uid://be30t42msjnp8" path="res://addons/cogito/DemoScenes/friendly_human_npc.tscn" id="4_npc"]
+[ext_resource type="PackedScene" uid="uid://bm6px536i18b3" path="res://addons/cogito/DemoScenes/DemoPrefabs/cabinet_television_doors.tscn" id="5_cabinet"]
+
+[node name="FindKeyContractSetup" type="Node3D" node_paths=PackedStringArray("spawned_keys", "contract_documents", "ceo_npc", "cubicle_npc", "ceo_route_root", "cubicle_seat_anchor")]
+script = ExtResource("1_setup")
+spawned_keys = [NodePath("Keys/MainLobbyKey"), NodePath("Keys/ArchiveKey"), NodePath("Keys/MeetingRoomKey"), NodePath("Keys/BreakRoomKey"), NodePath("Keys/CubicleAreaKey")]
+contract_documents = [NodePath("Documents/CEODocument/ReadableComponent"), NodePath("Documents/MeetingDocument/ReadableComponent"), NodePath("Documents/CubicleDocument/ReadableComponent")]
+ceo_npc = NodePath("NPCs/CEONPC")
+cubicle_npc = NodePath("NPCs/CubicleNPC")
+ceo_route_root = NodePath("Routes/CEORoute")
+cubicle_seat_anchor = NodePath("Routes/CubicleSeatAnchor")
+
+[node name="Keys" type="Node3D" parent="."]
+
+[node name="MainLobbyStorage" parent="." instance=ExtResource("5_cabinet")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -3.0)
+
+[node name="MainLobbyKey" parent="Keys" instance=ExtResource("2_key")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.8, 0.32, -3.15)
+freeze = true
+metadata/region_id = "MAIN_LOBBY"
+metadata/placement_kind = "storage"
+
+[node name="ArchiveKey" parent="Keys" instance=ExtResource("2_key")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.0, 0.72, 8.28)
+freeze = true
+metadata/region_id = "ARCHIVE"
+metadata/placement_kind = "storage"
+
+[node name="MeetingRoomKey" parent="Keys" instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.38, 0.91, 14.55)
+freeze = true
+metadata/region_id = "MEETING_ROOM"
+metadata/placement_kind = "surface"
+
+[node name="BreakRoomKey" parent="Keys" instance=ExtResource("2_key")]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -7.30, 0.92, -13.18)
+freeze = true
+metadata/region_id = "BREAK_ROOM"
+metadata/placement_kind = "surface"
+
+[node name="CubicleAreaKey" parent="Keys" instance=ExtResource("2_key")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.12, 1.30, -0.55)
+freeze = true
+metadata/region_id = "CUBICLE_AREA"
+metadata/placement_kind = "surface"
+
+[node name="Documents" type="Node3D" parent="."]
+
+[node name="CEODocument" parent="Documents" instance=ExtResource("3_document")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -5.24, 3.48, -11.42)
+
+[node name="ReadableComponent" parent="Documents/CEODocument" index="2"]
+metadata/region_id = "UPPER_OFFICE_CEO"
+
+[node name="MeetingDocument" parent="Documents" instance=ExtResource("3_document")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 3.35, 0.96, 14.55)
+
+[node name="ReadableComponent" parent="Documents/MeetingDocument" index="2"]
+metadata/region_id = "MEETING_ROOM"
+
+[node name="CubicleDocument" parent="Documents" instance=ExtResource("3_document")]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1.46, -0.55)
+
+[node name="ReadableComponent" parent="Documents/CubicleDocument" index="2"]
+metadata/region_id = "CUBICLE_AREA"
+
+[node name="NPCs" type="Node3D" parent="."]
+
+[node name="CEONPC" parent="NPCs" node_paths=PackedStringArray("route_root") instance=ExtResource("4_npc")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -4.65, 2.68, -11.1)
+route_root = NodePath("../../Routes/CEORoute")
+use_navigation_agent = false
+walk_speed = 0.35
+metadata/region_id = "UPPER_OFFICE_CEO"
+
+[node name="CubicleNPC" parent="NPCs" instance=ExtResource("4_npc")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 6.46, 0.5, -1.05)
+use_navigation_agent = false
+metadata/region_id = "CUBICLE_AREA"
+
+[node name="Routes" type="Node3D" parent="."]
+
+[node name="CEORoute" type="Node3D" parent="Routes"]
+
+[node name="CEOPaceWest" type="Marker3D" parent="Routes/CEORoute"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.65, 2.68, -11.1)
+
+[node name="CEOPaceEast" type="Marker3D" parent="Routes/CEORoute"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.75, 2.68, -11.1)
+
+[node name="CubicleSeatAnchor" type="Marker3D" parent="Routes"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.46, 0.5, -1.05)
+
+[editable path="Documents/CEODocument"]
+[editable path="Documents/MeetingDocument"]
+[editable path="Documents/CubicleDocument"]

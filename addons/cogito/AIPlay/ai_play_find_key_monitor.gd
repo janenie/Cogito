@@ -3,29 +3,23 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const LOCATION_IDS: Array[String] = [
-	"laptop_desk",
-	"archive_sofa",
-	"meeting_table",
-	"tv_coffee_table",
-]
-const LOCATION_TASK_TEXT := {
-	"laptop_desk": "钥匙在有笔记本电脑的办公桌上。",
-	"archive_sofa": "钥匙在档案室旁边的沙发上。",
-	"meeting_table": "钥匙在会议室的长桌上。",
-	"tv_coffee_table": "钥匙在有大电视的茶几上。",
+const ACT_REQUEST_LIMIT := 150
+const NPC_COLORS := {
+	"李明": Color(0.18, 0.44, 0.62),
+	"王芳": Color(0.58, 0.28, 0.62),
+	"陈宇": Color(0.22, 0.56, 0.34),
 }
-const ACT_REQUEST_LIMIT: int = 150
 
 @export var scenario_id: String = "find_key"
 @export var game_over_screen: AIPlayGameOverScreen
 @export var player: Node3D
 @export var task_card: ReadableComponent
-@export var key: RigidBody3D
-@export var laptop_desk_anchor: Marker3D
-@export var archive_sofa_anchor: Marker3D
-@export var meeting_table_anchor: Marker3D
-@export var tv_coffee_table_anchor: Marker3D
+@export var setup: AIPlayFindKeySetup
+@export var ceo_key: RigidBody3D
+@export var ceo_drawer: Node3D
+@export var meeting_npc: FriendlyHumanNPC
+@export var keypad: CogitoKeypad
+@export var archive_door: CogitoDoor
 @export var entrance_spawn: Marker3D
 @export var entrance_task_card_anchor: Marker3D
 @export var lobby_spawn: Marker3D
@@ -34,11 +28,11 @@ const ACT_REQUEST_LIMIT: int = 150
 @export var archive_task_card_anchor: Marker3D
 @export var round_seed: int = 0
 
-var _round_finished: bool = false
-var _pickup_connected: bool = false
-var _selected_location: String = ""
-var _selected_spawn: String = ""
-var _spawn_distances: Array[float] = []
+var _round_data: Dictionary = {}
+var _round_finished := false
+var _registered_setup := false
+var _archive_pickup_connected := false
+var _keypad_connected := false
 
 
 func _ready() -> void:
@@ -56,180 +50,230 @@ func _ready() -> void:
 		)
 		if not requested_seed["valid"]:
 			return
-		if requested_seed["provided"]:
-			selected_seed = requested_seed["value"]
-		else:
-			selected_seed = int(Time.get_ticks_usec() & 0x7fffffff)
-	configure_round(selected_seed)
+		selected_seed = (
+			requested_seed["value"]
+			if requested_seed["provided"]
+			else int(Time.get_ticks_usec() & 0x7fffffff)
+		)
+	configure_round.call_deferred(selected_seed)
 
 
 func configure_round(seed_value: int = 0) -> void:
 	if not _has_required_nodes():
 		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
+	_register_setup_objects()
+	_round_data = AIPlayFindKeyRound.build(seed_value)
 	_round_finished = false
-	var location_index: int = rng.randi_range(0, LOCATION_IDS.size() - 1)
-	_selected_location = LOCATION_IDS[location_index]
-	var key_anchors := _key_anchors()
-	_place_key(key_anchors[_selected_location])
-	var selected_spawn: Dictionary = _select_farthest_spawn(rng)
-	_selected_spawn = selected_spawn["id"]
-	player.global_transform = selected_spawn["spawn"].global_transform
-	_reparent_to_anchor(
-		task_card.get_parent_node_3d(),
-		selected_spawn["card"],
-	)
-	AIPlayReadablePresenter.configure(task_card, true)
+	setup.set_scenario_active(true)
+	_configure_keys()
+	_configure_documents()
+	_configure_npcs(seed_value)
+	_configure_archive_lock()
+	_place_player_and_task_card(seed_value)
 	_write_task_card()
-	_connect_pickup()
-
-
-func _key_anchors() -> Dictionary:
-	return {
-		"laptop_desk": laptop_desk_anchor,
-		"archive_sofa": archive_sofa_anchor,
-		"meeting_table": meeting_table_anchor,
-		"tv_coffee_table": tv_coffee_table_anchor,
-	}
+	_connect_terminals()
 
 
 func get_act_request_limit() -> int:
 	return ACT_REQUEST_LIMIT
 
 
-func _spawn_options() -> Array[Dictionary]:
-	return [
-		{
-			"id": "ENTRANCE",
-			"spawn": entrance_spawn,
-			"card": entrance_task_card_anchor,
-		},
-		{
-			"id": "LOBBY",
-			"spawn": lobby_spawn,
-			"card": lobby_task_card_anchor,
-		},
-		{
-			"id": "ARCHIVE ENTRANCE",
-			"spawn": archive_spawn,
-			"card": archive_task_card_anchor,
-		},
+func get_round_data() -> Dictionary:
+	return _round_data.duplicate(true)
+
+
+func get_decoy_keys() -> Array[RigidBody3D]:
+	var result: Array[RigidBody3D] = []
+	var archive_key: RigidBody3D = setup.key_by_region()["ARCHIVE"]
+	for key: RigidBody3D in setup.keys():
+		if key != archive_key:
+			result.append(key)
+	return result
+
+
+func _register_setup_objects() -> void:
+	if _registered_setup:
+		return
+	setup.register_external_key(ceo_key, "UPPER_OFFICE_CEO", "storage")
+	setup.register_external_npc(meeting_npc, "MEETING_ROOM")
+	ceo_key.reparent(ceo_drawer, false)
+	ceo_key.transform = Transform3D(
+		Basis.from_euler(Vector3(0.0, deg_to_rad(75.0), 0.0)),
+		Vector3(0.1, 0.58, -1.45),
+	)
+	_registered_setup = true
+
+
+func _configure_keys() -> void:
+	for key: RigidBody3D in setup.keys():
+		key.freeze = true
+		key.linear_velocity = Vector3.ZERO
+		key.angular_velocity = Vector3.ZERO
+		key.collision_layer = 3
+		key.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+func _configure_documents() -> void:
+	var documents: Dictionary = setup.document_by_region()
+	for room_id: String in _round_data["document_by_room"]:
+		var stage: Dictionary = _round_data["document_by_room"][room_id]
+		var document: ReadableComponent = documents[room_id]
+		document.readable_title = "%s / %s" % [
+			_round_data["contract_name"],
+			stage["version_label"],
+		]
+		document.readable_content = (
+			"合同 / CONTRACT：%s\n版本 / VERSION：%s\n状态 / STATUS：%s\n"
+			+ "经手人 / HANDLER：%s\n记录时间 / RECORDED：%s %s\n\n"
+			+ "注意：文件名中的 FINAL 只表示编辑命名；是否已提交必须以状态和后续记录为准。"
+		) % [
+			_round_data["contract_name"],
+			stage["version"],
+			stage["status"],
+			stage["handler"],
+			stage["date_text"],
+			stage["time_text"],
+		]
+		document.interaction_text = "阅读合同记录 / Read contract record"
+		document.is_disabled = false
+		AIPlayReadablePresenter.configure(document)
+		_update_readable_labels(document)
+
+
+func _configure_npcs(seed_value: int) -> void:
+	var npcs: Dictionary = setup.npc_by_region()
+	for room_id: String in _round_data["npc_by_room"]:
+		var npc_data: Dictionary = _round_data["npc_by_room"][room_id]
+		var npc: FriendlyHumanNPC = npcs[room_id]
+		var display_name: String = npc_data["display_name"]
+		npc.configure_public_identity(display_name, NPC_COLORS[display_name])
+		npc.greeting_enabled = true
+		npc.greeting_phrases = ["请说明这份合同的审查记录"]
+		npc.selected_greeting_phrase = npc.greeting_phrases[0]
+		npc.max_greeting_distance = 1.5
+		npc.greeting_response_hint = npc_data["dialogue"]
+		npc.default_dialogue_hint = npc_data["dialogue"]
+		var interaction := npc.get_node_or_null("BasicInteraction")
+		if interaction != null and "interaction_text" in interaction:
+			interaction.interaction_text = "询问合同记录 / Ask about contract"
+	setup.configure_ceo_patrol(seed_value % 2, -1 if seed_value % 2 else 1)
+	setup.configure_cubicle_seat()
+	meeting_npc.configure_route_loop_from(
+		"HumanMeetingRoomStart",
+		seed_value % max(meeting_npc.route_point_count(), 1),
+		1,
+	)
+
+
+func _configure_archive_lock() -> void:
+	if archive_door.is_open:
+		archive_door.close_door(player)
+	archive_door.lock_door()
+	keypad.is_locked = true
+	keypad.passcode = _round_data["current"]["password"]
+	keypad.require_submit_confirmation = true
+	keypad.submission_warning_text = (
+		"仅有一次提交机会。确认后不可修改；错误密码会立即触发安保锁定。"
+	)
+	keypad.reset_submission()
+	keypad.set_state()
+
+
+func _place_player_and_task_card(seed_value: int) -> void:
+	var options: Array[Dictionary] = [
+		{"spawn": entrance_spawn, "card": entrance_task_card_anchor},
+		{"spawn": lobby_spawn, "card": lobby_task_card_anchor},
+		{"spawn": archive_spawn, "card": archive_task_card_anchor},
 	]
-
-
-func _place_key(anchor: Marker3D) -> void:
-	key.freeze = true
-	key.linear_velocity = Vector3.ZERO
-	key.angular_velocity = Vector3.ZERO
-	_reparent_to_anchor(key, anchor)
-
-
-func _select_farthest_spawn(rng: RandomNumberGenerator) -> Dictionary:
-	var options: Array[Dictionary] = _spawn_options()
-	var farthest: Array[Dictionary] = []
-	var max_distance: float = -1.0
-	_spawn_distances.clear()
-	for option: Dictionary in options:
-		var distance: float = option["spawn"].global_position.distance_to(
-			key.global_position
-		)
-		_spawn_distances.append(distance)
-		if distance > max_distance and not is_equal_approx(
-			distance,
-			max_distance,
-		):
-			max_distance = distance
-			farthest = [option]
-		elif is_equal_approx(distance, max_distance):
-			farthest.append(option)
-	return farthest[rng.randi_range(0, farthest.size() - 1)]
+	var selected: Dictionary = options[seed_value % options.size()]
+	player.global_transform = selected["spawn"].global_transform
+	var card_root := task_card.get_parent_node_3d()
+	card_root.reparent(selected["card"], false)
+	card_root.transform = Transform3D.IDENTITY
+	AIPlayReadablePresenter.configure(task_card, true)
 
 
 func _write_task_card() -> void:
-	var content: String = (
-		"任务目标 / OBJECTIVE：根据本局位置线索，找到并拾取办公室里唯一的金色钥匙。\n\n"
-		+ "位置线索 / LOCATION CLUE："
-		+ LOCATION_TASK_TEXT[_selected_location]
-		+ "\n\n操作 / ACTION：观察房间文字标识和家具特征；靠近并对准钥匙，"
-		+ "出现拾取提示后执行交互。\n\n"
-		+ "完成条件 / SUCCESS：必须实际拾取钥匙；只看到钥匙不算完成。"
-		+ "搜索错误区域不会立即失败。"
-	)
-	task_card.readable_title = "寻找办公室钥匙 / FIND OFFICE KEY"
+	var content := (
+		"任务 / OBJECTIVE：董事会会议前，找到 %s 合同当前已提交版本对应的档案室密码，"
+		+ "进入档案室并取走里面的当前钥匙。截止时间为今天 12:00。\n\n"
+		+ "调查 / INVESTIGATE：CEO OFFICE、MEETING ROOM、CUBICLE AREA 各有一份历史记录；"
+		+ "三名同事都如实提供自己经手版本当时的密码，可按任意顺序调查。\n\n"
+		+ "判断 / DEDUCE：Printed 或文件名写 FINAL 不等于 Submitted。"
+		+ "必须按日期、时间、版本状态和经手人找到今天上午提交的 v1.1。\n\n"
+		+ "风险 / RISK：六个区域各有一把外观相同的钥匙，前五把是历史混淆项；"
+		+ "档案室键盘只有一次确认提交机会，取消确认不会消耗机会。"
+	) % _round_data["contract_name"]
+	task_card.readable_title = "董事会合同调档 / BOARD CONTRACT RETRIEVAL"
 	task_card.readable_content = content
 	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
 	var card_object := task_card.get_parent() as CollisionObject3D
 	if card_object != null:
 		card_object.collision_layer = 2
-	if task_card.is_node_ready():
-		task_card.label_title.text = task_card.readable_title
-		task_card.label_content.text = content
+	_update_readable_labels(task_card)
 
 
-func _connect_pickup() -> void:
-	if _pickup_connected:
+func _update_readable_labels(readable: ReadableComponent) -> void:
+	if not readable.is_node_ready():
 		return
-	var pickup: Node = key.get_node("PickupComponent")
-	pickup.was_interacted_with.connect(_on_key_picked_up)
-	_pickup_connected = true
+	if readable.label_title != null:
+		readable.label_title.text = readable.readable_title
+	if readable.label_content != null:
+		readable.label_content.text = readable.readable_content
 
 
-func _on_key_picked_up(
+func _connect_terminals() -> void:
+	if not _archive_pickup_connected:
+		var archive_key: RigidBody3D = setup.key_by_region()["ARCHIVE"]
+		archive_key.get_node("PickupComponent").was_interacted_with.connect(
+			_on_archive_key_picked_up
+		)
+		_archive_pickup_connected = true
+	if not _keypad_connected:
+		keypad.code_checked.connect(_on_code_checked)
+		_keypad_connected = true
+
+
+func _on_code_checked(is_correct: bool) -> void:
+	if _round_finished:
+		return
+	if not is_correct:
+		_finish_round("failure", "security_lockout")
+
+
+func _on_archive_key_picked_up(
 	_interaction_text: String,
 	_input_map_action: String,
 ) -> void:
+	_finish_round("success", "key_picked_up")
+
+
+func _finish_round(outcome: String, reason: String) -> void:
 	if _round_finished:
 		return
 	_round_finished = true
-	game_finished.emit("success", "key_picked_up")
-
-
-func _reparent_to_anchor(object: Node3D, anchor: Node3D) -> void:
-	object.reparent(anchor, false)
-	object.transform = Transform3D.IDENTITY
-
-
-func get_round_snapshot() -> Dictionary:
-	var selected_distance: float = 0.0
-	var options: Array[Dictionary] = _spawn_options()
-	for index: int in options.size():
-		if options[index]["id"] == _selected_spawn:
-			selected_distance = _spawn_distances[index]
-			break
-	return {
-		"location": _selected_location,
-		"spawn": _selected_spawn,
-		"spawn_distances": _spawn_distances.duplicate(),
-		"selected_spawn_distance": selected_distance,
-		"task_text": LOCATION_TASK_TEXT.get(_selected_location, ""),
-	}
+	game_finished.emit(outcome, reason)
 
 
 func _has_required_nodes() -> bool:
-	var required: Array[Node] = [
-		game_over_screen,
+	for required: Node in [
 		player,
 		task_card,
-		key,
-		laptop_desk_anchor,
-		archive_sofa_anchor,
-		meeting_table_anchor,
-		tv_coffee_table_anchor,
+		setup,
+		ceo_key,
+		ceo_drawer,
+		meeting_npc,
+		keypad,
+		archive_door,
 		entrance_spawn,
 		entrance_task_card_anchor,
 		lobby_spawn,
 		lobby_task_card_anchor,
 		archive_spawn,
 		archive_task_card_anchor,
-	]
-	for required_node: Node in required:
-		if required_node == null:
-			push_error("AIPlayFindKeyMonitor is missing a required scene node")
+	]:
+		if required == null:
+			push_error("find_key monitor missing a required node")
 			return false
 	return true
-
-
-func show_result(outcome: String, reason: String) -> void:
-	game_over_screen.show_result(outcome, reason)

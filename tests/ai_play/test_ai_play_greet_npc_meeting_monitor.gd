@@ -25,7 +25,14 @@ func _run_test() -> void:
 	var monitor: Node = lobby.get_node_or_null(
 		"AIPlayController/GreetNPCMeetingMonitor"
 	)
+	var find_key_setup: Node3D = lobby.get_node_or_null("FindKeyContractSetup")
 	_assert(monitor != null, "Lobby includes GreetNPCMeetingMonitor")
+	_assert(
+		find_key_setup != null
+		and not find_key_setup.visible
+		and find_key_setup.process_mode == Node.PROCESS_MODE_DISABLED,
+		"find-key setup stays inactive for the greeting scenario",
+	)
 	if monitor == null:
 		lobby.queue_free()
 		await process_frame

@@ -110,6 +110,7 @@
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
 [ext_resource type="Script" uid="uid://u0a5wfav8vf" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
 [ext_resource type="Script" uid="uid://y0ohykkvyost" path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd" id="ai_play_find_key_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_find_key_contract_setup.tscn" id="ai_play_find_key_contract_setup"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_put_book_monitor.gd" id="ai_play_put_book_monitor"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd" id="ai_play_greet_npc_meeting_monitor"]
@@ -3319,6 +3320,8 @@ step_height_camera_lerp = 1.5
 
 [node name="ArrangeMeetingBriefingsSetup" parent="." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")]
 
+[node name="FindKeyContractSetup" parent="." instance=ExtResource("ai_play_find_key_contract_setup")]
+
 [node name="AIPlayController" parent="." unique_id=875272983 node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
 player = NodePath("../Player")
 
@@ -3345,17 +3348,18 @@ archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" unique_id=921075935 instance=ExtResource("ai_play_game_over_screen")]
 
-[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "key", "laptop_desk_anchor", "archive_sofa_anchor", "meeting_table_anchor", "tv_coffee_table_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
+[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "setup", "ceo_key", "ceo_drawer", "meeting_npc", "keypad", "archive_door", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_key_monitor")
 scenario_id = "find_key"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
-key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
-laptop_desk_anchor = NodePath("../../FindKeyMarkers/LaptopDeskAnchor")
-archive_sofa_anchor = NodePath("../../FindKeyMarkers/ArchiveSofaAnchor")
-meeting_table_anchor = NodePath("../../FindKeyMarkers/MeetingTableAnchor")
-tv_coffee_table_anchor = NodePath("../../FindKeyMarkers/TvCoffeeTableAnchor")
+setup = NodePath("../../FindKeyContractSetup")
+ceo_key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
+ceo_drawer = NodePath("../../UPPER_OFFICE_CEO/deskCorner/Drawer")
+meeting_npc = NodePath("../../FriendlyHumanNPC")
+keypad = NodePath("../../ARCHIVE/Keypad")
+archive_door = NodePath("../../ARCHIVE/ArchiveDoor/FrontDoor")
 entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
 entrance_task_card_anchor = NodePath("../../AIPlayRoundMarkers/EntranceTaskCard")
 lobby_spawn = NodePath("../../AIPlayRoundMarkers/LobbySpawn")
