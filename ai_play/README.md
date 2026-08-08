@@ -108,7 +108,9 @@ godot --path . conveyor_profit/scenes/conveyor_profit_preview.tscn \
 ID、成本、完整配方、基础售价和基础净利润，并公开每道菜整局最多成功制作两次的规则。
 每轮 `observation.conveyor.market` 只公开五类菜品的精确当前需求倍率，以及前九轮各两条
 指向下一轮涨跌方向的自然语言线索；线索可能强化或冲突。客户端必须根据截图识别当前可见
-食材，按当前倍率重算售价，并根据 accepted 收据自行维护次数。当前窗口的结构化食材清单、
+食材，按当前倍率重算售价，并根据 accepted 收据自行维护次数。每局还会在
+`observation.conveyor.contracts` 公开三份第 3、6、10 窗截止的分类合同及其奖励、违约金和
+状态；合同结算进入 `net_profit`，隐藏在线基准使用同一套合同约束。当前窗口的结构化食材清单、
 可行菜、缺失食材、累计次数表、未来倍率与供给、内部脚本标识和绝对目标金额仍不公开。
 
 循环楼梯异常玩法位于独立场景，实验室推理玩法位于 Cogito Laboratory 场景；两者也可普通启动：
@@ -200,8 +202,9 @@ python3 tools/ai_play_codex_orchestrator.py \
 ```
 
 `session.json` 使用版本化结构记录 `player`、原始 `model`、`reasoning_effort`、`scenario`、
-`workflow_memory`、`requested_runs` 和 `started_at`。Claude 入口使用相同布局，例如
-`20260726-170000__claude__claude-opus-5__find_contract__awm/`。该文件不得记录 API key、
+`workflow_memory`、`requested_runs` 和 `started_at`。Claude 和 Kimi 入口使用相同布局，例如
+`20260726-170000__claude__claude-opus-5__find_contract__awm/` 与
+`20260726-170000__kimi__kimi-code_kimi-k3__find_contract__awm/`。该文件不得记录 API key、
 auth token、settings/auth 路径、子进程环境或完整启动命令。
 
 Godot supervisor 使用该隔离环境写入 `user://`、着色器缓存和临时场景状态，不继承主机凭据
@@ -277,8 +280,10 @@ Claude Code 2.1.212 不会把 MCP tool result 中的 `ImageContent` 交给模型
 客户端继续直接使用标准 `ImageContent`，默认不启用磁盘图片导出。
 
 源 settings 的 `env` 只允许 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
-`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL` 和 `ANTHROPIC_SMALL_FAST_MODEL`；必须提供前两个凭据之一，
-自定义 base URL 必须使用 HTTPS。模型和 effort 没有默认值：
+`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL`、
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` 和 `CLAUDE_CODE_MAX_CONTEXT_TOKENS`；必须提供前两个凭据之一，
+自定义 base URL 必须使用 HTTPS。后两个变量只用于显式约束第三方 Claude Code 兼容模型的
+上下文压缩阈值与最大窗口，不会放宽玩家工具或文件权限。模型和 effort 没有默认值：
 
 ```bash
 python3 tools/ai_play_claude_orchestrator.py \
@@ -296,6 +301,47 @@ Claude 以退出码 0 提前结束、但 supervisor 尚未收到正式终局时�
 会话内启动恢复 turn；恢复 turn 先读取 workflow memory、briefing 和当前 observation，再继续游玩。
 `--claude-max-restarts` 默认 8，用于限制恢复次数和费用；非零 Claude 退出码仍立即失败收束。
 `observation_id` 既不是 act 请求计数，也不是完成局数，只有工具返回的正式 `game_over` 才计入一局。
+
+### Kimi Code
+
+`tools/ai_play_kimi_orchestrator.py` 为 Kimi Code CLI 提供同样的可信 MCP 边车、Godot
+supervisor、隔离运行目录、AWM 和失败收束。`--kimi-home` 默认指向仓库中已被 Git 忽略的
+`.kimi-code/`；入口只把其中通过 TOML 校验的 `config.toml` 复制到本局 `0700` 临时
+`KIMI_CODE_HOME`，副本权限为 `0600`，正常或异常退出都会删除。模型玩家不会获得源配置路径，
+API key 不进入命令参数、进程环境、`session.json`、MCP 协议或可信日志。为避免把可执行配置带入
+黑盒会话，源配置只允许 provider/model、thinking、loop、MCP timeout、token counting 和 identity
+等纯数据节；hooks、插件目录、额外 agent/skill 目录和其他未批准顶层节会在创建运行目录前拒绝。
+
+Kimi 在空 `player_workspace` 中用 `--prompt` 非交互运行。orchestrator 使用内部 stdin runner
+转交提示词，因此完整提示词不会出现在父进程启动日志中。每局生成显式 `--agent-file`：启用 AWM
+时只允许 `briefing`、`workflow_memory_read`、`observe`、`act`、
+`workflow_memory_update`，禁用时只允许前三个基础玩家工具；两种模式都排除 `stop`、内建文件、
+shell、Web、skill 和子代理工具。Kimi 0.34.0 的 print mode 禁止把 `--prompt` 与
+`--auto`/`--yolo` 组合；入口因此不传这两个旗标，而是在临时 `config.toml` 中为每个获准 MCP
+工具写入精确的 `[[permission.rules]] decision = "allow"`，不使用服务器级通配符。临时
+`mcp.json` 只连接 `http://127.0.0.1:<mcp-port>/mcp`，Kimi 沿用 MCP 标准
+`ImageContent`，不会获得 Claude 专用图片交换目录。
+
+先用同一配置目录确认 API key 可用并查看服务实际返回的模型别名，再显式传给 orchestrator：
+
+```bash
+KIMI_CODE_HOME="$PWD/.kimi-code" kimi provider list
+
+.venv/bin/python tools/ai_play_kimi_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model kimi-code/kimi-k3 \
+  --effort high \
+  --kimi-home .kimi-code
+```
+
+示例别名以 `kimi provider list` 的实际输出为准；`[1m]` 不是 Kimi Code CLI 的模型名后缀，
+Kimi K3 的上下文窗口由服务返回的模型配置决定。`--model` 与 `--effort` 必填，K3 effort 只接受
+`low`、`high`、`max`。Kimi 正常提前退出而 supervisor 尚无正式终局时，入口保持同一 MCP/AWM
+会话并启动恢复 turn；`--kimi-max-restarts` 默认 8。Kimi 自身 session/wire 轨迹只存在于本局临时
+home 并随退出删除，可信 MCP 截图与轨迹仍保存在隔离 `--session-root`。真实 Kimi/Godot 验收会
+发送截图、消耗令牌或配额并持久化可信轨迹，仍须操作者单独确认；自动化测试不读取真实配置、
+不发起模型请求。
 
 ### 会话级 Agent Workflow Memory
 
@@ -361,10 +407,12 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 `success/books_in_ceo_office`。该玩法的请求硬上限为 150，仍可通过
 `AI_PLAY_MAX_ACT_REQUESTS` 进一步收紧。
 
-`greet_npc_meeting` 每局让 NPC 沿会议室到休息室方向的既有路线循环移动，并随机选择
-NPC 的路线起点、方向和三种问候语之一。玩家从入口开始，任务卡位于出生点附近。玩家必须
-先在 1.8 米内和 NPC 交互打招呼，再进入会议室并关上会议室门，才会产生
-`success/meeting_door_closed`。
+`greet_npc_meeting` 每局生成三名穿不同颜色上衣、沿既有路线移动的同事，并随机选择正确
+联系人、路线起点、方向、两种会议室内会面区域和三种问候语之一。玩家从入口开始，任务卡
+位于出生点附近并按姓名与上衣颜色指定联系人。问候正确联系人后，对方通过可见提示告知本局
+区域并开始带路；玩家与联系人都到达后，从室内关门才产生 `success/meeting_door_closed`。
+第一次问候错误同事仍可恢复，同一人不会重复计数；第二次问候另一名错误同事产生
+`failure/wrong_npc_limit`。
 
 `repair_lighting_circuit` 每局随机生成入口控制面板 A～D 与入口、CEO 办公室、大厅和
 休息室四组灯的一对一映射、一个跳闸线路以及初始和目标状态。玩家从控制面板附近开始，
@@ -396,8 +444,10 @@ MCP 结果、玩家提示或轨迹日志。
 制作一次；成功、非法组合和次数超限的 MAKE 都会锁定窗口。同一道菜整局最多成功制作两次；
 第三次正确提交返回 `recipe_limit_exceeded`，扣除食材成本但没有收入。AI 使用
 `select_ingredient`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；选入托盘的食材不可
-撤销，错误组合只能通过 `make` 消耗并锁定当前窗口，窗口到期时未提交的托盘也会按成本报废。等待模型期间
-Godot 暂停窗口时钟。十个窗口结束时，达到隐藏在线策略基准的 90% 产生
+撤销，错误组合只能通过 `make` 消耗并锁定当前窗口，窗口到期时未提交的托盘也会按成本报废。
+等待模型期间 Godot 暂停窗口时钟。每局三份公开分类合同分别在第 3、6、10 窗截止，按截止前 accepted
+菜品类别结算奖励或违约金并计入净利润；在线策略基准也必须满足这些合同。十个窗口结束时，
+达到隐藏在线策略基准的 90% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
 `loop_staircase_anomaly` 是五轮累计证据调查任务。真人玩家在 2F 到 9F 之间用 Up/Down
@@ -431,7 +481,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `observe()`：等待并返回最新获准观察和截图；第一人称 3D 玩法还返回当前画面的深度图。通常只在
   `briefing` 后调用一次；已有观察会立即返回，未连接、断线、停止或终局会返回对应状态。
 - `act(observation_id, actions)`：提交 1～3 个动作，`observation_id` 必须是最近观察的 ID。
-  工具声明使用二十五种动作的精确联合 schema；调用同步等待 Godot 返回动作结果、公开
+  工具声明使用二十五种动作的精确联合 schema；`actions` 顶层进一步分成两个互斥分支：
+  恰好一个 `probe_interaction`，或 1～3 个不含 probe 的普通动作，因此 MCP 客户端可在调用前
+  拒绝把 probe 与移动、转向或等待组合。调用同步等待 Godot 返回动作结果、公开
   `movement_feedback` 和下一次观察，或返回终局/停止状态。成功后应直接使用所带观察，
   不要再调用 `observe` 获取同一帧。
 - `workflow_memory_update(goal_pattern, workflow, landmarks, avoid, failure_review=null)`：在可信
@@ -455,7 +507,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   判定阈值也会随请求力度缩放，避免把有效的精细小步误报为 `blocked`。
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
-- `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
+- `probe_interaction` 只能使用 probe 专用 schema 分支：`actions` 长度必须恰好为 1，目标坐标
+  各在 0～1，且界面必须关闭。运行时若仍收到混合批次，会返回包含正确提交方式的稳定错误，
+  不会向 Godot 产生输入。
 - `conveyor_profit` 只允许 `select_ingredient`、`make` 和 `wait_next_window`：选材按
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
   已经锁定的窗口。托盘最多容纳五项；食材一旦选入就不可取回，第 6 次选材返回 `tray_full`
@@ -490,7 +544,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 终局为 `success/key_picked_up` 或 `failure/max_requests`；`put_book` 的硬上限为
 150 次，终局为 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
 `failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，终局为
-`success/meeting_door_closed` 或 `failure/max_requests`；
+`success/meeting_door_closed`、`failure/wrong_npc_limit` 或 `failure/max_requests`；
 `daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
 `failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
 为 80 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
@@ -598,7 +652,8 @@ mcplogs/
   daily routine 或 garden 内部节点路径、随机下雨时间、传送带未来供给、内部牌组标识、
   理论最优路线、循环楼梯答案、实验材料隐藏属性、随机种子或任务内部知识。
 - 旧 `ai_host --adapter codex-local` 因无法提供受维护入口同等级的本机权限隔离而明确禁用；
-  Codex 黑盒验收只使用 `tools/ai_play_codex_orchestrator.py`，并仍须先确认截图、令牌、费用和轨迹影响。
+  Codex、Claude 和 Kimi 黑盒验收分别只使用对应的 `tools/ai_play_*_orchestrator.py`，并仍须先
+  确认截图、令牌、费用和轨迹影响。
 
 ## 配置
 

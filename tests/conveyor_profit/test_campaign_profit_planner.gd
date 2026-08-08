@@ -24,7 +24,13 @@ func _initialize() -> void:
 	for campaign: Dictionary in campaigns_script.CAMPAIGNS:
 		var windows: Array[Dictionary] = generator.generate(campaign, 1337)
 		var omniscient_profit: int = planner.max_profit(windows)
-		_check(omniscient_profit >= campaigns_script.baseline_profit(campaign), "campaign %s omniscient result bounds online baseline" % campaign["id"])
+		var contract_reward := 0
+		for contract: Dictionary in campaign.get("contracts", []):
+			contract_reward += int(contract.get("reward", 0))
+		_check(
+			omniscient_profit + contract_reward >= campaigns_script.baseline_profit(campaign),
+			"campaign %s omniscient result bounds contract baseline" % campaign["id"],
+		)
 		_check(omniscient_profit == planner.max_profit(windows), "campaign %s DP result is deterministic" % campaign["id"])
 	quit(1 if not failures.is_empty() else 0)
 

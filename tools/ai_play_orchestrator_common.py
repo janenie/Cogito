@@ -425,15 +425,16 @@ def build_player_prompt(
 4. 只有当前 observation 的 interface.available_interactions 中出现对应 action 时，才执行 interact。
    交互动作格式必须精确写成 {{"type":"interact","action":"interact"}} 或
    {{"type":"interact","action":"interact2"}}，不要把提示文字、物体名或绑定键写进 action。
-5. 如果没有交互提示但画面中疑似有任务物体、可读文件、按钮或门，先靠近并单独调用 probe_interaction；
-   probe_interaction 必须是单动作批次。
+5. 如果没有交互提示但画面中疑似有任务物体、可读文件、按钮或门，先靠近，再用 act 的 probe 专用
+   schema 分支提交 actions=[{{"type":"probe_interaction","target_x":<0..1>,"target_y":<0..1>}}；
+   actions 中必须恰好只有这一个动作，不能同时放入 move、look、wait 或其他动作。
 6. 如果一次 act failed，说明动作没有通过校验；若结果没有新观察，再调用 observe，然后改变站位、
    准星或动作类型。movement_feedback.blocked 为 true 时优先小幅侧移或重新对准门口。
    不要连续重试同一种 act，也不要在没有新 observation 时继续提交交互。
 7. 每局把自己当成第一次进场的人类玩家：先建立 briefing 提到或可见标牌标出的关键地标之间
    的相对方位，再执行任务。不要为了省步数盲冲边界，也不要在未确认目标时触发交互。
 8. 如果 briefing 要求先读取出生点附近任务卡，首次 observe 后先环顾出生点近处的悬浮标志、
-   纸张或文件；离开出生区域前，优先靠近并对准最可信候选，单独调用 probe_interaction。
+   纸张或文件；离开出生区域前，优先靠近并对准最可信候选，用 probe 专用单动作分支调用 act。
    探测失败后才换候选或扩大搜索，不要先走进远处房间。
 
 每步公开决策记录：

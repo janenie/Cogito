@@ -64,7 +64,7 @@ Godot 桥的安全边界。
   是 150，终局只允许 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和
   `failure/max_requests`；
   `greet_npc_meeting` 的请求硬上限是 100，终局只允许
-  `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
+  `success/meeting_door_closed`、`failure/wrong_npc_limit` 和 `failure/max_requests`；`daily_routine_cleanup`
   的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
   `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
   硬上限是 80，终局只允许 `success/garden_tasks_complete`、
@@ -79,7 +79,7 @@ Godot 桥的安全边界。
   `success/correct_floor_selected`、`failure/wrong_floor_selected` 和
   `failure/max_requests`；`laboratory_experiment` 的请求硬上限是 150，终局只允许
   `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
-  `failure/max_requests`。`find_key` 和 `greet_npc_meeting` 没有答错失败。
+  `failure/max_requests`。`find_key` 没有答错失败。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
   `briefing`、`observe`、MCP `stop()` 和工作流记忆工具不计数。第 N 次请求先按正常规则
@@ -111,9 +111,12 @@ Godot 桥的安全边界。
   `movement_feedback`，字段为平面位移、实际距离和是否受阻，不得加入碰撞体或节点信息。
 - 观察可选字段必须按握手确定的玩法 ID 白名单隔离；日常、花园、传送带、循环楼梯和实验室的
   公开任务状态不得跨玩法出现。深度图仍按观察契约对获准的第一人称任务开放。
-- MCP `act` 工具声明必须以精确联合 schema 列出每种动作的字段、枚举和范围；服务端仍以
-  Python 与 Godot 双重校验为准。教学 Responses Host 使用 `strict=true` 和封闭对象 schema，
-  并把结构化结果与图片关联在同一个 `function_call_output` 中。
+- MCP `act` 工具声明必须以精确联合 schema 列出每种动作的字段、枚举和范围；顶层 `actions`
+  必须公开两个互斥数组分支：长度恰好为 1 的 `probe_interaction` 分支，以及长度 1～3 且不含
+  probe 的普通动作分支。模型因此不能在 schema 合法的请求中把 probe 与移动、转向或等待组合；
+  Python 运行时仍返回带正确提交方式的单动作错误，Godot 保留第二层校验。教学 Responses Host
+  使用 `strict=true` 和封闭对象 schema，并把结构化结果与图片关联在同一个
+  `function_call_output` 中。
 - `briefing` 只返回经过筛选的任务目标、规则和物体操作说明，并把固定参考图作为 MCP 图片内容；不得返回 `assets.json` 的内部类名、任何文件路径、线索原文、密码或正确解谜顺序。
 - `briefing` 必须等待 Godot 握手确定 `scenario_id`。桥只接受
   `ai_play.scenarios` 白名单中的 ID；重连时玩法不一致必须拒绝，避免观察和简报错配。
@@ -187,7 +190,7 @@ python3 tools/ai_play_codex_orchestrator.py \
 `0600` 的 `session.json` 保存完整模型名、思考强度、任务、AWM 模式、请求局数和开始时间，
 但不得保存凭据、认证/settings 路径、进程环境或完整启动命令。每次会话的
 `trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
-游戏产物。Codex 与 Claude 入口复用同一布局。
+游戏产物。Codex、Claude 与 Kimi 入口复用同一布局。
 
 Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 `http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查
@@ -234,13 +237,48 @@ python3 tools/ai_play_claude_orchestrator.py \
 ```
 
 settings `env` 白名单为 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`、
-`ANTHROPIC_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL`；必须存在 API key 或 auth token，自定义 base URL
-必须使用 HTTPS。`--model` 和 `--effort` 必填。
+`ANTHROPIC_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL`、`CLAUDE_CODE_AUTO_COMPACT_WINDOW` 和
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`；必须存在 API key 或 auth token，自定义 base URL 必须使用
+HTTPS。后两个变量只传递第三方兼容模型所需的上下文窗口约束；`--model` 和 `--effort` 必填。
 
 如果 Claude 以退出码 0 提前结束而 supervisor 尚未产生正式终局，编排器会保持同一 MCP sidecar
 和 AWM，启动恢复 turn 并要求它依次读取 workflow memory、briefing 与当前 observation。默认最多
 恢复 8 次，可用 `--claude-max-restarts` 收紧；非零退出码不重试。玩家不得根据 observation ID
 推断 act 次数或局数，只有正式 `game_over` 才计入终局。
+
+### Kimi Code orchestrator
+
+Kimi 入口 `tools/ai_play_kimi_orchestrator.py` 复用同一公共编排层。`--kimi-home` 默认读取已忽略的
+`.kimi-code/config.toml`，但模型进程不直接读取源目录：可信入口先解析 TOML，拒绝 hooks、插件、
+额外 agent/skill 目录和其他未批准顶层节，再把纯 provider/model 配置复制到本局私有临时
+`KIMI_CODE_HOME`。临时 home 为 `0700`，配置、唯一 MCP JSON 与显式 agent profile 为 `0600`，
+所有退出路径都删除；API key 不进入命令参数、进程环境、运行元数据、MCP 结果或可信日志。
+
+显式 Kimi agent profile 不嵌入 `${base_prompt}`，并以工具 allowlist 排除文件、shell、Web、skill
+和子代理能力。AWM 开启时只允许五个玩家工具，关闭时只允许 `briefing`、`observe`、`act`；
+`stop` 始终排除。Kimi 0.34.0 的 print mode 不允许 `--prompt` 与 `--auto` 或 `--yolo` 组合，
+因此入口不传这两个旗标，而是在临时配置中为每个获准 MCP 工具写入精确的 allow permission
+rule，不使用服务器级通配符。玩家在无仓库指令的空工作区中
+以 `--prompt` 运行；内部 runner 从 stdin 接收公共玩家提示，再传给 CLI，避免把长提示写入父进程
+启动日志。Kimi 直接消费标准 MCP `ImageContent`，不启用 Claude 专用的磁盘图片交换目录。
+
+```bash
+KIMI_CODE_HOME="$PWD/.kimi-code" kimi provider list
+
+.venv/bin/python tools/ai_play_kimi_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model kimi-code/kimi-k3 \
+  --effort high \
+  --kimi-home .kimi-code
+```
+
+模型别名必须以同一 Kimi home 的 `kimi provider list` 为准；Kimi K3 的 1M 窗口来自模型配置，
+不使用 `[1m]` CLI 后缀。`--model`、`--effort` 必填，K3 effort 只允许 `low`、`high`、`max`。
+Kimi 提前正常退出时，公共 runner 在同一 MCP/AWM 会话内最多恢复 8 次，可由
+`--kimi-max-restarts` 收紧。Kimi session/wire 文件位于临时 home，退出即删除；可信 MCP 轨迹仍按
+隔离 `--session-root` 的既有布局持久化。真实 Kimi/Godot 验收同样需要事先确认截图、令牌或配额、
+费用与本地轨迹影响，自动化测试不得加载真实凭据或调用模型。
 
 ### 会话级 Agent Workflow Memory
 
@@ -367,6 +405,10 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
   `observe` 仍不返回当前窗口的结构化食材清单或候选菜；AI 必须根据截图判断当前可见食材，
   再与公开菜单匹配并比较利润。`observe.conveyor.market` 只增加五类精确当前倍率和本轮公开
   信号：前九轮恰好两条、第十轮为零条；每条最多 240 字。未来准确倍率仍不公开。
+- 每套市场脚本同时生成三份公开分类合同，截止窗口固定为第 3、6、10 窗；目标类别或数量随
+  脚本变化。`observe.conveyor.contracts` 精确公开合同 ID、自然语言要求、截止窗口、奖励、
+  违约金和 `active/completed/missed` 状态，但不公开推荐路线或完成次数表。合同只统计截止前
+  `accepted` 菜品；跨过截止窗口时立即结算，金额进入公开 `net_profit`。
 - 动作结果不得公开节点、位置、隐藏库存、候选菜、窗口最优菜、未来供应、未来倍率、生成 seed、
   脚本 ID、draw index、在线基准或全知利润。无效或当前不可用的食材请求只返回公开失败状态，
   不扣钱、不改变托盘。
@@ -392,8 +434,8 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 
 AI 模式的窗口时钟由 Godot 控制；controller 等待外部模型返回期间不推进经营倒计时，避免把
 API 延迟计入策略表现。人工模式仍按真实 Godot 时间运行。终局基准是每套脚本显式审核的在线
-路线，只使用当前盘面/倍率、本轮对下一轮的公开信号和此前成功次数；通过金额为该路线利润的
-90% 向上取整。玩家可以超过 100% 基准效率。完整十轮动态规划只生成开发者
+路线，只使用当前盘面/倍率、本轮对下一轮的公开信号、此前成功次数和公开合同约束；基准利润
+包含该路线的合同奖励或违约金，通过金额为其 90% 向上取整。玩家可以超过 100% 基准效率。完整十轮动态规划只生成开发者
 `omniscient_profit` 对照指标，不决定胜负。运行中不得公开单窗口候选、推荐路线、剩余次数、
 在线基准利润、全知利润或绝对通关金额。
 
@@ -503,12 +545,16 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 - 玩家固定从入口开始，任务卡位于出生点附近。
-- NPC 沿会议室到休息室方向的既有路线循环移动；每局随机选择路线起点和方向。
+- 三名穿蓝、绿、橙色上衣的同事沿既有路线移动；每局随机选择联系人、路线起点和方向。
 - 每局从 `你好`、`要去开会了么？`、`hi` 中随机选择一种问候语作为 NPC 交互提示。
-- 只有玩家在 1.8 米以内和 NPC 成功交互后，才记录为已打招呼。
-- 会议室门在本玩法开始时打开并解锁；未打招呼前，进入会议室或关门不会成功。
-- 已打招呼后，玩家在会议室内关上会议室门产生 `success/meeting_door_closed`。
-- 路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，不得进入公开简报、
+- 任务卡按姓名和上衣颜色公开指定联系人。第一次问候错误同事可恢复且同一人不重复计数；
+  第二次问候另一名错误同事产生 `failure/wrong_npc_limit`。
+- 正确联系人通过可见交互提示告知本局 `WINDOW SIDE` 或 `SCREEN SIDE` 会面区域，然后停止巡逻
+  并前往该区域。会议室门在本玩法开始时打开并解锁。
+- 只有玩家与正确联系人都到达指定区域后，玩家从室内关门才产生
+  `success/meeting_door_closed`；提前关门、从走廊关门或只有玩家到场都不会成功。
+- 联系人选择、会面区域、路线点、路线起点、方向、问候语和随机种子属于隐藏初始化状态，
+  只能通过任务卡和正确联系人可见回应逐步获知，不得作为结构化事实进入公开简报、
   观察或桥协议。
 
 ## repair_lighting_circuit 回合规则
@@ -690,4 +736,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。

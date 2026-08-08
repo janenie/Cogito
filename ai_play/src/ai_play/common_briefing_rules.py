@@ -48,7 +48,8 @@ COMMON_CONTROL_RULES = [
     "probe_interaction 只用于在当前视野内对准疑似可交互物并小范围扫描交互提示。",
     (
         "probe_interaction 的 target_x 和 target_y 都是截图归一化坐标，范围 0 到 1；"
-        "它必须单独作为一个 action batch，且只能在界面关闭时使用。"
+        "act 的 schema 为它提供独立分支：actions 必须恰好只包含这一个动作，不能与 move、"
+        "look、wait 或其他动作组合，且只能在界面关闭时使用。"
     ),
     "每个 act 的 actions 批次必须包含 1 到 3 个动作。",
     "interact、enter_digits、close_ui 等会改变上下文的动作必须放在批次最后。",

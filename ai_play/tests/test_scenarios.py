@@ -189,6 +189,11 @@ def test_terminal_results_are_scenario_specific():
         "meeting_door_closed",
     )
     assert is_allowed_game_over(
+        "greet_npc_meeting",
+        "failure",
+        "wrong_npc_limit",
+    )
+    assert is_allowed_game_over(
         "daily_routine_cleanup",
         "success",
         "cleanup_complete",

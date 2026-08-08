@@ -66,6 +66,7 @@ func _public_conveyor_state() -> Dictionary:
 			"category_multipliers": market.get("category_multipliers", {}).duplicate(),
 			"signals": market.get("signals", []).duplicate(),
 		},
+		"contracts": state.get("contracts", []).duplicate(true),
 		"finished": state.get("finished", false),
 	}
 

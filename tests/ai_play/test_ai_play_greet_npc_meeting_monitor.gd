@@ -32,8 +32,30 @@ func _run_test() -> void:
 		_finish()
 		return
 
+	monitor.configure_round(777)
+	var movement_starts: Array[Vector3] = []
+	for candidate: Node3D in monitor._candidate_npcs:
+		movement_starts.append(candidate.global_position)
+		for route_point: Node3D in candidate._route_points:
+			_assert(
+				route_point.name not in monitor.MEETING_APPROACH_POINTS,
+				"pre-greeting patrol keeps candidates out of the narrow meeting door",
+			)
+	for _frame: int in 120:
+		await physics_frame
+	for candidate_index: int in range(monitor._candidate_npcs.size()):
+		_assert(
+			monitor._candidate_npcs[candidate_index].global_position.distance_to(
+				movement_starts[candidate_index],
+			) > 0.05,
+			"candidate %d has real movement instead of walking in place"
+			% (candidate_index + 1),
+		)
+
 	var seen_greetings: Array[String] = []
 	var seen_route_starts: Array[int] = []
+	var seen_targets: Array[String] = []
+	var seen_destinations: Array[String] = []
 	for seed_value: int in range(1, 96):
 		monitor.configure_round(seed_value)
 		var snapshot: Dictionary = monitor.get_round_snapshot()
@@ -50,20 +72,27 @@ func _run_test() -> void:
 			"meeting door starts open and unlocked",
 		)
 		_assert(
-			is_equal_approx(monitor.npc.max_greeting_distance, 1.8),
-			"greet-npc meeting uses a forgiving NPC greeting distance",
+			int(snapshot["candidate_count"]) == 3,
+			"round has three moving NPC candidates",
 		)
+		for candidate: Node in monitor._candidate_npcs:
+			_assert(
+				is_equal_approx(candidate.max_greeting_distance, 1.8),
+				"every candidate uses a forgiving greeting distance",
+			)
 		_assert(
-			String(snapshot["task_text"]).contains("NPC"),
-			"task card mentions NPC greeting",
+			String(snapshot["task_text"]).contains(snapshot["target_shirt_label"]),
+			"task card identifies the target by visible shirt colour",
 		)
 		for required_instruction: String in [
 			"任务目标",
 			"操作步骤",
 			"MEETING ROOM",
+			"三名走动的同事",
+			"第二次问候错误",
 			"完成条件",
-			"玩家位于会议室内",
-			"从走廊关门",
+			"双方到达指定区域",
+			"从室内关上会议室门",
 		]:
 			_assert(
 				String(snapshot["task_text"]).contains(required_instruction),
@@ -79,9 +108,18 @@ func _run_test() -> void:
 			seen_greetings.append(snapshot["greeting"])
 		if int(snapshot["route_start_index"]) not in seen_route_starts:
 			seen_route_starts.append(int(snapshot["route_start_index"]))
+		if snapshot["target_display_name"] not in seen_targets:
+			seen_targets.append(snapshot["target_display_name"])
+		if snapshot["destination_label"] not in seen_destinations:
+			seen_destinations.append(snapshot["destination_label"])
 
 	_assert(seen_greetings.size() == 3, "fixed seed sample reaches all greetings")
 	_assert(seen_route_starts.size() >= 3, "fixed seed sample varies NPC start")
+	_assert(seen_targets.size() == 3, "fixed seed sample reaches all target NPCs")
+	_assert(
+		seen_destinations.size() == 2,
+		"fixed seed sample reaches both meeting areas",
+	)
 	var task_ui := monitor.task_card.get_node("ReadableUi") as Control
 	var task_scroll := monitor.task_card.get_node(
 		"ReadableUi/Bindings/ScrollContainer"
@@ -102,7 +140,6 @@ func _run_test() -> void:
 	)
 	task_ui.hide()
 
-	monitor.configure_round(123456)
 	var terminal_results: Array[Dictionary] = []
 	monitor.game_finished.connect(
 		func(outcome: String, reason: String) -> void:
@@ -111,8 +148,35 @@ func _run_test() -> void:
 				"reason": reason,
 			})
 	)
+	monitor.configure_round(123456)
+	var wrong_snapshot: Dictionary = monitor.get_round_snapshot()
+	var wrong_target_index := int(wrong_snapshot["target_npc_index"])
+	var wrong_candidates: Array[Node] = []
+	for candidate_index: int in range(monitor._candidate_npcs.size()):
+		if candidate_index != wrong_target_index:
+			wrong_candidates.append(monitor._candidate_npcs[candidate_index])
+	for wrong_index: int in range(wrong_candidates.size()):
+		wrong_candidates[wrong_index].global_position = monitor.player.global_position
+		wrong_candidates[wrong_index].interact(
+			monitor.player.player_interaction_component
+		)
+		if wrong_index == 0:
+			_assert(
+				terminal_results.is_empty(),
+				"the first wrong colleague greeting remains recoverable",
+			)
+	_assert(
+		terminal_results == [{
+			"outcome": "failure",
+			"reason": "wrong_npc_limit",
+		}],
+		"the second distinct wrong greeting fails exactly once",
+	)
+
+	terminal_results.clear()
+	monitor.configure_round(654321)
 	monitor.player.global_position = monitor.meeting_room.to_global(
-		Vector3(-3.2, 1.0, -23.0)
+		monitor._destination_marker.position + Vector3(0.0, 1.0, 0.0)
 	)
 	monitor.conference_door.is_open = false
 	monitor._try_finish_meeting_goal()
@@ -121,8 +185,30 @@ func _run_test() -> void:
 		"closing the meeting door before greeting is not success",
 	)
 
-	monitor.npc.global_position = monitor.player.global_position
-	monitor.npc.interact(monitor.player.player_interaction_component)
+	monitor.player.global_transform = monitor.entrance_spawn.global_transform
+	monitor._target_npc.global_position = monitor.player.global_position
+	monitor._target_npc.interact(monitor.player.player_interaction_component)
+	_assert(
+		monitor._target_npc.greeting_enabled,
+		"correct contact can repeat the destination hint",
+	)
+	_assert(
+		monitor._target_npc._route_points[0].name == "HumanMeetingRoomDoorOutside"
+		and monitor._target_npc._route_points[1].name == "HumanMeetingRoomDoorInside"
+		and monitor._target_npc._route_points[-1] == monitor._destination_marker,
+		"correct contact reuses the blue NPC door approach before the destination",
+	)
+	monitor.player.global_position = monitor.meeting_room.to_global(
+		monitor._destination_marker.position + Vector3(0.0, 1.0, 0.0)
+	)
+	monitor._try_finish_meeting_goal()
+	_assert(
+		terminal_results.is_empty(),
+		"correct greeting and player arrival wait for the contact to arrive",
+	)
+	monitor._target_npc.global_position = (
+		monitor._destination_marker.global_position
+	)
 	monitor._try_finish_meeting_goal()
 	monitor._try_finish_meeting_goal()
 	_assert(

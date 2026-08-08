@@ -169,6 +169,32 @@ def _conveyor_observation(observation_id=7):
                 "下一轮汉堡需求可能降低。",
             ],
         },
+        "contracts": [
+            {
+                "id": "early_category",
+                "deadline_window": 3,
+                "requirement": "Serve 1 SOUP dish by window 3",
+                "reward": 8,
+                "penalty": 10,
+                "status": "active",
+            },
+            {
+                "id": "mid_category",
+                "deadline_window": 6,
+                "requirement": "Serve 2 SALAD dishes by window 6",
+                "reward": 10,
+                "penalty": 12,
+                "status": "active",
+            },
+            {
+                "id": "category_coverage",
+                "deadline_window": 10,
+                "requirement": "Cover 4 categories by window 10",
+                "reward": 12,
+                "penalty": 15,
+                "status": "active",
+            },
+        ],
         "finished": False,
     }
     return observation

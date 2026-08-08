@@ -34,13 +34,19 @@ func _run_test() -> void:
 	_check(environment.has_node("HUD/MarketPanel/Content/DemandLabel"), "market demand label exists")
 	_check(environment.has_node("HUD/MarketPanel/Content/SignalOneLabel"), "first market signal exists")
 	_check(environment.has_node("HUD/MarketPanel/Content/SignalTwoLabel"), "second market signal exists")
+	_check(environment.has_node("HUD/MarketPanel/Content/ContractsLabel"), "category contracts label exists")
 	var market_panel := environment.get_node("HUD/MarketPanel") as PanelContainer
 	_check(market_panel != null, "market panel uses automatic container layout")
 	_check(
-		(environment.get_node("HUD/StatusLabel") as Label).offset_right
-			<= market_panel.offset_left,
+		(
+			(environment.get_node("HUD/StatusLabel") as Label).position.x
+			+ (environment.get_node("HUD/StatusLabel") as Label).size.x
+			<= market_panel.position.x
+		),
 		"status text and market panel occupy separate HUD regions",
 	)
+	_check(market_panel.anchor_left == 1.0, "market panel stays attached to the right edge")
+	_check(market_panel.size.x <= 600.0, "market panel leaves the recipe board visible")
 	_check(
 		environment.get_node("HUD/MarketPanel/Content") is VBoxContainer,
 		"market labels stack without overlap",
@@ -49,7 +55,12 @@ func _run_test() -> void:
 	_check(market_panel.self_modulate.r < 0.2, "market panel darkens only its own background")
 	for label_name: String in ["DemandLabel", "SignalOneLabel", "SignalTwoLabel"]:
 		var market_label := environment.get_node("HUD/MarketPanel/Content/%s" % label_name) as Label
-		_check(market_label.get_theme_font_size("font_size") >= 22, "%s is readable" % label_name)
+		_check(market_label.get_theme_font_size("font_size") >= 18, "%s is readable" % label_name)
+	var contracts_label := environment.get_node(
+		"HUD/MarketPanel/Content/ContractsLabel",
+	) as Label
+	_check(contracts_label.get_theme_font_size("font_size") >= 18, "contracts are readable")
+	_check(contracts_label.text.contains("CATEGORY CONTRACTS"), "contract terms are visible")
 	_check_recipe_pages(environment)
 
 	var path := environment.get_node_or_null("Architecture/Conveyor/IngredientPath") as Path3D

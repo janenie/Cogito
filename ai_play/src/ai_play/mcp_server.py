@@ -284,10 +284,11 @@ async def act(
     observation_id: ObservationIdInput,
     actions: ActionBatchInput,
 ) -> CallToolResult:
-    """Execute one typed batch and return the next observation.
+    """Execute one schema-valid batch and return the next observation.
 
-    probe_interaction must be alone. interact, enter_digits, and close_ui must
-    be last and match the current interface context.
+    The actions schema has two exclusive forms: exactly one probe_interaction,
+    or one to three non-probe actions. interact, enter_digits, and close_ui
+    must be last and match the current interface context.
     """
     if not _configured():
         return _error("server_not_ready")

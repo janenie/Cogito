@@ -157,7 +157,10 @@ def test_probe_interaction_must_be_the_only_action_and_use_closed_interface():
     probe = {"type": "probe_interaction", "target_x": 0.2, "target_y": 0.3}
 
     assert validate_action_batch([probe], set(), False) == [probe]
-    with pytest.raises(ActionValidationError):
+    with pytest.raises(
+        ActionValidationError,
+        match="submit exactly one probe_interaction entry",
+    ):
         validate_action_batch([probe, {"type": "wait", "duration_ms": 50}], set(), False)
     with pytest.raises(ActionValidationError, match="closed interface"):
         validate_action_batch([probe], set(), True)

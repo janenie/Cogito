@@ -35,7 +35,7 @@ func _run_test() -> void:
 	public_keys.sort()
 	_check(
 		public_keys == [
-			"dish", "finished", "last_receipt", "market", "net_profit", "total_time", "tray", "window", "window_time",
+			"contracts", "dish", "finished", "last_receipt", "market", "net_profit", "total_time", "tray", "window", "window_time",
 		],
 		"observer exposes only HUD-level conveyor fields",
 	)
@@ -45,6 +45,13 @@ func _run_test() -> void:
 		and market.get("category_multipliers", {}).keys().size() == 5
 		and market.get("signals", []).size() == 2,
 		"observer exposes only current market evidence",
+	)
+	var contracts: Array = public_state.get("contracts", [])
+	_check(
+		contracts.size() == 3
+		and contracts[0].keys().size() == 6
+		and contracts[0].get("status", "") == "active",
+		"observer exposes bounded public contract terms",
 	)
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",

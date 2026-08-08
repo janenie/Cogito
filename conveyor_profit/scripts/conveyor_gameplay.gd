@@ -50,6 +50,7 @@ var _status_label: Label
 var _demand_label: Label
 var _signal_one_label: Label
 var _signal_two_label: Label
+var _contracts_label: Label
 var _menu_board: RecipeMenuPager
 var _make_button: StaticBody3D
 var _next_selection_id: int = 1
@@ -72,6 +73,7 @@ func initialize(
 	demand_label: Label,
 	signal_one_label: Label,
 	signal_two_label: Label,
+	contracts_label: Label,
 	menu_board: RecipeMenuPager,
 	make_button: StaticBody3D,
 ) -> void:
@@ -86,6 +88,7 @@ func initialize(
 	_demand_label = demand_label
 	_signal_one_label = signal_one_label
 	_signal_two_label = signal_two_label
+	_contracts_label = contracts_label
 	_menu_board = menu_board
 	_make_button = make_button
 	session = PROFIT_SESSION.new()
@@ -127,7 +130,11 @@ static func parse_conveyor_draw_index(user_args: Array) -> int:
 
 
 func get_profit() -> int:
-	return session.get_profit() if session != null else 0
+	if session == null:
+		return 0
+	if window_session == null:
+		return session.get_profit()
+	return window_session.get_total_profit(session.get_profit())
 
 
 func get_selected_count() -> int:
@@ -152,10 +159,11 @@ func get_public_state() -> Dictionary:
 		"window": "%d / %d" % [window_session.current_window_index + 1, window_count],
 		"window_time": _format_seconds(window_session.get_window_remaining_seconds()),
 		"dish": "1 / 1" if window_session.dish_made else "0 / 1",
-		"net_profit": session.get_profit(),
+		"net_profit": get_profit(),
 		"tray": session.selected_ingredients.duplicate(),
 		"last_receipt": _last_receipt.duplicate(true),
 		"market": _get_public_market(),
+		"contracts": window_session.get_public_contracts(),
 		"finished": window_session.is_terminal(),
 	}
 
@@ -213,10 +221,10 @@ func request_make() -> Dictionary:
 		_last_receipt = {
 			"outcome": outcome,
 			"recipe_id": recipe_id,
-			"profit": session.get_profit(),
+			"profit": get_profit(),
 		}
 		_update_public_display(message)
-	return {"outcome": outcome, "recipe_id": recipe_id, "profit": session.get_profit()}
+	return {"outcome": outcome, "recipe_id": recipe_id, "profit": get_profit()}
 
 
 func request_wait_next_window() -> Dictionary:
@@ -381,9 +389,10 @@ func _update_public_display(message: String) -> void:
 		_format_seconds(window_session.get_window_remaining_seconds()),
 	]
 	_dish_label.text = "DISH  %s" % ("1 / 1" if window_session.dish_made else "0 / 1")
-	_profit_label.text = "NET PROFIT  $%d" % session.get_profit()
+	_profit_label.text = "NET PROFIT  $%d" % get_profit()
 	_status_label.text = message
 	_update_market_display()
+	_update_contract_display()
 
 
 func _set_input_enabled(value: bool) -> void:
@@ -426,6 +435,27 @@ func _update_market_display() -> void:
 	_signal_two_label.text = "下一轮线索 2：%s" % (signals[1] if signals.size() > 1 else "无")
 
 
+func _update_contract_display() -> void:
+	if _contracts_label == null or window_session == null:
+		return
+	var lines: Array[String] = ["分类合同 / CATEGORY CONTRACTS"]
+	for contract: Dictionary in window_session.get_public_contracts():
+		var deadline := int(contract["deadline_window"])
+		var requirement := String(contract["requirement"]).split(" / ")[0]
+		requirement = requirement.trim_prefix("第 %d 窗结束前" % deadline)
+		lines.append(
+			"[%s] W%d · %s · +$%d / -$%d"
+			% [
+				String(contract["status"]).to_upper(),
+				deadline,
+				requirement,
+				int(contract["reward"]),
+				int(contract["penalty"]),
+			]
+		)
+	_contracts_label.text = "\n".join(lines)
+
+
 func _expire_current_window() -> void:
 	pending_supply.clear()
 	_window_refill_pool.clear()
@@ -458,10 +488,11 @@ func _clear_tray_visuals() -> void:
 
 
 func _finish_game() -> void:
-	window_session.finish(session.get_profit())
+	var final_profit := get_profit()
+	window_session.finish(final_profit)
 	session.freeze(window_session.terminal_status, window_session.terminal_reason)
 	_set_input_enabled(false)
-	var metrics: Dictionary = window_session.get_developer_metrics(session.get_profit())
+	var metrics: Dictionary = window_session.get_developer_metrics(final_profit)
 	print(
 		"CONVEYOR_PROFIT_RESULT baseline_windows=%d completed_windows=%d total_windows=%d efficiency=%d"
 		% [
@@ -473,7 +504,7 @@ func _finish_game() -> void:
 	)
 	_update_public_display(
 		"EFFICIENCY  %d%%  ·  %s" % [
-			window_session.get_efficiency_percent(session.get_profit()),
+			window_session.get_efficiency_percent(final_profit),
 			window_session.terminal_status.to_upper(),
 		],
 	)

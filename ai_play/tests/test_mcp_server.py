@@ -227,9 +227,25 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
             act_tool = next(tool for tool in tools.tools if tool.name == "act")
             schema = act_tool.inputSchema
             actions = schema["properties"]["actions"]
-            assert actions["minItems"] == 1
-            assert actions["maxItems"] == 3
-            references = actions["items"]["anyOf"]
+            assert len(actions["anyOf"]) == 2
+            probe_batch = next(
+                branch
+                for branch in actions["anyOf"]
+                if branch["maxItems"] == 1
+            )
+            regular_batch = next(
+                branch
+                for branch in actions["anyOf"]
+                if branch["maxItems"] == 3
+            )
+            assert probe_batch["minItems"] == 1
+            assert probe_batch["items"] == {
+                "$ref": "#/$defs/ProbeInteractionAction",
+            }
+            assert "Exactly one probe_interaction" in probe_batch["description"]
+            assert regular_batch["minItems"] == 1
+            assert "non-probe" in regular_batch["description"]
+            references = regular_batch["items"]["anyOf"]
             definitions = schema["$defs"]
             action_types = {
                 definitions[item["$ref"].rsplit("/", 1)[-1]][
@@ -247,7 +263,6 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
                 "enter_digits",
                 "close_ui",
                 "wait",
-                "probe_interaction",
                 "select_ingredient",
                 "make",
                 "wait_next_window",
@@ -263,6 +278,10 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
                 "toggle_mark",
                 "submit_floor",
             }
+            probe = definitions["ProbeInteractionAction"]
+            assert probe["properties"]["type"]["const"] == "probe_interaction"
+            assert probe["properties"]["target_x"]["minimum"] == 0
+            assert probe["properties"]["target_x"]["maximum"] == 1
             look = definitions["LookAction"]
             assert set(look["properties"]) == {"type", "yaw", "pitch"}
             assert look["properties"]["yaw"]["minimum"] == -45

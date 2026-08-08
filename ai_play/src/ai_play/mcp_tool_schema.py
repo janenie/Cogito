@@ -98,11 +98,17 @@ class WaitAction(_StrictToolInput):
 
 
 class ProbeInteractionAction(_StrictToolInput):
-    """Probe one normalized screen point as a single-action batch."""
+    """Probe one normalized screen point; this action always occupies its batch."""
 
     type: Literal["probe_interaction"]
-    target_x: Annotated[float, Field(ge=0, le=1)]
-    target_y: Annotated[float, Field(ge=0, le=1)]
+    target_x: Annotated[
+        float,
+        Field(ge=0, le=1, description="Normalized screenshot x coordinate."),
+    ]
+    target_y: Annotated[
+        float,
+        Field(ge=0, le=1, description="Normalized screenshot y coordinate."),
+    ]
 
 
 ConveyorIngredientId = Literal[
@@ -188,7 +194,7 @@ class SubmitFloorAction(_StrictToolInput):
     type: Literal["submit_floor"]
 
 
-ActionInput = Union[
+RegularActionInput = Union[
     LookAction,
     MoveAction,
     SprintAction,
@@ -198,7 +204,6 @@ ActionInput = Union[
     EnterDigitsAction,
     CloseUIAction,
     WaitAction,
-    ProbeInteractionAction,
     SelectIngredientAction,
     MakeAction,
     WaitNextWindowAction,
@@ -214,10 +219,29 @@ ActionInput = Union[
     ToggleMarkAction,
     SubmitFloorAction,
 ]
+ProbeInteractionBatchInput = Annotated[
+    list[ProbeInteractionAction],
+    Field(
+        min_length=1,
+        max_length=1,
+        description=(
+            "Exactly one probe_interaction action. Do not combine it with "
+            "move, look, wait, or any other action."
+        ),
+    ),
+]
+RegularActionBatchInput = Annotated[
+    list[RegularActionInput],
+    Field(
+        min_length=1,
+        max_length=3,
+        description="One to three non-probe actions.",
+    ),
+]
 ActionBatchInput = SkipValidation[
-    Annotated[
-        list[ActionInput],
-        Field(min_length=1, max_length=3),
+    Union[
+        ProbeInteractionBatchInput,
+        RegularActionBatchInput,
     ]
 ]
 ObservationIdInput = SkipValidation[

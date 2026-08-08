@@ -99,10 +99,10 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 修改玩家 orchestrator 或 Godot supervisor 时，运行对应的纯本地 Python 单元测试：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_claude_orchestrator.py tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_supervisor.py -q
+.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_claude_orchestrator.py tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_kimi_orchestrator.py tests\test_ai_play_supervisor.py -q
 ```
 
-这些测试只使用临时目录和伪进程，覆盖隔离运行目录、两种玩家的临时认证配置、HTTP MCP 工具白名单、
+这些测试只使用临时目录和伪进程，覆盖隔离运行目录、三种玩家的临时认证配置、HTTP MCP 工具白名单、
 异常重试及停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。controller 的 Escape
 或 MCP stop 会让 supervisor 返回 `stopped` 并中止整次运行；桥断开、MCP shutdown、超时和
 无正式终局的提前退出只重试当前有效局次，不能计入任务成功率。

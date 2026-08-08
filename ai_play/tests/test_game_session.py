@@ -346,6 +346,20 @@ def test_greet_npc_meeting_accepts_only_meeting_door_success_terminal():
     assert session.observe(timeout=0.1).game_over == terminal
 
 
+def test_greet_npc_meeting_accepts_wrong_npc_limit_failure_terminal():
+    session, _ = make_scenario_session("greet_npc_meeting")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "wrong_npc_limit",
+    }
+    session.receive_game_over(terminal)
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
 def test_garden_watering_accepts_garden_success_terminal():
     session, _ = make_scenario_session("garden_watering")
     session.receive_observation(observation(7))
@@ -482,6 +496,12 @@ def test_logging_failure_rejects_attach_without_controller():
             "success",
             "meeting_door_closed",
             "success",
+        ),
+        (
+            "greet_npc_meeting",
+            "failure",
+            "wrong_npc_limit",
+            "failure",
         ),
         (
             "garden_watering",

@@ -39,3 +39,4 @@ ai_host/.pytest_cache/
 /log_aiplay_claude/
 
 .claude/settings.local.json
+.kimi-code/

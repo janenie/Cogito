@@ -544,7 +544,8 @@ def test_player_prompt_prioritizes_nearby_task_card_before_leaving_spawn(
 
     assert "briefing 要求先读取出生点附近任务卡" in prompt
     assert "离开出生区域前" in prompt
-    assert "单独调用 probe_interaction" in prompt
+    assert "probe 专用单动作分支调用 act" in prompt
+    assert 'actions=[{"type":"probe_interaction"' in prompt
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])

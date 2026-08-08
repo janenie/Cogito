@@ -141,6 +141,18 @@ def validate_action_batch(
     """Validate and return an unchanged bounded batch of player actions."""
     if not isinstance(actions, list) or not 1 <= len(actions) <= 3:
         raise ActionValidationError("actions must contain 1..3 entries")
+    if (
+        any(
+            isinstance(action, dict)
+            and action.get("type") == "probe_interaction"
+            for action in actions
+        )
+        and len(actions) != 1
+    ):
+        raise ActionValidationError(
+            "probe_interaction must be the only action; submit exactly one "
+            "probe_interaction entry in actions"
+        )
 
     available = set(available_interactions)
     for index, action in enumerate(actions):
@@ -153,9 +165,4 @@ def validate_action_batch(
         }:
             if index != len(actions) - 1:
                 raise ActionValidationError("context-changing action must be last")
-    if (
-        any(action["type"] == "probe_interaction" for action in actions)
-        and len(actions) != 1
-    ):
-        raise ActionValidationError("probe_interaction must be the only action")
     return actions

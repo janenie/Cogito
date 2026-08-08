@@ -32,6 +32,9 @@ def test_load_claude_provider_env_keeps_only_explicit_service_keys(tmp_path):
                     "ANTHROPIC_BASE_URL": "https://example.invalid",
                     "ANTHROPIC_MODEL": "claude-test",
                     "ANTHROPIC_SMALL_FAST_MODEL": "claude-small-test",
+                    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1048576",
+                    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1048576",
+                    "CLAUDE_CODE_EFFORT_LEVEL": "must-drop",
                     "OPENAI_API_KEY": "must-drop",
                     "AI_PLAY_LOG_ROOT": "/must/drop",
                 },
@@ -47,6 +50,8 @@ def test_load_claude_provider_env_keeps_only_explicit_service_keys(tmp_path):
         "ANTHROPIC_BASE_URL": "https://example.invalid",
         "ANTHROPIC_MODEL": "claude-test",
         "ANTHROPIC_SMALL_FAST_MODEL": "claude-small-test",
+        "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1048576",
+        "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1048576",
     }
 
 

@@ -7,8 +7,8 @@ const EXPECTED_ROUTES := {
 	"D": ["pumpkin_sausage_soup", "avocado_fish_sandwich", "avocado_burger", "avocado_burger", "classic_burger", "avocado_fish_sandwich", "garden_fish_sandwich", "garden_fish_sandwich", "avocado_salad", "corn_bacon_omelet"],
 	"E": ["avocado_burger", "avocado_salad", "avocado_salad", "pumpkin_sausage_soup", "pumpkin_sausage_soup", "avocado_fish_sandwich", "avocado_burger", "corn_bacon_omelet", "avocado_fish_sandwich", "corn_bacon_omelet"],
 }
-const EXPECTED_BASELINES := {"A": 194, "B": 213, "C": 184, "D": 229, "E": 234}
-const EXPECTED_TARGETS := {"A": 175, "B": 192, "C": 166, "D": 207, "E": 211}
+const EXPECTED_BASELINES := {"A": 224, "B": 243, "C": 214, "D": 259, "E": 264}
+const EXPECTED_TARGETS := {"A": 202, "B": 219, "C": 193, "D": 234, "E": 238}
 
 var failures: Array[String] = []
 
@@ -70,6 +70,22 @@ func _initialize() -> void:
 			counts[baseline_id] = int(counts.get(baseline_id, 0)) + 1
 			actual_route.append(baseline_id)
 		_check(actual_route == EXPECTED_ROUTES[campaign_id], "campaign %s route is approved" % campaign_id)
+		var contracts: Array = campaign.get("contracts", [])
+		_check(contracts.size() == 3, "campaign %s has three category contracts" % campaign_id)
+		_check(
+			contracts.map(func(contract: Dictionary) -> String: return String(contract["id"]))
+			== ["early_category", "mid_category", "category_coverage"],
+			"campaign %s contract IDs are stable" % campaign_id,
+		)
+		_check(
+			contracts.map(func(contract: Dictionary) -> int: return int(contract["deadline_window"]))
+			== [3, 6, 10],
+			"campaign %s contract deadlines are stable" % campaign_id,
+		)
+		_check(
+			campaigns_script.contract_adjustment_for_recipe_route(campaign, actual_route) == 30,
+			"campaign %s baseline satisfies every public contract" % campaign_id,
+		)
 		_check(campaigns_script.baseline_profit(campaign) == EXPECTED_BASELINES[campaign_id], "campaign %s baseline profit is exact" % campaign_id)
 		_check(campaigns_script.passing_profit(campaign) == EXPECTED_TARGETS[campaign_id], "campaign %s ninety-percent target is exact" % campaign_id)
 

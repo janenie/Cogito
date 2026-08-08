@@ -52,12 +52,17 @@ func _run_test() -> void:
 		)
 	var public_state: Dictionary = gameplay.get_public_state()
 	for field: String in [
-		"total_time", "window", "window_time", "dish", "net_profit", "tray", "last_receipt", "market", "finished",
+		"total_time", "window", "window_time", "dish", "net_profit", "tray", "last_receipt", "market", "contracts", "finished",
 	]:
 		_check(public_state.has(field), "public state contains %s" % field)
 	var public_market: Dictionary = public_state.get("market", {})
 	_check(public_market.get("category_multipliers", {}).keys().size() == 5, "public market contains five categories")
 	_check(public_market.get("signals", []).size() == 2, "first window exposes two next-round signals")
+	var contracts: Array = public_state.get("contracts", [])
+	_check(contracts.size() == 3, "public state exposes three category contracts")
+	for contract: Dictionary in contracts:
+		_check(contract["status"] == "active", "initial contract is active")
+		_check(not String(contract["requirement"]).is_empty(), "contract requirement is public")
 	for hidden_field: String in [
 		"ingredients", "candidate_recipes", "best_profit", "future_supply", "seed", "passing_profit",
 		"deck_id", "campaign_id", "candidate_recipe_ids", "recipe_counts", "missing_ingredient",

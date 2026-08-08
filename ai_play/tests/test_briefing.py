@@ -127,10 +127,14 @@ def test_greet_npc_meeting_registry_loads_bounded_public_briefing():
     briefing, image_bytes = load_scenario_briefing("greet_npc_meeting")
 
     assert briefing["game_id"] == "greet_npc_meeting"
-    assert briefing["success_condition"] == "已经和 NPC 打招呼，并在会议室内关上会议室门。"
+    assert "玩家和联系人都到达" in briefing["success_condition"]
     assert "100" in briefing["failure_condition"]
+    assert "第二次问候错误同事" in briefing["failure_condition"]
     assert "MEETING ROOM" in repr(briefing)
     assert "从走廊一侧关门" in repr(briefing)
+    assert "三名" in repr(briefing)
+    assert "上衣颜色" in repr(briefing)
+    assert "WINDOW SIDE" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for forbidden in [
@@ -308,6 +312,8 @@ def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state
         "90%", "一分钟", "十六", "最多成功制作两次", "自行记录", "五份",
         "当前需求倍率", "两条", "下一轮", "强化", "冲突", "隐藏在线基准",
         "market.signals",
+        "分类合同", "conveyor.contracts", "第 3、6、10 窗", "违约金",
+        "active/completed/missed",
     ]:
         assert term in serialized
     for forbidden in [

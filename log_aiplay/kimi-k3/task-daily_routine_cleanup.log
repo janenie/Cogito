@@ -1,0 +1,162 @@
+[batch] resumed_at=2026-08-08T14:24:23+0800 scenario=daily_routine_cleanup runs=4 model=kimi-code/k3 effort=high awm=enabled
+[orchestrator] run_dir=/Users/Shared/Cogito-test/20260808-142423__kimi__kimi-code_k3__daily_routine_cleanup__awm
+[orchestrator] trusted_log_root=/Users/Shared/Cogito-test/20260808-142423__kimi__kimi-code_k3__daily_routine_cleanup__awm/trusted_mcplogs
+[orchestrator] AI_PLAY_WS=127.0.0.1:8765
+[orchestrator] MCP_HTTP=127.0.0.1:8766
+[mcp] starting: /Users/zhirui/workspace/projects/opensource/Cogito/.venv/bin/python -m ai_play.mcp_server --transport streamable-http --http-host 127.0.0.1 --http-port 8766
+[mcp] INFO:     Started server process [58234]
+[mcp] INFO:     Waiting for application startup.
+[mcp] [08/08/26 14:24:23] INFO     StreamableHTTP       streamable_http_manager.py:143
+[mcp]                              session manager                                    
+[mcp]                              started                                            
+[mcp] INFO:     Application startup complete.
+[mcp] INFO:     Uvicorn running on http://127.0.0.1:8766 (Press CTRL+C to quit)
+[kimi] starting: /Users/zhirui/workspace/projects/opensource/Cogito/.venv/bin/python /Users/zhirui/workspace/projects/opensource/Cogito/tools/ai_play_kimi_orchestrator.py --internal-kimi-player --kimi-bin /Users/zhirui/.kimi-code/bin/kimi --agent-file /var/folders/tx/81__0dkx3_l0lx5_4pc8k0r40000gn/T/cogito-ai-play-kimi-hgjiwpm8/cogito-ai-play-agent.md --model kimi-code/k3
+[supervisor] starting: /Users/zhirui/workspace/projects/opensource/Cogito/.venv/bin/python /Users/zhirui/workspace/projects/opensource/Cogito/tools/ai_play_supervisor.py --runs 4 --scenario daily_routine_cleanup --scene dailyroutine/scenes/home_daily_routine.tscn --godot-bin godot --max-retries 2 --timeout-seconds 100000.0
+[supervisor] [supervisor] starting attempt 1 retry 0: godot --path . dailyroutine/scenes/home_daily_routine.tscn -- --ai-play --ai-play-scenario=daily_routine_cleanup --ai-play-exit-on-game-over
+[mcp]                     ERROR    opening handshake failed              server.py:601
+[mcp]                              ╭─ Traceback (most recent call last─╮              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/ht │              
+[mcp]                              │ tp11.py:138 in parse              │              
+[mcp]                              │                                   │              
+[mcp]                              │   135 │   │   # to implement HTTP │              
+[mcp]                              │   136 │   │                       │              
+[mcp]                              │   137 │   │   try:                │              
+[mcp]                              │ ❱ 138 │   │   │   request_line =  │              
+[mcp]                              │   139 │   │   except EOFError as  │              
+[mcp]                              │   140 │   │   │   raise EOFError( │              
+[mcp]                              │   141                             │              
+[mcp]                              │                                   │              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/ht │              
+[mcp]                              │ tp11.py:309 in parse_line         │              
+[mcp]                              │                                   │              
+[mcp]                              │   306 │                           │              
+[mcp]                              │   307 │   """                     │              
+[mcp]                              │   308 │   try:                    │              
+[mcp]                              │ ❱ 309 │   │   line = yield from r │              
+[mcp]                              │   310 │   except RuntimeError:    │              
+[mcp]                              │   311 │   │   raise SecurityError │              
+[mcp]                              │   312 │   # Not mandatory but saf │              
+[mcp]                              │                                   │              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/st │              
+[mcp]                              │ reams.py:46 in read_line          │              
+[mcp]                              │                                   │              
+[mcp]                              │    43 │   │   │   if p > m:       │              
+[mcp]                              │    44 │   │   │   │   raise Runti │              
+[mcp]                              │    45 │   │   │   if self.eof:    │              
+[mcp]                              │ ❱  46 │   │   │   │   raise EOFEr │              
+[mcp]                              │    47 │   │   │   yield           │              
+[mcp]                              │    48 │   │   if n > m:           │              
+[mcp]                              │    49 │   │   │   raise RuntimeEr │              
+[mcp]                              ╰───────────────────────────────────╯              
+[mcp]                              EOFError: stream ends after 0 bytes,               
+[mcp]                              before end of line                                 
+[mcp]                                                                                 
+[mcp]                              The above exception was the direct                 
+[mcp]                              cause of the following exception:                  
+[mcp]                                                                                 
+[mcp]                              ╭─ Traceback (most recent call last─╮              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/se │              
+[mcp]                              │ rver.py:545 in parse              │              
+[mcp]                              │                                   │              
+[mcp]                              │   542 │   def parse(self) -> Gene │              
+[mcp]                              │   543 │   │   if self.state is CO │              
+[mcp]                              │   544 │   │   │   try:            │              
+[mcp]                              │ ❱ 545 │   │   │   │   request = y │              
+[mcp]                              │   546 │   │   │   │   │   self.re │              
+[mcp]                              │   547 │   │   │   │   )           │              
+[mcp]                              │   548 │   │   │   except Exceptio │              
+[mcp]                              │                                   │              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/ht │              
+[mcp]                              │ tp11.py:140 in parse              │              
+[mcp]                              │                                   │              
+[mcp]                              │   137 │   │   try:                │              
+[mcp]                              │   138 │   │   │   request_line =  │              
+[mcp]                              │   139 │   │   except EOFError as  │              
+[mcp]                              │ ❱ 140 │   │   │   raise EOFError( │              
+[mcp]                              │   141 │   │                       │              
+[mcp]                              │   142 │   │   try:                │              
+[mcp]                              │   143 │   │   │   method, raw_pat │              
+[mcp]                              ╰───────────────────────────────────╯              
+[mcp]                              EOFError: connection closed while                  
+[mcp]                              reading HTTP request line                          
+[mcp]                                                                                 
+[mcp]                              The above exception was the direct                 
+[mcp]                              cause of the following exception:                  
+[mcp]                                                                                 
+[mcp]                              ╭─ Traceback (most recent call last─╮              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/sy │              
+[mcp]                              │ nc/server.py:590 in conn_handler  │              
+[mcp]                              │                                   │              
+[mcp]                              │   587 │   │                       │              
+[mcp]                              │   588 │   │   try:                │              
+[mcp]                              │   589 │   │   │   try:            │              
+[mcp]                              │ ❱ 590 │   │   │   │   connection. │              
+[mcp]                              │   591 │   │   │   │   │   process │              
+[mcp]                              │   592 │   │   │   │   │   process │              
+[mcp]                              │   593 │   │   │   │   │   server_ │              
+[mcp]                              │                                   │              
+[mcp]                              │ /Users/zhirui/workspace/projects/ │              
+[mcp]                              │ opensource/Cogito/.venv/lib/pytho │              
+[mcp]                              │ n3.12/site-packages/websockets/sy │              
+[mcp]                              │ nc/server.py:189 in handshake     │              
+[mcp]                              │                                   │              
+[mcp]                              │   186 │   │   # response that rej │              
+[mcp]                              │   187 │   │                       │              
+[mcp]                              │   188 │   │   if self.protocol.ha │              
+[mcp]                              │ ❱ 189 │   │   │   raise self.prot │              
+[mcp]                              │   190 │                           │              
+[mcp]                              │   191 │   def process_event(self, │              
+[mcp]                              │   192 │   │   """                 │              
+[mcp]                              ╰───────────────────────────────────╯              
+[mcp]                              InvalidMessage: did not receive a                  
+[mcp]                              valid HTTP request                                 
+[supervisor] Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+[supervisor] Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M5 Max (Apple9)
+[supervisor] 
+[kimi] kimi version 0.34.0
+[mcp] [08/08/26 14:24:24] INFO     Created new          streamable_http_manager.py:301
+[mcp]                              transport with                                     
+[mcp]                              session ID:                                        
+[mcp]                              9851c61a458442899260                               
+[mcp]                              672ec5af5fad                                       
+[mcp] INFO:     127.0.0.1:64896 - "POST /mcp HTTP/1.1" 200 OK
+[mcp] INFO:     127.0.0.1:64897 - "POST /mcp HTTP/1.1" 202 Accepted
+[mcp] INFO:     127.0.0.1:64896 - "GET /mcp HTTP/1.1" 200 OK
+[mcp]                     INFO     Processing request of type            server.py:733
+[mcp]                              ListToolsRequest                                   
+[mcp] INFO:     127.0.0.1:64898 - "POST /mcp HTTP/1.1" 200 OK
+[supervisor] WARNING: Custom solver bias for shapes is not supported when using Jolt Physics. Any such value will be ignored. This shape belongs to '<unknown>' and 0 other object(s).
+[supervisor]      at: set_solver_bias (modules/jolt_physics/shapes/jolt_shape_3d.cpp:91)
+[supervisor]      GDScript backtrace (most recent call first):
+[supervisor]          [0] load_cogito_project_settings (res://addons/cogito/cogito_globals.gd:28)
+[supervisor]          [1] _enter_tree (res://addons/cogito/cogito_globals.gd:23)
+[supervisor] COGITO: cogito settings loaded: res://addons/cogito/CogitoSettings.tres
+[supervisor] COGITO: cogito settings loaded: res://addons/cogito/CogitoSettings.tres
+[supervisor] AI_PLAY controller ready; scenario=daily_routine_cleanup user_args=["--ai-play", "--ai-play-scenario=daily_routine_cleanup", "--ai-play-exit-on-game-over"] auto_start=false
+[supervisor] AI_PLAY enabling; target=ws://127.0.0.1:8765
+[mcp] [08/08/26 14:24:26] INFO     connection open                       server.py:529
+[supervisor] AI_PLAY WebSocket connected
+[supervisor] AI_PLAY sending observation=1
+[kimi] error: failed to run prompt: provider.api_error: 429 Your account org-9293b3aabaff49e6969df180fbbc86b4 <ak-fbmrsqwens1i11fwe8t1> is suspended due to insufficient balance, please recharge your account or check your plan and billing details
+[kimi] See log: /private/var/folders/tx/81__0dkx3_l0lx5_4pc8k0r40000gn/T/cogito-ai-play-kimi-hgjiwpm8/logs/kimi-code.log
+[mcp] INFO:     Shutting down
+[mcp] INFO:     Waiting for application shutdown.
+[mcp] [08/08/26 14:24:32] INFO     StreamableHTTP       streamable_http_manager.py:147
+[mcp]                              session manager                                    
+[mcp]                              shutting down                                      
+[mcp] INFO:     Application shutdown complete.
+[mcp] INFO:     Finished server process [58234]
+[batch] task_finished_at=2026-08-08T14:24:32+0800 scenario=daily_routine_cleanup orchestrator_exit=1

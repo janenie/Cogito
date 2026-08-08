@@ -21,6 +21,7 @@ func _ready() -> void:
 		$HUD/MarketPanel/Content/DemandLabel,
 		$HUD/MarketPanel/Content/SignalOneLabel,
 		$HUD/MarketPanel/Content/SignalTwoLabel,
+		$HUD/MarketPanel/Content/ContractsLabel,
 		$Stations/MenuBoard,
 		$Stations/MakeButton,
 	)

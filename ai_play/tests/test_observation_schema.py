@@ -410,6 +410,7 @@ def test_conveyor_observation_is_hud_level_and_bounded():
                 "部分办公楼恢复供暖，下一轮汤类需求可能降低。",
             ],
         },
+        "contracts": _valid_conveyor_contracts(),
         "finished": False,
     }
 
@@ -445,6 +446,7 @@ def test_conveyor_observation_rejects_hidden_fields(hidden_field):
             },
             "signals": ["下一轮汤类需求可能升高。", "下一轮汉堡需求可能降低。"],
         },
+        "contracts": _valid_conveyor_contracts(),
         "finished": False,
         hidden_field: [],
     }
@@ -586,6 +588,7 @@ def test_conveyor_observation_accepts_five_item_tray_and_empty_receipt():
             },
             "signals": ["下一轮汤类需求可能升高。", "下一轮汉堡需求可能降低。"],
         },
+        "contracts": _valid_conveyor_contracts(),
         "finished": False,
     }
 
@@ -655,8 +658,69 @@ def _valid_conveyor_market_state():
             },
             "signals": ["下一轮汤类需求可能升高。", "下一轮汤类需求可能降低。"],
         },
+        "contracts": _valid_conveyor_contracts(),
         "finished": False,
     }
+
+
+def _valid_conveyor_contracts():
+    return [
+        {
+            "id": "early_category",
+            "deadline_window": 3,
+            "requirement": "第 3 窗结束前累计完成至少 1 道 SOUP / Serve 1 SOUP dish by window 3",
+            "reward": 8,
+            "penalty": 10,
+            "status": "active",
+        },
+        {
+            "id": "mid_category",
+            "deadline_window": 6,
+            "requirement": "第 6 窗结束前累计完成至少 2 道 SALAD / Serve 2 SALAD dishes by window 6",
+            "reward": 10,
+            "penalty": 12,
+            "status": "active",
+        },
+        {
+            "id": "category_coverage",
+            "deadline_window": 10,
+            "requirement": "第 10 窗结束前覆盖至少 4 个菜品类别 / Cover 4 categories by window 10",
+            "reward": 12,
+            "penalty": 15,
+            "status": "active",
+        },
+    ]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("status", "pending"),
+        ("deadline_window", 4),
+        ("deadline_window", 3.0),
+        ("reward", 999),
+        ("reward", 8.0),
+        ("penalty", -10),
+        ("penalty", 10.0),
+        ("requirement", ""),
+    ],
+)
+def test_conveyor_contracts_are_exact_and_bounded(field, value):
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["contracts"][0][field] = value
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
+
+
+def test_conveyor_contract_ids_are_unique_and_complete():
+    observation = valid_observation_with_jpeg_base64()
+    observation["conveyor"] = _valid_conveyor_market_state()
+    observation["conveyor"]["contracts"][1]["id"] = "early_category"
+
+    with pytest.raises(ObservationValidationError):
+        validate_observation(observation, "conveyor_profit")
 
 
 def test_conveyor_full_tray_result_is_recoverable_and_bounded():

@@ -152,7 +152,76 @@ static func _build_closed_campaigns() -> Array[Dictionary]:
 		var overrides: Dictionary = CLOSED_CANDIDATE_OVERRIDES.get(String(campaign["id"]), {})
 		for round_index: Variant in overrides:
 			campaign["rounds"][int(round_index)]["candidate_recipe_ids"] = overrides[round_index].duplicate()
+		campaign["contracts"] = _build_contracts(campaign)
 	return result
+
+
+static func _build_contracts(campaign: Dictionary) -> Array[Dictionary]:
+	var categories: Array[String] = []
+	for round_data: Dictionary in campaign.get("rounds", []):
+		var recipe := CATALOG.recipe_by_id(
+			String(round_data.get("baseline_recipe_id", "")),
+		)
+		if recipe.is_empty():
+			return []
+		categories.append(String(recipe["category"]))
+	if categories.size() < 10:
+		return []
+
+	var early_category := categories[2]
+	var mid_category := categories[5]
+	if mid_category == early_category:
+		for index: int in range(5, 2, -1):
+			if categories[index] != early_category:
+				mid_category = categories[index]
+				break
+	return [
+		{
+			"id": "early_category",
+			"kind": "category_minimum",
+			"category": early_category,
+			"minimum": _category_count(categories, early_category, 3),
+			"deadline_window": 3,
+			"reward": 8,
+			"penalty": 10,
+		},
+		{
+			"id": "mid_category",
+			"kind": "category_minimum",
+			"category": mid_category,
+			"minimum": _category_count(categories, mid_category, 6),
+			"deadline_window": 6,
+			"reward": 10,
+			"penalty": 12,
+		},
+		{
+			"id": "category_coverage",
+			"kind": "distinct_categories",
+			"minimum": mini(_unique_category_count(categories), 4),
+			"deadline_window": 10,
+			"reward": 12,
+			"penalty": 15,
+		},
+	]
+
+
+static func _category_count(
+	categories: Array[String],
+	category: String,
+	deadline_window: int,
+) -> int:
+	var count := 0
+	for index: int in range(mini(deadline_window, categories.size())):
+		if categories[index] == category:
+			count += 1
+	return count
+
+
+static func _unique_category_count(categories: Array[String]) -> int:
+	var unique: Dictionary = {}
+	for category: String in categories:
+		unique[category] = true
+	return unique.size()
 
 
 static func campaign_by_id(campaign_id: String) -> Dictionary:
@@ -182,6 +251,7 @@ static func next_manual_draw_index() -> int:
 
 static func baseline_profit(campaign: Dictionary) -> int:
 	var total := 0
+	var route: Array[String] = []
 	for round_data: Dictionary in campaign.get("rounds", []):
 		var recipe_id := String(round_data.get("baseline_recipe_id", ""))
 		var recipe: Dictionary = CATALOG.recipe_by_id(recipe_id)
@@ -193,7 +263,41 @@ static func baseline_profit(campaign: Dictionary) -> int:
 		if profit < 0:
 			return -1
 		total += profit
-	return total
+		route.append(recipe_id)
+	return total + contract_adjustment_for_recipe_route(campaign, route)
+
+
+static func contract_adjustment_for_recipe_route(
+	campaign: Dictionary,
+	recipe_route: Array[String],
+) -> int:
+	var adjustment := 0
+	for contract: Dictionary in campaign.get("contracts", []):
+		var deadline := int(contract.get("deadline_window", 0))
+		var category_counts: Dictionary = {}
+		var distinct_categories: Dictionary = {}
+		for index: int in range(mini(deadline, recipe_route.size())):
+			var recipe := CATALOG.recipe_by_id(recipe_route[index])
+			if recipe.is_empty():
+				continue
+			var category := String(recipe["category"])
+			category_counts[category] = int(category_counts.get(category, 0)) + 1
+			distinct_categories[category] = true
+		var satisfied := false
+		match String(contract.get("kind", "")):
+			"category_minimum":
+				satisfied = (
+					int(category_counts.get(String(contract.get("category", "")), 0))
+					>= int(contract.get("minimum", 0))
+				)
+			"distinct_categories":
+				satisfied = distinct_categories.size() >= int(contract.get("minimum", 0))
+		adjustment += (
+			int(contract.get("reward", 0))
+			if satisfied
+			else -int(contract.get("penalty", 0))
+		)
+	return adjustment
 
 
 static func passing_profit(campaign: Dictionary) -> int:

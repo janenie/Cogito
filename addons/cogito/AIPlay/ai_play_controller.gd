@@ -31,6 +31,7 @@ const SCENARIO_TERMINAL_RESULTS := {
 	],
 	"greet_npc_meeting": [
 		["success", "meeting_door_closed"],
+		["failure", "wrong_npc_limit"],
 		["failure", "max_requests"],
 	],
 	"daily_routine_cleanup": [

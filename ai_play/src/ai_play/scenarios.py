@@ -67,6 +67,7 @@ _SCENARIOS = {
         max_act_requests=100,
         terminal_results=frozenset({
             ("success", "meeting_door_closed"),
+            ("failure", "wrong_npc_limit"),
             ("failure", "max_requests"),
         }),
     ),

@@ -886,6 +886,14 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		],
 		"put_book has the exact ordered-delivery terminal allowlist",
 	)
+	_assert(
+		AIPlayController.SCENARIO_TERMINAL_RESULTS["greet_npc_meeting"] == [
+			["success", "meeting_door_closed"],
+			["failure", "wrong_npc_limit"],
+			["failure", "max_requests"],
+		],
+		"greet_npc_meeting has the exact social-task terminal allowlist",
+	)
 	for terminal_case: Dictionary in [
 		{
 			"scenario": "find_contract",
@@ -911,6 +919,11 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			"scenario": "put_book",
 			"outcome": "failure",
 			"reason": "wrong_book_pickup",
+		},
+		{
+			"scenario": "greet_npc_meeting",
+			"outcome": "failure",
+			"reason": "wrong_npc_limit",
 		},
 		{
 			"scenario": "garden_watering",

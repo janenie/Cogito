@@ -59,6 +59,12 @@ CONVEYOR_RECIPE_IDS = {
 }
 CONVEYOR_CATEGORIES = {"salad", "soup", "burger", "omelet", "sandwich"}
 CONVEYOR_MULTIPLIERS = {0.75, 1.0, 1.25, 1.5}
+CONVEYOR_CONTRACTS = {
+    "early_category": (3, 8, 10),
+    "mid_category": (6, 10, 12),
+    "category_coverage": (10, 12, 15),
+}
+CONVEYOR_CONTRACT_STATUSES = {"active", "completed", "missed"}
 CONVEYOR_OUTCOMES = {
     "selected", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
@@ -519,7 +525,8 @@ def validate_observation(value, scenario_id=None):
             conveyor,
             {
                 "total_time", "window", "window_time", "dish",
-                "net_profit", "tray", "last_receipt", "market", "finished",
+                "net_profit", "tray", "last_receipt", "market", "contracts",
+                "finished",
             },
             "conveyor",
         )
@@ -590,6 +597,57 @@ def validate_observation(value, scenario_id=None):
             _text(item, "conveyor market signal", 240, allow_empty=False)
             for item in signals
         ]
+        contracts = conveyor["contracts"]
+        if not isinstance(contracts, list) or len(contracts) != 3:
+            raise ObservationValidationError("conveyor contracts are invalid")
+        safe_contracts = []
+        seen_contract_ids = set()
+        for contract in contracts:
+            _exact(
+                contract,
+                {
+                    "id", "deadline_window", "requirement", "reward",
+                    "penalty", "status",
+                },
+                "conveyor contract",
+            )
+            contract_id = _text(
+                contract["id"], "conveyor contract id", 32, allow_empty=False
+            )
+            if contract_id not in CONVEYOR_CONTRACTS or contract_id in seen_contract_ids:
+                raise ObservationValidationError("conveyor contract id is invalid")
+            seen_contract_ids.add(contract_id)
+            deadline, reward, penalty = CONVEYOR_CONTRACTS[contract_id]
+            if (
+                type(contract["deadline_window"]) is not int
+                or type(contract["reward"]) is not int
+                or type(contract["penalty"]) is not int
+                or contract["deadline_window"] != deadline
+                or contract["reward"] != reward
+                or contract["penalty"] != penalty
+            ):
+                raise ObservationValidationError("conveyor contract terms are invalid")
+            status = _text(
+                contract["status"],
+                "conveyor contract status",
+                16,
+                allow_empty=False,
+            )
+            if status not in CONVEYOR_CONTRACT_STATUSES:
+                raise ObservationValidationError("conveyor contract status is invalid")
+            safe_contracts.append({
+                "id": contract_id,
+                "deadline_window": deadline,
+                "requirement": _text(
+                    contract["requirement"],
+                    "conveyor contract requirement",
+                    180,
+                    allow_empty=False,
+                ),
+                "reward": reward,
+                "penalty": penalty,
+                "status": status,
+            })
         safe_conveyor = {
             "total_time": conveyor["total_time"],
             "window": window,
@@ -602,6 +660,7 @@ def validate_observation(value, scenario_id=None):
                 "category_multipliers": safe_multipliers,
                 "signals": safe_signals,
             },
+            "contracts": safe_contracts,
             "finished": conveyor["finished"],
         }
 

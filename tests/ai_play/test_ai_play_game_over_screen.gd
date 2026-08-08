@@ -56,6 +56,13 @@ func _run_tests() -> void:
 	)
 	await _test_result(
 		screen_scene,
+		"failure",
+		"wrong_npc_limit",
+		"任务失败",
+		"两次问候了错误的同事",
+	)
+	await _test_result(
+		screen_scene,
 		"success",
 		"circuit_repaired",
 		"任务成功",

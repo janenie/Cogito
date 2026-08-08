@@ -658,10 +658,13 @@ text = "从传送带选择食材 / CHOOSE INGREDIENTS FROM THE BELT"
 horizontal_alignment = 1
 
 [node name="MarketPanel" type="PanelContainer" parent="HUD"]
-offset_left = 1040.0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -590.0
 offset_top = 12.0
-offset_right = 1890.0
-offset_bottom = 232.0
+offset_right = -30.0
+offset_bottom = 460.0
+grow_horizontal = 0
 self_modulate = Color(0.08, 0.1, 0.12, 0.86)
 theme_override_constants/content_margin_left = 18
 theme_override_constants/content_margin_top = 10
@@ -683,13 +686,20 @@ autowrap_mode = 2
 [node name="SignalOneLabel" type="Label" parent="HUD/MarketPanel/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.95, 0.9, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 18
 text = "下一轮线索 1"
 autowrap_mode = 2
 
 [node name="SignalTwoLabel" type="Label" parent="HUD/MarketPanel/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.95, 0.9, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 18
 text = "下一轮线索 2"
+autowrap_mode = 2
+
+[node name="ContractsLabel" type="Label" parent="HUD/MarketPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "分类合同 / CATEGORY CONTRACTS"
 autowrap_mode = 2

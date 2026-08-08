@@ -23,6 +23,7 @@ enum PromptPositionMode {
 @export var meeting_room_arrival_distance: float = 0.25
 @export var loop_route: bool = false
 @export var auto_open_doors: bool = true
+@export var auto_close_doors: bool = true
 @export var door_open_distance: float = 1.6
 @export var door_close_distance: float = 2.2
 @export var wait_at_route_points: bool = false
@@ -42,6 +43,7 @@ enum PromptPositionMode {
 @export_multiline var default_dialogue_hint: String = "H. Voss: The LUMEN contract is in the CEO office drawer. The Archive boxes only have old packaging."
 @export var greeting_phrases: Array[String] = ["你好", "要去开会了么？", "hi"]
 @export var selected_greeting_phrase: String = "你好"
+@export_multiline var greeting_response_hint: String = ""
 @export var max_greeting_distance: float = 1.0
 @export var greeting_out_of_range_hint: String = "Need to get closer."
 
@@ -160,17 +162,46 @@ func interact(player_interaction_component: PlayerInteractionComponent) -> void:
 	):
 		player_interaction_component.send_hint(null, greeting_out_of_range_hint)
 		return
-	player_interaction_component.send_hint(null, selected_greeting_phrase)
+	var response_hint := greeting_response_hint.strip_edges()
+	if response_hint.is_empty():
+		response_hint = selected_greeting_phrase
+	player_interaction_component.send_hint(null, response_hint)
 	greeted.emit(selected_greeting_phrase)
 
 
 func configure_route_loop(start_index: int, direction: int) -> void:
-	if _route_points.is_empty():
-		_collect_route_points()
+	_collect_route_points()
 	if _route_points.is_empty():
 		return
+	_start_route_loop(start_index, direction)
+
+
+func configure_route_loop_from(
+	first_point_name: String,
+	start_offset: int,
+	direction: int,
+) -> void:
+	_collect_route_points()
+	var first_index := -1
+	for index: int in range(_route_points.size()):
+		if _route_points[index].name == first_point_name:
+			first_index = index
+			break
+	if first_index < 0:
+		return
+	var full_route := _route_points.duplicate()
+	_route_points.clear()
+	for index: int in range(first_index, full_route.size()):
+		_route_points.append(full_route[index])
+	if _route_points.is_empty():
+		return
+	_start_route_loop(posmod(start_offset, _route_points.size()), direction)
+
+
+func _start_route_loop(start_index: int, direction: int) -> void:
 	loop_route = true
 	wait_at_route_points = false
+	auto_close_doors = true
 	_has_arrived = false
 	_is_waiting = false
 	_is_sitting = false
@@ -179,6 +210,55 @@ func configure_route_loop(start_index: int, direction: int) -> void:
 	global_position = _route_points[_route_index].global_position
 	velocity = Vector3.ZERO
 	_advance_route()
+
+
+func configure_destination(target: Node3D) -> void:
+	if target == null:
+		return
+	configure_route_to_points([target])
+
+
+func configure_route_to_points(targets: Array[Node3D]) -> void:
+	if targets.is_empty():
+		return
+	loop_route = false
+	wait_at_route_points = false
+	auto_close_doors = false
+	_has_arrived = false
+	_is_waiting = false
+	_is_sitting = false
+	_route_points = targets.duplicate()
+	_route_index = 0
+	_route_direction = 1
+	velocity = Vector3.ZERO
+	_set_current_navigation_target()
+
+
+func route_point_by_name(point_name: String) -> Node3D:
+	if _route_points.is_empty():
+		_collect_route_points()
+	for point: Node3D in _route_points:
+		if point.name == point_name:
+			return point
+	if route_root != null:
+		return route_root.get_node_or_null(point_name) as Node3D
+	return null
+
+
+func configure_public_identity(
+	identity_name: String,
+	shirt_color: Color,
+) -> void:
+	display_name = identity_name
+	var body := get_node_or_null("Visual/Body") as MeshInstance3D
+	if body == null:
+		return
+	var source_material := body.get_active_material(0) as StandardMaterial3D
+	if source_material == null:
+		return
+	var identity_material := source_material.duplicate() as StandardMaterial3D
+	identity_material.albedo_color = shirt_color
+	body.set_surface_override_material(0, identity_material)
 
 
 func route_point_count() -> int:
@@ -333,6 +413,8 @@ func _open_nearby_doors() -> void:
 
 
 func _close_opened_doors() -> void:
+	if not auto_close_doors:
+		return
 	for index in range(_opened_doors.size() - 1, -1, -1):
 		var door := _opened_doors[index]
 		if not is_instance_valid(door):
