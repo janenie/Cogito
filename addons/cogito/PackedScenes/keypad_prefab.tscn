@@ -473,6 +473,34 @@ text = "E"
 script = ExtResource("6_ebwkh")
 accepts_contextual_enter = true
 
+[node name="ConfirmationPanel" type="PanelContainer" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Warning" type="Label" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content"]
+layout_mode = 2
+text = "提交后不可修改。密码错误将立即触发安保锁定。"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Actions" type="HBoxContainer" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Cancel" type="Button" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "取消 / CANCEL"
+
+[node name="Confirm" type="Button" parent="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "确认提交 / SUBMIT ONCE"
+
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/1" to="." method="_on_button_received"]
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/2" to="." method="_on_button_received"]
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/3" to="." method="_on_button_received"]
@@ -485,3 +513,5 @@ accepts_contextual_enter = true
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/Clear" to="." method="_on_button_received"]
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/0" to="." method="_on_button_received"]
 [connection signal="pressed_string" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/Enter" to="." method="_on_button_received"]
+[connection signal="pressed" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content/Actions/Cancel" to="." method="cancel_submission"]
+[connection signal="pressed" from="KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content/Actions/Confirm" to="." method="confirm_submission"]

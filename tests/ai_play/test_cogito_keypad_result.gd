@@ -45,8 +45,32 @@ func _run_tests() -> void:
 		wrong_keypad.check_entered_code()
 	_assert(wrong_results == [false], "wrong code emits false exactly once")
 
+	var guarded_keypad: Node = keypad_scene.instantiate()
+	guarded_keypad.passcode = "0937"
+	guarded_keypad.require_submit_confirmation = true
+	root.add_child(guarded_keypad)
+	await process_frame
+	var guarded_results: Array[bool] = []
+	guarded_keypad.code_checked.connect(
+		func(is_correct: bool) -> void: guarded_results.append(is_correct)
+	)
+	guarded_keypad.entered_code = "1111"
+	guarded_keypad.check_entered_code()
+	_assert(guarded_results.is_empty(), "typing a full code does not submit")
+	_assert(guarded_keypad.is_submission_pending(), "warning waits for confirmation")
+	guarded_keypad.cancel_submission()
+	_assert(not guarded_keypad.has_consumed_submission(), "cancel preserves the chance")
+	guarded_keypad.entered_code = "1111"
+	guarded_keypad.check_entered_code()
+	guarded_keypad.confirm_submission()
+	guarded_keypad.confirm_submission()
+	_assert(guarded_results == [false], "confirmed code is evaluated exactly once")
+	guarded_keypad.reset_submission()
+	_assert(not guarded_keypad.has_consumed_submission(), "new round restores the chance")
+
 	correct_keypad.queue_free()
 	wrong_keypad.queue_free()
+	guarded_keypad.queue_free()
 	await process_frame
 	scene_host.queue_free()
 	await process_frame

@@ -12,6 +12,9 @@ signal object_state_updated(interaction_text:String)
 @onready var code_display: Label = $KeypadUi/Bindings/ScrollContainer/VBoxContainer/HBoxContainer/Panel/CodeDisplay
 @onready var grab_focus_button : Control = $"KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer/5"
 @onready var lock_color: Panel = $KeypadUi/Bindings/ScrollContainer/VBoxContainer/HBoxContainer/LockColor
+@onready var digit_grid: GridContainer = $KeypadUi/Bindings/ScrollContainer/VBoxContainer/GridContainer
+@onready var confirmation_panel: PanelContainer = $KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel
+@onready var confirmation_label: Label = $KeypadUi/Bindings/ScrollContainer/VBoxContainer/ConfirmationPanel/Content/Warning
 
 ## Name that will displayed when interacting. Leave blank to hide
 @export var display_name : String
@@ -34,6 +37,10 @@ enum PromptPositionMode{
 @export var interaction_text_when_locked : String = "KEYPAD_enter_code"
 ## This prompt appears when the keypad has been unlocked.
 @export var interaction_text_when_unlocked : String = "KEYPAD_access_granted"
+@export var require_submit_confirmation: bool = false
+@export_multiline var submission_warning_text: String = (
+	"提交后不可修改。密码错误将立即触发安保锁定。"
+)
 
 ## For UI purposes
 @export var wrong_code_color : Color = Color.RED
@@ -63,6 +70,8 @@ var entered_code: String
 var player_interaction_component
 
 var in_focus : bool
+var _submission_pending: bool = false
+var _submission_consumed: bool = false
 
 
 func _ready():
@@ -72,6 +81,7 @@ func _ready():
 	add_to_group("save_object_state")
 	interaction_nodes = find_children("","InteractionComponent",true) #Grabs all attached interaction components
 	keypad_ui.hide()
+	confirmation_panel.hide()
 
 	if !is_locked:
 		interaction_text = interaction_text_when_unlocked
@@ -141,6 +151,56 @@ func update_code_display():
 	
 
 func check_entered_code():
+	if _submission_consumed:
+		return
+	if require_submit_confirmation:
+		if _submission_pending:
+			return
+		_submission_pending = true
+		confirmation_label.text = submission_warning_text
+		confirmation_panel.show()
+		digit_grid.hide()
+		return
+	_evaluate_entered_code()
+
+
+func cancel_submission() -> void:
+	if not _submission_pending or _submission_consumed:
+		return
+	_submission_pending = false
+	confirmation_panel.hide()
+	digit_grid.show()
+	clear_entered_code()
+	grab_focus_button.grab_focus()
+
+
+func confirm_submission() -> void:
+	if not _submission_pending or _submission_consumed:
+		return
+	_submission_pending = false
+	_submission_consumed = true
+	confirmation_panel.hide()
+	_evaluate_entered_code()
+
+
+func is_submission_pending() -> bool:
+	return _submission_pending
+
+
+func has_consumed_submission() -> bool:
+	return _submission_consumed
+
+
+func reset_submission() -> void:
+	_submission_pending = false
+	_submission_consumed = false
+	if is_node_ready():
+		confirmation_panel.hide()
+		digit_grid.show()
+		clear_entered_code()
+
+
+func _evaluate_entered_code() -> void:
 	var is_correct: bool = entered_code == passcode and is_locked
 	code_checked.emit(is_correct)
 	if is_correct:
@@ -170,7 +230,8 @@ func unlock_keypad():
 			if open_when_unlocked:
 				door.open_door(player_interaction_component)
 	
-	close(player_interaction_component)
+	if player_interaction_component != null:
+		close(player_interaction_component)
 	
 
 func clear_entered_code():
