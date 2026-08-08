@@ -25,7 +25,7 @@ from .repair_lighting_circuit_briefing import (
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
-FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100})
+FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100, 150})
 
 
 @dataclass(frozen=True)
@@ -38,7 +38,7 @@ class ScenarioDefinition:
 _SCENARIOS = {
     "find_contract": ScenarioDefinition(
         briefing_loader=load_public_briefing,
-        max_act_requests=300,
+        max_act_requests=150,
         terminal_results=frozenset({
             ("success", "correct_password"),
             ("failure", "wrong_password"),
@@ -47,9 +47,10 @@ _SCENARIOS = {
     ),
     "find_key": ScenarioDefinition(
         briefing_loader=load_find_key_briefing,
-        max_act_requests=100,
+        max_act_requests=150,
         terminal_results=frozenset({
             ("success", "key_picked_up"),
+            ("failure", "security_lockout"),
             ("failure", "max_requests"),
         }),
     ),

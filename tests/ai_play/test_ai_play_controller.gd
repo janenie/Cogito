@@ -625,7 +625,7 @@ func _test_find_key_hello_includes_round_request_limit(
 	var fixture: Dictionary = await _make_fixture(controller_script)
 	fixture.controller._active_scenario_id = "find_key"
 	fixture.terminal_monitor.scenario_id = "find_key"
-	fixture.terminal_monitor.act_request_limit = 50
+	fixture.terminal_monitor.act_request_limit = 150
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 
@@ -641,7 +641,7 @@ func _test_find_key_hello_includes_round_request_limit(
 			"type": "hello",
 			"protocol_version": 4,
 			"scenario_id": "find_key",
-			"act_request_limit": 50,
+			"act_request_limit": 150,
 		},
 		"find_key hello includes the allowlisted round request limit",
 	)
@@ -1101,6 +1101,20 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 		"find_key rejects password success",
 	)
 	await _free_fixture(find_key_fixture)
+
+	var find_key_lockout_fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"find_key",
+	)
+	find_key_lockout_fixture.terminal_monitor.game_finished.emit(
+		"failure",
+		"security_lockout",
+	)
+	_assert(
+		not "invalid_game_outcome" in find_key_lockout_fixture.executor.cancel_reasons,
+		"find_key accepts security lockout failure",
+	)
+	await _free_fixture(find_key_lockout_fixture)
 
 	for obsolete_terminal: Dictionary in [
 		{"outcome": "success", "reason": "book_in_box"},

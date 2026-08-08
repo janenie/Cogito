@@ -516,7 +516,8 @@ def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():
         ("find_key", "50"),
         ("find_key", 49),
         ("find_key", 51),
-        ("find_key", 101),
+        ("find_key", 149),
+        ("find_key", 151),
         ("find_contract", 50),
     ],
 )
@@ -586,7 +587,7 @@ def test_bridge_accepts_legacy_find_key_hello_with_default_limit():
         handle.close()
 
     assert result["scenario_id"] == "find_key"
-    assert session.act_request_limit == 100
+    assert session.act_request_limit == 150
 
 
 def test_bridge_rejects_unknown_scenario():

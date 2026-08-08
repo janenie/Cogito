@@ -13,7 +13,7 @@ const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
 const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
-const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
+const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100, 150]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
 		["success", "correct_password"],
@@ -22,6 +22,7 @@ const SCENARIO_TERMINAL_RESULTS := {
 	],
 	"find_key": [
 		["success", "key_picked_up"],
+		["failure", "security_lockout"],
 		["failure", "max_requests"],
 	],
 	"put_book": [

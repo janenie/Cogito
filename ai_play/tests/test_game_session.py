@@ -170,10 +170,16 @@ def test_wait_for_scenario_times_out_before_game_connects():
         session.wait_for_scenario(timeout=0.01)
 
 
-def test_find_key_uses_100_request_hard_cap():
+def test_find_key_uses_150_request_hard_cap():
     session, _ = make_scenario_session("find_key", configured_limit=500)
 
-    assert session.act_request_limit == 100
+    assert session.act_request_limit == 150
+
+
+def test_find_contract_uses_150_request_hard_cap():
+    session, _ = make_scenario_session("find_contract", configured_limit=500)
+
+    assert session.act_request_limit == 150
 
 
 def test_find_key_round_request_limit_is_locked_across_reconnect():
@@ -295,6 +301,22 @@ def test_find_key_accepts_only_key_success_terminal():
         "observation_id": 7,
         "outcome": "success",
         "reason": "key_picked_up",
+    }
+
+    session.receive_game_over(terminal)
+
+    assert session.observe(timeout=0.1).game_over == terminal
+
+
+def test_find_key_accepts_security_lockout_terminal():
+    session, _ = make_scenario_session("find_key")
+    session.receive_observation(observation(7))
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": 7,
+        "outcome": "failure",
+        "reason": "security_lockout",
     }
 
     session.receive_game_over(terminal)

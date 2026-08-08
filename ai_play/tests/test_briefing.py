@@ -58,8 +58,12 @@ def test_find_key_registry_loads_bounded_public_briefing():
     briefing, image_bytes = load_scenario_briefing("find_key")
 
     assert briefing["game_id"] == "find_key"
-    assert briefing["success_condition"] == "成功拾取办公室中唯一的目标钥匙。"
-    assert "50" in briefing["failure_condition"]
+    assert briefing["success_condition"] == "解锁档案室并拾取其中的当前合同钥匙。"
+    assert "150" in briefing["failure_condition"]
+    assert "12:00" in repr(briefing)
+    assert "一次" in repr(briefing)
+    assert "SUBMITTED" in repr(briefing)
+    assert "FINAL" in repr(briefing)
     assert "MEETING ROOM" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
@@ -70,6 +74,11 @@ def test_find_key_registry_loads_bounded_public_briefing():
         "MeetingTableAnchor",
         "TvCoffeeTableAnchor",
         "round_seed",
+        "POLARIS",
+        "ATLAS",
+        "ORBIT",
+        "NOVA",
+        "security_lockout",
     ]:
         assert forbidden not in serialized
 
@@ -438,7 +447,7 @@ def test_find_contract_briefing_teaches_flexible_look_and_depth_estimation():
     assert "act 返回的新观察" in serialized_rules
     assert "深度估计" in serialized_rules
     assert "自己与物体的距离" in serialized_rules
-    assert "300 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
 
 
 def test_find_contract_briefing_requires_task_card_first():

@@ -15,7 +15,7 @@ const LOCATION_TASK_TEXT := {
 	"meeting_table": "钥匙在会议室的长桌上。",
 	"tv_coffee_table": "钥匙在有大电视的茶几上。",
 }
-const ACT_REQUEST_LIMIT: int = 50
+const ACT_REQUEST_LIMIT: int = 150
 
 @export var scenario_id: String = "find_key"
 @export var game_over_screen: AIPlayGameOverScreen

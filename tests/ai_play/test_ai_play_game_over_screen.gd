@@ -35,6 +35,13 @@ func _run_tests() -> void:
 	)
 	await _test_result(
 		screen_scene,
+		"failure",
+		"security_lockout",
+		"任务失败",
+		"密码提交错误，仅有的一次机会已消耗",
+	)
+	await _test_result(
+		screen_scene,
 		"success",
 		"books_in_ceo_office",
 		"任务成功",

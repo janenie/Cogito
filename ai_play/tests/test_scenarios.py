@@ -89,9 +89,9 @@ def test_loop_staircase_briefing_recommends_scanning_room_blind_spots():
 
 
 def test_scenario_request_limits_are_hard_caps():
-    assert scenario_act_request_limit("find_contract", 500) == 300
+    assert scenario_act_request_limit("find_contract", 500) == 150
     assert scenario_act_request_limit("find_contract", 120) == 120
-    assert scenario_act_request_limit("find_key", 500) == 100
+    assert scenario_act_request_limit("find_key", 500) == 150
     assert scenario_act_request_limit("find_key", 80) == 80
     assert scenario_act_request_limit("put_book", 500) == 150
     assert scenario_act_request_limit("put_book", 120) == 120
@@ -116,7 +116,7 @@ def test_readme_lists_all_request_caps_in_scenario_order():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
 
     assert (
-        "自身的 300、50、150、100、150、80、100、100、300、160、150 次硬上限"
+        "自身的 150、150、150、100、150、80、100、100、300、160、150 次硬上限"
         in readme
     )
 
@@ -128,9 +128,10 @@ def test_find_key_round_request_limits_are_allowlisted():
         None,
     )
     assert callable(scenario_round_act_request_limit)
-    assert scenario_round_act_request_limit("find_key") == 100
+    assert scenario_round_act_request_limit("find_key") == 150
     assert scenario_round_act_request_limit("find_key", 50) == 50
     assert scenario_round_act_request_limit("find_key", 100) == 100
+    assert scenario_round_act_request_limit("find_key", 150) == 150
     assert scenario_act_request_limit("find_key", 500, 50) == 50
     assert scenario_act_request_limit("find_key", 40, 50) == 40
 
@@ -143,7 +144,8 @@ def test_find_key_round_request_limits_are_allowlisted():
         ("find_key", "50"),
         ("find_key", 49),
         ("find_key", 51),
-        ("find_key", 101),
+        ("find_key", 149),
+        ("find_key", 151),
         ("find_contract", 50),
     ],
 )
@@ -175,6 +177,7 @@ def test_terminal_results_are_scenario_specific():
         "key_picked_up",
     )
     assert is_allowed_game_over("find_key", "success", "key_picked_up")
+    assert is_allowed_game_over("find_key", "failure", "security_lockout")
     assert not is_allowed_game_over("find_key", "success", "correct_password")
     assert not is_allowed_game_over("find_key", "failure", "wrong_password")
     assert is_allowed_game_over("put_book", "success", "books_in_ceo_office")
