@@ -24,10 +24,13 @@ func select_ingredient(ingredient_id: String) -> bool:
 	return true
 
 
-func undo() -> String:
-	if is_terminal() or selected_ingredients.is_empty():
-		return ""
-	return selected_ingredients.pop_back()
+func discard_selected_ingredients() -> int:
+	var discarded_cost := 0
+	for ingredient_id: String in selected_ingredients:
+		discarded_cost += CATALOG.ingredient_cost(ingredient_id)
+	spent += discarded_cost
+	selected_ingredients.clear()
+	return discarded_cost
 
 
 func make(category_multipliers: Dictionary = {}) -> Dictionary:

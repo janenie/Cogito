@@ -249,7 +249,6 @@ def test_act_tool_schema_declares_each_action_shape_and_bounds():
                 "wait",
                 "probe_interaction",
                 "select_ingredient",
-                "undo",
                 "make",
                 "wait_next_window",
                 "front",

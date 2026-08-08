@@ -41,7 +41,7 @@ SCENARIO_OPTIONAL_OBSERVATION_FIELDS = {
 ACTION_TYPES = {
     "look", "move", "sprint", "jump", "crouch", "interact",
     "enter_digits", "close_ui", "wait", "stop", "probe_interaction",
-    "select_ingredient", "undo", "make",
+    "select_ingredient", "make",
     "wait_next_window", "front", "back", "left", "right",
     "floor_up", "floor_down", "toggle_board", "board_up", "board_down",
     "toggle_mark", "submit_floor",
@@ -60,7 +60,7 @@ CONVEYOR_RECIPE_IDS = {
 CONVEYOR_CATEGORIES = {"salad", "soup", "burger", "omelet", "sandwich"}
 CONVEYOR_MULTIPLIERS = {0.75, 1.0, 1.25, 1.5}
 CONVEYOR_OUTCOMES = {
-    "selected", "undone", "accepted", "invalid_combo",
+    "selected", "accepted", "invalid_combo",
     "ingredient_not_available", "window_locked", "game_finished", "tray_empty",
     "window_not_complete", "window_advanced", "tray_full", "recipe_limit_exceeded",
 }
@@ -242,7 +242,7 @@ def validate_action_results(results):
             raise ObservationValidationError("action result status is invalid")
         result_fields = set(result)
         if status == "completed" and result.get("type") in {
-            "select_ingredient", "undo", "make", "wait_next_window",
+            "select_ingredient", "make", "wait_next_window",
         }:
             expected = {"status", "type", "outcome"}
             if (

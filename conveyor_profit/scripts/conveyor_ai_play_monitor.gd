@@ -27,8 +27,6 @@ func execute_semantic_action(action: Dictionary) -> Dictionary:
 	match action_type:
 		"select_ingredient":
 			result = gameplay.request_select_ingredient(String(action.get("ingredient", "")), camera)
-		"undo":
-			result = gameplay.request_undo()
 		"make":
 			result = gameplay.request_make()
 		"wait_next_window":

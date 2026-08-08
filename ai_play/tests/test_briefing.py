@@ -304,13 +304,14 @@ def test_conveyor_profit_briefing_teaches_semantic_strategy_without_hidden_state
 
     serialized = repr(briefing)
     for term in [
-        "select_ingredient", "undo", "make", "wait_next_window",
+        "select_ingredient", "make", "wait_next_window", "不可撤销", "错误组合",
         "90%", "一分钟", "十六", "最多成功制作两次", "自行记录", "五份",
         "当前需求倍率", "两条", "下一轮", "强化", "冲突", "隐藏在线基准",
         "market.signals",
     ]:
         assert term in serialized
     for forbidden in [
+        "undo",
         "node_path", "passing_profit", "best_profit", "future_supply",
         "round_seed", "game_script", "conveyor_gameplay.gd", "deck_id",
         "recipe_counts", "missing_ingredient", "theoretical_profit",

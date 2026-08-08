@@ -580,29 +580,6 @@ outline_size = 6
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/MakeButton"]
 shape = SubResource("ButtonShape")
 
-[node name="UndoButton" type="StaticBody3D" parent="Stations"]
-position = Vector3(0.75, 1.08, -1.0)
-rotation = Vector3(1.5708, 0, 0)
-collision_layer = 2
-collision_mask = 0
-input_ray_pickable = true
-script = ExtResource("9_button")
-action = "undo"
-
-[node name="Mesh" type="MeshInstance3D" parent="Stations/UndoButton"]
-mesh = SubResource("ButtonMesh")
-surface_material_override/0 = SubResource("RedMaterial")
-
-[node name="Label" type="Label3D" parent="Stations/UndoButton"]
-position = Vector3(0, 0.2, 0)
-rotation = Vector3(-1.5708, 0, 0)
-text = "UNDO"
-font_size = 32
-outline_size = 6
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Stations/UndoButton"]
-shape = SubResource("ButtonShape")
-
 [node name="SetDressing" type="Node3D" parent="."]
 
 [node name="KitchenBar" parent="SetDressing" instance=ExtResource("4_bar")]

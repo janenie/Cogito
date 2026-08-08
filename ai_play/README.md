@@ -395,7 +395,8 @@ MCP 结果、玩家提示或轨迹日志。
 `conveyor_profit` 是十窗口经营任务。每个 60 秒窗口固定显示 16 盘食材，每个窗口只允许
 制作一次；成功、非法组合和次数超限的 MAKE 都会锁定窗口。同一道菜整局最多成功制作两次；
 第三次正确提交返回 `recipe_limit_exceeded`，扣除食材成本但没有收入。AI 使用
-`select_ingredient`、`undo`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；等待模型期间
+`select_ingredient`、`make` 和 `wait_next_window`，无需模拟相机或鼠标；选入托盘的食材不可
+撤销，错误组合只能通过 `make` 消耗并锁定当前窗口，窗口到期时未提交的托盘也会按成本报废。等待模型期间
 Godot 暂停窗口时钟。十个窗口结束时，达到隐藏在线策略基准的 90% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
 
@@ -455,10 +456,11 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
 - `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能单独使用，目标坐标各在 0～1，且界面必须关闭。
-- `conveyor_profit` 只允许 `select_ingredient`、`undo`、`make` 和 `wait_next_window`：选材按
+- `conveyor_profit` 只允许 `select_ingredient`、`make` 和 `wait_next_window`：选材按
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
-  已经锁定的窗口。托盘最多容纳五项；第 6 次选材返回 `tray_full` 且不改变托盘，调用方可用
-  `undo` 恢复。四种动作均不得在其他玩法使用。
+  已经锁定的窗口。托盘最多容纳五项；食材一旦选入就不可取回，第 6 次选材返回 `tray_full`
+  且不改变托盘，此时只能用 `make` 结算并消耗托盘；窗口到期也会按成本报废未提交食材。
+  三种动作均不得在其他玩法使用。
 - `loop_staircase_anomaly` 额外允许 `front/back/left/right`，其 `step` 只能是映射为
   80ms 的 `small` 或映射为 180ms 的 `large`；`floor_up/floor_down` 只切换楼层；
   `toggle_board`、`board_up/board_down`、`toggle_mark` 只操作调查板；`submit_floor`

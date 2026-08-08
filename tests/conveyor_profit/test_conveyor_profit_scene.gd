@@ -25,7 +25,7 @@ func _run_test() -> void:
 	_check(environment.has_node("Stations/MenuBoard"), "menu exists")
 	_check(environment.has_node("Stations/Tray"), "tray exists")
 	_check(environment.has_node("Stations/MakeButton"), "make button exists")
-	_check(environment.has_node("Stations/UndoButton"), "undo button exists")
+	_check(not environment.has_node("Stations/UndoButton"), "undo button is absent")
 	_check(environment.has_node("HUD/TotalTimeLabel"), "total time label exists")
 	_check(environment.has_node("HUD/WindowLabel"), "window label exists")
 	_check(environment.has_node("HUD/DishLabel"), "dish label exists")

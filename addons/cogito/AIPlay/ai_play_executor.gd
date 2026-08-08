@@ -16,7 +16,6 @@ const ACTION_FIELDS: Dictionary = {
 	"wait": ["type", "duration_ms"],
 	"stop": ["type"],
 	"select_ingredient": ["type", "ingredient"],
-	"undo": ["type"],
 	"make": ["type"],
 	"wait_next_window": ["type"],
 	"front": ["type", "step"],
@@ -32,7 +31,7 @@ const ACTION_FIELDS: Dictionary = {
 	"submit_floor": ["type"],
 }
 const CONVEYOR_ACTIONS: Array[String] = [
-	"select_ingredient", "undo", "make", "wait_next_window",
+	"select_ingredient", "make", "wait_next_window",
 ]
 const CONVEYOR_INGREDIENT_IDS: Array[String] = [
 	"lettuce", "tomato", "carrot", "avocado", "sausage", "mushroom", "onion", "pumpkin",
@@ -288,7 +287,7 @@ func _execute_action(action: Dictionary, generation: int) -> Dictionary:
 		"stop":
 			_release_held_actions()
 			return {"status": "stopped", "type": "stop"}
-		"select_ingredient", "undo", "make", "wait_next_window", \
+		"select_ingredient", "make", "wait_next_window", \
 		"floor_up", "floor_down", "toggle_board", "board_up", "board_down", \
 		"toggle_mark", "submit_floor":
 			if semantic_action_provider == null:

@@ -3,7 +3,7 @@ extends StaticBody3D
 
 signal activated(action: String)
 
-@export_enum("make", "undo") var action: String = "make"
+@export_enum("make") var action: String = "make"
 var enabled: bool = true
 
 

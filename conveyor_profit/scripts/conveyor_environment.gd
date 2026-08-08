@@ -23,7 +23,6 @@ func _ready() -> void:
 		$HUD/MarketPanel/Content/SignalTwoLabel,
 		$Stations/MenuBoard,
 		$Stations/MakeButton,
-		$Stations/UndoButton,
 	)
 
 

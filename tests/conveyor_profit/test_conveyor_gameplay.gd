@@ -77,21 +77,23 @@ func _run_test() -> void:
 		)
 
 	var first_interactable := path.get_child(0).get_node("IngredientPreview/Interactable")
+	var selected_ingredient_id := String(path.get_child(0).get_meta("ingredient_id", ""))
+	var selected_ingredient_cost := int(initial_catalog.ingredient_cost(selected_ingredient_id))
 	first_interactable.select()
 	_check(gameplay.get_selected_count() == 1, "ingredient click enters tray")
 	_check(_available_ingredient_ids(path).size() == 16, "belt refills after selection")
 	var tray_label := environment.get_node("Stations/Tray/TrayLabel") as Label3D
 	_check(not tray_label.text.contains("EMPTY"), "tray label shows selection")
 
-	var undo_button := environment.get_node("Stations/UndoButton")
-	undo_button.activate()
-	_check(gameplay.get_selected_count() == 0, "undo empties one-item tray")
-
-	first_interactable.select()
-	_check(gameplay.get_selected_count() == 1, "tray can hold an expiring ingredient")
+	_check(not gameplay.has_method("request_undo"), "selected ingredients cannot be undone")
+	_check(gameplay.get_selected_count() == 1, "tray holds the selected ingredient")
 	gameplay.advance_time(60.0)
 	_check(gameplay.window_session.current_window_index == 1, "boundary enters window two")
 	_check(gameplay.get_selected_count() == 0, "tray expires at the boundary")
+	_check(
+		gameplay.get_profit() == -selected_ingredient_cost,
+		"unmade tray ingredients are wasted and charged at the boundary",
+	)
 
 	var available_ids := _available_ingredient_ids(path)
 	var catalog: GDScript = load("res://conveyor_profit/scripts/recipe_catalog.gd")
@@ -108,11 +110,12 @@ func _run_test() -> void:
 		var economy: GDScript = load("res://conveyor_profit/scripts/market_economy.gd")
 		var multipliers: Dictionary = gameplay.get_public_state()["market"]["category_multipliers"]
 		var expected_profit: int = economy.adjusted_profit(String(recipe["id"]), float(multipliers[String(recipe["category"])]))
-		_check(gameplay.get_profit() == expected_profit, "legal dish earns current market profit")
+		var expected_total_profit := expected_profit - selected_ingredient_cost
+		_check(gameplay.get_profit() == expected_total_profit, "legal dish follows the expired-tray loss")
 		_check(gameplay.window_session.dish_made, "legal dish locks the active window")
 		_check(gameplay.request_make()["outcome"] == "window_locked", "second make is rejected")
 		var profit_label := environment.get_node("HUD/ProfitLabel") as Label
-		_check(profit_label.text == "NET PROFIT  $%d" % expected_profit, "HUD publishes net profit")
+		_check(profit_label.text == "NET PROFIT  $%d" % expected_total_profit, "HUD publishes net profit")
 	gameplay.advance_time(60.0)
 	_check(gameplay.window_session.current_window_index == 2, "next boundary enters window three")
 	_check(not gameplay.window_session.dish_made, "new window restores dish allowance")
@@ -154,7 +157,7 @@ func _run_test() -> void:
 			gameplay._select_by_selection_id(
 				int(sixth_follower.get_meta("selection_id", -1)),
 			)["outcome"] == "tray_full",
-			"sixth ingredient is rejected with a recoverable result",
+			"sixth ingredient is rejected without changing the committed tray",
 		)
 		_check(gameplay.get_selected_count() == 5, "full tray remains bounded to five items")
 		var invalid_result: Dictionary = gameplay.request_make()

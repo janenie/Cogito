@@ -52,7 +52,6 @@ var _signal_one_label: Label
 var _signal_two_label: Label
 var _menu_board: RecipeMenuPager
 var _make_button: StaticBody3D
-var _undo_button: StaticBody3D
 var _next_selection_id: int = 1
 var _semantic_random := RandomNumberGenerator.new()
 var _ai_control_active: bool = false
@@ -75,7 +74,6 @@ func initialize(
 	signal_two_label: Label,
 	menu_board: RecipeMenuPager,
 	make_button: StaticBody3D,
-	undo_button: StaticBody3D,
 ) -> void:
 	_ingredient_path = ingredient_path
 	_tray_visuals = tray_visuals
@@ -90,7 +88,6 @@ func initialize(
 	_signal_two_label = signal_two_label
 	_menu_board = menu_board
 	_make_button = make_button
-	_undo_button = undo_button
 	session = PROFIT_SESSION.new()
 	_semantic_random.seed = supply_seed
 	var draw_index := parse_conveyor_draw_index(OS.get_cmdline_user_args())
@@ -101,7 +98,6 @@ func initialize(
 	window_count = window_supplies.size()
 	window_session = PROFIT_WINDOW_SESSION.new(campaign, window_supplies, window_seconds)
 	_make_button.activated.connect(_on_action_requested)
-	_undo_button.activated.connect(_on_action_requested)
 	_load_window(0)
 	_update_public_display("从传送带选择食材 / CHOOSE INGREDIENTS FROM THE BELT")
 
@@ -187,18 +183,6 @@ func advance_time(delta_seconds: float) -> void:
 		_finish_game()
 	else:
 		_update_public_display(_status_label.text)
-
-
-func request_undo() -> Dictionary:
-	if window_session.is_terminal() or window_session.is_time_expired():
-		return {"outcome": "game_finished"}
-	if window_session.dish_made:
-		return {"outcome": "window_locked"}
-	var ingredient_id: String = session.undo()
-	if ingredient_id.is_empty():
-		return {"outcome": "tray_empty"}
-	_remove_last_tray_visual()
-	return {"outcome": "undone", "ingredient": ingredient_id}
 
 
 func request_make() -> Dictionary:
@@ -357,19 +341,8 @@ func _is_in_camera(follower: Node3D, camera: Camera3D) -> bool:
 
 func _on_action_requested(action: String) -> void:
 	match action:
-		"undo":
-			_undo_last()
 		"make":
 			_make_dish()
-
-
-func _undo_last() -> void:
-	var result := request_undo()
-	if result["outcome"] == "tray_empty":
-		_update_public_display("Nothing to undo")
-		return
-	if result["outcome"] == "undone":
-		_update_public_display("Returned %s" % String(result["ingredient"]).to_upper())
 
 
 func _make_dish() -> void:
@@ -415,7 +388,6 @@ func _update_public_display(message: String) -> void:
 
 func _set_input_enabled(value: bool) -> void:
 	_make_button.enabled = value
-	_undo_button.enabled = value
 	for follower: Node in _ingredient_path.get_children():
 		var interactable := follower.get_node("IngredientPreview/Interactable") as Area3D
 		interactable.enabled = value and follower.visible
@@ -457,7 +429,7 @@ func _update_market_display() -> void:
 func _expire_current_window() -> void:
 	pending_supply.clear()
 	_window_refill_pool.clear()
-	session.selected_ingredients.clear()
+	session.discard_selected_ingredients()
 	_clear_tray_visuals()
 	for follower: Node in _ingredient_path.get_children():
 		_clear_follower(follower as PathFollow3D)
@@ -478,12 +450,6 @@ func _queue_replacement() -> void:
 		return
 	pending_supply.append(_window_refill_pool[_refill_index % _window_refill_pool.size()])
 	_refill_index += 1
-
-
-func _remove_last_tray_visual() -> void:
-	var child_count := _tray_visuals.get_child_count()
-	if child_count > 0:
-		_tray_visuals.get_child(child_count - 1).queue_free()
 
 
 func _clear_tray_visuals() -> void:

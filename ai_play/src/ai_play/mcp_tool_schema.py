@@ -132,10 +132,6 @@ class SelectIngredientAction(_StrictToolInput):
     ingredient: ConveyorIngredientId
 
 
-class UndoAction(_StrictToolInput):
-    type: Literal["undo"]
-
-
 class MakeAction(_StrictToolInput):
     type: Literal["make"]
 
@@ -204,7 +200,6 @@ ActionInput = Union[
     WaitAction,
     ProbeInteractionAction,
     SelectIngredientAction,
-    UndoAction,
     MakeAction,
     WaitNextWindowAction,
     FrontAction,

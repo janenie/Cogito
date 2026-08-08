@@ -11,11 +11,10 @@ func _initialize() -> void:
 		return
 
 	var session: RefCounted = session_script.new()
+	_check(not session.has_method("undo"), "selected ingredients cannot be undone")
 	_check(session.select_ingredient("lettuce"), "selects lettuce")
 	_check(session.select_ingredient("tomato"), "selects tomato")
 	_check(session.select_ingredient("carrot"), "selects carrot")
-	_check(session.undo() == "carrot", "undo returns last ingredient")
-	_check(session.select_ingredient("carrot"), "carrot can be selected again")
 	var first_result: Dictionary = session.make()
 	_check(first_result.get("outcome", "") == "accepted", "first valid make is accepted")
 	_check(first_result.get("recipe_id", "") == "garden_salad", "makes exact recipe")

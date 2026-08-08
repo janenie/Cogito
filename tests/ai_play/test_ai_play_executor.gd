@@ -306,16 +306,20 @@ func _test_conveyor_semantic_actions(executor: Node) -> void:
 	executor.active_scenario_id = "find_contract"
 	_assert(
 		not executor.validate_action({"type": "undo"}, {}).get("valid", false),
-		"other scenarios reject conveyor action",
+		"undo is rejected in every scenario",
 	)
 	executor.active_scenario_id = "conveyor_profit"
+	_assert(
+		not executor.validate_action({"type": "undo"}, {}).get("valid", false),
+		"conveyor rejects undo",
+	)
 	_assert(
 		executor.validate_batch([{"type": "wait_next_window"}], {}) == {"valid": true},
 		"conveyor wait-next-window validates",
 	)
 	_assert(
 		not executor.validate_batch([
-			{"type": "undo"},
+			{"type": "make"},
 			{"type": "wait_next_window"},
 		], {}).get("valid", false),
 		"wait-next-window must be the only action",
