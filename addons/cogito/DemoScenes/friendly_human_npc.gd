@@ -577,6 +577,8 @@ func _apply_horizontal_velocity(horizontal_velocity: Vector3) -> void:
 
 
 func _on_navigation_agent_velocity_computed(safe_velocity: Vector3) -> void:
+	if not is_inside_tree() or not can_process():
+		return
 	_apply_horizontal_velocity(safe_velocity)
 	move_and_slide()
 

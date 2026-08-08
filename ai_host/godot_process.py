@@ -1,9 +1,57 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
+from typing import Mapping
 
 from .config import HostConfig
+
+
+SAFE_GODOT_ENV_NAMES = (
+    "PATH",
+    "PATHEXT",
+    "SystemRoot",
+    "WINDIR",
+    "ComSpec",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "LD_LIBRARY_PATH",
+    "DYLD_LIBRARY_PATH",
+)
+
+
+def build_godot_env(
+    base_env: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    source = os.environ if base_env is None else base_env
+    env: dict[str, str] = {}
+    for name in SAFE_GODOT_ENV_NAMES:
+        value = source.get(name)
+        if value is None:
+            value = next(
+                (
+                    candidate
+                    for candidate_name, candidate in source.items()
+                    if candidate_name.casefold() == name.casefold()
+                ),
+                None,
+            )
+        if value is not None:
+            env[name] = value
+    return env
 
 
 def build_godot_command(config: HostConfig, attempt_id: int = 1) -> list[str]:
@@ -30,6 +78,7 @@ class GodotAttemptProcess:
         self.process = await asyncio.create_subprocess_exec(
             *build_godot_command(self.config, attempt_id=self.attempt_id),
             cwd=self.cwd,
+            env=build_godot_env(),
         )
 
     async def stop(self, timeout: float = 5.0) -> None:

@@ -19,7 +19,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "正确输入本局密码并解锁 ARCHIVE 档案室。",
     "failure_condition": (
-        "最多允许 150 次 act 请求；达到上限仍未解锁 ARCHIVE 则失败。"
+        "最多允许 100 次 act 请求；达到上限仍未解锁 ARCHIVE 则失败。"
         "完成规定调查流程后提交错误密码会立即结束本局。"
     ),
     "rules": COMMON_CONTROL_RULES + [

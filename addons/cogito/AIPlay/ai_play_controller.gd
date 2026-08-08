@@ -3,6 +3,10 @@ extends Node
 
 signal supervised_exit_requested(exit_code: int)
 
+const ROUND_SEED_PARSER = preload(
+	"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+)
+
 enum State { DISABLED, CONNECTING, READY, WAITING_FOR_DECISION, EXECUTING }
 
 const PROTOCOL_VERSION: int = 4
@@ -11,10 +15,13 @@ const RECONNECT_DELAY_SECONDS: float = 1.0
 const MAX_SAFE_JSON_INTEGER: int = 9_007_199_254_740_991
 const DEFAULT_SCENARIO_ID: String = "find_contract"
 const SCENARIO_ARG_PREFIX: String = "--ai-play-scenario="
-const ROUND_SEED_ARG_PREFIX: String = "--ai-play-round-seed="
+const LEGACY_ROUND_SEED_SCENARIOS: Array[String] = [
+	"daily_routine_cleanup",
+	"garden_watering",
+]
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
 const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
-const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100, 150]
+const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
 		["success", "correct_password"],
@@ -243,39 +250,29 @@ func get_requested_scenario_id(user_args: Array) -> String:
 
 
 func get_requested_round_seed(user_args: Array) -> Dictionary:
-	var result := {"valid": true, "provided": false, "value": 0}
-	var raw_value := ""
-	for value: Variant in user_args:
-		if not value is String:
-			continue
-		var argument := value as String
-		if not argument.begins_with(ROUND_SEED_ARG_PREFIX):
-			continue
-		if result["provided"]:
-			result["valid"] = false
-			return result
-		result["provided"] = true
-		raw_value = argument.trim_prefix(ROUND_SEED_ARG_PREFIX)
+	var scenario_id := get_requested_scenario_id(user_args)
+	var parsed: Dictionary = ROUND_SEED_PARSER.parse(
+		user_args,
+		scenario_id in LEGACY_ROUND_SEED_SCENARIOS,
+	)
+	var result := {
+		"valid": parsed["valid"],
+		"provided": parsed["provided"],
+		"value": parsed["value"],
+	}
 	if not result["provided"]:
 		return result
 	if (
-		not _should_enable_for_user_args(user_args)
-		or get_requested_scenario_id(user_args) != "find_key"
-		or raw_value.is_empty()
+		not result["valid"]
+		or not _should_enable_for_user_args(user_args)
+		or not SCENARIO_TERMINAL_RESULTS.has(scenario_id)
 	):
 		result["valid"] = false
-		return result
-	for index: int in range(raw_value.length()):
-		var character := raw_value.unicode_at(index)
-		if character < 48 or character > 57:
-			result["valid"] = false
-			return result
-	var parsed_value := raw_value.to_int()
-	if parsed_value < 0 or parsed_value > MAX_SAFE_JSON_INTEGER:
-		result["valid"] = false
-		return result
-	result["value"] = parsed_value
 	return result
+
+
+func get_runtime_round_seed(value: int) -> int:
+	return ROUND_SEED_PARSER.runtime_seed(value)
 
 
 func is_requested_scenario(scenario_id: String) -> bool:

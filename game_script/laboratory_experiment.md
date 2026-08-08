@@ -315,7 +315,7 @@ outcome = failure
 reason = max_requests
 ```
 
-初始建议 MCP `act` 请求硬上限为 150 次。普通玩家和 AI 玩家都受三次正式实验限制；
+MCP `act` 请求硬上限为 100 次。普通玩家和 AI 玩家都受三次正式实验限制；
 只有 AI 玩家额外受 MCP 请求上限限制。
 
 ## 示例回合

@@ -66,11 +66,10 @@ if grep -Eq 'SCRIPT ERROR|Parse Error|Failed to load script|invalid UID' "$log_f
 fi
 
 # Loading the full Lobby under Godot's dummy headless renderer reproducibly emits
-# these two shutdown-only leak signatures. Reject every other ERROR line.
+# these shutdown-only leak signatures. Reject every other ERROR line.
 if awk '
 	/^ERROR:/ \
-		&& $0 != "ERROR: 21 resources still in use at exit (run with --verbose for details)." \
-		&& $0 != "ERROR: 23 resources still in use at exit (run with --verbose for details)." \
+		&& $0 !~ /^ERROR: [0-9]+ resources still in use at exit \(run with --verbose for details\)\.$/ \
 		&& $0 != "ERROR: 3 RID allocations of type '\''N13RendererDummy15MaterialStorage11DummyShaderE'\'' were leaked at exit." \
 		{ unexpected = 1 }
 	END { exit unexpected ? 0 : 1 }

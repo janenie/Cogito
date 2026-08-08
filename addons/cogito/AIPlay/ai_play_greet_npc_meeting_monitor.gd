@@ -88,7 +88,19 @@ func _initialize_round() -> void:
 		return
 	_ensure_candidate_npcs()
 	_ensure_destination_marker()
-	configure_round(round_seed)
+	var selected_seed := round_seed
+	var controller: Node = get_parent()
+	if controller != null and controller.has_method("get_requested_round_seed"):
+		var requested_seed: Dictionary = controller.get_requested_round_seed(
+			OS.get_cmdline_user_args()
+		)
+		if not requested_seed["valid"]:
+			return
+		if requested_seed["provided"]:
+			selected_seed = controller.get_runtime_round_seed(
+				int(requested_seed["value"])
+			)
+	configure_round(selected_seed)
 
 
 func configure_round(seed_value: int = 0) -> void:
@@ -171,6 +183,9 @@ func _place_player_and_task_card() -> void:
 func _write_task_card() -> void:
 	var task_content := (
 		"任务目标 / OBJECTIVE：找到穿%s的联系人 %s，先打招呼，再一起进入会议室指定区域并关门。\n\n"
+		+ "巡逻路线 / PATROLS：蓝衣 H. Voss：MAIN LOBBY—BREAK ROOM—SOFA；"
+		+ "绿衣 M. Chen：CEO OFFICE 门外—楼梯上/中/下层；"
+		+ "橙衣 R. Diaz：CUBICLE AREA—MAIN LOBBY—BREAK ROOM。\n\n"
 		+ "操作步骤 / STEPS：\n"
 		+ "1. 办公室有三名走动的同事；按上衣颜色识别联系人。\n"
 		+ "2. 正确联系人会告知本局会面区域并带路；跟随对方进入 MEETING ROOM。\n"

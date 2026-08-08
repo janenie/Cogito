@@ -16,7 +16,25 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
+
+from websockets.exceptions import WebSocketException
+from websockets.sync.client import connect as websocket_connect
+
+try:
+    from .ai_play_benchmark import (
+        DEFAULT_BENCHMARK_CYCLE_SEED,
+        MAX_BENCHMARK_CYCLE_SEED,
+        benchmark_attempt_plan,
+        benchmark_round_seed,
+    )
+except ImportError:
+    from ai_play_benchmark import (
+        DEFAULT_BENCHMARK_CYCLE_SEED,
+        MAX_BENCHMARK_CYCLE_SEED,
+        benchmark_attempt_plan,
+        benchmark_round_seed,
+    )
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -100,6 +118,8 @@ def create_run_paths(
     scenario: str,
     workflow_memory_enabled: bool,
     requested_runs: int,
+    benchmark_cycle_seed: int = DEFAULT_BENCHMARK_CYCLE_SEED,
+    runtime_metadata: Mapping[str, object] | None = None,
     timestamp: str | None = None,
 ) -> RunPaths:
     root = validate_isolated_session_root(session_root)
@@ -133,7 +153,7 @@ def create_run_paths(
     player_workspace.mkdir(mode=0o700)
     log_root.mkdir(mode=0o700)
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "player": player,
         "model": model,
         "reasoning_effort": reasoning_effort,
@@ -143,7 +163,17 @@ def create_run_paths(
         ),
         "requested_runs": requested_runs,
         "started_at": started_at.isoformat(timespec="seconds"),
+        "benchmark": {
+            "cycle_seed": benchmark_cycle_seed,
+            "attempts": benchmark_attempt_plan(
+                scenario,
+                benchmark_cycle_seed,
+                requested_runs,
+            ),
+        },
     }
+    if runtime_metadata is not None:
+        metadata.update(runtime_metadata)
     with session_metadata.open("x", encoding="utf-8") as metadata_file:
         json.dump(metadata, metadata_file, ensure_ascii=False, indent=2)
         metadata_file.write("\n")
@@ -154,6 +184,120 @@ def create_run_paths(
         log_root=log_root,
         session_metadata=session_metadata,
     )
+
+
+def collect_runtime_metadata(
+    *,
+    python_bin: str,
+    player_bin: str,
+    godot_bin: str,
+    execution: Mapping[str, int | float],
+) -> dict[str, object]:
+    python_runtime = _python_runtime_metadata(python_bin)
+    return {
+        "repository": _repository_metadata(),
+        "runtime": {
+            "python": python_runtime["python"],
+            "packages": python_runtime["packages"],
+            "godot": _command_version(godot_bin),
+            "player_cli": _command_version(player_bin),
+        },
+        "execution": dict(execution),
+    }
+
+
+def _repository_metadata() -> dict[str, object]:
+    commit = _run_metadata_command(["git", "rev-parse", "HEAD"], REPO_ROOT)
+    status = _run_metadata_command(
+        ["git", "status", "--porcelain", "--untracked-files=normal"],
+        REPO_ROOT,
+        preserve_empty=True,
+    )
+    if commit == "unavailable" or status == "unavailable":
+        return {
+            "available": False,
+            "commit": None,
+            "dirty": None,
+        }
+    return {
+        "available": True,
+        "commit": commit,
+        "dirty": bool(status),
+    }
+
+
+def _python_runtime_metadata(python_bin: str) -> dict[str, object]:
+    script = (
+        "import importlib.metadata, json, platform\n"
+        "versions = {}\n"
+        "for name in ('mcp', 'pydantic', 'websockets'):\n"
+        "    try:\n"
+        "        versions[name] = importlib.metadata.version(name)\n"
+        "    except importlib.metadata.PackageNotFoundError:\n"
+        "        versions[name] = 'unavailable'\n"
+        "print(json.dumps({'python': platform.python_version(), "
+        "'packages': versions}))\n"
+    )
+    try:
+        completed = subprocess.run(
+            [python_bin, "-c", script],
+            cwd=REPO_ROOT,
+            env=build_core_env(),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            check=False,
+        )
+        if completed.returncode == 0:
+            payload = json.loads(completed.stdout)
+            if isinstance(payload, dict):
+                packages = payload.get("packages", {})
+                if isinstance(packages, dict):
+                    for package in ("mcp", "pydantic", "websockets"):
+                        packages.setdefault(package, "unavailable")
+                    return {
+                        "python": str(payload.get("python", "unavailable")),
+                        "packages": packages,
+                    }
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        pass
+    return {
+        "python": "unavailable",
+        "packages": {
+            package: "unavailable"
+            for package in ("mcp", "pydantic", "websockets")
+        },
+    }
+
+
+def _command_version(command: str) -> str:
+    return _run_metadata_command([command, "--version"], REPO_ROOT)
+
+
+def _run_metadata_command(
+    command: Sequence[str],
+    cwd: Path,
+    *,
+    preserve_empty: bool = False,
+) -> str:
+    try:
+        completed = subprocess.run(
+            list(command),
+            cwd=cwd,
+            env=build_core_env(),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "unavailable"
+    if completed.returncode != 0:
+        return "unavailable"
+    output = completed.stdout.strip() or completed.stderr.strip()
+    if not output:
+        return "" if preserve_empty else "unavailable"
+    return output.splitlines()[0][:256]
 
 
 def validate_model_argument(name: str, value: str) -> str:
@@ -307,6 +451,7 @@ def build_supervisor_command(
     godot_bin: str,
     max_retries: int,
     timeout_seconds: float,
+    benchmark_cycle_seed: int = DEFAULT_BENCHMARK_CYCLE_SEED,
 ) -> list[str]:
     return [
         python_bin,
@@ -323,6 +468,8 @@ def build_supervisor_command(
         str(max_retries),
         "--timeout-seconds",
         str(timeout_seconds),
+        "--benchmark-cycle-seed",
+        str(benchmark_cycle_seed),
     ]
 
 
@@ -495,6 +642,7 @@ def run_orchestrated_session(
             ws_port,
             mcp_start_timeout_seconds,
             outputs,
+            probe=is_websocket_listening,
         ):
             print(
                 "[orchestrator] AI Play bridge did not listen on %s:%s within %.1fs"
@@ -603,14 +751,17 @@ def wait_for_listener(
     port: int,
     timeout_seconds: float,
     outputs: queue.Queue[tuple[str, str | None]],
+    probe: Callable[[str, int], bool] | None = None,
 ) -> bool:
+    if probe is None:
+        probe = is_port_listening
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         _print_available_output(outputs)
         if process.poll() is not None:
             _print_available_output(outputs)
             return False
-        if is_port_listening(host, port):
+        if probe(host, port):
             return True
         time.sleep(0.05)
     _print_available_output(outputs)
@@ -703,4 +854,17 @@ def is_port_listening(host: str, port: int) -> bool:
         with socket.create_connection((host, port), timeout=0.2):
             return True
     except OSError:
+        return False
+
+
+def is_websocket_listening(host: str, port: int) -> bool:
+    try:
+        with websocket_connect(
+            "ws://%s:%d" % (host, port),
+            compression=None,
+            open_timeout=0.2,
+            close_timeout=0.2,
+        ):
+            return True
+    except (OSError, TimeoutError, WebSocketException):
         return False

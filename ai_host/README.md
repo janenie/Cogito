@@ -32,7 +32,8 @@ PYTHONPATH=. .venv/bin/python -m ai_host \
 
 如果你有本地 `api_key.py`，`ai_host` 会在 `OPENAI_API_KEY` 未设置时尝试读取其中的
 `OPENAI_API_KEY`、`API_KEY` 或 `api_key` 变量。key 只进入 host 进程环境，不会传给
-MCP server 或 Godot。
+MCP server 或 Godot；Godot 仅继承显示、语言、临时目录、用户目录、系统路径和动态库路径等
+运行必需白名单环境变量，API key、token、AI Play 日志路径和代理配置都会被移除。
 
 ## 交互次数上限
 

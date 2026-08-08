@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import queue
 import re
-import secrets
 import subprocess
 import sys
 import threading
@@ -16,8 +15,18 @@ from pathlib import Path
 from typing import Sequence
 
 try:
+    from .ai_play_benchmark import (
+        DEFAULT_BENCHMARK_CYCLE_SEED,
+        MAX_BENCHMARK_CYCLE_SEED,
+        benchmark_round_seed,
+    )
     from .ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
 except ImportError:
+    from ai_play_benchmark import (
+        DEFAULT_BENCHMARK_CYCLE_SEED,
+        MAX_BENCHMARK_CYCLE_SEED,
+        benchmark_round_seed,
+    )
     from ai_play_scene_registry import DEFAULT_SCENE, resolve_scene
 
 
@@ -67,6 +76,7 @@ def build_godot_command(
     scene: str,
     scenario: str,
     conveyor_draw_index: int | None = None,
+    round_seed: int | None = None,
     find_key_round_seed: int | None = None,
 ) -> list[str]:
     command = [
@@ -83,19 +93,21 @@ def build_godot_command(
         if conveyor_draw_index < 0:
             raise ValueError("conveyor_draw_index must be nonnegative")
         command.append(f"--conveyor-draw-index={conveyor_draw_index}")
-    if scenario == "find_key" and find_key_round_seed is not None:
-        if find_key_round_seed < 0:
-            raise ValueError("find_key_round_seed must be nonnegative")
-        command.append(f"--ai-play-round-seed={find_key_round_seed}")
+    if round_seed is not None and find_key_round_seed is not None:
+        raise ValueError("round seed must be provided only once")
+    effective_round_seed = (
+        round_seed if round_seed is not None else find_key_round_seed
+    )
+    if effective_round_seed is not None:
+        if effective_round_seed < 0:
+            raise ValueError("round_seed must be nonnegative")
+        command.append(f"--ai-play-round-seed={effective_round_seed}")
     return command
 
 
 def find_key_round_seed(cycle_seed: int, attempt_number: int) -> int:
-    if cycle_seed < 0:
-        raise ValueError("find-key cycle seed must be nonnegative")
-    if attempt_number < 1:
-        raise ValueError("find-key attempt number must be at least 1")
-    return cycle_seed * 4 + attempt_number - 1
+    """Backward-compatible alias for the aligned find-key seed mapping."""
+    return benchmark_round_seed("find_key", cycle_seed, attempt_number)
 
 
 def redact_command(command: Sequence[str]) -> list[str]:
@@ -269,7 +281,13 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=float, default=1200.0)
     parser.add_argument("--game-over-exit-timeout-seconds", type=float, default=10.0)
-    parser.add_argument("--find-key-cycle-seed", type=int)
+    parser.add_argument(
+        "--benchmark-cycle-seed",
+        "--find-key-cycle-seed",
+        dest="benchmark_cycle_seed",
+        type=int,
+        default=DEFAULT_BENCHMARK_CYCLE_SEED,
+    )
     return parser.parse_args(argv)
 
 
@@ -283,27 +301,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--timeout-seconds must be positive")
     if args.game_over_exit_timeout_seconds <= 0:
         raise SystemExit("--game-over-exit-timeout-seconds must be positive")
-    if args.find_key_cycle_seed is not None and args.find_key_cycle_seed < 0:
-        raise SystemExit("--find-key-cycle-seed must be nonnegative")
+    if (
+        args.benchmark_cycle_seed < 0
+        or args.benchmark_cycle_seed > MAX_BENCHMARK_CYCLE_SEED
+    ):
+        raise SystemExit(
+            "--benchmark-cycle-seed must be between 0 and %d"
+            % MAX_BENCHMARK_CYCLE_SEED
+        )
 
     try:
         scene = resolve_scene(args.scenario, args.scene)
     except ValueError as error:
         raise SystemExit(str(error)) from error
     results: list[AttemptResult] = []
-    cycle_seed = args.find_key_cycle_seed
-    if args.scenario == "find_key" and cycle_seed is None:
-        cycle_seed = secrets.randbelow(1_000_000_000)
     for attempt in range(1, args.runs + 1):
         command = build_godot_command(
             godot_bin=args.godot_bin,
             scene=scene,
             scenario=args.scenario,
             conveyor_draw_index=attempt - 1,
-            find_key_round_seed=(
-                find_key_round_seed(cycle_seed, attempt)
-                if args.scenario == "find_key" and cycle_seed is not None
-                else None
+            round_seed=benchmark_round_seed(
+                args.scenario,
+                args.benchmark_cycle_seed,
+                attempt,
             ),
         )
         result = run_supervised_attempt(

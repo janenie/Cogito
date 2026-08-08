@@ -118,6 +118,10 @@ func _run_test() -> void:
 		)
 		for required_instruction: String in [
 			"任务目标",
+			"巡逻路线",
+			"蓝衣 H. Voss：MAIN LOBBY—BREAK ROOM—SOFA",
+			"绿衣 M. Chen：CEO OFFICE 门外—楼梯上/中/下层",
+			"橙衣 R. Diaz：CUBICLE AREA—MAIN LOBBY—BREAK ROOM",
 			"操作步骤",
 			"MEETING ROOM",
 			"三名走动的同事",

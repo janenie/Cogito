@@ -22,8 +22,10 @@ grep -q 'name="HumanBreakRoomEntrance"' "$scene"
 grep -q 'name="HumanBreakRoomVisit"' "$scene"
 grep -q 'name="HumanSofaApproach"' "$scene"
 grep -q 'name="HumanSofaStop"' "$scene"
-grep -q 'route_root = NodePath("../FriendlyHumanNPCPath")' "$scene"
-grep -q 'walk_speed = 0.35' "$scene"
+grep -q 'route_root = NodePath("../../FriendlyHumanNPCPath")' "$scene"
+grep -q 'route_root = NodePath("../../CEONPCPath")' "$scene"
+grep -q 'route_root = NodePath("../../CubicleNPCPath")' "$scene"
+test "$(grep -c 'walk_speed = 0.35' "$scene")" -eq 3
 
 grep -q 'type="CharacterBody3D"' "$npc_scene"
 grep -q 'path="res://addons/cogito/DemoScenes/friendly_human_npc.gd"' "$npc_scene"

@@ -92,7 +92,7 @@ def test_find_key_command_receives_aligned_redacted_round_seed():
     assert redacted[-1] == "--ai-play-round-seed=REDACTED"
     assert "108" not in " ".join(redacted)
 
-    with pytest.raises(ValueError, match="nonnegative"):
+    with pytest.raises(ValueError, match="between 0"):
         supervisor.find_key_round_seed(-1, 1)
     with pytest.raises(ValueError, match="at least 1"):
         supervisor.find_key_round_seed(0, 0)
@@ -113,10 +113,40 @@ def test_supervisor_assigns_five_logical_attempt_indices(monkeypatch):
     assert supervisor.main([
         "--runs", "5", "--scenario", "conveyor_profit", "--godot-bin", "godot",
     ]) == 0
-    assert [command[-1] for command in commands] == [
+    assert [
+        next(item for item in command if item.startswith("--conveyor-draw-index="))
+        for command in commands
+    ] == [
         "--conveyor-draw-index=0", "--conveyor-draw-index=1",
         "--conveyor-draw-index=2", "--conveyor-draw-index=3",
         "--conveyor-draw-index=4",
+    ]
+    round_seeds = [
+        next(item for item in command if item.startswith("--ai-play-round-seed="))
+        for command in commands
+    ]
+    assert len(set(round_seeds)) == 1
+
+
+def test_supervisor_assigns_reproducible_round_seeds_to_all_scenarios(monkeypatch):
+    supervisor = load_supervisor()
+    commands = []
+
+    def fake_run(**kwargs):
+        commands.append(list(kwargs["command"]))
+        return supervisor.AttemptResult(
+            attempt=kwargs["attempt_number"], status="success", reason="done",
+            exit_code=0, retries=0,
+        )
+
+    monkeypatch.setattr(supervisor, "run_supervised_attempt", fake_run)
+    assert supervisor.main([
+        "--runs", "2", "--scenario", "greet_npc_meeting",
+        "--benchmark-cycle-seed", "7",
+    ]) == 0
+    assert [command[-1] for command in commands] == [
+        "--ai-play-round-seed=7000022",
+        "--ai-play-round-seed=7000023",
     ]
 
 

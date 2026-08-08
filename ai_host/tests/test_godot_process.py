@@ -2,7 +2,11 @@ import asyncio
 from pathlib import Path
 
 from ai_host.config import HostConfig
-from ai_host.godot_process import GodotAttemptProcess, build_godot_command
+from ai_host.godot_process import (
+    GodotAttemptProcess,
+    build_godot_command,
+    build_godot_env,
+)
 
 
 def test_build_godot_command_enables_ai_play_for_scenario():
@@ -42,6 +46,45 @@ def test_build_godot_command_uses_overrides():
     assert command[3] == "addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
     assert command[6] == "--ai-play-scenario=find_key"
     assert command[7] == "--ai-play-seed=1007"
+
+
+def test_build_godot_env_keeps_runtime_context_but_drops_credentials():
+    env = build_godot_env(
+        {
+            "PATH": "/safe/bin",
+            "HOME": "/safe/home",
+            "DISPLAY": ":0",
+            "OPENAI_API_KEY": "secret",
+            "ANTHROPIC_AUTH_TOKEN": "secret",
+            "AI_PLAY_LOG_ROOT": "/private/logs",
+        }
+    )
+
+    assert env == {
+        "PATH": "/safe/bin",
+        "HOME": "/safe/home",
+        "DISPLAY": ":0",
+    }
+
+
+def test_start_passes_sanitized_environment_to_godot(monkeypatch):
+    captured = {}
+
+    async def fake_create_subprocess_exec(*command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setenv("PATH", "/safe/bin")
+    monkeypatch.setenv("OPENAI_API_KEY", "secret")
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+
+    process = GodotAttemptProcess(HostConfig(), cwd=Path("/safe/project"))
+    asyncio.run(process.start())
+
+    assert captured["cwd"] == Path("/safe/project")
+    assert captured["env"]["PATH"] == "/safe/bin"
+    assert "OPENAI_API_KEY" not in captured["env"]
 
 
 def test_stop_terminates_then_kills_if_needed():

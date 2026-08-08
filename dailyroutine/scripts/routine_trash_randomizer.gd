@@ -1,5 +1,9 @@
 extends Node
 
+const ROUND_SEED_PARSER = preload(
+	"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+)
+
 @export var manager_path: NodePath
 @export var trash_paths: Array[NodePath] = []
 @export var min_active_trash := 1
@@ -53,11 +57,15 @@ func _effective_seed() -> int:
 	return int(Time.get_ticks_usec()) + _retry_generation
 
 func _resolve_round_seed() -> int:
-	for argument: String in OS.get_cmdline_user_args():
-		if argument.begins_with("--ai-play-seed="):
-			var value := argument.trim_prefix("--ai-play-seed=")
-			if value.is_valid_int():
-				return int(value)
+	var parsed: Dictionary = ROUND_SEED_PARSER.parse(
+		OS.get_cmdline_user_args(),
+		true,
+	)
+	if not parsed["valid"]:
+		push_error("Invalid AI Play round seed argument")
+		return round_seed
+	if parsed["provided"]:
+		return ROUND_SEED_PARSER.runtime_seed(int(parsed["value"]))
 	return round_seed
 
 func _shuffle_candidates(candidates: Array[Node], rng: RandomNumberGenerator) -> void:

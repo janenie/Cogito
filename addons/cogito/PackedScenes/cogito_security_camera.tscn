@@ -18,7 +18,6 @@ material = SubResource("StandardMaterial3D_87h3m")
 size = Vector3(0.2, 0.05, 0.4)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_qaig8"]
-custom_solver_bias = 1.0
 size = Vector3(4, 4, 4)
 
 [node name="SecurityCamera" type="Node3D" node_paths=PackedStringArray("detection_ray_cast_3d", "indicator_light", "detection_area", "indicator_mesh")]

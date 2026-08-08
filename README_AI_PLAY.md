@@ -30,14 +30,14 @@ macOS / Linux：
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r ai_play/requirements.txt
+.venv/bin/pip install --require-hashes -r ai_play/requirements.lock.txt
 ```
 
 Windows PowerShell：
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r ai_play\requirements.txt
+.\.venv\Scripts\python.exe -m pip install --require-hashes -r ai_play\requirements.lock.txt
 ```
 
 ## 2. 配置 MCP Host
@@ -269,8 +269,14 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 - `--ai-play` 显式启用 AI 控制。
 - `--ai-play-scenario=<id>` 选择同一 Lobby 中的玩法脚本；省略时默认使用
   `find_contract`。ID 只允许小写 ASCII 字母、数字和下划线。
-- `--ai-play-seed=<N>` 可选；受维护的 orchestrator/supervisor 多局运行时会自动为每局传入不同 seed。
-  该 seed 只影响 Godot 运行时随机内容，不会进入 MCP 简报、观察或桥协议结果。
+- `--ai-play-round-seed=<N>` 是可信 supervisor 使用的隐藏复现参数；受维护的 orchestrator 通过
+  `--benchmark-cycle-seed=<N>` 为逻辑局次确定生成，异常重试保持不变。该 seed 只影响 Godot
+  运行时随机内容并写入可信 `session.json`，不会进入 MCP 简报、观察或桥协议结果。
+- 旧 Host 的 `--ai-play-seed=<N>` 仅为 `daily_routine_cleanup` 与 `garden_watering` 保留兼容。
+
+种子参数只接受一个 `0..9007199254740991` 的十进制整数；空值、符号、非数字、越界值和重复
+参数都会被拒绝。命令行 seed `0` 也会稳定映射到非随机的内部种子，不会落入各玩法把导出值
+`0` 解释为“随机初始化”的旧哨兵语义。
 
 普通 Lobby 启动保持 AI 控制关闭。MCP 服务也不会自动启动、重启或关闭 Godot。
 Godot 会在桥握手中上报实际玩法 ID，MCP 只接受 Python 白名单中注册的 ID，并据此
@@ -310,33 +316,31 @@ $env:PYTHONPATH = "ai_play/src"
 
 每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
 不允许或已有动作在途；`briefing`、`observe`、`stop` 和工作流记忆工具不计数。
-`find_contract` 的硬上限为 300 次，允许 `success/correct_password`、
-`failure/wrong_password` 和
-`failure/max_requests`；当前 `find_key` 每局使用 50 次硬上限，允许
-`success/key_picked_up` 和 `failure/max_requests`；`put_book` 的硬上限为 150 次，允许
+所有玩法统一使用 100 次请求硬上限。`find_contract` 允许 `success/correct_password`、
+`failure/wrong_password` 和 `failure/max_requests`；`find_key` 允许
+`success/key_picked_up`、`failure/security_lockout` 和 `failure/max_requests`；`put_book` 允许
 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和 `failure/max_requests`；
-`greet_npc_meeting` 的硬上限为 100 次，
-允许 `success/meeting_door_closed` 和 `failure/max_requests`；`daily_routine_cleanup`
-的硬上限为 150 次，允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
-和 `failure/max_requests`；`garden_watering` 的硬上限为 80 次，允许
+`greet_npc_meeting` 允许 `success/meeting_door_closed`、`failure/wrong_npc_limit` 和
+`failure/max_requests`；`daily_routine_cleanup`
+允许 `success/cleanup_complete`、`failure/cleanup_incomplete`
+和 `failure/max_requests`；`garden_watering` 允许
 `success/garden_tasks_complete`、`failure/garden_task_failed` 和
-`failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，允许
+`failure/max_requests`；`repair_lighting_circuit` 允许
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 和 `failure/max_requests`。
-`arrange_meeting_briefings` 的硬上限为 100 次，允许 `success/meeting_prepared`、
+`arrange_meeting_briefings` 允许 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 和 `failure/max_requests`。
-`conveyor_profit` 的硬上限为 300 次，允许 `success/efficiency_target_reached`、
+`conveyor_profit` 允许 `success/efficiency_target_reached`、
 `failure/efficiency_below_target` 和 `failure/max_requests`；
-`loop_staircase_anomaly` 的硬上限为 160 次，允许 `success/correct_floor_selected`、
-`failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment` 的硬上限为
-150 次，允许 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
+`loop_staircase_anomaly` 允许 `success/correct_floor_selected`、
+`failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment` 允许
+`success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
 `failure/max_requests`。
-`find_key` 和 `greet_npc_meeting` 没有答错失败。
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
 `find_key` 只在内部版本 4 握手中发送经过验证的上限，不发送所选位置；Python 桥为兼容
-旧 Godot 仍接受 50 或 100。该上限不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时
+旧 Godot 的 50、100 或 150；150 会在服务端钳制为 100。该上限不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时
 必须保持一致。
 
 最小的 `act` 参数示例：

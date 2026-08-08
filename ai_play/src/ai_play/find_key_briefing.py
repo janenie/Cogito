@@ -21,7 +21,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "解锁档案室并拾取其中的当前合同钥匙。",
     "failure_condition": (
-        "最多允许 150 次 act 请求。ARCHIVE 密码只能确认提交一次；密码错误会立即"
+        "最多允许 100 次 act 请求。ARCHIVE 密码只能确认提交一次；密码错误会立即"
         "触发安保锁定并失败。达到请求上限仍未拾取当前合同钥匙也会失败。"
     ),
     "rules": COMMON_CONTROL_RULES + [

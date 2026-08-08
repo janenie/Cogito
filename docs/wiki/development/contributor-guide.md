@@ -17,7 +17,7 @@
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r ai_play\requirements.txt
+.\.venv\Scripts\python.exe -m pip install --require-hashes -r ai_play\requirements.lock.txt
 $env:PYTHONPATH = "ai_play/src"
 ```
 
@@ -159,7 +159,9 @@ python3 tools/ai_play_supervisor.py --runs 3 --scenario find_contract
 orchestrator 每次在隔离的 `--session-root` 下按
 `<时间>__<玩家>__<模型>__<任务>__<awm|no-awm>/` 创建空玩家启动目录、可信的
 `trusted_mcplogs/` 和权限为 `0600` 的 `session.json`。元数据只记录安全的运行描述，禁止写入
-凭据、认证/settings 路径、进程环境或完整启动命令。
+凭据、认证/settings 路径、进程环境或完整启动命令；v2 元数据包含 benchmark seed 计划、
+Git 可用性、提交/脏状态、Python/关键包/Godot/玩家 CLI 版本和纯数值执行配置；仓库信息读取
+失败时使用 `repository.available: false` 和 `null` 字段，不能伪装成干净工作树。
 supervisor 只监听 Godot 的 `AI_PLAY_GAME_OVER outcome=<success|failure> reason=<reason>`
 终局标识、`AI_PLAY disabled; reason=mcp_stop|escape_stop` 停止标识和进程状态；
 MCP/Godot 停止标识中止整次运行；基础设施异常有限重试同一局。两者都不得扩展为读取

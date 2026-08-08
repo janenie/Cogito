@@ -170,16 +170,16 @@ def test_wait_for_scenario_times_out_before_game_connects():
         session.wait_for_scenario(timeout=0.01)
 
 
-def test_find_key_uses_150_request_hard_cap():
+def test_find_key_uses_100_request_hard_cap():
     session, _ = make_scenario_session("find_key", configured_limit=500)
 
-    assert session.act_request_limit == 150
+    assert session.act_request_limit == 100
 
 
-def test_find_contract_uses_150_request_hard_cap():
+def test_find_contract_uses_100_request_hard_cap():
     session, _ = make_scenario_session("find_contract", configured_limit=500)
 
-    assert session.act_request_limit == 150
+    assert session.act_request_limit == 100
 
 
 def test_find_key_round_request_limit_is_locked_across_reconnect():
@@ -227,10 +227,10 @@ def test_global_limit_can_tighten_find_key_cap():
     assert session.act_request_limit == 75
 
 
-def test_put_book_uses_150_request_hard_cap():
+def test_put_book_uses_100_request_hard_cap():
     session, _ = make_scenario_session("put_book", configured_limit=500)
 
-    assert session.act_request_limit == 150
+    assert session.act_request_limit == 100
 
 
 def test_greet_npc_meeting_uses_100_request_hard_cap():
@@ -243,9 +243,9 @@ def test_greet_npc_meeting_uses_100_request_hard_cap():
 
 
 def test_global_limit_can_tighten_put_book_cap():
-    session, _ = make_scenario_session("put_book", configured_limit=120)
+    session, _ = make_scenario_session("put_book", configured_limit=80)
 
-    assert session.act_request_limit == 120
+    assert session.act_request_limit == 80
 
 
 def test_global_limit_can_tighten_greet_npc_meeting_cap():
@@ -260,13 +260,13 @@ def test_global_limit_can_tighten_greet_npc_meeting_cap():
 def test_garden_watering_uses_scenario_request_cap():
     session, _ = make_scenario_session("garden_watering")
 
-    assert session.act_request_limit == 80
+    assert session.act_request_limit == 100
 
 
 def test_loop_staircase_anomaly_uses_scenario_request_cap():
     session, _ = make_scenario_session("loop_staircase_anomaly")
 
-    assert session.act_request_limit == 160
+    assert session.act_request_limit == 100
 
 
 def test_repair_lighting_circuit_uses_100_request_hard_cap():

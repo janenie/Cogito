@@ -22,7 +22,7 @@ PUBLIC_BRIEFING = {
         "CEO OFFICE 的书籍放置点。"
     ),
     "failure_condition": (
-        "最多允许 150 次 act 请求；达到上限仍未完成任务，或拿起普通书、"
+        "最多允许 100 次 act 请求；达到上限仍未完成任务，或拿起普通书、"
         "顺序错误的任务书时会立即失败。"
     ),
     "rules": COMMON_CONTROL_RULES + [

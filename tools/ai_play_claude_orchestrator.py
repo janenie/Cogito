@@ -29,6 +29,8 @@ REPO_ROOT = _common.REPO_ROOT
 AWM_PLAYER_TOOL_NAMES = _common.AWM_PLAYER_TOOL_NAMES
 BASE_PLAYER_TOOL_NAMES = _common.BASE_PLAYER_TOOL_NAMES
 DEFAULT_MCP_PORT = _common.DEFAULT_MCP_PORT
+DEFAULT_BENCHMARK_CYCLE_SEED = _common.DEFAULT_BENCHMARK_CYCLE_SEED
+MAX_BENCHMARK_CYCLE_SEED = _common.MAX_BENCHMARK_CYCLE_SEED
 DEFAULT_SESSION_ROOT = _common.DEFAULT_SESSION_ROOT
 DEFAULT_WS_HOST = _common.DEFAULT_WS_HOST
 DEFAULT_WS_PORT = _common.DEFAULT_WS_PORT
@@ -39,6 +41,7 @@ build_player_prompt = _common.build_player_prompt
 build_supervisor_command = _common.build_supervisor_command
 build_supervisor_env = _common.build_supervisor_env
 build_trusted_mcp_env = _common.build_trusted_mcp_env
+collect_runtime_metadata = _common.collect_runtime_metadata
 create_run_paths = _common.create_run_paths
 is_port_listening = _common.is_port_listening
 run_orchestrated_session = _common.run_orchestrated_session
@@ -276,6 +279,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--scene")
     parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
     parser.add_argument("--max-retries", type=int, default=2)
+    parser.add_argument(
+        "--benchmark-cycle-seed",
+        type=int,
+        default=DEFAULT_BENCHMARK_CYCLE_SEED,
+    )
     parser.add_argument("--timeout-seconds", type=float, default=100000.0)
     parser.add_argument("--mcp-start-timeout-seconds", type=float, default=30.0)
     parser.add_argument("--claude-exit-grace-seconds", type=float, default=5.0)
@@ -305,6 +313,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--runs must be at least 1")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
+    if not 0 <= args.benchmark_cycle_seed <= MAX_BENCHMARK_CYCLE_SEED:
+        raise SystemExit(
+            "--benchmark-cycle-seed must be between 0 and %d"
+            % MAX_BENCHMARK_CYCLE_SEED
+        )
     if args.timeout_seconds <= 0:
         raise SystemExit("--timeout-seconds must be positive")
     _validate_port("--mcp-port", args.mcp_port)
@@ -343,6 +356,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         scenario=args.scenario,
         workflow_memory_enabled=workflow_memory_enabled,
         requested_runs=args.runs,
+        benchmark_cycle_seed=args.benchmark_cycle_seed,
+        runtime_metadata=collect_runtime_metadata(
+            python_bin=args.python_bin,
+            player_bin=claude_bin,
+            godot_bin=args.godot_bin,
+            execution={
+                "ws_port": DEFAULT_WS_PORT,
+                "mcp_port": args.mcp_port,
+                "max_retries": args.max_retries,
+                "attempt_timeout_seconds": args.timeout_seconds,
+                "mcp_start_timeout_seconds": args.mcp_start_timeout_seconds,
+                "player_exit_grace_seconds": args.claude_exit_grace_seconds,
+                "idle_timeout_seconds": args.idle_timeout_seconds,
+                "player_final_grace_seconds": args.claude_final_grace_seconds,
+                "player_restart_limit": args.claude_max_restarts,
+            },
+        ),
     )
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
@@ -355,6 +385,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         godot_bin=args.godot_bin,
         max_retries=args.max_retries,
         timeout_seconds=args.timeout_seconds,
+        benchmark_cycle_seed=args.benchmark_cycle_seed,
     )
     print("[orchestrator] run_dir=%s" % paths.run_dir, flush=True)
     print("[orchestrator] trusted_log_root=%s" % paths.log_root, flush=True)

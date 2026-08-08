@@ -82,11 +82,11 @@ func _run_test() -> void:
 		lobby_npcs.find_children("*", "FriendlyHumanNPC", true, false).size() == 3,
 		"Lobby permanently owns exactly three NPC instances",
 	)
-	_assert(monitor.get_act_request_limit() == 150, "find-key allows 150 requests")
+	_assert(monitor.get_act_request_limit() == 100, "find-key allows 100 requests")
 	_assert(setup.keys().size() == 6, "active setup exposes six identical keys")
 	for key: RigidBody3D in setup.keys():
 		var pickup := key.get_node_or_null("PickupComponent")
-		var submission := key.get_node_or_null("KeySubmissionInteraction") as InteractionComponent
+		var submission: Node = key.get_node_or_null("KeySubmissionInteraction")
 		_assert(
 			pickup != null and bool(pickup.get("is_disabled")),
 			"key pickup is disabled",
@@ -165,10 +165,10 @@ func _run_test() -> void:
 	)
 	_assert(setup.get_node_or_null("Routes") == null, "permanent NPC routes live in Lobby")
 	lobby_npcs.configure_for_scenario("find_contract")
-	for npc: FriendlyHumanNPC in lobby_npcs.npcs():
+	for npc: Node in lobby_npcs.npcs():
 		_assert(not npc.visible, "non-NPC scenario hides permanent NPCs")
 	lobby_npcs.configure_for_scenario("find_key")
-	for npc: FriendlyHumanNPC in lobby_npcs.npcs():
+	for npc: Node in lobby_npcs.npcs():
 		_assert(npc.visible, "find-key shows all permanent NPCs")
 	var layout: Dictionary = setup.layout_snapshot()
 	_assert(
@@ -303,7 +303,7 @@ func _unique_count(values: Array) -> int:
 
 func _npc_route_state(monitor: Node) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for npc: FriendlyHumanNPC in [monitor.meeting_npc, monitor.ceo_npc, monitor.cubicle_npc]:
+	for npc: Node in [monitor.meeting_npc, monitor.ceo_npc, monitor.cubicle_npc]:
 		result.append(
 			{
 				"position": npc.global_position,

@@ -17,7 +17,7 @@ PUBLIC_BRIEFING = {
         "用最多三次完整实验推断出满足本局目标的组合。"
     ),
     "success_condition": "组装完整回路并验证，测量结果满足本局公开目标。",
-    "failure_condition": "三次完整实验均未成功，或达到最大 act 请求数。",
+    "failure_condition": "三次完整实验均未成功，或达到 100 次 act 请求上限。",
     "rules": COMMON_CONTROL_RULES + [
         "先阅读左侧 HUD 的目标、环境和两条已知条件。",
         "在附近实验区域寻找三种电池、三种样本、三种处理模块和一根金属棒。",

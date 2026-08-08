@@ -318,6 +318,9 @@ func _test_user_arg_opt_in(controller_script: GDScript) -> void:
 
 func _test_find_key_round_seed_parser(controller_script: GDScript) -> void:
 	var controller: Node = controller_script.new()
+	var parser: GDScript = load(
+		"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+	)
 	_assert(
 		controller.get_requested_round_seed([
 			"--ai-play",
@@ -325,6 +328,30 @@ func _test_find_key_round_seed_parser(controller_script: GDScript) -> void:
 			"--ai-play-round-seed=0",
 		]) == {"valid": true, "provided": true, "value": 0},
 		"zero round seed is deterministic",
+	)
+	_assert(
+		controller.get_runtime_round_seed(0) == 9_007_199_254_740_992,
+		"CLI seed zero maps to a deterministic non-sentinel runtime seed",
+	)
+	_assert(
+		controller.get_runtime_round_seed(42) == 42,
+		"nonzero CLI seeds retain their runtime value",
+	)
+	_assert(
+		controller.get_requested_round_seed([
+			"--ai-play",
+			"--ai-play-scenario=greet_npc_meeting",
+			"--ai-play-round-seed=42",
+		]) == {"valid": true, "provided": true, "value": 42},
+		"round seed is accepted for every registered benchmark scenario",
+	)
+	_assert(
+		controller.get_requested_round_seed([
+			"--ai-play",
+			"--ai-play-scenario=daily_routine_cleanup",
+			"--ai-play-seed=7",
+		]) == {"valid": true, "provided": true, "value": 7},
+		"legacy seed is validated for its allowlisted standalone scenarios",
 	)
 	_assert(
 		controller.get_requested_round_seed([
@@ -343,17 +370,40 @@ func _test_find_key_round_seed_parser(controller_script: GDScript) -> void:
 			"--ai-play-round-seed=2",
 		],
 		["--ai-play-scenario=find_key", "--ai-play-round-seed=1"],
-		["--ai-play", "--ai-play-scenario=find_contract", "--ai-play-round-seed=1"],
+		["--ai-play", "--ai-play-scenario=unknown", "--ai-play-round-seed=1"],
 		[
 			"--ai-play",
 			"--ai-play-scenario=find_key",
 			"--ai-play-round-seed=9007199254740992",
+		],
+		[
+			"--ai-play",
+			"--ai-play-scenario=garden_watering",
+			"--ai-play-seed=-1",
+		],
+		[
+			"--ai-play",
+			"--ai-play-scenario=garden_watering",
+			"--ai-play-round-seed=1",
+			"--ai-play-seed=1",
 		],
 	]:
 		_assert(
 			not controller.get_requested_round_seed(args)["valid"],
 			"invalid or misplaced round seed is rejected",
 		)
+	_assert(
+		parser.parse(["--ai-play-seed=7"], true)
+			== {"valid": true, "provided": true, "value": 7, "legacy": true},
+		"legacy seed remains available only to opted-in standalone scenarios",
+	)
+	_assert(
+		not parser.parse([
+			"--ai-play-round-seed=7",
+			"--ai-play-seed=7",
+		], true)["valid"],
+		"mixed generic and legacy seed arguments are rejected as duplicates",
+	)
 	controller.free()
 
 
@@ -667,7 +717,7 @@ func _test_find_key_hello_includes_round_request_limit(
 	var fixture: Dictionary = await _make_fixture(controller_script)
 	fixture.controller._active_scenario_id = "find_key"
 	fixture.terminal_monitor.scenario_id = "find_key"
-	fixture.terminal_monitor.act_request_limit = 150
+	fixture.terminal_monitor.act_request_limit = 100
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 
@@ -683,7 +733,7 @@ func _test_find_key_hello_includes_round_request_limit(
 			"type": "hello",
 			"protocol_version": 4,
 			"scenario_id": "find_key",
-			"act_request_limit": 150,
+			"act_request_limit": 100,
 		},
 		"find_key hello includes the allowlisted round request limit",
 	)
@@ -696,13 +746,13 @@ func _test_find_key_hello_rejects_invalid_round_request_limit(
 	var fixture: Dictionary = await _make_fixture(controller_script)
 	fixture.controller._active_scenario_id = "find_key"
 	fixture.terminal_monitor.scenario_id = "find_key"
-	fixture.terminal_monitor.act_request_limit = 75
+	fixture.terminal_monitor.act_request_limit = 150
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 
 	_assert(
 		fixture.bridge.sent_packets.is_empty(),
-		"invalid find_key round request limit is not sent",
+		"legacy find_key limit above the current cap is not sent by Godot",
 	)
 	_assert(
 		fixture.controller.get_state() == fixture.controller.State.DISABLED,

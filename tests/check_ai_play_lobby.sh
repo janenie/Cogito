@@ -24,13 +24,16 @@ grep -q '^host = "127.0.0.1"$' addons/cogito/AIPlay/ai_play_controller.tscn
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn"' "$scene"
 grep -q 'name="GameOverScreen" parent="AIPlayController/TerminalMonitor"' "$scene"
 grep -q 'game_over_screen = NodePath("GameOverScreen")' "$scene"
-grep -q 'scenario_id = "find_contract"' "$scene"
+grep -q '@export var scenario_id: String = "find_contract"' \
+	addons/cogito/AIPlay/ai_play_find_contract_terminal.gd
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd"' "$scene"
 grep -q 'name="FindKeyMonitor" type="Node" parent="AIPlayController"' "$scene"
-grep -q '^scenario_id = "find_key"$' "$scene"
+grep -q '@export var scenario_id: String = "find_key"' \
+	addons/cogito/AIPlay/ai_play_find_key_monitor.gd
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_put_book_monitor.gd"' "$scene"
 grep -q 'name="PutBookMonitor" type="Node" parent="AIPlayController"' "$scene"
-grep -q '^scenario_id = "put_book"$' "$scene"
+grep -q '@export var scenario_id: String = "put_book"' \
+	addons/cogito/AIPlay/ai_play_put_book_monitor.gd
 grep -q 'name="PutBook_CarryableBook" parent="ARCHIVE".*instance=ExtResource("carryable_books")' "$scene"
 grep -q 'path="res://addons/cogito/DemoScenes/DemoPrefabs/ai_play_put_book_destination.tscn"' "$scene"
 grep -q 'name="PutBookDestination" parent="UPPER_OFFICE_CEO".*instance=ExtResource("ai_play_put_book_destination")' "$scene"
@@ -38,8 +41,10 @@ grep -q 'ceo_door = NodePath("../../UPPER_OFFICE_CEO/WindowedDoor/FrontDoor")' "
 grep -q 'destination = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination")' "$scene"
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd"' "$scene"
 grep -q 'name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController"' "$scene"
-grep -q '^scenario_id = "greet_npc_meeting"$' "$scene"
-grep -q 'npc = NodePath("../../FriendlyHumanNPC")' "$scene"
+grep -q '@export var scenario_id: String = "greet_npc_meeting"' \
+	addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd
+grep -q 'npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")' "$scene"
+grep -q 'npc_candidates = \[NodePath("../../AIPlayNPCs/FriendlyHumanNPC"), NodePath("../../AIPlayNPCs/FindKeyCEONPC"), NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")\]' "$scene"
 grep -q 'conference_door = NodePath("../../MEETING_ROOM/ConferenceDoor/FrontDoor")' "$scene"
 grep -q 'meeting_room = NodePath("../../MEETING_ROOM")' "$scene"
 test "$(grep -c 'name="Pickup_Key"' "$scene")" -eq 1
@@ -166,8 +171,9 @@ done
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd"' "$scene"
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn"' "$scene"
 grep -q 'name="RepairLightingCircuitMonitor" type="Node" parent="AIPlayController"' "$scene"
-grep -q '^scenario_id = "repair_lighting_circuit"$' "$scene"
-grep -q 'name="RepairLightingCircuitSetup" parent="\." instance=ExtResource("ai_play_repair_lighting_circuit_setup")' "$scene"
+grep -q '@export var scenario_id: String = "repair_lighting_circuit"' \
+	addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd
+grep -q 'name="RepairLightingCircuitSetup" parent="\.".*instance=ExtResource("ai_play_repair_lighting_circuit_setup")' "$scene"
 grep -q 'control_switch_a = NodePath("../../GenericSwitch")' "$scene"
 grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"
 grep -q 'game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")' "$scene"
@@ -232,8 +238,9 @@ grep -q '^is_disabled = true$' <<<"$(setup_interaction_block BreakRoomLamp)"
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_monitor.gd"' "$scene"
 grep -q 'path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn"' "$scene"
 grep -q 'name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController"' "$scene"
-grep -q '^scenario_id = "arrange_meeting_briefings"$' "$scene"
-grep -q 'name="ArrangeMeetingBriefingsSetup" parent="\." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")' "$scene"
+grep -q '@export var scenario_id: String = "arrange_meeting_briefings"' \
+	addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_monitor.gd
+grep -q 'name="ArrangeMeetingBriefingsSetup" parent="\.".*instance=ExtResource("ai_play_arrange_meeting_briefings_setup")' "$scene"
 grep -q 'setup = NodePath("../../ArrangeMeetingBriefingsSetup")' "$scene"
 grep -q 'player = NodePath("../../Player")' "$scene"
 grep -q 'task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")' "$scene"

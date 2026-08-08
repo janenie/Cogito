@@ -24,7 +24,12 @@ PUBLIC_BRIEFING = {
     "rules": COMMON_CONTROL_RULES + [
         "只能依据当前画面、房间文字标识、任务卡内容、可见 NPC 和动作结果完成任务。",
         "任务卡位于出生点附近并可重复读取。",
-        "三名同事都会移动；需要按任务卡公开的上衣颜色和姓名辨认，不能假设联系人固定在某处。",
+        (
+            "三名同事都会移动：蓝衣 H. Voss 沿 MAIN LOBBY—BREAK ROOM—SOFA "
+            "巡逻；绿衣 M. Chen 从 CEO OFFICE 门外经过楼梯上层、中段和下层；橙衣 "
+            "R. Diaz 沿 CUBICLE AREA—MAIN LOBBY—BREAK ROOM 巡逻。"
+        ),
+        "需要按任务卡公开的上衣颜色和姓名辨认，不能假设联系人固定在某处。",
         "第一次问候错误同事仍可恢复；第二次问候另一名错误同事会产生正式失败。",
         "看到 NPC 但没有交互提示时，靠近后使用 probe_interaction 调整对准。",
         (

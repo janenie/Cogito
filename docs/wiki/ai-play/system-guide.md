@@ -58,27 +58,24 @@ Godot 桥的安全边界。
   不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
   `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
   50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
-- `find_contract` 的请求硬上限是 150，终局只允许 `success/correct_password`、
-  `failure/wrong_password` 和 `failure/max_requests`；`find_key` 使用 150 次请求硬上限，
-  终局只允许 `success/key_picked_up`、`failure/security_lockout` 和 `failure/max_requests`；`put_book` 的请求硬上限
-  是 150，终局只允许 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和
-  `failure/max_requests`；
-  `greet_npc_meeting` 的请求硬上限是 100，终局只允许
-  `success/meeting_door_closed`、`failure/wrong_npc_limit` 和 `failure/max_requests`；`daily_routine_cleanup`
-  的请求硬上限是 150，终局只允许 `success/cleanup_complete`、
-  `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 的请求
-  硬上限是 80，终局只允许 `success/garden_tasks_complete`、
-  `failure/garden_task_failed` 和 `failure/max_requests`；`repair_lighting_circuit` 的
-  请求硬上限是 100，终局只允许 `success/circuit_repaired`、
+- 所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局只允许
+  `success/correct_password`、`failure/wrong_password` 和 `failure/max_requests`；
+  `find_key` 只允许 `success/key_picked_up`、`failure/security_lockout` 和
+  `failure/max_requests`；`put_book` 只允许 `success/books_in_ceo_office`、
+  `failure/wrong_book_pickup` 和 `failure/max_requests`；`greet_npc_meeting` 只允许
+  `success/meeting_door_closed`、`failure/wrong_npc_limit` 和 `failure/max_requests`；
+  `daily_routine_cleanup` 只允许 `success/cleanup_complete`、
+  `failure/cleanup_incomplete` 和 `failure/max_requests`；`garden_watering` 只允许
+  `success/garden_tasks_complete`、`failure/garden_task_failed` 和
+  `failure/max_requests`；`repair_lighting_circuit` 只允许 `success/circuit_repaired`、
   `failure/wrong_breaker`、`failure/incorrect_circuit_configuration` 和
-  `failure/max_requests`；`arrange_meeting_briefings` 的请求硬上限是 100，终局只允许
+  `failure/max_requests`；`arrange_meeting_briefings` 只允许
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
-  `failure/max_requests`；`conveyor_profit` 的请求硬上限是 300，终局只允许
-  `success/efficiency_target_reached`、`failure/efficiency_below_target` 和
-  `failure/max_requests`；`loop_staircase_anomaly` 的请求硬上限是 160，终局只允许
-  `success/correct_floor_selected`、`failure/wrong_floor_selected` 和
-  `failure/max_requests`；`laboratory_experiment` 的请求硬上限是 150，终局只允许
-  `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
+  `failure/max_requests`；`conveyor_profit` 只允许 `success/efficiency_target_reached`、
+  `failure/efficiency_below_target` 和 `failure/max_requests`；
+  `loop_staircase_anomaly` 只允许 `success/correct_floor_selected`、
+  `failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment`
+  只允许 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
   `failure/max_requests`。
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。所有到达 Python `act()`
   的调用都计数，即使随后因观察过期、动作非法、上下文不允许或动作在途而失败；
@@ -187,15 +184,19 @@ python3 tools/ai_play_codex_orchestrator.py \
 默认运行根在 Windows 是当前仓库所在驱动器根目录的 `cogito_ai_player_runs/`，非 Windows 是
 `/tmp/cogito_ai_player_runs/`；`--session-root` 必须同样通过隔离祖先检查。运行目录采用
 `<时间>__<玩家>__<模型>__<任务>__<awm|no-awm>/`，动态目录组件经过安全化；同目录下权限为
-`0600` 的 `session.json` 保存完整模型名、思考强度、任务、AWM 模式、请求局数和开始时间，
-但不得保存凭据、认证/settings 路径、进程环境或完整启动命令。每次会话的
+`0600` 的 v2 `session.json` 保存完整模型名、思考强度、任务、AWM 模式、请求局数和开始时间，
+以及 benchmark cycle/逐局 seed、Git 可用性、commit 与脏状态、Python/关键包/Godot/玩家 CLI 版本和
+纯数值执行配置，但不得保存凭据、认证/settings 路径、进程环境或完整启动命令。每次会话的
 `trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
 游戏产物。Codex、Claude 与 Kimi 入口复用同一布局。
+Git 信息不可读取时，`repository.available` 为 `false`，无法取得的 `commit` 和 `dirty` 为
+`null`，不得把检测失败记录成 `dirty: false`。
 
 Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 `http://127.0.0.1:8766/mcp`，可用 `--mcp-port` 改 HTTP 端口（不得使用 8765）。启动器先检查
-两个端口空闲，按 MCP 边车、Codex、supervisor 的顺序启动，并在启动 Codex 前等待 HTTP 和桥
-监听就绪。任一子进程退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
+两个端口空闲，按 MCP 边车、Codex、supervisor 的顺序启动，并在启动 Codex 前以 HTTP/TCP 和
+完整 WebSocket 握手分别等待两个监听就绪，避免用裸 TCP 探测桥产生握手错误日志。任一子进程
+退出、异常或中断时，它会逆序终止已启动的其余进程；MCP 断线仍走既有的
 输入释放路径。默认 600 秒没有任何子进程输出时，看门狗以退出码 5 收束会话；supervisor
 退出后默认保留 30 秒终局 grace，让 Codex 消费终局、更新 AWM 并输出总结。
 
@@ -356,6 +357,15 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 不得进入玩家 HUD、briefing、observation、动作结果或 AWM。人工在同一 Godot 进程内重开时
 使用私有进程内计数器。
 
+Codex、Claude 与 Kimi orchestrator 默认共享 benchmark cycle seed `20260809`，可用
+`--benchmark-cycle-seed` 覆盖。supervisor 为所有任务传入脱敏的
+`--ai-play-round-seed`，基础设施重试复用同一 seed；普通随机任务按逻辑局次变化，`find_key`
+保持四局对齐脚本包，`conveyor_profit` 保持固定供给 seed 并只变化 draw index。实际 seed 仅保存
+在可信 `session.json`，不得进入 briefing、observation、动作结果或 AWM。
+通用参数只接受单个 `0..9007199254740991` 十进制整数；空值、符号、非数字、越界值和重复参数
+均无效。命令行 seed `0` 必须确定性映射到非随机内部种子，避免误触各任务原有的随机哨兵；
+`daily_routine_cleanup` 与 `garden_watering` 可兼容旧 `--ai-play-seed`，但新旧参数不能同时出现。
+
 ## 增加同一 Lobby 的新玩法
 
 不要复制完整的 `COGITO_3_Lobby.tscn`。新玩法应作为 `AIPlayController` 的直属子节点
@@ -495,7 +505,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   其他不涉及 NPC 的玩法会隐藏并停用整组 NPC，不在运行时重复实例化。
 - ARCHIVE 门每局重新锁定。键盘启用一次性确认：输入后先显示不可逆警告；取消不消耗机会，
   确认错误立即产生 `failure/security_lockout`，确认正确只解锁房间。进入房间并实际拾取
-  ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 150。
+  ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 100。
 - 四套房间/经手人脚本由可信的非负 `--ai-play-round-seed=N` 确定。supervisor 对每个 cycle
   生成连续四个对齐种子并以确定性洗牌实现不放回；异常重试复用同一命令。启动日志只显示
   `--ai-play-round-seed=REDACTED`。脚本 ID、种子、NPC 映射、密码、正确钥匙和源码路径都属于
@@ -530,8 +540,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 - 玩家拿起普通书或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`。观察或探测
   不会失败；正确书在 CEO OFFICE 书籍放置点外放下后，可重新拿起继续完成该步骤。
 - CEO OFFICE 只有一个逻辑书籍放置点；三本任务书依序送达才产生
-  `success/books_in_ceo_office`。`put_book` 的硬上限为
-  150 次请求，
+  `success/books_in_ceo_office`。`put_book` 的硬上限为 100 次请求，
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧它。
 - 非零 `round_seed` 仅供本地确定性初始化和测试。种子、已选槽位、任务书身份及其他
   运行时答案不得作为结构化事实进入公开简报、观察或 MCP 协议；身份只能经正常游戏画面
@@ -556,7 +565,10 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 
 - 玩家固定从入口开始，任务卡位于出生点附近。
 - 三名穿蓝、绿、橙色上衣的同事复用 Lobby 的常驻 `AIPlayNPCs` 实例并沿各自固定路线移动；
-  每局随机选择联系人，但每人的巡逻路线、起点和方向保持固定。
+  蓝衣 H. Voss 沿 MAIN LOBBY—BREAK ROOM—SOFA 巡逻，绿衣 M. Chen 从
+  CEO OFFICE 门外经过楼梯上层、中段和下层后折返，橙衣 R. Diaz 沿
+  CUBICLE AREA—MAIN LOBBY—BREAK ROOM 巡逻。任务卡与白名单简报公开这三条路线；每局
+  随机选择联系人，但每人的巡逻路线、起点和方向保持固定。
 - 每局从 `你好`、`要去开会了么？`、`hi` 中随机选择一种问候语作为 NPC 交互提示。
 - 任务卡按姓名和上衣颜色公开指定联系人。第一次问候错误同事可恢复且同一人不重复计数；
   第二次问候另一名错误同事产生 `failure/wrong_npc_limit`。
@@ -724,7 +736,7 @@ godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tsc
 - AI 接口不得把房间前后左右移动、楼层上下切换与调查板上下选行复用成同一按键动作；
   结构化公开状态只包含当前楼层、当前轮次和终局
   布尔值；线索文字、截图内容、陈设变化、候选集合、随机种子、答案楼层和完整楼层表不得
-  进入结构化观察、briefing 或其他模型输入。成功、失败与 160 次动作上限沿用既有终局契约。
+  进入结构化观察、briefing 或其他模型输入。成功、失败与 100 次动作上限沿用既有终局契约。
 
 ## laboratory_experiment 回合规则
 

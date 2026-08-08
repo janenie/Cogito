@@ -23,6 +23,22 @@ func _run_test() -> void:
 		return
 	_check(gameplay.parse_conveyor_draw_index(["--conveyor-draw-index=0"]) == 0, "draw index zero parses")
 	_check(gameplay.parse_conveyor_draw_index(["--conveyor-draw-index=42"]) == 42, "positive draw index parses")
+	_check(gameplay.parse_round_seed(["--ai-play-round-seed=42"]) == 42, "benchmark round seed parses")
+	_check(gameplay.parse_round_seed(["--ai-play-round-seed=0"]) == 0, "zero benchmark round seed parses")
+	_check(gameplay.parse_round_seed(["--ai-play-round-seed=-1"]) == -1, "negative benchmark seed is ignored")
+	_check(
+		gameplay.parse_round_seed([
+			"--ai-play-round-seed=1",
+			"--ai-play-round-seed=2",
+		]) == -1,
+		"duplicate benchmark round seeds are rejected",
+	)
+	_check(
+		gameplay.parse_round_seed([
+			"--ai-play-round-seed=9007199254740992",
+		]) == -1,
+		"benchmark round seed rejects values outside JSON safe integers",
+	)
 	for invalid_args: Array in [
 		[], ["--conveyor-draw-index="], ["--conveyor-draw-index=-1"],
 		["--conveyor-draw-index=+1"], ["--conveyor-draw-index=01"],

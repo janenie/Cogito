@@ -17587,7 +17587,6 @@ radial_segments = 8
 rings = 4
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_escyr"]
-custom_solver_bias = 1.0
 size = Vector3(4, 8.24512, 4)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6nvxd"]

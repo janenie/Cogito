@@ -89,34 +89,16 @@ def test_loop_staircase_briefing_recommends_scanning_room_blind_spots():
 
 
 def test_scenario_request_limits_are_hard_caps():
-    assert scenario_act_request_limit("find_contract", 500) == 150
-    assert scenario_act_request_limit("find_contract", 120) == 120
-    assert scenario_act_request_limit("find_key", 500) == 150
-    assert scenario_act_request_limit("find_key", 80) == 80
-    assert scenario_act_request_limit("put_book", 500) == 150
-    assert scenario_act_request_limit("put_book", 120) == 120
-    assert scenario_act_request_limit("greet_npc_meeting", 500) == 100
-    assert scenario_act_request_limit("greet_npc_meeting", 75) == 75
-    assert scenario_act_request_limit("daily_routine_cleanup", 500) == 150
-    assert scenario_act_request_limit("daily_routine_cleanup", 90) == 90
-    assert scenario_act_request_limit("garden_watering", 500) == 80
-    assert scenario_act_request_limit("garden_watering", 60) == 60
-    assert scenario_act_request_limit("repair_lighting_circuit", 500) == 100
-    assert scenario_act_request_limit("repair_lighting_circuit", 80) == 80
-    assert scenario_act_request_limit("arrange_meeting_briefings", 500) == 100
-    assert scenario_act_request_limit("arrange_meeting_briefings", 80) == 80
-    assert scenario_act_request_limit("conveyor_profit", 500) == 300
-    assert scenario_act_request_limit("loop_staircase_anomaly", 500) == 160
-    assert scenario_act_request_limit("loop_staircase_anomaly", 90) == 90
-    assert scenario_act_request_limit("laboratory_experiment", 500) == 150
-    assert scenario_act_request_limit("laboratory_experiment", 90) == 90
+    for scenario_id in supported_scenario_ids():
+        assert scenario_act_request_limit(scenario_id, 500) == 100
+        assert scenario_act_request_limit(scenario_id, 75) == 75
 
 
 def test_readme_lists_all_request_caps_in_scenario_order():
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
 
     assert (
-        "自身的 150、150、150、100、150、80、100、100、300、160、150 次硬上限"
+        "所有玩法统一使用 100 次请求硬上限"
         in readme
     )
 
@@ -128,10 +110,10 @@ def test_find_key_round_request_limits_are_allowlisted():
         None,
     )
     assert callable(scenario_round_act_request_limit)
-    assert scenario_round_act_request_limit("find_key") == 150
+    assert scenario_round_act_request_limit("find_key") == 100
     assert scenario_round_act_request_limit("find_key", 50) == 50
     assert scenario_round_act_request_limit("find_key", 100) == 100
-    assert scenario_round_act_request_limit("find_key", 150) == 150
+    assert scenario_round_act_request_limit("find_key", 150) == 100
     assert scenario_act_request_limit("find_key", 500, 50) == 50
     assert scenario_act_request_limit("find_key", 40, 50) == 40
 

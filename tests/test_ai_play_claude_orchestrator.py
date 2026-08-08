@@ -480,6 +480,14 @@ def test_main_wires_claude_session_and_removes_private_config(
     assert metadata["scenario"] == "find_contract"
     assert metadata["workflow_memory"] == "disabled"
     assert metadata["requested_runs"] == 2
+    assert metadata["schema_version"] == 2
+    assert metadata["repository"]["available"] is True
+    assert metadata["benchmark"]["cycle_seed"] == (
+        orchestrator.DEFAULT_BENCHMARK_CYCLE_SEED
+    )
+    assert len(metadata["benchmark"]["attempts"]) == 2
+    assert metadata["execution"]["ws_port"] == 8765
+    assert metadata["execution"]["mcp_port"] == 8766
     assert "ANTHROPIC_AUTH_TOKEN" not in metadata
     assert "fixture-token" not in json.dumps(metadata)
 

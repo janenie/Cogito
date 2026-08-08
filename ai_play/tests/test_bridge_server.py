@@ -488,11 +488,18 @@ def test_bridge_routes_find_key_success_to_session():
     assert memory.read("find_key")["completed_runs"] == 1
 
 
-def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():
+@pytest.mark.parametrize(
+    ("announced_limit", "effective_limit"),
+    [(50, 50), (100, 100), (150, 100)],
+)
+def test_bridge_accepts_find_key_round_request_limit_without_echoing_it(
+    announced_limit,
+    effective_limit,
+):
     session = GameSession(Config())
     uri, handle = start_test_bridge(session)
     hello = _hello("find_key")
-    hello["act_request_limit"] = 50
+    hello["act_request_limit"] = announced_limit
 
     try:
         with connect(uri, proxy=None) as connection:
@@ -505,7 +512,7 @@ def test_bridge_accepts_find_key_round_request_limit_without_echoing_it():
         "protocol_version": 4,
         "scenario_id": "find_key",
     }
-    assert session.act_request_limit == 50
+    assert session.act_request_limit == effective_limit
 
 
 @pytest.mark.parametrize(
@@ -587,7 +594,7 @@ def test_bridge_accepts_legacy_find_key_hello_with_default_limit():
         handle.close()
 
     assert result["scenario_id"] == "find_key"
-    assert session.act_request_limit == 150
+    assert session.act_request_limit == 100
 
 
 def test_bridge_rejects_unknown_scenario():

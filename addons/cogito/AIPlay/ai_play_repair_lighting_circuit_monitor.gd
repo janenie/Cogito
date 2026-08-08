@@ -84,7 +84,19 @@ func _activate_task() -> void:
 	_connect_signals()
 	_place_player_and_task_card()
 	AIPlayReadablePresenter.configure(task_card, true)
-	configure_round(round_seed)
+	var selected_seed := round_seed
+	var controller: Node = get_parent()
+	if controller != null and controller.has_method("get_requested_round_seed"):
+		var requested_seed: Dictionary = controller.get_requested_round_seed(
+			OS.get_cmdline_user_args()
+		)
+		if not requested_seed["valid"]:
+			return
+		if requested_seed["provided"]:
+			selected_seed = controller.get_runtime_round_seed(
+				int(requested_seed["value"])
+			)
+	configure_round(selected_seed)
 
 
 func configure_round(seed_value: int = 0) -> void:

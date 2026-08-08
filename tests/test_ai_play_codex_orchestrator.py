@@ -111,7 +111,7 @@ def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
         paths.session_metadata.read_text(encoding="utf-8")
     )
     assert metadata == {
-        "schema_version": 1,
+        "schema_version": 2,
         "player": "claude",
         "model": "../claude opus/test",
         "reasoning_effort": "high",
@@ -119,6 +119,107 @@ def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
         "workflow_memory": "enabled",
         "requested_runs": 4,
         "started_at": metadata["started_at"],
+        "benchmark": {
+            "cycle_seed": orchestrator.DEFAULT_BENCHMARK_CYCLE_SEED,
+            "attempts": [
+                {
+                    "attempt": attempt,
+                    "round_seed": (
+                        orchestrator.DEFAULT_BENCHMARK_CYCLE_SEED * 1_000_003
+                        + attempt
+                    ),
+                }
+                for attempt in range(1, 5)
+            ],
+        },
+    }
+
+
+def test_benchmark_attempt_plan_preserves_special_campaign_contracts():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator._common.benchmark_attempt_plan("find_key", 27, 4) == [
+        {"attempt": 1, "round_seed": 108},
+        {"attempt": 2, "round_seed": 109},
+        {"attempt": 3, "round_seed": 110},
+        {"attempt": 4, "round_seed": 111},
+    ]
+    assert orchestrator._common.benchmark_attempt_plan(
+        "conveyor_profit", 27, 2,
+    ) == [
+        {"attempt": 1, "round_seed": 28, "draw_index": 0},
+        {"attempt": 2, "round_seed": 28, "draw_index": 1},
+    ]
+
+
+def test_websocket_readiness_uses_a_real_protocol_handshake(monkeypatch):
+    orchestrator = load_orchestrator()
+    captured = {}
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_connect(uri, **kwargs):
+        captured["uri"] = uri
+        captured.update(kwargs)
+        return FakeConnection()
+
+    monkeypatch.setattr(orchestrator._common, "websocket_connect", fake_connect)
+
+    assert orchestrator._common.is_websocket_listening("127.0.0.1", 8765)
+    assert captured == {
+        "uri": "ws://127.0.0.1:8765",
+        "compression": None,
+        "open_timeout": 0.2,
+        "close_timeout": 0.2,
+    }
+
+
+@pytest.mark.parametrize(
+    "outputs",
+    [
+        ["unavailable", "unavailable"],
+        ["unavailable", ""],
+        ["a" * 40, "unavailable"],
+    ],
+)
+def test_repository_metadata_distinguishes_unavailable_from_clean(
+    monkeypatch,
+    outputs,
+):
+    orchestrator = load_orchestrator()
+    responses = iter(outputs)
+
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_run_metadata_command",
+        lambda *_args, **_kwargs: next(responses),
+    )
+
+    assert orchestrator._common._repository_metadata() == {
+        "available": False,
+        "commit": None,
+        "dirty": None,
+    }
+
+
+def test_repository_metadata_records_a_clean_repository(monkeypatch):
+    orchestrator = load_orchestrator()
+    responses = iter(["a" * 40, ""])
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_run_metadata_command",
+        lambda *_args, **_kwargs: next(responses),
+    )
+
+    assert orchestrator._common._repository_metadata() == {
+        "available": True,
+        "commit": "a" * 40,
+        "dirty": False,
     }
 
 
@@ -1072,3 +1173,17 @@ def test_main_removes_temporary_codex_home_after_session(monkeypatch, tmp_path):
     assert metadata["scenario"] == "find_contract"
     assert metadata["workflow_memory"] == "enabled"
     assert metadata["requested_runs"] == 3
+    assert metadata["schema_version"] == 2
+    assert metadata["repository"]["available"] is True
+    assert len(metadata["repository"]["commit"]) == 40
+    assert isinstance(metadata["repository"]["dirty"], bool)
+    assert metadata["runtime"]["python"] != "unavailable"
+    assert set(metadata["runtime"]["packages"]) == {
+        "mcp", "pydantic", "websockets",
+    }
+    assert metadata["execution"]["ws_port"] == 8765
+    assert metadata["execution"]["mcp_port"] == 8766
+    assert metadata["benchmark"]["cycle_seed"] == (
+        orchestrator.DEFAULT_BENCHMARK_CYCLE_SEED
+    )
+    assert len(metadata["benchmark"]["attempts"]) == 3

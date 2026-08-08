@@ -8,6 +8,9 @@ const PROFIT_SESSION := preload("res://conveyor_profit/scripts/profit_session.gd
 const PROFIT_WINDOW_SESSION := preload("res://conveyor_profit/scripts/profit_window_session.gd")
 const WINDOW_SUPPLY_GENERATOR := preload("res://conveyor_profit/scripts/window_supply_generator.gd")
 const MARKET_CAMPAIGNS := preload("res://conveyor_profit/scripts/market_campaigns.gd")
+const ROUND_SEED_PARSER := preload(
+	"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+)
 const MAX_TRAY_INGREDIENTS: int = 5
 const DRAW_INDEX_ARG_PREFIX: String = "--conveyor-draw-index="
 
@@ -92,6 +95,15 @@ func initialize(
 	_menu_board = menu_board
 	_make_button = make_button
 	session = PROFIT_SESSION.new()
+	var requested_round_seed: Dictionary = ROUND_SEED_PARSER.parse(
+		OS.get_cmdline_user_args()
+	)
+	if not requested_round_seed["valid"]:
+		push_error("Invalid --ai-play-round-seed argument")
+	elif requested_round_seed["provided"]:
+		supply_seed = ROUND_SEED_PARSER.runtime_seed(
+			int(requested_round_seed["value"])
+		)
 	_semantic_random.seed = supply_seed
 	var draw_index := parse_conveyor_draw_index(OS.get_cmdline_user_args())
 	if draw_index < 0:
@@ -127,6 +139,13 @@ static func parse_conveyor_draw_index(user_args: Array) -> int:
 			return -1
 		return value
 	return -1
+
+
+static func parse_round_seed(user_args: Array) -> int:
+	var parsed: Dictionary = ROUND_SEED_PARSER.parse(user_args)
+	if not parsed["valid"] or not parsed["provided"]:
+		return -1
+	return int(parsed["value"])
 
 
 func get_profit() -> int:

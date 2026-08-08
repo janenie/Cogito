@@ -2,6 +2,9 @@ class_name LaboratoryExperimentManager
 extends Node
 
 const Cases = preload("res://addons/cogito/DemoScenes/Laboratory/laboratory_experiment_cases.gd")
+const ROUND_SEED_PARSER = preload(
+	"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+)
 
 signal round_finished(outcome: String, reason: String)
 signal public_state_changed()
@@ -61,6 +64,15 @@ var _round_generation := 0
 
 func _ready() -> void:
 	var seed_value := initial_seed
+	var requested_seed: Dictionary = ROUND_SEED_PARSER.parse(
+		OS.get_cmdline_user_args()
+	)
+	if not requested_seed["valid"]:
+		push_error("Invalid --ai-play-round-seed argument")
+	elif requested_seed["provided"]:
+		seed_value = ROUND_SEED_PARSER.runtime_seed(
+			int(requested_seed["value"])
+		)
 	if seed_value < 0:
 		seed_value = int(Time.get_unix_time_from_system())
 	start_round(seed_value)

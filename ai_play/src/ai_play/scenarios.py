@@ -25,6 +25,8 @@ from .repair_lighting_circuit_briefing import (
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
+# Protocol v4 clients predating the uniform cap may still announce 150. It is
+# accepted for reconnect compatibility, then clamped to the current hard cap.
 FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100, 150})
 
 
@@ -38,7 +40,7 @@ class ScenarioDefinition:
 _SCENARIOS = {
     "find_contract": ScenarioDefinition(
         briefing_loader=load_public_briefing,
-        max_act_requests=150,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "correct_password"),
             ("failure", "wrong_password"),
@@ -47,7 +49,7 @@ _SCENARIOS = {
     ),
     "find_key": ScenarioDefinition(
         briefing_loader=load_find_key_briefing,
-        max_act_requests=150,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "key_picked_up"),
             ("failure", "security_lockout"),
@@ -56,7 +58,7 @@ _SCENARIOS = {
     ),
     "put_book": ScenarioDefinition(
         briefing_loader=load_put_book_briefing,
-        max_act_requests=150,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "books_in_ceo_office"),
             ("failure", "wrong_book_pickup"),
@@ -74,7 +76,7 @@ _SCENARIOS = {
     ),
     "daily_routine_cleanup": ScenarioDefinition(
         briefing_loader=load_daily_routine_cleanup_briefing,
-        max_act_requests=150,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "cleanup_complete"),
             ("failure", "cleanup_incomplete"),
@@ -83,7 +85,7 @@ _SCENARIOS = {
     ),
     "garden_watering": ScenarioDefinition(
         briefing_loader=load_garden_watering_briefing,
-        max_act_requests=80,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "garden_tasks_complete"),
             ("failure", "garden_task_failed"),
@@ -111,7 +113,7 @@ _SCENARIOS = {
     ),
     "conveyor_profit": ScenarioDefinition(
         briefing_loader=load_conveyor_profit_briefing,
-        max_act_requests=300,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "efficiency_target_reached"),
             ("failure", "efficiency_below_target"),
@@ -120,7 +122,7 @@ _SCENARIOS = {
     ),
     "loop_staircase_anomaly": ScenarioDefinition(
         briefing_loader=load_loop_staircase_anomaly_briefing,
-        max_act_requests=160,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "correct_floor_selected"),
             ("failure", "wrong_floor_selected"),
@@ -129,7 +131,7 @@ _SCENARIOS = {
     ),
     "laboratory_experiment": ScenarioDefinition(
         briefing_loader=load_laboratory_experiment_briefing,
-        max_act_requests=150,
+        max_act_requests=100,
         terminal_results=frozenset({
             ("success", "experiment_completed"),
             ("failure", "experiment_attempts_exhausted"),
@@ -178,7 +180,7 @@ def scenario_round_act_request_limit(
         or requested_limit not in FIND_KEY_ROUND_ACT_REQUEST_LIMITS
     ):
         raise RuntimeError("invalid_act_request_limit")
-    return requested_limit
+    return min(requested_limit, default_limit)
 
 
 def is_allowed_game_over(

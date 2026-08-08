@@ -1039,7 +1039,7 @@ stdio 上的 MCP 请求：
 
 如果 ID 已经过期，Python 返回 `stale_observation`，不会向 Godot 发送任何输入。
 虽然没有产生输入，这次调用仍然计入 `AI_PLAY_MAX_ACT_REQUESTS`。默认配置上限是 500，
-但 `find_contract` 的玩法硬上限为 300，因此实际取两者较小值。
+但所有玩法的硬上限统一为 100，因此实际取两者较小值。
 
 ### 第三步：Python 发送内部桥消息
 

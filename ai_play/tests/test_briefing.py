@@ -19,6 +19,13 @@ SPATIAL_SCENARIO_IDS = (
 )
 
 
+@pytest.mark.parametrize("scenario_id", supported_scenario_ids())
+def test_every_briefing_publicizes_the_uniform_request_cap(scenario_id):
+    briefing, _image_bytes = load_scenario_briefing(scenario_id)
+
+    assert "100" in briefing["failure_condition"]
+
+
 def test_load_public_briefing_returns_fresh_sanitized_data_and_jpeg():
     first, image_bytes = load_public_briefing()
     second, second_image_bytes = load_public_briefing()
@@ -59,7 +66,7 @@ def test_find_key_registry_loads_bounded_public_briefing():
 
     assert briefing["game_id"] == "find_key"
     assert briefing["success_condition"] == "解锁档案室并拾取其中的当前合同钥匙。"
-    assert "150" in briefing["failure_condition"]
+    assert "100" in briefing["failure_condition"]
     assert "12:00" in repr(briefing)
     assert "一次" in repr(briefing)
     assert "SUBMITTED" in repr(briefing)
@@ -91,7 +98,7 @@ def test_put_book_registry_loads_bounded_public_briefing():
         "按低层、中层、高层顺序，将三本经 HUD 名称确认为任务书的书逐本送到 "
         "CEO OFFICE 的书籍放置点。"
     )
-    assert "150" in briefing["failure_condition"]
+    assert "100" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for required in [
@@ -165,7 +172,7 @@ def test_daily_routine_cleanup_briefing_is_public_and_bounded():
     assert "冰箱处于关闭状态" in briefing["success_condition"]
     assert "4 个散落垃圾" in briefing["objective"]
     assert "已扔 5/5" in briefing["success_condition"]
-    assert "150 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
     serialized = repr(briefing)
     for forbidden in [
         "DailyRoutineManager",
@@ -185,7 +192,7 @@ def test_garden_watering_briefing_is_public_and_bounded():
     assert "向日葵房" in briefing["objective"]
     assert "绣球花房" in briefing["objective"]
     assert "兰花房" in briefing["objective"]
-    assert "80 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
     assert "不需要额外 Verify" in repr(briefing)
     assert any(
         "三个房子" in rule and "公共水池" in rule and "不要越界" in rule
@@ -447,7 +454,7 @@ def test_find_contract_briefing_teaches_flexible_look_and_depth_estimation():
     assert "act 返回的新观察" in serialized_rules
     assert "深度估计" in serialized_rules
     assert "自己与物体的距离" in serialized_rules
-    assert "150 次 act 请求" in briefing["failure_condition"]
+    assert "100 次 act 请求" in briefing["failure_condition"]
 
 
 def test_find_contract_briefing_requires_task_card_first():

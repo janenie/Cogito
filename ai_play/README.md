@@ -8,8 +8,12 @@ AI First Play 提供本地 stdio MCP 入口：外部 AI 客户端负责观察和
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r ai_play/requirements.txt
+.venv/bin/pip install --require-hashes -r ai_play/requirements.lock.txt
 ```
+
+`requirements.lock.txt` 固定黑盒基准依赖及哈希，并以 Python 3.10 为最低目标；仅在更新依赖
+范围时使用 `uv pip compile ai_play/requirements.txt --python-version 3.10 --generate-hashes
+--output-file ai_play/requirements.lock.txt` 重新生成该锁文件。
 
 终端 1 启动 stdio MCP Server（由 MCP Host 负责连接其标准输入/输出）：
 
@@ -201,17 +205,21 @@ python3 tools/ai_play_codex_orchestrator.py \
     └── trusted_mcplogs/    # 仅可信 MCP 侧可见
 ```
 
-`session.json` 使用版本化结构记录 `player`、原始 `model`、`reasoning_effort`、`scenario`、
-`workflow_memory`、`requested_runs` 和 `started_at`。Claude 和 Kimi 入口使用相同布局，例如
+`session.json` 的 v2 结构记录上述身份与时间字段、基准 cycle seed 和逐局实际 seed（传送带
+任务另含 draw index）、Git 可用性、commit/脏状态、Python 与 MCP/Pydantic/WebSockets 版本、Godot 与
+玩家 CLI 版本，以及端口、重试和超时等纯数值执行配置。Claude 和 Kimi 入口使用相同布局，例如
 `20260726-170000__claude__claude-opus-5__find_contract__awm/` 与
 `20260726-170000__kimi__kimi-code_kimi-k3__find_contract__awm/`。该文件不得记录 API key、
 auth token、settings/auth 路径、子进程环境或完整启动命令。
+在会话目录不处于可读 Git 工作树时，`repository.available` 为 `false`，无法取得的 `commit`
+与 `dirty` 为 `null`，不会把“无法检测”误记成干净工作树。
 
 Godot supervisor 使用该隔离环境写入 `user://`、着色器缓存和临时场景状态，不继承主机凭据
 环境。
 
 `127.0.0.1:8765` 是 Godot 固定桥端口；`--mcp-port` 默认是独立的 `8766`，且不能使用 8765。
-启动器会先检查两个端口空闲，启动可信 MCP 边车并等待 HTTP 与桥监听就绪，再启动 Codex，最后
+启动器会先检查两个端口空闲，启动可信 MCP 边车并分别用 HTTP/TCP 与完整 WebSocket 握手等待
+监听就绪，再启动 Codex，最后
 启动 supervisor；任一进程异常、中断或退出都会终止其余进程。所有子进程连续 600 秒没有输出时，
 `--idle-timeout-seconds` 看门狗会以退出码 5 收束卡死会话。supervisor 正常结束后，orchestrator
 默认再给 Codex 30 秒（`--codex-final-grace-seconds`）消费终局、更新 AWM 并输出总结，然后才清理
@@ -397,12 +405,17 @@ CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回
 到今天上午 `v1.1 / SUBMITTED` 的变化。玩家需辨别 FINAL 与真正提交状态，向最终经手人
 确认当前四位密码。档案室键盘只有一次确认提交机会；取消不消耗机会，错误确认产生
 `failure/security_lockout`，正确密码只解锁档案室，进入后拾取当前钥匙才产生
-`success/key_picked_up`。每局使用 150 次请求硬上限。
+`success/key_picked_up`。每局使用 100 次请求硬上限。
 
-可信 supervisor 可追加 `--ai-play-round-seed=N`（非负整数）复现一局。连续四次逻辑尝试
-使用同一 cycle 的四个对齐种子，确定性地覆盖四套脚本且不放回；基础设施重试复用原命令。
-启动日志会把该参数值替换为 `REDACTED`，种子、脚本 ID、NPC 映射、生成密码和正确答案均
-不得进入 MCP 简报、观察、hello、轨迹或其他工具结果。
+三个受维护的 orchestrator 默认使用相同的 `--benchmark-cycle-seed=20260809`，也可显式改为
+0～1000000000。supervisor 从任务、cycle 和逻辑局次确定 `--ai-play-round-seed=N`；异常重试
+复用原命令。`find_key` 连续四次逻辑尝试使用同一 cycle 的四个对齐种子，确定性覆盖四套脚本
+且不放回；`conveyor_profit` 固定供给 seed，仅递增可信 draw index。逐局 seed 写入可信
+`session.json`，启动日志把参数值替换为 `REDACTED`；seed、脚本 ID、NPC 映射、生成密码和正确
+答案不得进入 MCP 简报、观察、hello、玩家轨迹或其他工具结果。
+种子参数只接受单个 `0..9007199254740991` 十进制整数；空值、符号、非数字、越界值和重复参数
+都会被拒绝。命令行 seed `0` 会确定性映射到非随机内部种子；只有未提供 CLI seed 时，各玩法
+原有的导出值 `0` 才可继续表示普通游玩的随机初始化。
 
 `put_book` 在档案室内彼此分开的三组书架上设置九个作者标定槽位，并以种子确定的均衡方式选择六个位置：
 每组书架两本、低中高三层各两本。书本上方不显示悬浮身份标记；玩家靠近并对准书本后，
@@ -411,11 +424,13 @@ CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回
 命中，目标楼梯及办公室入口使用公开英文导视，CEO OFFICE 门保持打开；这些辅助不公开
 书籍身份、随机布局或结构化路线。拿起普通书
 或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`；三本依序送达才产生
-`success/books_in_ceo_office`。该玩法的请求硬上限为 150，仍可通过
+`success/books_in_ceo_office`。该玩法的请求硬上限为 100，仍可通过
 `AI_PLAY_MAX_ACT_REQUESTS` 进一步收紧。
 
-`greet_npc_meeting` 每局生成三名穿不同颜色上衣、沿既有路线移动的同事，并随机选择正确
-联系人、路线起点、方向、两种会议室内会面区域和三种问候语之一。玩家从入口开始，任务卡
+`greet_npc_meeting` 使用三名穿不同颜色上衣、沿三条固定路线移动的同事：蓝衣 H. Voss 沿
+MAIN LOBBY—BREAK ROOM—SOFA，绿衣 M. Chen 从 CEO OFFICE 门外经过楼梯上层、
+中段和下层，橙衣 R. Diaz 沿 CUBICLE AREA—MAIN LOBBY—BREAK ROOM。任务卡和简报公开这三条
+路线；每局随机选择正确联系人、两种会议室内会面区域和三种问候语之一。玩家从入口开始，任务卡
 位于出生点附近并按姓名与上衣颜色指定联系人。问候正确联系人后，对方通过可见提示告知本局
 区域并开始带路；玩家与联系人都到达后，从室内关门才产生 `success/meeting_door_closed`。
 第一次问候错误同事仍可恢复，同一人不会重复计数；第二次问候另一名错误同事产生
@@ -546,24 +561,24 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
 `workflow_memory_update`、`observe`、MCP `stop()` 不计数。
-`find_contract` 的硬上限为 150 次，终局为 `success/correct_password`、
-`failure/wrong_password` 或 `failure/max_requests`；`find_key` 使用 150 次硬上限，
-终局为 `success/key_picked_up`、`failure/security_lockout` 或 `failure/max_requests`；`put_book` 的硬上限为
-150 次，终局为 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
-`failure/max_requests`；`greet_npc_meeting` 的硬上限为 100 次，终局为
+所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局为 `success/correct_password`、
+`failure/wrong_password` 或 `failure/max_requests`；`find_key` 的
+终局为 `success/key_picked_up`、`failure/security_lockout` 或 `failure/max_requests`；`put_book` 的终局为
+`success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
+`failure/max_requests`；`greet_npc_meeting` 的终局为
 `success/meeting_door_closed`、`failure/wrong_npc_limit` 或 `failure/max_requests`；
-`daily_routine_cleanup` 的硬上限为 150 次，终局为 `success/cleanup_complete`、
-`failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的硬上限
-为 80 次，终局为 `success/garden_tasks_complete`、`failure/garden_task_failed`
-或 `failure/max_requests`；`repair_lighting_circuit` 的硬上限为 100 次，终局为
+`daily_routine_cleanup` 的终局为 `success/cleanup_complete`、
+`failure/cleanup_incomplete` 或 `failure/max_requests`；`garden_watering` 的终局为
+`success/garden_tasks_complete`、`failure/garden_task_failed`
+或 `failure/max_requests`；`repair_lighting_circuit` 的终局为
 `success/circuit_repaired`、`failure/wrong_breaker`、
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
-`arrange_meeting_briefings` 的硬上限为 100 次，终局为 `success/meeting_prepared`、
-`failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的硬上限为 300 次，终局为
+`arrange_meeting_briefings` 的终局为 `success/meeting_prepared`、
+`failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的终局为
 `success/efficiency_target_reached`、`failure/efficiency_below_target` 或
-`failure/max_requests`；`loop_staircase_anomaly` 的硬上限为 160 次，终局为
+`failure/max_requests`；`loop_staircase_anomaly` 的终局为
 `success/correct_floor_selected`、`failure/wrong_floor_selected` 或
-`failure/max_requests`；`laboratory_experiment` 的硬上限为 150 次，终局为
+`failure/max_requests`；`laboratory_experiment` 的终局为
 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 或
 `failure/max_requests`。环境变量
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
@@ -676,7 +691,7 @@ AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身的 150、150、150、100、150、80、100、100、300、160、150 次硬上限；等待时间有界，日志根目录支持 `~`
+自身统一的 100 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

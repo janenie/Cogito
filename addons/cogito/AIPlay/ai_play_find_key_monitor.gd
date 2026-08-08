@@ -3,7 +3,7 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const ACT_REQUEST_LIMIT := 150
+const ACT_REQUEST_LIMIT := 100
 const KEY_SUBMISSION_INTERACTION_SCENE := preload(
 	"res://addons/cogito/Components/Interactions/BasicInteraction.tscn"
 )
@@ -144,7 +144,8 @@ func _configure_keys() -> void:
 		var submit_callback := _on_key_submitted.bind(key)
 		if not submission.was_interacted_with.is_connected(submit_callback):
 			submission.was_interacted_with.connect(submit_callback)
-		key.interaction_nodes = [submission]
+		var submission_nodes: Array[Node] = [submission]
+		key.interaction_nodes = submission_nodes
 
 
 func _configure_documents() -> void:

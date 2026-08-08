@@ -2,6 +2,9 @@ class_name GardenWateringState
 extends Node
 
 const GardenGame1Rules = preload("res://garden/scripts/garden_game1_rules.gd")
+const ROUND_SEED_PARSER = preload(
+	"res://addons/cogito/AIPlay/ai_play_round_seed.gd"
+)
 const WATERING_TASK_TEXT := (
 	"浇水目标 / WATERING：用中央广场的 4 个满水壶，浇完向日葵房和绣球花房各 2 块草坪；"
 	+ "兰花房草坪不要浇。每个水壶只能浇 1 块草坪。"
@@ -119,11 +122,15 @@ func ai_play_interaction_prompt() -> String:
 
 
 func _resolve_run_seed() -> int:
-	for argument: String in OS.get_cmdline_user_args():
-		if argument.begins_with("--ai-play-seed="):
-			var value := argument.trim_prefix("--ai-play-seed=")
-			if value.is_valid_int():
-				return int(value)
+	var parsed: Dictionary = ROUND_SEED_PARSER.parse(
+		OS.get_cmdline_user_args(),
+		true,
+	)
+	if not parsed["valid"]:
+		push_error("Invalid AI Play round seed argument")
+		return run_seed
+	if parsed["provided"]:
+		return ROUND_SEED_PARSER.runtime_seed(int(parsed["value"]))
 	return run_seed
 
 func _process(_delta: float) -> void:
