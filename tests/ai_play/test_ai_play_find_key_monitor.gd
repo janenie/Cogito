@@ -10,6 +10,7 @@ const REGIONS: Array[String] = [
 ]
 
 var _failures: Array[String] = []
+var _test_scene_root: Node
 
 
 func _initialize() -> void:
@@ -17,6 +18,7 @@ func _initialize() -> void:
 
 
 func _run_test() -> void:
+	_ensure_current_scene()
 	var lobby_scene: PackedScene = load(
 		"res://addons/cogito/DemoScenes/COGITO_3_Lobby.tscn"
 	)
@@ -87,6 +89,8 @@ func _run_test() -> void:
 			)
 
 	monitor.configure_round(0)
+	monitor.keypad.wrong_code_entered_sound = null
+	monitor.keypad.correct_code_entered_sound = null
 	var terminal_results: Array[Dictionary] = []
 	monitor.game_finished.connect(
 		func(outcome: String, reason: String) -> void:
@@ -136,6 +140,15 @@ func _unique_count(values: Array) -> int:
 	for value: Variant in values:
 		unique[value] = true
 	return unique.size()
+
+
+func _ensure_current_scene() -> void:
+	if current_scene != null:
+		return
+	_test_scene_root = Node.new()
+	_test_scene_root.name = "AIPlayHeadlessTestScene"
+	root.add_child(_test_scene_root)
+	current_scene = _test_scene_root
 
 
 func _finish() -> void:
