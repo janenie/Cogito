@@ -153,7 +153,8 @@ NPC 不要求玩家先读完指定文件才开口。难度来自多个真实但�
 Python 与 GDScript 两端的 `find_key` 白名单配置同步更新：
 
 - 场景 ID 仍为 `find_key`；
-- 默认请求上限调整为 150，以覆盖跨房间调查和 NPC 交互；
+- `find_key` 默认请求上限调整为 150，以覆盖跨房间调查和 NPC 交互；
+- `find_contract` 默认请求上限同时由 300 调整为 150，使两个办公室合同任务采用相同的 `max_act_requests` 硬上限；
 - 允许的终局结果为 `success/key_picked_up`、`failure/security_lockout` 和 `failure/max_requests`；
 - briefing 只公开故事目标、12:00 截止规则、可用交互方式、一次提交警告以及成功条件；
 - 不公开脚本包列表、NPC 与版本映射、任何密码、正确钥匙位置、轮次种子或内部节点信息。
@@ -189,7 +190,7 @@ Python 与 GDScript 两端的 `find_key` 白名单配置同步更新：
 - Keypad 在最终提交前显示不可逆警告并要求确认。取消确认可继续调查；一旦确认，不能再次输入。
 - 错误密码仅报告一次 `failure/security_lockout`；正确密码只开门，直到玩家拿起档案室当前钥匙才报告一次 `success/key_picked_up`。
 - briefing 和结构化 observation 不包含脚本包、答案、密码、钥匙来源、内部路径或隐藏进度。
-- 请求上限、终局白名单和 briefing 在 Python/GDScript 两端一致，且 `find_key` 请求上限为 150。
+- 请求上限、终局白名单和 briefing 在 Python/GDScript 两端一致，且 `find_contract` 与 `find_key` 请求上限均为 150。
 - 正常 Lobby 和其他 AI Play 场景不出现本玩法新增 NPC、钥匙、文件或状态覆盖。
 - 不新增保险箱或新的 3D 道具资产；现有资源路径、UID 和场景连线不被无理由删除或重建。
 
@@ -201,7 +202,7 @@ Python 与 GDScript 两端的 `find_key` 白名单配置同步更新：
 - 为 Keypad 增加交互测试：输入后显示警告、取消不消耗机会、确认后锁定输入、错误触发安保失败。
 - 为 NPC 和可读文件增加数据绑定测试：四个脚本包中的姓名、区域、版本和对话内容一致，区域行为不随姓名漂移。
 - 为场景装配增加测试或无窗口场景检查：六把钥匙唯一分布、三份文件可读、档案室初始锁定、所有关键交互可达。
-- 更新 Python 场景注册和终局校验测试，覆盖 150 请求上限与 `failure/security_lockout`。
+- 更新 Python 场景注册和终局校验测试，覆盖 `find_contract`、`find_key` 的 150 请求上限与 `failure/security_lockout`。
 - 增加启动参数测试：仅在 AI Play 模式接受非负整数 `--ai-play-round-seed`，缺省时随机生成，非法值拒绝启动，且参数值不进入桥协议或 briefing。
 - 更新 briefing 隐私测试，断言公开结果不包含密码、脚本 ID、轮次种子、正确位置或开发者事实。
 - 运行受影响的 GDScript 与 Python 测试、Godot 无窗口导入/场景检查，以及最终 `git diff --check`。真实外部 MCP 客户端验收不属于自动测试，不得在未获明确授权时运行。
