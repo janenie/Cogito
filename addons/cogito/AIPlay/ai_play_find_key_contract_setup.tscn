@@ -1,17 +1,14 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_find_key_setup.gd" id="1_setup"]
 [ext_resource type="PackedScene" uid="uid://8wkt5k4dl40u" path="res://addons/cogito/PackedScenes/Pickups/pickup_key.tscn" id="2_key"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="3_document"]
-[ext_resource type="PackedScene" uid="uid://be30t42msjnp8" path="res://addons/cogito/DemoScenes/friendly_human_npc.tscn" id="4_npc"]
 [ext_resource type="PackedScene" uid="uid://bm6px536i18b3" path="res://addons/cogito/DemoScenes/DemoPrefabs/cabinet_television_doors.tscn" id="5_cabinet"]
 
-[node name="FindKeyContractSetup" type="Node3D" node_paths=PackedStringArray("spawned_keys", "contract_documents", "ceo_npc", "cubicle_npc", "ceo_route_root", "cubicle_seat_anchor")]
+[node name="FindKeyContractSetup" type="Node3D" node_paths=PackedStringArray("spawned_keys", "contract_documents", "ceo_route_root", "cubicle_seat_anchor")]
 script = ExtResource("1_setup")
 spawned_keys = [NodePath("Keys/MainLobbyKey"), NodePath("Keys/ArchiveKey"), NodePath("Keys/MeetingRoomKey"), NodePath("Keys/BreakRoomKey"), NodePath("Keys/CubicleAreaKey")]
 contract_documents = [NodePath("Documents/CEODocument/ReadableComponent"), NodePath("Documents/MeetingDocument/ReadableComponent"), NodePath("Documents/CubicleDocument/ReadableComponent")]
-ceo_npc = NodePath("NPCs/CEONPC")
-cubicle_npc = NodePath("NPCs/CubicleNPC")
 ceo_route_root = NodePath("Routes/CEORoute")
 cubicle_seat_anchor = NodePath("Routes/CubicleSeatAnchor")
 
@@ -68,20 +65,6 @@ metadata/region_id = "MEETING_ROOM"
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 7.45, 1.46, -0.55)
 
 [node name="ReadableComponent" parent="Documents/CubicleDocument" index="2"]
-metadata/region_id = "CUBICLE_AREA"
-
-[node name="NPCs" type="Node3D" parent="."]
-
-[node name="CEONPC" parent="NPCs" node_paths=PackedStringArray("route_root") instance=ExtResource("4_npc")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -4.65, 2.68, -11.1)
-route_root = NodePath("../../Routes/CEORoute")
-use_navigation_agent = false
-walk_speed = 0.35
-metadata/region_id = "UPPER_OFFICE_CEO"
-
-[node name="CubicleNPC" parent="NPCs" instance=ExtResource("4_npc")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 6.46, 0.5, -1.05)
-use_navigation_agent = false
 metadata/region_id = "CUBICLE_AREA"
 
 [node name="Routes" type="Node3D" parent="."]

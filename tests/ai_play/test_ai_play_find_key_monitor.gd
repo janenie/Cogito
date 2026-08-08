@@ -32,15 +32,25 @@ func _run_test() -> void:
 
 	var monitor: Node = lobby.get_node_or_null("AIPlayController/FindKeyMonitor")
 	var setup: Node = lobby.get_node_or_null("FindKeyContractSetup")
+	var lobby_npcs: Node3D = lobby.get_node_or_null("AIPlayNPCs")
 	_assert(monitor != null, "Lobby includes FindKeyMonitor")
 	_assert(setup != null, "Lobby includes isolated find-key setup")
-	if monitor == null or setup == null:
+	_assert(lobby_npcs != null, "Lobby owns the permanent NPC group")
+	if monitor == null or setup == null or lobby_npcs == null:
 		lobby.queue_free()
 		await process_frame
 		_finish()
 		return
 
 	monitor.configure_round(0)
+	_assert(
+		setup.find_children("*", "FriendlyHumanNPC", true, false).is_empty(),
+		"find-key setup no longer owns NPC instances",
+	)
+	_assert(
+		lobby_npcs.find_children("*", "FriendlyHumanNPC", true, false).size() == 3,
+		"Lobby permanently owns exactly three NPC instances",
+	)
 	_assert(monitor.get_act_request_limit() == 150, "find-key allows 150 requests")
 	_assert(setup.keys().size() == 6, "active setup exposes six identical keys")
 	_assert(setup.documents().size() == 3, "setup exposes three contract records")
@@ -57,8 +67,14 @@ func _run_test() -> void:
 	_assert(surface_count == 3, "exactly three keys use surface placement")
 	_assert(setup.npc_by_region().size() == 3, "three clue NPCs are registered")
 	_assert(monitor.archive_door.is_locked, "Archive starts locked")
-	_assert(setup.cubicle_npc.is_sitting(), "cubicle NPC remains seated")
-	_assert(setup.ceo_npc.route_point_count() == 2, "CEO NPC paces between two office points")
+	_assert(monitor.cubicle_npc.is_sitting(), "cubicle NPC remains seated")
+	_assert(monitor.ceo_npc.route_point_count() == 2, "CEO NPC paces between two office points")
+	lobby_npcs.configure_for_scenario("find_contract")
+	for npc: FriendlyHumanNPC in lobby_npcs.npcs():
+		_assert(not npc.visible, "non-NPC scenario hides permanent NPCs")
+	lobby_npcs.configure_for_scenario("find_key")
+	for npc: FriendlyHumanNPC in lobby_npcs.npcs():
+		_assert(npc.visible, "find-key shows all permanent NPCs")
 	var layout: Dictionary = setup.layout_snapshot()
 	_assert(
 		layout["keys"]["ARCHIVE"]["position"].z > monitor.archive_door.global_position.z + 1.0,

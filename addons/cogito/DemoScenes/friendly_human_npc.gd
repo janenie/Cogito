@@ -229,6 +229,8 @@ func configure_stationary_seat(anchor: Node3D, chair_parent_name: String) -> voi
 	_is_waiting = false
 	velocity = Vector3.ZERO
 	_try_sit_nearby_chair()
+	if not _is_sitting:
+		_set_sitting_pose(true)
 
 
 func is_sitting() -> bool:

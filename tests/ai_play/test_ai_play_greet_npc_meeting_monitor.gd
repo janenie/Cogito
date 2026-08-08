@@ -40,6 +40,20 @@ func _run_test() -> void:
 		return
 
 	monitor.configure_round(777)
+	var permanent_npcs: Array[Node] = lobby.get_node("AIPlayNPCs").find_children(
+		"*", "FriendlyHumanNPC", true, false
+	)
+	_assert(permanent_npcs.size() == 3, "Lobby owns three permanent NPCs")
+	_assert(
+		monitor._candidate_npcs.all(
+			func(candidate: Node) -> bool: return candidate in permanent_npcs
+		),
+		"greeting scenario reuses the permanent Lobby NPCs",
+	)
+	_assert(
+		lobby.find_children("GreetMeetingCandidate*", "", true, false).is_empty(),
+		"greeting scenario does not create transient NPC duplicates",
+	)
 	var movement_starts: Array[Vector3] = []
 	for candidate: Node3D in monitor._candidate_npcs:
 		movement_starts.append(candidate.global_position)

@@ -3,9 +3,6 @@ extends Node
 
 signal game_finished(outcome: String, reason: String)
 
-const FRIENDLY_HUMAN_NPC_SCENE := preload(
-	"res://addons/cogito/DemoScenes/friendly_human_npc.tscn"
-)
 const TASK_TITLE := "先打招呼再去会议室 / GREET, THEN MEET"
 const GREETING_PHRASES: Array[String] = ["你好", "要去开会了么？", "hi"]
 const GREETING_DISTANCE := 1.8
@@ -50,6 +47,7 @@ const MEETING_DESTINATIONS := [
 @export var player: Node3D
 @export var task_card: ReadableComponent
 @export var npc: FriendlyHumanNPC
+@export var npc_candidates: Array[FriendlyHumanNPC]
 @export var conference_door: CogitoDoor
 @export var meeting_room: Node3D
 @export var entrance_spawn: Marker3D
@@ -131,6 +129,8 @@ func configure_round(seed_value: int = 0) -> void:
 func _configure_npcs(route_count: int) -> void:
 	for index: int in range(_candidate_npcs.size()):
 		var candidate := _candidate_npcs[index]
+		candidate.route_root = npc.route_root
+		candidate.final_facing_target = npc.final_facing_target
 		var identity: Dictionary = NPC_IDENTITIES[index]
 		candidate.configure_public_identity(
 			identity["display_name"],
@@ -271,16 +271,7 @@ func _flat_distance(first: Node3D, second: Node3D) -> float:
 func _ensure_candidate_npcs() -> void:
 	if not _candidate_npcs.is_empty():
 		return
-	_candidate_npcs.append(npc)
-	for index: int in range(1, NPC_IDENTITIES.size()):
-		var candidate := FRIENDLY_HUMAN_NPC_SCENE.instantiate() as FriendlyHumanNPC
-		candidate.name = "GreetMeetingCandidate%d" % (index + 1)
-		candidate.route_root = npc.route_root
-		candidate.final_facing_target = npc.final_facing_target
-		candidate.walk_speed = npc.walk_speed
-		candidate.scale = npc.scale
-		npc.get_parent().add_child(candidate)
-		_candidate_npcs.append(candidate)
+	_candidate_npcs = npc_candidates.duplicate()
 	for candidate: FriendlyHumanNPC in _candidate_npcs:
 		var callback := _on_candidate_greeted.bind(candidate)
 		if not candidate.greeted.is_connected(callback):
@@ -317,6 +308,11 @@ func get_round_snapshot() -> Dictionary:
 
 
 func _has_required_nodes() -> bool:
+	if npc_candidates.size() != NPC_IDENTITIES.size() or npc_candidates.any(
+		func(candidate: FriendlyHumanNPC) -> bool: return candidate == null
+	):
+		push_error("AIPlayGreetNPCMeetingMonitor requires three permanent Lobby NPCs")
+		return false
 	var required: Array[Node] = [
 		game_over_screen,
 		player,

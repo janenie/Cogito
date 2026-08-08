@@ -3,8 +3,6 @@ extends Node3D
 
 @export var spawned_keys: Array[RigidBody3D]
 @export var contract_documents: Array[ReadableComponent]
-@export var ceo_npc: FriendlyHumanNPC
-@export var cubicle_npc: FriendlyHumanNPC
 @export var ceo_route_root: Node3D
 @export var cubicle_seat_anchor: Marker3D
 
@@ -56,9 +54,6 @@ func key_by_region() -> Dictionary:
 
 func npc_by_region() -> Dictionary:
 	var result := {}
-	for npc: FriendlyHumanNPC in [ceo_npc, cubicle_npc]:
-		if npc != null:
-			result[str(npc.get_meta("region_id", ""))] = npc
 	for npc: FriendlyHumanNPC in _external_npcs:
 		result[str(npc.get_meta("region_id", ""))] = npc
 	return result
@@ -108,15 +103,16 @@ func set_scenario_active(active: bool) -> void:
 		var body := document.get_parent() as CollisionObject3D
 		if body != null:
 			body.collision_layer = 3 if active else 0
-	for npc: FriendlyHumanNPC in [ceo_npc, cubicle_npc]:
-		if npc != null:
-			npc.collision_layer = 1 if active else 0
-			npc.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 
 
-func configure_ceo_patrol(start_offset: int, direction: int) -> void:
-	ceo_npc.configure_route_loop(start_offset, direction)
+func configure_ceo_patrol(
+	npc: FriendlyHumanNPC,
+	start_offset: int,
+	direction: int,
+) -> void:
+	npc.route_root = ceo_route_root
+	npc.configure_route_loop(start_offset, direction)
 
 
-func configure_cubicle_seat() -> void:
-	cubicle_npc.configure_stationary_seat(cubicle_seat_anchor, "CUBICLE_AREA")
+func configure_cubicle_seat(npc: FriendlyHumanNPC) -> void:
+	npc.configure_stationary_seat(cubicle_seat_anchor, "CUBICLE_AREA")

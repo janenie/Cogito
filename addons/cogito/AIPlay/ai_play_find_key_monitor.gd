@@ -18,6 +18,8 @@ const NPC_COLORS := {
 @export var ceo_key: RigidBody3D
 @export var ceo_drawer: Node3D
 @export var meeting_npc: FriendlyHumanNPC
+@export var ceo_npc: FriendlyHumanNPC
+@export var cubicle_npc: FriendlyHumanNPC
 @export var keypad: CogitoKeypad
 @export var archive_door: CogitoDoor
 @export var entrance_spawn: Marker3D
@@ -96,6 +98,8 @@ func _register_setup_objects() -> void:
 		return
 	setup.register_external_key(ceo_key, "UPPER_OFFICE_CEO", "storage")
 	setup.register_external_npc(meeting_npc, "MEETING_ROOM")
+	setup.register_external_npc(ceo_npc, "UPPER_OFFICE_CEO")
+	setup.register_external_npc(cubicle_npc, "CUBICLE_AREA")
 	ceo_key.reparent(ceo_drawer, false)
 	ceo_key.transform = Transform3D(
 		Basis.from_euler(Vector3(0.0, deg_to_rad(75.0), 0.0)),
@@ -156,8 +160,8 @@ func _configure_npcs(seed_value: int) -> void:
 		var interaction := npc.get_node_or_null("BasicInteraction")
 		if interaction != null and "interaction_text" in interaction:
 			interaction.interaction_text = "询问合同记录 / Ask about contract"
-	setup.configure_ceo_patrol(seed_value % 2, -1 if seed_value % 2 else 1)
-	setup.configure_cubicle_seat()
+	setup.configure_ceo_patrol(ceo_npc, seed_value % 2, -1 if seed_value % 2 else 1)
+	setup.configure_cubicle_seat(cubicle_npc)
 	meeting_npc.configure_route_loop_from(
 		"HumanMeetingRoomStart",
 		seed_value % max(meeting_npc.route_point_count(), 1),
@@ -264,6 +268,8 @@ func _has_required_nodes() -> bool:
 		ceo_key,
 		ceo_drawer,
 		meeting_npc,
+		ceo_npc,
+		cubicle_npc,
 		keypad,
 		archive_door,
 		entrance_spawn,

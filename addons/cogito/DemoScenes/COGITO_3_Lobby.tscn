@@ -114,6 +114,7 @@
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_put_book_monitor.gd" id="ai_play_put_book_monitor"]
 [ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd" id="ai_play_greet_npc_meeting_monitor"]
+[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_lobby_npcs.gd" id="ai_play_lobby_npcs"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ai_play_put_book_destination.tscn" id="ai_play_put_book_destination"]
 [ext_resource type="Script" uid="uid://unpf5slxcrdm" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd" id="ai_play_repair_lighting_circuit_monitor"]
 [ext_resource type="PackedScene" uid="uid://dxwcvsdh2ms8r" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn" id="ai_play_repair_lighting_circuit_setup"]
@@ -3348,7 +3349,7 @@ archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" unique_id=921075935 instance=ExtResource("ai_play_game_over_screen")]
 
-[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "setup", "ceo_key", "ceo_drawer", "meeting_npc", "keypad", "archive_door", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
+[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "setup", "ceo_key", "ceo_drawer", "meeting_npc", "ceo_npc", "cubicle_npc", "keypad", "archive_door", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_key_monitor")
 scenario_id = "find_key"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
@@ -3357,7 +3358,9 @@ task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
 setup = NodePath("../../FindKeyContractSetup")
 ceo_key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
 ceo_drawer = NodePath("../../UPPER_OFFICE_CEO/deskCorner/Drawer")
-meeting_npc = NodePath("../../FriendlyHumanNPC")
+meeting_npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")
+ceo_npc = NodePath("../../AIPlayNPCs/FindKeyCEONPC")
+cubicle_npc = NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")
 keypad = NodePath("../../ARCHIVE/Keypad")
 archive_door = NodePath("../../ARCHIVE/ArchiveDoor/FrontDoor")
 entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
@@ -3384,13 +3387,14 @@ destination = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination")
 destination_area = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination/DestinationArea")
 destination_slots_root = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination/DisplaySlots")
 
-[node name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("game_over_screen", "player", "task_card", "npc", "conference_door", "meeting_room", "entrance_spawn", "entrance_task_card_anchor")]
+[node name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("game_over_screen", "player", "task_card", "npc", "npc_candidates", "conference_door", "meeting_room", "entrance_spawn", "entrance_task_card_anchor")]
 script = ExtResource("ai_play_greet_npc_meeting_monitor")
 scenario_id = "greet_npc_meeting"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
-npc = NodePath("../../FriendlyHumanNPC")
+npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")
+npc_candidates = Array[NodePath]([NodePath("../../AIPlayNPCs/FriendlyHumanNPC"), NodePath("../../AIPlayNPCs/FindKeyCEONPC"), NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")])
 conference_door = NodePath("../../MEETING_ROOM/ConferenceDoor/FrontDoor")
 meeting_room = NodePath("../../MEETING_ROOM")
 entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
@@ -8446,16 +8450,35 @@ properties_to_set_OFF = {
 [node name="InventoryBag" parent="." unique_id=1523741516 instance=ExtResource("104_mm36t")]
 transform = Transform3D(0.845402, 0, -0.534131, 0, 1, 0, 0.534131, 0, 0.845402, -6.42311, 1.24142, -13.9382)
 
-[node name="FriendlyHumanNPC" parent="." unique_id=741285414 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
+[node name="AIPlayNPCs" type="Node3D" parent="."]
+process_mode = 4
+visible = false
+script = ExtResource("ai_play_lobby_npcs")
+
+[node name="FriendlyHumanNPC" parent="AIPlayNPCs" unique_id=741285414 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
 transform = Transform3D(-0.49726126, -0.010459804, -0.051203772, -0.010553014, 0.49988848, 0.00036851922, 0.05118464, 0.0014472092, -0.49737108, -1.1308239, 0.018328607, -2.917344)
 wall_min_slide_angle = 0.27750736
 display_name = "H. Voss"
-route_root = NodePath("../FriendlyHumanNPCPath")
-final_facing_target = NodePath("../FriendlyHumanNPCPath/HumanSofaLookTarget")
+route_root = NodePath("../../FriendlyHumanNPCPath")
+final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
 walk_speed = 0.35
 
-[node name="Camera3D" type="Camera3D" parent="FriendlyHumanNPC" unique_id=722238884]
+[node name="Camera3D" type="Camera3D" parent="AIPlayNPCs/FriendlyHumanNPC" unique_id=722238884]
 transform = Transform3D(-1.0136346, -0.06489017, 1.7228856, -0.062349867, 1.9986553, 0.038594026, -1.7229794, -0.03415072, -1.014976, 0, 0, 0)
+
+[node name="FindKeyCEONPC" parent="AIPlayNPCs" node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -4.65, 2.68, -11.1)
+route_root = NodePath("../../FriendlyHumanNPCPath")
+final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
+walk_speed = 0.35
+use_navigation_agent = false
+
+[node name="FindKeyCubicleNPC" parent="AIPlayNPCs" node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 6.46, 0.5, -1.05)
+route_root = NodePath("../../FriendlyHumanNPCPath")
+final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
+walk_speed = 0.35
+use_navigation_agent = false
 
 [node name="FriendlyHumanNPCPath" type="Node3D" parent="." unique_id=1465165633]
 
