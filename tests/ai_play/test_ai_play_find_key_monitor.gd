@@ -61,9 +61,30 @@ func _run_test() -> void:
 	_assert(setup.ceo_npc.route_point_count() == 2, "CEO NPC paces between two office points")
 	var layout: Dictionary = setup.layout_snapshot()
 	_assert(
-		layout["keys"]["ARCHIVE"]["position"].z < monitor.archive_door.global_position.z,
+		layout["keys"]["ARCHIVE"]["position"].z > monitor.archive_door.global_position.z + 1.0,
 		"current Archive key is physically behind the locked doorway",
 	)
+	_assert(
+		layout["keys"]["ARCHIVE"]["position"].distance_to(
+			lobby.get_node("ARCHIVE/cardboardBoxOpen2").global_position
+		) < 0.5,
+		"current Archive key sits inside the deep archive box",
+	)
+	_assert(
+		setup.key_by_region()["UPPER_OFFICE_CEO"].get_parent() == monitor.ceo_drawer,
+		"CEO key moves with the desk drawer",
+	)
+	for placement_check: Dictionary in [
+		{"region": "MEETING_ROOM", "path": "MEETING_ROOM/tableGlass", "radius": 1.3},
+		{"region": "BREAK_ROOM", "path": "BREAK_ROOM/tableRound", "radius": 0.6},
+		{"region": "CUBICLE_AREA", "path": "CUBICLE_AREA/desk", "radius": 1.2},
+	]:
+		_assert(
+			layout["keys"][placement_check["region"]]["position"].distance_to(
+				lobby.get_node(placement_check["path"]).global_position
+			) < placement_check["radius"],
+			"%s surface key stays on its intended furniture" % placement_check["region"],
+		)
 
 	setup.set_scenario_active(false)
 	_assert(not setup.visible, "inactive setup is invisible")

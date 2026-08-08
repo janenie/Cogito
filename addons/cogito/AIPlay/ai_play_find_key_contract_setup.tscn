@@ -27,7 +27,7 @@ metadata/region_id = "MAIN_LOBBY"
 metadata/placement_kind = "storage"
 
 [node name="ArchiveKey" parent="Keys" instance=ExtResource("2_key")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.0, 0.72, 8.28)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.5, 1.9, 12.15)
 freeze = true
 metadata/region_id = "ARCHIVE"
 metadata/placement_kind = "storage"
