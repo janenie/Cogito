@@ -5,21 +5,29 @@ const PACK_IDS: Array[String] = ["POLARIS", "ATLAS", "ORBIT", "NOVA"]
 const PACKS := {
 	"POLARIS": {
 		"contract": "Polaris",
+		"scope": "董事会档案数字化及审批流部署",
+		"value": "¥480,000（含税）",
 		"rooms": ["MEETING_ROOM", "UPPER_OFFICE_CEO", "CUBICLE_AREA"],
 		"handlers": ["李明", "王芳", "陈宇"],
 	},
 	"ATLAS": {
 		"contract": "Atlas",
+		"scope": "跨部门合同台账与归档系统实施",
+		"value": "¥520,000（含税）",
 		"rooms": ["UPPER_OFFICE_CEO", "MEETING_ROOM", "CUBICLE_AREA"],
 		"handlers": ["陈宇", "李明", "王芳"],
 	},
 	"ORBIT": {
 		"contract": "Orbit",
+		"scope": "区域办公室文件流转与权限审计升级",
+		"value": "¥465,000（含税）",
 		"rooms": ["CUBICLE_AREA", "MEETING_ROOM", "UPPER_OFFICE_CEO"],
 		"handlers": ["王芳", "陈宇", "李明"],
 	},
 	"NOVA": {
 		"contract": "Nova",
+		"scope": "保密档案检索与会议材料追踪平台部署",
+		"value": "¥510,000（含税）",
 		"rooms": ["CUBICLE_AREA", "UPPER_OFFICE_CEO", "MEETING_ROOM"],
 		"handlers": ["李明", "王芳", "陈宇"],
 	},
@@ -36,6 +44,7 @@ const STATUSES: Array[String] = [
 	"PREPARED FOR SUBMISSION",
 ]
 const DAY_SECONDS := 86_400
+const DATE_WINDOW_DAY_COUNT := 228
 const FIXED_BASE_DAY := {
 	"year": 2026,
 	"month": 1,
@@ -64,7 +73,9 @@ static func _build_pack(round_seed: int, pack_id: String, pack: Dictionary) -> D
 	var rng := RandomNumberGenerator.new()
 	rng.seed = round_seed + 1_000_003
 	var base_timestamp := int(Time.get_unix_time_from_datetime_dict(FIXED_BASE_DAY))
-	var today_start := base_timestamp + (round_seed % 365) * DAY_SECONDS
+	var today_start := (
+		base_timestamp + (round_seed % DATE_WINDOW_DAY_COUNT) * DAY_SECONDS
+	)
 	var stage_timestamps: Array[int] = [
 		today_start - 90 * DAY_SECONDS + _minutes(10, rng.randi_range(5, 55)),
 		today_start - DAY_SECONDS + _minutes(9, rng.randi_range(5, 55)),
@@ -99,6 +110,7 @@ static func _build_pack(round_seed: int, pack_id: String, pack: Dictionary) -> D
 			"time_text": _time_text(stage_timestamps[index]),
 			"password": all_codes[index],
 		}
+		stage["contract_body"] = _contract_body(pack, index, handler)
 		stages.append(stage)
 		document_by_room[room_id] = stage.duplicate(true)
 		npc_by_room[room_id] = {
@@ -136,6 +148,39 @@ static func _build_pack(round_seed: int, pack_id: String, pack: Dictionary) -> D
 		"document_by_room": document_by_room,
 		"all_codes": all_codes,
 	}
+
+
+static func _contract_body(
+	pack: Dictionary,
+	stage_index: int,
+	handler: String,
+) -> String:
+	var payment := (
+		"启动款40%；试点验收款30%；最终验收款30%"
+		if stage_index == 0
+		else "启动款30%；试点验收款40%；最终验收款30%"
+	)
+	var revision_notes: Array[String] = [
+		"初稿采用5个工作日验收期及30日运维支持，待管理层与法务审查。",
+		"按审查意见将验收期调整为10个工作日，运维支持延长至90日。",
+		"商务与法务条款已确认；本文件于昨天下班前形成，等待后续提交记录。",
+	]
+	var body := (
+		"项目范围 / SCOPE：%s\n"
+		+ "履约期限 / TERM：生效之日起三个月\n"
+		+ "合同金额 / VALUE：%s\n"
+		+ "交付里程碑 / MILESTONES：第1月需求确认；第2月试点部署；第3月验收移交\n"
+		+ "付款安排 / PAYMENT：%s\n"
+		+ "本版修订 / REVISION：%s"
+	) % [
+		pack["scope"],
+		pack["value"],
+		payment,
+		revision_notes[stage_index],
+	]
+	if stage_index == 2:
+		body += "\n签署人 / SIGNATORY：%s" % handler
+	return body
 
 
 static func _historical_dialogue(contract_name: String, stage: Dictionary) -> String:

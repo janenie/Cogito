@@ -4,6 +4,11 @@ extends Node
 signal game_finished(outcome: String, reason: String)
 
 const ACT_REQUEST_LIMIT := 150
+const KEY_SUBMISSION_INTERACTION_SCENE := preload(
+	"res://addons/cogito/Components/Interactions/BasicInteraction.tscn"
+)
+const KEY_SUBMISSION_NODE_NAME := "KeySubmissionInteraction"
+const KEY_SUBMISSION_TEXT := "提交此钥匙 / Submit this key"
 const NPC_COLORS := {
 	"李明": Color(0.18, 0.44, 0.62),
 	"王芳": Color(0.58, 0.28, 0.62),
@@ -17,6 +22,7 @@ const NPC_COLORS := {
 @export var setup: AIPlayFindKeySetup
 @export var ceo_key: RigidBody3D
 @export var ceo_drawer: Node3D
+@export var main_lobby_drawer: Node3D
 @export var meeting_npc: FriendlyHumanNPC
 @export var ceo_npc: FriendlyHumanNPC
 @export var cubicle_npc: FriendlyHumanNPC
@@ -33,7 +39,6 @@ const NPC_COLORS := {
 var _round_data: Dictionary = {}
 var _round_finished := false
 var _registered_setup := false
-var _archive_pickup_connected := false
 var _keypad_connected := false
 
 
@@ -69,7 +74,7 @@ func configure_round(seed_value: int = 0) -> void:
 	setup.set_scenario_active(true)
 	_configure_keys()
 	_configure_documents()
-	_configure_npcs(seed_value)
+	_configure_npcs()
 	_configure_archive_lock()
 	_place_player_and_task_card(seed_value)
 	_write_task_card()
@@ -105,6 +110,12 @@ func _register_setup_objects() -> void:
 		Basis.from_euler(Vector3(0.0, deg_to_rad(75.0), 0.0)),
 		Vector3(0.1, 0.58, -1.45),
 	)
+	var main_lobby_key: RigidBody3D = setup.key_by_region()["MAIN_LOBBY"]
+	main_lobby_key.reparent(main_lobby_drawer, false)
+	main_lobby_key.transform = Transform3D(
+		Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0)),
+		Vector3(0.0, 0.03, -0.15),
+	)
 	_registered_setup = true
 
 
@@ -115,6 +126,25 @@ func _configure_keys() -> void:
 		key.angular_velocity = Vector3.ZERO
 		key.collision_layer = 3
 		key.process_mode = Node.PROCESS_MODE_INHERIT
+		var pickup := key.get_node_or_null("PickupComponent")
+		if pickup != null:
+			pickup.set("is_disabled", true)
+		var submission := key.get_node_or_null(
+			KEY_SUBMISSION_NODE_NAME
+		) as InteractionComponent
+		if submission == null:
+			submission = (
+				KEY_SUBMISSION_INTERACTION_SCENE.instantiate()
+				as InteractionComponent
+			)
+			submission.name = KEY_SUBMISSION_NODE_NAME
+			key.add_child(submission)
+		submission.interaction_text = KEY_SUBMISSION_TEXT
+		submission.is_disabled = false
+		var submit_callback := _on_key_submitted.bind(key)
+		if not submission.was_interacted_with.is_connected(submit_callback):
+			submission.was_interacted_with.connect(submit_callback)
+		key.interaction_nodes = [submission]
 
 
 func _configure_documents() -> void:
@@ -128,8 +158,7 @@ func _configure_documents() -> void:
 		]
 		document.readable_content = (
 			"合同 / CONTRACT：%s\n版本 / VERSION：%s\n状态 / STATUS：%s\n"
-			+ "经手人 / HANDLER：%s\n记录时间 / RECORDED：%s %s\n\n"
-			+ "注意：文件名中的 FINAL 只表示编辑命名；是否已提交必须以状态和后续记录为准。"
+			+ "经手人 / HANDLER：%s\n记录时间 / RECORDED：%s %s\n\n%s"
 		) % [
 			_round_data["contract_name"],
 			stage["version"],
@@ -137,6 +166,7 @@ func _configure_documents() -> void:
 			stage["handler"],
 			stage["date_text"],
 			stage["time_text"],
+			stage["contract_body"],
 		]
 		document.interaction_text = "阅读合同记录 / Read contract record"
 		document.is_disabled = false
@@ -144,7 +174,7 @@ func _configure_documents() -> void:
 		_update_readable_labels(document)
 
 
-func _configure_npcs(seed_value: int) -> void:
+func _configure_npcs() -> void:
 	var npcs: Dictionary = setup.npc_by_region()
 	for room_id: String in _round_data["npc_by_room"]:
 		var npc_data: Dictionary = _round_data["npc_by_room"][room_id]
@@ -160,11 +190,11 @@ func _configure_npcs(seed_value: int) -> void:
 		var interaction := npc.get_node_or_null("BasicInteraction")
 		if interaction != null and "interaction_text" in interaction:
 			interaction.interaction_text = "询问合同记录 / Ask about contract"
-	setup.configure_ceo_patrol(ceo_npc, seed_value % 2, -1 if seed_value % 2 else 1)
-	setup.configure_cubicle_seat(cubicle_npc)
+	ceo_npc.configure_route_loop(0, 1)
+	cubicle_npc.configure_route_loop(0, 1)
 	meeting_npc.configure_route_loop_from(
 		"HumanMeetingRoomStart",
-		seed_value % max(meeting_npc.route_point_count(), 1),
+		0,
 		1,
 	)
 
@@ -199,16 +229,12 @@ func _place_player_and_task_card(seed_value: int) -> void:
 
 func _write_task_card() -> void:
 	var content := (
-		"任务 / OBJECTIVE：董事会会议前，找到 %s 合同当前已提交版本对应的档案室密码，"
-		+ "进入档案室并取走里面的当前钥匙。截止时间为今天 12:00。\n\n"
-		+ "调查 / INVESTIGATE：CEO OFFICE、MEETING ROOM、CUBICLE AREA 各有一份历史记录；"
-		+ "三名同事都如实提供自己经手版本当时的密码，可按任意顺序调查。\n\n"
-		+ "判断 / DEDUCE：Printed 或文件名写 FINAL 不等于 Submitted。"
-		+ "必须按日期、时间、版本状态和经手人找到今天上午提交的 v1.1。\n\n"
-		+ "风险 / RISK：六个区域各有一把外观相同的钥匙，前五把是历史混淆项；"
-		+ "档案室键盘只有一次确认提交机会，取消确认不会消耗机会。"
+		"老板不在办公室 / THE BOSS IS AWAY。\n\n"
+		+ "任务 / OBJECTIVE：董事会会议开始前，调查 CEO OFFICE、MEETING ROOM "
+		+ "和 CUBICLE AREA 内的合同记录，"
+		+ "并向相关同事核实，找到与 %s 最终签署合同相关的那把钥匙。"
 	) % _round_data["contract_name"]
-	task_card.readable_title = "董事会合同调档 / BOARD CONTRACT RETRIEVAL"
+	task_card.readable_title = "寻找合同钥匙 / FIND THE CONTRACT KEY"
 	task_card.readable_content = content
 	task_card.interaction_text = "读取任务说明 / Read task brief"
 	task_card.is_disabled = false
@@ -228,12 +254,6 @@ func _update_readable_labels(readable: ReadableComponent) -> void:
 
 
 func _connect_terminals() -> void:
-	if not _archive_pickup_connected:
-		var archive_key: RigidBody3D = setup.key_by_region()["ARCHIVE"]
-		archive_key.get_node("PickupComponent").was_interacted_with.connect(
-			_on_archive_key_picked_up
-		)
-		_archive_pickup_connected = true
 	if not _keypad_connected:
 		keypad.code_checked.connect(_on_code_checked)
 		_keypad_connected = true
@@ -246,11 +266,15 @@ func _on_code_checked(is_correct: bool) -> void:
 		_finish_round("failure", "security_lockout")
 
 
-func _on_archive_key_picked_up(
+func _on_key_submitted(
 	_interaction_text: String,
 	_input_map_action: String,
+	key: RigidBody3D,
 ) -> void:
-	_finish_round("success", "key_picked_up")
+	if key == setup.key_by_region()["ARCHIVE"]:
+		_finish_round("success", "key_picked_up")
+	else:
+		_finish_round("failure", "security_lockout")
 
 
 func _finish_round(outcome: String, reason: String) -> void:
@@ -267,6 +291,7 @@ func _has_required_nodes() -> bool:
 		setup,
 		ceo_key,
 		ceo_drawer,
+		main_lobby_drawer,
 		meeting_npc,
 		ceo_npc,
 		cubicle_npc,

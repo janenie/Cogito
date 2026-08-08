@@ -54,6 +54,17 @@ func _run_test() -> void:
 		lobby.find_children("GreetMeetingCandidate*", "", true, false).is_empty(),
 		"greeting scenario does not create transient NPC duplicates",
 	)
+	var expected_route_roots: Array[Node] = [
+		lobby.get_node_or_null("FriendlyHumanNPCPath"),
+		lobby.get_node_or_null("CEONPCPath"),
+		lobby.get_node_or_null("CubicleNPCPath"),
+	]
+	for candidate_index: int in range(monitor._candidate_npcs.size()):
+		_assert(
+			monitor._candidate_npcs[candidate_index].route_root
+			== expected_route_roots[candidate_index],
+			"candidate %d keeps its independent fixed route" % (candidate_index + 1),
+		)
 	var movement_starts: Array[Vector3] = []
 	for candidate: Node3D in monitor._candidate_npcs:
 		movement_starts.append(candidate.global_position)
@@ -135,7 +146,10 @@ func _run_test() -> void:
 			seen_destinations.append(snapshot["destination_label"])
 
 	_assert(seen_greetings.size() == 3, "fixed seed sample reaches all greetings")
-	_assert(seen_route_starts.size() >= 3, "fixed seed sample varies NPC start")
+	_assert(
+		seen_route_starts == [0],
+		"NPC route start remains fixed across greeting rounds",
+	)
 	_assert(seen_targets.size() == 3, "fixed seed sample reaches all target NPCs")
 	_assert(
 		seen_destinations.size() == 2,

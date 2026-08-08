@@ -487,8 +487,10 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   `FINAL v1.0 / PREPARED FOR SUBMISSION`；最终经手人额外说明今天上午 12:00 前提交的
   `v1.1 / SUBMITTED`，其提交时间 `HHMM` 是当前密码。所有 NPC 都说真话，历史密码也都
   有效但只对应旧阶段。
-- 三名 NPC 的物理行为稳定：会议室 NPC 沿既有会议室—大厅—休息室路线移动，CEO NPC
-  只在 CEO OFFICE 的两个点间来回走，开放工位 NPC 固定坐在 CUBICLE AREA 的椅子上。
+- 三名 NPC 各自绑定 Lobby 中独立的固定路线，起点、方向和路线顺序不随回合变化：会议室
+  NPC 沿既有会议室—大厅—休息室路线移动；CEO NPC 从办公室门外经过楼梯上层平台、
+  中段和下层平台后原路折返；开放工位 NPC 从 CUBICLE AREA 经过 Lobby 公共通道进入
+  BREAK ROOM 后原路折返。
   三个实例由 Lobby 的 `AIPlayNPCs` 常驻持有，`find_key` 和 `greet_npc_meeting` 复用它们；
   其他不涉及 NPC 的玩法会隐藏并停用整组 NPC，不在运行时重复实例化。
 - ARCHIVE 门每局重新锁定。键盘启用一次性确认：输入后先显示不可逆警告；取消不消耗机会，
@@ -553,8 +555,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 ```
 
 - 玩家固定从入口开始，任务卡位于出生点附近。
-- 三名穿蓝、绿、橙色上衣的同事复用 Lobby 的常驻 `AIPlayNPCs` 实例并沿既有路线移动；
-  每局随机选择联系人、路线起点和方向。
+- 三名穿蓝、绿、橙色上衣的同事复用 Lobby 的常驻 `AIPlayNPCs` 实例并沿各自固定路线移动；
+  每局随机选择联系人，但每人的巡逻路线、起点和方向保持固定。
 - 每局从 `你好`、`要去开会了么？`、`hi` 中随机选择一种问候语作为 NPC 交互提示。
 - 任务卡按姓名和上衣颜色公开指定联系人。第一次问候错误同事可恢复且同一人不重复计数；
   第二次问候另一名错误同事产生 `failure/wrong_npc_limit`。

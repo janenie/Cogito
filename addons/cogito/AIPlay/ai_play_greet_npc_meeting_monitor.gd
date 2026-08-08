@@ -109,9 +109,8 @@ func configure_round(seed_value: int = 0) -> void:
 	_selected_greeting = GREETING_PHRASES[
 		rng.randi_range(0, GREETING_PHRASES.size() - 1)
 	]
-	var route_count := max(npc.route_point_count(), 1)
-	_selected_route_start_index = rng.randi_range(0, route_count - 1)
-	_selected_route_direction = -1 if rng.randi_range(0, 1) == 0 else 1
+	_selected_route_start_index = 0
+	_selected_route_direction = 1
 	_target_npc_index = rng.randi_range(0, _candidate_npcs.size() - 1)
 	_target_npc = _candidate_npcs[_target_npc_index]
 	_target_identity = NPC_IDENTITIES[_target_npc_index]
@@ -119,18 +118,16 @@ func configure_round(seed_value: int = 0) -> void:
 		rng.randi_range(0, MEETING_DESTINATIONS.size() - 1)
 	]
 	_destination_marker.position = _selected_destination["local_position"]
-	_configure_npcs(route_count)
+	_configure_npcs()
 	_place_player_and_task_card()
 	AIPlayReadablePresenter.configure(task_card, true)
 	_write_task_card()
 	_open_meeting_door()
 
 
-func _configure_npcs(route_count: int) -> void:
+func _configure_npcs() -> void:
 	for index: int in range(_candidate_npcs.size()):
 		var candidate := _candidate_npcs[index]
-		candidate.route_root = npc.route_root
-		candidate.final_facing_target = npc.final_facing_target
 		var identity: Dictionary = NPC_IDENTITIES[index]
 		candidate.configure_public_identity(
 			identity["display_name"],
@@ -154,12 +151,10 @@ func _configure_npcs(route_count: int) -> void:
 			% identity["display_name"]
 		)
 		candidate.default_dialogue_hint = candidate.greeting_response_hint
-		var route_start := (_selected_route_start_index + index * 2) % route_count
-		candidate.configure_route_loop_from(
-			PATROL_ROUTE_FIRST_POINT,
-			route_start,
-			_selected_route_direction,
-		)
+		if candidate == npc:
+			candidate.configure_route_loop_from(PATROL_ROUTE_FIRST_POINT, 0, 1)
+		else:
+			candidate.configure_route_loop(0, 1)
 		var interaction := candidate.get_node_or_null("BasicInteraction")
 		if interaction != null and "interaction_text" in interaction:
 			interaction.interaction_text = _selected_greeting
@@ -221,7 +216,7 @@ func _on_candidate_greeted(_phrase: String, greeted_npc: FriendlyHumanNPC) -> vo
 		candidate.greeting_enabled = candidate == _target_npc
 	var meeting_route: Array[Node3D] = []
 	for point_name: String in MEETING_APPROACH_POINTS:
-		var route_point := _target_npc.route_point_by_name(point_name)
+		var route_point := npc.route_point_by_name(point_name)
 		if route_point != null:
 			meeting_route.append(route_point)
 	meeting_route.append(_destination_marker)

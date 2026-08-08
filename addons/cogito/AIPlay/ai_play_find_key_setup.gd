@@ -3,8 +3,6 @@ extends Node3D
 
 @export var spawned_keys: Array[RigidBody3D]
 @export var contract_documents: Array[ReadableComponent]
-@export var ceo_route_root: Node3D
-@export var cubicle_seat_anchor: Marker3D
 
 var _external_keys: Array[RigidBody3D] = []
 var _external_npcs: Array[FriendlyHumanNPC] = []
@@ -103,16 +101,3 @@ func set_scenario_active(active: bool) -> void:
 		var body := document.get_parent() as CollisionObject3D
 		if body != null:
 			body.collision_layer = 3 if active else 0
-
-
-func configure_ceo_patrol(
-	npc: FriendlyHumanNPC,
-	start_offset: int,
-	direction: int,
-) -> void:
-	npc.route_root = ceo_route_root
-	npc.configure_route_loop(start_offset, direction)
-
-
-func configure_cubicle_seat(npc: FriendlyHumanNPC) -> void:
-	npc.configure_stationary_seat(cubicle_seat_anchor, "CUBICLE_AREA")

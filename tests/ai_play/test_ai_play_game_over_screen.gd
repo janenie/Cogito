@@ -31,14 +31,14 @@ func _run_tests() -> void:
 		"success",
 		"key_picked_up",
 		"任务成功",
-		"已找到办公室钥匙",
+		"已提交正确钥匙",
 	)
 	await _test_result(
 		screen_scene,
 		"failure",
 		"security_lockout",
 		"任务失败",
-		"密码提交错误，仅有的一次机会已消耗",
+		"答案提交错误，仅有的一次机会已消耗",
 	)
 	await _test_result(
 		screen_scene,

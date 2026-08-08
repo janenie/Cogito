@@ -47,6 +47,39 @@ func _run_tests() -> void:
 			"current submission precedes noon",
 		)
 		_assert(_unique_count(round_data["all_codes"]) == 4, "codes are unique")
+		var stage_bodies: Array[String] = []
+		for stage: Dictionary in round_data["stages"]:
+			var body: String = stage.get("contract_body", "")
+			stage_bodies.append(body)
+			for required_section: String in [
+				"项目范围 / SCOPE",
+				"履约期限 / TERM：生效之日起三个月",
+				"合同金额 / VALUE",
+				"交付里程碑 / MILESTONES",
+				"付款安排 / PAYMENT",
+				"本版修订 / REVISION",
+			]:
+				_assert(
+					body.contains(required_section),
+					"%s contains substantive section: %s"
+					% [stage["version"], required_section],
+				)
+			for password: String in round_data["all_codes"]:
+				_assert(
+					not body.contains(password),
+					"contract body does not reveal a password",
+				)
+			if stage["index"] == 2:
+				_assert(
+					body.contains("签署人 / SIGNATORY：%s" % stage["handler"]),
+					"FINAL v1.0 names its signatory",
+				)
+			else:
+				_assert(
+					not body.contains("签署人 / SIGNATORY"),
+					"non-final draft does not claim a signatory",
+				)
+		_assert(_unique_count(stage_bodies) == 3, "each version has distinct terms")
 		_assert(
 			round_data["current"]["password"] == round_data["current"]["time_text"].replace(":", ""),
 			"current password is its HHMM submission time",
@@ -71,6 +104,28 @@ func _run_tests() -> void:
 
 	_assert(_unique_count(first_cycle) == 4, "first cycle has no replacement")
 	_assert(round_script.build(2) == round_script.build(2), "same seed reproduces data")
+	var exclusive_date_limit := int(
+		Time.get_unix_time_from_datetime_dict(
+			{
+				"year": 2026,
+				"month": 8,
+				"day": 31,
+				"hour": 0,
+				"minute": 0,
+				"second": 0,
+			}
+		)
+	)
+	for boundary_seed: int in [227, 228, 364, 9_007_199_254_740_991]:
+		var boundary_round: Dictionary = round_script.build(boundary_seed)
+		var dated_records: Array = boundary_round["stages"].duplicate()
+		dated_records.append(boundary_round["current"])
+		for record: Dictionary in dated_records:
+			_assert(
+				int(record["timestamp"]) < exclusive_date_limit,
+				"seed %d keeps every contract date on or before 2026-08-30"
+				% boundary_seed,
+			)
 	_finish()
 
 

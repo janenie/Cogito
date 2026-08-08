@@ -107,19 +107,19 @@
 [ext_resource type="Script" uid="uid://bwlxff3xp451k" path="res://addons/cogito/SceneManagement/world_property_setter.gd" id="103_1du1g"]
 [ext_resource type="PackedScene" uid="uid://cuwptpgheq4l5" path="res://addons/cogito/PackedScenes/inventory_bag.tscn" id="104_mm36t"]
 [ext_resource type="PackedScene" uid="uid://be30t42msjnp8" path="res://addons/cogito/DemoScenes/friendly_human_npc.tscn" id="108_human_npc"]
-[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
-[ext_resource type="Script" uid="uid://u0a5wfav8vf" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
-[ext_resource type="Script" uid="uid://y0ohykkvyost" path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd" id="ai_play_find_key_monitor"]
-[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_find_key_contract_setup.tscn" id="ai_play_find_key_contract_setup"]
-[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
-[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_put_book_monitor.gd" id="ai_play_put_book_monitor"]
-[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd" id="ai_play_greet_npc_meeting_monitor"]
-[ext_resource type="Script" path="res://addons/cogito/AIPlay/ai_play_lobby_npcs.gd" id="ai_play_lobby_npcs"]
-[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ai_play_put_book_destination.tscn" id="ai_play_put_book_destination"]
-[ext_resource type="Script" uid="uid://unpf5slxcrdm" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd" id="ai_play_repair_lighting_circuit_monitor"]
-[ext_resource type="PackedScene" uid="uid://dxwcvsdh2ms8r" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn" id="ai_play_repair_lighting_circuit_setup"]
 [ext_resource type="Script" uid="uid://dqxvbsfjl3j1l" path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_monitor.gd" id="ai_play_arrange_meeting_briefings_monitor"]
 [ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_arrange_meeting_briefings_setup.tscn" id="ai_play_arrange_meeting_briefings_setup"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_controller.tscn" id="ai_play_controller"]
+[ext_resource type="Script" uid="uid://u0a5wfav8vf" path="res://addons/cogito/AIPlay/ai_play_find_contract_terminal.gd" id="ai_play_find_contract_terminal"]
+[ext_resource type="PackedScene" uid="uid://cdu62cx8xunis" path="res://addons/cogito/AIPlay/ai_play_find_key_contract_setup.tscn" id="ai_play_find_key_contract_setup"]
+[ext_resource type="Script" uid="uid://y0ohykkvyost" path="res://addons/cogito/AIPlay/ai_play_find_key_monitor.gd" id="ai_play_find_key_monitor"]
+[ext_resource type="PackedScene" path="res://addons/cogito/AIPlay/ai_play_game_over_screen.tscn" id="ai_play_game_over_screen"]
+[ext_resource type="Script" uid="uid://bsl07e7iv52dt" path="res://addons/cogito/AIPlay/ai_play_greet_npc_meeting_monitor.gd" id="ai_play_greet_npc_meeting_monitor"]
+[ext_resource type="Script" uid="uid://c2ex5r7t8cy1l" path="res://addons/cogito/AIPlay/ai_play_lobby_npcs.gd" id="ai_play_lobby_npcs"]
+[ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ai_play_put_book_destination.tscn" id="ai_play_put_book_destination"]
+[ext_resource type="Script" uid="uid://cgu6kn4ciu2ql" path="res://addons/cogito/AIPlay/ai_play_put_book_monitor.gd" id="ai_play_put_book_monitor"]
+[ext_resource type="Script" uid="uid://unpf5slxcrdm" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_monitor.gd" id="ai_play_repair_lighting_circuit_monitor"]
+[ext_resource type="PackedScene" uid="uid://dxwcvsdh2ms8r" path="res://addons/cogito/AIPlay/ai_play_repair_lighting_circuit_setup.tscn" id="ai_play_repair_lighting_circuit_setup"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/carryable_books.tscn" id="carryable_books"]
 [ext_resource type="PackedScene" path="res://addons/cogito/DemoScenes/DemoPrefabs/ripped_page_a_readable.tscn" id="ripped_page_a_readable"]
 
@@ -152,7 +152,7 @@ volumetric_fog_temporal_reprojection_amount = 0.85
 density = 0.04
 albedo = Color(0.694118, 0.694118, 0.694118, 1)
 
-[sub_resource type="Resource" id="Resource_8yhom"]
+[sub_resource type="Resource" id="Resource_mimlg"]
 resource_local_to_scene = true
 script = ExtResource("4_0kggm")
 grid = true
@@ -807,9 +807,6 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_0cd07")
-
-[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_2ie67"]
-data = PackedVector3Array(0.3679, 0.2435, 0, 0, 0.2435, 0, 0, 0.2435, -1.58, 0, 0.2435, -1.58, 0.3679, 0.2435, -1.58, 0.3679, 0.2435, 0, 2.6232, 2.1919, -1.58, 2.6232, 2.1919, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, -1.58, 2.6232, 2.1919, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.9484, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.8875, -1.58, 2.6631, 1.8875, -1.58, 2.6631, 1.9484, -1.58, 2.6631, 1.9484, -1.58, 2.2952, 1.9484, -1.58, 2.2952, 1.8875, -1.58, 1.0236, 0.7306, 0, 0.6558, 0.7306, 0, 0.6558, 0.7306, -1.58, 0.6558, 0.7306, -1.58, 1.0236, 0.7306, -1.58, 1.0236, 0.7306, 0, 3.3189, 2.4355, 0, 2.9511, 2.4355, 0, 2.9511, 2.4355, -1.58, 2.9511, 2.4355, -1.58, 3.3189, 2.4355, -1.58, 3.3189, 2.4355, 0, 2.6631, 1.9484, 0, 2.2952, 1.9484, 0, 2.2952, 1.9484, -1.58, 2.2952, 1.9484, -1.58, 2.6631, 1.9484, -1.58, 2.6631, 1.9484, 0, 0.6958, 0.4871, 0, 0.3279, 0.4871, 0, 0.3279, 0.4871, -1.58, 0.3279, 0.4871, -1.58, 0.6958, 0.4871, -1.58, 0.6958, 0.4871, 0, 2.3353, 1.7048, 0, 1.9674, 1.7048, 0, 1.9674, 1.7048, -1.58, 1.9674, 1.7048, -1.58, 2.3353, 1.7048, -1.58, 2.3353, 1.7048, 0, 2.0074, 1.4613, 0, 1.6394, 1.4613, 0, 1.6394, 1.4613, -1.58, 1.6394, 1.4613, -1.58, 2.0074, 1.4613, -1.58, 2.0074, 1.4613, 0, 2.9911, 2.1919, 0, 2.6232, 2.1919, 0, 2.6232, 2.1919, -1.58, 2.6232, 2.1919, -1.58, 2.9911, 2.1919, -1.58, 2.9911, 2.1919, 0, 1.3516, 0.9742, 0, 0.9837, 0.9742, 0, 0.9837, 0.9742, -1.58, 0.9837, 0.9742, -1.58, 1.3516, 0.9742, -1.58, 1.3516, 0.9742, 0, 3.6469, 2.6791, 0, 3.2789, 2.6791, 0, 3.2789, 2.6791, -1.58, 3.2789, 2.6791, -1.58, 3.6469, 2.6791, -1.58, 3.6469, 2.6791, 0, 1.6794, 1.2178, 0, 1.3116, 1.2178, 0, 1.3116, 1.2178, -1.58, 1.3116, 1.2178, -1.58, 1.6794, 1.2178, -1.58, 1.6794, 1.2178, 0, 2.9511, 2.4355, -1.58, 2.9511, 2.3746, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.4355, -1.58, 2.9511, 2.4355, -1.58, 3.3189, 2.3746, -1.58, 3.3189, 2.3746, 0, 3.3189, 2.4355, 0, 3.3189, 2.4355, 0, 3.3189, 2.4355, -1.58, 3.3189, 2.3746, -1.58, 2.9511, 2.4355, -1.58, 2.9511, 2.4355, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, -1.58, 2.9511, 2.4355, -1.58, 2.6232, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1919, -1.58, 2.9911, 2.1919, -1.58, 2.6232, 2.1919, -1.58, 2.6232, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1311, 0, 2.9911, 2.1919, 0, 2.9911, 2.1919, 0, 2.9911, 2.1919, -1.58, 2.9911, 2.1311, -1.58, 2.9911, 2.1311, -1.58, 2.6232, 2.1311, -1.58, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.9911, 2.1311, 0, 2.9911, 2.1311, -1.58, 1.6394, 1.4004, -1.58, 2.0074, 1.4004, -1.58, 2.0074, 1.4613, -1.58, 2.0074, 1.4613, -1.58, 1.6394, 1.4613, -1.58, 1.6394, 1.4004, -1.58, 1.9674, 1.6439, -1.58, 2.3353, 1.6439, -1.58, 2.3353, 1.7048, -1.58, 2.3353, 1.7048, -1.58, 1.9674, 1.7048, -1.58, 1.9674, 1.6439, -1.58, 0.9837, 0.9133, -1.58, 1.3516, 0.9133, -1.58, 1.3516, 0.9742, -1.58, 1.3516, 0.9742, -1.58, 0.9837, 0.9742, -1.58, 0.9837, 0.9133, -1.58, 0.3279, 0.4262, -1.58, 0.6958, 0.4262, -1.58, 0.6958, 0.4871, -1.58, 0.6958, 0.4871, -1.58, 0.3279, 0.4871, -1.58, 0.3279, 0.4262, -1.58, 0.3679, 0.2435, 0, 0.3679, 0.1827, 0, 0, 0.1827, 0, 0, 0.1827, 0, 0, 0.2435, 0, 0.3679, 0.2435, 0, 1.0236, 0.7306, 0, 1.0236, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.7306, 0, 1.0236, 0.7306, 0, 1.3516, 0.9742, 0, 1.3516, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9742, 0, 1.3516, 0.9742, 0, 1.3516, 0.9133, -1.58, 1.3516, 0.9133, 0, 1.3516, 0.9742, 0, 1.3516, 0.9742, 0, 1.3516, 0.9742, -1.58, 1.3516, 0.9133, -1.58, 0.3679, 0.1827, -1.58, 0, 0.1827, -1.58, 0, 0.1827, 0, 0, 0.1827, 0, 0.3679, 0.1827, 0, 0.3679, 0.1827, -1.58, 2.6631, 1.9484, 0, 2.6631, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.8875, 0, 2.2952, 1.9484, 0, 2.6631, 1.9484, 0, 2.9911, 2.1919, 0, 2.9911, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1311, 0, 2.6232, 2.1919, 0, 2.9911, 2.1919, 0, 3.2789, 2.6791, -1.58, 3.2789, 2.6791, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, -1.58, 3.2789, 2.6791, -1.58, 2.0074, 1.4004, -1.58, 2.0074, 1.4004, 0, 2.0074, 1.4613, 0, 2.0074, 1.4613, 0, 2.0074, 1.4613, -1.58, 2.0074, 1.4004, -1.58, 1.3116, 1.2178, -1.58, 1.3116, 1.2178, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, -1.58, 1.3116, 1.2178, -1.58, 0.6958, 0.4871, 0, 0.6958, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4871, 0, 0.6958, 0.4871, 0, 3.6469, 2.6791, 0, 3.6469, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.2789, 2.6791, 0, 3.6469, 2.6791, 0, 3.3189, 2.4355, 0, 3.3189, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 2.9511, 2.4355, 0, 3.3189, 2.4355, 0, 2.6631, 1.8875, -1.58, 2.6631, 1.8875, 0, 2.6631, 1.9484, 0, 2.6631, 1.9484, 0, 2.6631, 1.9484, -1.58, 2.6631, 1.8875, -1.58, 2.3353, 1.6439, -1.58, 1.9674, 1.6439, -1.58, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 2.3353, 1.6439, 0, 2.3353, 1.6439, -1.58, 0, 0.2435, -1.58, 0, 0.2435, 0, 0, 0.1827, 0, 0, 0.1827, 0, 0, 0.1827, -1.58, 0, 0.2435, -1.58, 1.6794, 1.1568, -1.58, 1.3116, 1.1568, -1.58, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.6794, 1.1568, 0, 1.6794, 1.1568, -1.58, 1.6394, 1.4613, -1.58, 1.6394, 1.4613, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, -1.58, 1.6394, 1.4613, -1.58, 1.0236, 0.6698, -1.58, 0.6558, 0.6698, -1.58, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 1.0236, 0.6698, 0, 1.0236, 0.6698, -1.58, 0.3679, 0.1827, -1.58, 0.3679, 0.1827, 0, 0.3679, 0.2435, 0, 0.3679, 0.2435, 0, 0.3679, 0.2435, -1.58, 0.3679, 0.1827, -1.58, 1.6794, 1.1568, -1.58, 1.6794, 1.1568, 0, 1.6794, 1.2178, 0, 1.6794, 1.2178, 0, 1.6794, 1.2178, -1.58, 1.6794, 1.1568, -1.58, 2.0074, 1.4613, 0, 2.0074, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4004, 0, 1.6394, 1.4613, 0, 2.0074, 1.4613, 0, 2.3353, 1.6439, -1.58, 2.3353, 1.6439, 0, 2.3353, 1.7048, 0, 2.3353, 1.7048, 0, 2.3353, 1.7048, -1.58, 2.3353, 1.6439, -1.58, 1.9674, 1.7048, -1.58, 1.9674, 1.7048, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, -1.58, 1.9674, 1.7048, -1.58, 0.6958, 0.4262, -1.58, 0.3279, 0.4262, -1.58, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.6958, 0.4262, 0, 0.6958, 0.4262, -1.58, 0.3279, 0.4871, -1.58, 0.3279, 0.4871, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, 0, 0.3279, 0.4262, -1.58, 0.3279, 0.4871, -1.58, 0, 0.1827, -1.58, 0.3679, 0.1827, -1.58, 0.3679, 0.2435, -1.58, 0.3679, 0.2435, -1.58, 0, 0.2435, -1.58, 0, 0.1827, -1.58, 1.6794, 1.2178, 0, 1.6794, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.1568, 0, 1.3116, 1.2178, 0, 1.6794, 1.2178, 0, 2.3353, 1.7048, 0, 2.3353, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.6439, 0, 1.9674, 1.7048, 0, 2.3353, 1.7048, 0, 1.3516, 0.9133, -1.58, 0.9837, 0.9133, -1.58, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 1.3516, 0.9133, 0, 1.3516, 0.9133, -1.58, 1.0236, 0.6698, -1.58, 1.0236, 0.6698, 0, 1.0236, 0.7306, 0, 1.0236, 0.7306, 0, 1.0236, 0.7306, -1.58, 1.0236, 0.6698, -1.58, 0.6558, 0.6698, -1.58, 1.0236, 0.6698, -1.58, 1.0236, 0.7306, -1.58, 1.0236, 0.7306, -1.58, 0.6558, 0.7306, -1.58, 0.6558, 0.6698, -1.58, 0.6958, 0.4262, -1.58, 0.6958, 0.4262, 0, 0.6958, 0.4871, 0, 0.6958, 0.4871, 0, 0.6958, 0.4871, -1.58, 0.6958, 0.4262, -1.58, 0.9837, 0.9742, -1.58, 0.9837, 0.9742, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, 0, 0.9837, 0.9133, -1.58, 0.9837, 0.9742, -1.58, 3.6469, 2.6182, 0, 3.6469, 2.6182, -1.54, 3.2789, 2.6182, 0, 3.2789, 2.6182, 0, 3.6469, 2.6182, -1.54, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.2789, 2.6182, -1.58, 3.2789, 2.6182, 0, 3.3189, 2.3746, -1.58, 2.9511, 2.3746, -1.58, 2.9511, 2.3746, 0, 2.9511, 2.3746, 0, 3.3189, 2.3746, 0, 3.3189, 2.3746, -1.58, 2.2952, 1.8875, -1.58, 2.2952, 1.8875, 0, 2.6631, 1.8875, 0, 2.6631, 1.8875, 0, 2.6631, 1.8875, -1.58, 2.2952, 1.8875, -1.58, 0.6558, 0.7306, -1.58, 0.6558, 0.7306, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, 0, 0.6558, 0.6698, -1.58, 0.6558, 0.7306, -1.58, 1.3116, 1.1568, -1.58, 1.6794, 1.1568, -1.58, 1.6794, 1.2178, -1.58, 1.6794, 1.2178, -1.58, 1.3116, 1.2178, -1.58, 1.3116, 1.1568, -1.58, 1.6394, 1.4004, -1.58, 1.6394, 1.4004, 0, 2.0074, 1.4004, 0, 2.0074, 1.4004, 0, 2.0074, 1.4004, -1.58, 1.6394, 1.4004, -1.58, 3.2789, 2.6791, -1.58, 3.2789, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6791, -1.58, 3.2789, 2.6791, -1.58, 3.6469, 2.6182, -1.54, 3.6469, 2.6182, 0, 3.6469, 2.6791, 0, 3.6469, 2.6791, 0, 3.6469, 2.6791, -1.58, 3.6469, 2.6182, -1.54, 3.6469, 2.6791, -1.58, 3.6469, 2.6182, -1.58, 3.6469, 2.6182, -1.54)
 
 [sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_stair_ramp"]
 points = PackedVector3Array(0, -0.0297, 0, 3.6469, 2.6791, 0, 3.6469, -0.15, 0, 0, -0.15, 0, 0, -0.0297, -1.58, 3.6469, 2.6791, -1.58, 3.6469, -0.15, -1.58, 0, -0.15, -1.58)
@@ -2557,7 +2554,7 @@ shadow_mesh = SubResource("ArrayMesh_3ecdw")
 [sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_upcaa"]
 data = PackedVector3Array(0.6928, 0.0903, -1.6, 0, 0.0903, -1.2, 0.6128, 0.0903, -0.88, 0.6128, 0.0903, -0.88, 0.7728, 0.0903, -0.88, 0.6928, 0.0903, -1.6, 0.7728, 0.0903, -0.88, 1.3856, 0.0903, -1.2, 0.6928, 0.0903, -1.6, 0.7728, 0.0903, -0.88, 0.7728, 0.0903, -0.72, 1.3856, 0.0903, -1.2, 0.6128, 0.0903, -0.72, 0.6128, 0.0903, -0.88, 0, 0.0903, -1.2, 0.6928, 0.0903, 0, 0.6128, 0.0903, -0.72, 0, 0.0903, -1.2, 0.6928, 0.0903, 0, 0.7728, 0.0903, -0.72, 0.6128, 0.0903, -0.72, 0, 0.0903, -0.4, 0.6928, 0.0903, 0, 0, 0.0903, -1.2, 0, 0.0903, -1.2, 0, 0.0903, -0.8, 0, 0.0903, -0.4, 0.6928, 0.0903, 0, 1.3856, 0.0903, -0.4, 0.7728, 0.0903, -0.72, 1.3856, 0.0903, -0.4, 1.3856, 0.0903, -1.2, 0.7728, 0.0903, -0.72, 1.3856, 0.0903, -0.4, 1.3856, 0.0903, -0.8, 1.3856, 0.0903, -1.2, 0.6928, 0.1935, 0, 0, 0.1935, -0.4, 0, 0.1935, -1.2, 0, 0.1935, -1.2, 0.6928, 0.1935, -1.6, 0.6928, 0.1935, 0, 0.6928, 0.1935, -1.6, 1.3856, 0.1935, -0.4, 0.6928, 0.1935, 0, 0.6928, 0.1935, -1.6, 1.3856, 0.1935, -1.2, 1.3856, 0.1935, -0.4, 0.6928, 0.1935, -1.6, 0.6928, 0.0903, -1.6, 1.3856, 0.0903, -1.2, 1.3856, 0.0903, -1.2, 1.3856, 0.1935, -1.2, 0.6928, 0.1935, -1.6, 1.3856, 0.0903, -0.8, 1.3856, 0.0903, -0.4, 1.3856, 0.1935, -0.4, 1.3856, 0.1935, -0.4, 1.3856, 0.1935, -1.2, 1.3856, 0.0903, -0.8, 1.3856, 0.1935, -1.2, 1.3856, 0.0903, -1.2, 1.3856, 0.0903, -0.8, 1.3856, 0.1935, -0.4, 1.3856, 0.0903, -0.4, 0.6928, 0.0903, 0, 0.6928, 0.0903, 0, 0.6928, 0.1935, 0, 1.3856, 0.1935, -0.4, 0.6928, 0.1935, 0, 0.6928, 0.0903, 0, 0, 0.0903, -0.4, 0, 0.0903, -0.4, 0, 0.1935, -0.4, 0.6928, 0.1935, 0, 0, 0.1935, -1.2, 0, 0.1935, -0.4, 0, 0.0903, -0.4, 0, 0.0903, -0.4, 0, 0.0903, -0.8, 0, 0.1935, -1.2, 0, 0.0903, -0.8, 0, 0.0903, -1.2, 0, 0.1935, -1.2, 0, 0.1935, -1.2, 0, 0.0903, -1.2, 0.6928, 0.0903, -1.6, 0.6928, 0.0903, -1.6, 0.6928, 0.1935, -1.6, 0, 0.1935, -1.2, 0.7728, 0.0903, -0.72, 0.7728, -0.4, -0.72, 0.6128, -0.4, -0.72, 0.6128, -0.4, -0.72, 0.6128, 0.0903, -0.72, 0.7728, 0.0903, -0.72, 0.6128, 0.0903, -0.88, 0.6128, 0.0903, -0.72, 0.6128, -0.4, -0.72, 0.6128, -0.4, -0.72, 0.6128, -0.4, -0.88, 0.6128, 0.0903, -0.88, 0.6128, 0.0903, -0.88, 0.6128, -0.4, -0.88, 0.7728, -0.4, -0.88, 0.7728, -0.4, -0.88, 0.7728, 0.0903, -0.88, 0.6128, 0.0903, -0.88, 0.7728, -0.4, -0.88, 0.7728, -0.4, -0.72, 0.7728, 0.0903, -0.72, 0.7728, 0.0903, -0.72, 0.7728, 0.0903, -0.88, 0.7728, -0.4, -0.88, 0.8128, -0.4, -0.68, 0.8128, -0.44, -0.68, 0.5728, -0.44, -0.68, 0.5728, -0.44, -0.68, 0.5728, -0.4, -0.68, 0.8128, -0.4, -0.68, 0.5728, -0.4, -0.92, 0.5728, -0.4, -0.68, 0.5728, -0.44, -0.68, 0.5728, -0.44, -0.68, 0.5728, -0.44, -0.92, 0.5728, -0.4, -0.92, 0.8128, -0.44, -0.92, 0.8128, -0.44, -0.68, 0.8128, -0.4, -0.68, 0.8128, -0.4, -0.68, 0.8128, -0.4, -0.92, 0.8128, -0.44, -0.92, 0.5728, -0.4, -0.68, 0.5728, -0.4, -0.92, 0.6128, -0.4, -0.72, 0.6128, -0.4, -0.72, 0.8128, -0.4, -0.68, 0.5728, -0.4, -0.68, 0.6128, -0.4, -0.72, 0.7728, -0.4, -0.72, 0.8128, -0.4, -0.68, 0.7728, -0.4, -0.72, 0.7728, -0.4, -0.88, 0.8128, -0.4, -0.68, 0.6128, -0.4, -0.88, 0.6128, -0.4, -0.72, 0.5728, -0.4, -0.92, 0.5728, -0.4, -0.92, 0.8128, -0.4, -0.92, 0.6128, -0.4, -0.88, 0.8128, -0.4, -0.92, 0.7728, -0.4, -0.88, 0.6128, -0.4, -0.88, 0.8128, -0.4, -0.92, 0.8128, -0.4, -0.68, 0.7728, -0.4, -0.88, 0.4928, -0.44, -1, 0.4928, -0.44, -0.6, 0.4928, -0.5, -0.6, 0.4928, -0.5, -0.6, 0.4928, -0.5, -1, 0.4928, -0.44, -1, 0.4928, -0.44, -1, 0.4928, -0.5, -1, 0.8928, -0.5, -1, 0.8928, -0.5, -1, 0.8928, -0.44, -1, 0.4928, -0.44, -1, 0.8928, -0.44, -0.6, 0.8928, -0.5, -0.6, 0.4928, -0.5, -0.6, 0.4928, -0.5, -0.6, 0.4928, -0.44, -0.6, 0.8928, -0.44, -0.6, 0.8928, -0.5, -1, 0.8928, -0.5, -0.6, 0.8928, -0.44, -0.6, 0.8928, -0.44, -0.6, 0.8928, -0.44, -1, 0.8928, -0.5, -1, 0.4928, -0.44, -0.6, 0.4928, -0.44, -1, 0.5728, -0.44, -0.68, 0.5728, -0.44, -0.68, 0.8928, -0.44, -0.6, 0.4928, -0.44, -0.6, 0.5728, -0.44, -0.68, 0.8128, -0.44, -0.68, 0.8928, -0.44, -0.6, 0.8128, -0.44, -0.68, 0.8128, -0.44, -0.92, 0.8928, -0.44, -0.6, 0.5728, -0.44, -0.92, 0.5728, -0.44, -0.68, 0.4928, -0.44, -1, 0.4928, -0.44, -1, 0.8928, -0.44, -1, 0.5728, -0.44, -0.92, 0.8928, -0.44, -1, 0.8128, -0.44, -0.92, 0.5728, -0.44, -0.92, 0.8928, -0.44, -1, 0.8928, -0.44, -0.6, 0.8128, -0.44, -0.92, 0.9128, -0.54, -1.02, 0.4728, -0.54, -1.02, 0.4728, -0.54, -0.58, 0.4728, -0.54, -0.58, 0.9128, -0.54, -0.58, 0.9128, -0.54, -1.02, 0.4928, -0.5, -1, 0.4728, -0.54, -1.02, 0.9128, -0.54, -1.02, 0.9128, -0.54, -1.02, 0.8928, -0.5, -1, 0.4928, -0.5, -1, 0.9128, -0.54, -1.02, 0.9128, -0.54, -0.58, 0.8928, -0.5, -0.6, 0.8928, -0.5, -0.6, 0.8928, -0.5, -1, 0.9128, -0.54, -1.02, 0.8928, -0.5, -0.6, 0.9128, -0.54, -0.58, 0.4728, -0.54, -0.58, 0.4728, -0.54, -0.58, 0.4928, -0.5, -0.6, 0.8928, -0.5, -0.6, 0.4928, -0.5, -0.6, 0.4728, -0.54, -0.58, 0.4728, -0.54, -1.02, 0.4728, -0.54, -1.02, 0.4928, -0.5, -1, 0.4928, -0.5, -0.6, 0.5728, -0.4, -0.92, 0.5728, -0.44, -0.92, 0.8128, -0.44, -0.92, 0.8128, -0.44, -0.92, 0.8128, -0.4, -0.92, 0.5728, -0.4, -0.92)
 
-[sub_resource type="Resource" id="Resource_fay3r"]
+[sub_resource type="Resource" id="Resource_66ver"]
 resource_local_to_scene = true
 script = ExtResource("4_0kggm")
 grid = true
@@ -3314,21 +3311,20 @@ material = SubResource("FogMaterial_4avjx")
 
 [node name="Player" parent="." unique_id=922746781 instance=ExtResource("3_mgle8")]
 transform = Transform3D(-1, 0, 7.45058e-07, 0, 1, 0, -7.45058e-07, 0, -1, 3.03073, 0.905039, -17.9321)
-inventory_data = SubResource("Resource_8yhom")
+inventory_data = SubResource("Resource_mimlg")
 step_height_camera_lerp = 1.5
 
-[node name="RepairLightingCircuitSetup" parent="." instance=ExtResource("ai_play_repair_lighting_circuit_setup")]
+[node name="RepairLightingCircuitSetup" parent="." unique_id=1253625386 instance=ExtResource("ai_play_repair_lighting_circuit_setup")]
 
-[node name="ArrangeMeetingBriefingsSetup" parent="." instance=ExtResource("ai_play_arrange_meeting_briefings_setup")]
+[node name="ArrangeMeetingBriefingsSetup" parent="." unique_id=1513275691 instance=ExtResource("ai_play_arrange_meeting_briefings_setup")]
 
-[node name="FindKeyContractSetup" parent="." instance=ExtResource("ai_play_find_key_contract_setup")]
+[node name="FindKeyContractSetup" parent="." unique_id=1465663412 instance=ExtResource("ai_play_find_key_contract_setup")]
 
 [node name="AIPlayController" parent="." unique_id=875272983 node_paths=PackedStringArray("player") instance=ExtResource("ai_play_controller")]
 player = NodePath("../Player")
 
 [node name="TerminalMonitor" type="Node" parent="AIPlayController" unique_id=1307996892 node_paths=PackedStringArray("keypad", "game_over_screen", "player", "task_card", "clue_one", "clue_two", "ceo_file_clue", "break_room_file_clue", "cubicle_anchor", "meeting_anchor", "laboratory_anchor", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_contract_terminal")
-scenario_id = "find_contract"
 keypad = NodePath("../../ARCHIVE/Keypad")
 game_over_screen = NodePath("GameOverScreen")
 player = NodePath("../../Player")
@@ -3349,15 +3345,15 @@ archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="GameOverScreen" parent="AIPlayController/TerminalMonitor" unique_id=921075935 instance=ExtResource("ai_play_game_over_screen")]
 
-[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "setup", "ceo_key", "ceo_drawer", "meeting_npc", "ceo_npc", "cubicle_npc", "keypad", "archive_door", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
+[node name="FindKeyMonitor" type="Node" parent="AIPlayController" unique_id=1065203681 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "setup", "ceo_key", "ceo_drawer", "main_lobby_drawer", "meeting_npc", "ceo_npc", "cubicle_npc", "keypad", "archive_door", "entrance_spawn", "entrance_task_card_anchor", "lobby_spawn", "lobby_task_card_anchor", "archive_spawn", "archive_task_card_anchor")]
 script = ExtResource("ai_play_find_key_monitor")
-scenario_id = "find_key"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
 setup = NodePath("../../FindKeyContractSetup")
 ceo_key = NodePath("../../UPPER_OFFICE_CEO/Pickup_Key")
 ceo_drawer = NodePath("../../UPPER_OFFICE_CEO/deskCorner/Drawer")
+main_lobby_drawer = NodePath("../../MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D")
 meeting_npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")
 ceo_npc = NodePath("../../AIPlayNPCs/FindKeyCEONPC")
 cubicle_npc = NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")
@@ -3372,7 +3368,6 @@ archive_task_card_anchor = NodePath("../../AIPlayRoundMarkers/ArchiveTaskCard")
 
 [node name="PutBookMonitor" type="Node" parent="AIPlayController" unique_id=1959638116 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "archive_door", "carried_book", "archive_root", "shelf_slots_root", "archive_spawn", "archive_task_card_anchor", "ceo_door", "destination", "destination_area", "destination_slots_root")]
 script = ExtResource("ai_play_put_book_monitor")
-scenario_id = "put_book"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
@@ -3387,22 +3382,20 @@ destination = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination")
 destination_area = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination/DestinationArea")
 destination_slots_root = NodePath("../../UPPER_OFFICE_CEO/PutBookDestination/DisplaySlots")
 
-[node name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("game_over_screen", "player", "task_card", "npc", "npc_candidates", "conference_door", "meeting_room", "entrance_spawn", "entrance_task_card_anchor")]
+[node name="GreetNPCMeetingMonitor" type="Node" parent="AIPlayController" unique_id=209619316 node_paths=PackedStringArray("game_over_screen", "player", "task_card", "npc", "npc_candidates", "conference_door", "meeting_room", "entrance_spawn", "entrance_task_card_anchor")]
 script = ExtResource("ai_play_greet_npc_meeting_monitor")
-scenario_id = "greet_npc_meeting"
 game_over_screen = NodePath("../TerminalMonitor/GameOverScreen")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
 npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")
-npc_candidates = Array[NodePath]([NodePath("../../AIPlayNPCs/FriendlyHumanNPC"), NodePath("../../AIPlayNPCs/FindKeyCEONPC"), NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")])
+npc_candidates = [NodePath("../../AIPlayNPCs/FriendlyHumanNPC"), NodePath("../../AIPlayNPCs/FindKeyCEONPC"), NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")]
 conference_door = NodePath("../../MEETING_ROOM/ConferenceDoor/FrontDoor")
 meeting_room = NodePath("../../MEETING_ROOM")
 entrance_spawn = NodePath("../../AIPlayRoundMarkers/EntranceSpawn")
 entrance_task_card_anchor = NodePath("../../AIPlayRoundMarkers/EntranceTaskCard")
 
-[node name="RepairLightingCircuitMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "control_switch_a", "control_switch_b", "control_switch_c", "control_switch_d", "breaker_entrance", "breaker_ceo", "breaker_lobby", "breaker_break_room", "verify_button", "panel_spawn", "task_card_anchor", "entrance_lamp", "ceo_lamp", "lobby_lamps", "break_room_lamp")]
+[node name="RepairLightingCircuitMonitor" type="Node" parent="AIPlayController" unique_id=1484860004 node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "control_switch_a", "control_switch_b", "control_switch_c", "control_switch_d", "breaker_entrance", "breaker_ceo", "breaker_lobby", "breaker_break_room", "verify_button", "panel_spawn", "task_card_anchor", "entrance_lamp", "ceo_lamp", "lobby_lamps", "break_room_lamp")]
 script = ExtResource("ai_play_repair_lighting_circuit_monitor")
-scenario_id = "repair_lighting_circuit"
 setup = NodePath("../../RepairLightingCircuitSetup")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
@@ -3423,9 +3416,8 @@ ceo_lamp = NodePath("../../UPPER_OFFICE_CEO/lampRoundFloor")
 lobby_lamps = [NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling8"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling9"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling10"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling11"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling12"), NodePath("../../LIGHTS_CEILING_WALL/lampSquareCeiling13")]
 break_room_lamp = NodePath("../../RepairLightingCircuitSetup/BreakRoomLamp")
 
-[node name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController" node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "record_readables", "folder_nodes", "seat_interactions", "seat_snap_anchors", "verify_button", "player_spawn", "task_card_anchor")]
+[node name="ArrangeMeetingBriefingsMonitor" type="Node" parent="AIPlayController" unique_id=1503854005 node_paths=PackedStringArray("setup", "player", "task_card", "game_over_screen", "record_readables", "folder_nodes", "seat_interactions", "seat_snap_anchors", "verify_button", "player_spawn", "task_card_anchor")]
 script = ExtResource("ai_play_arrange_meeting_briefings_monitor")
-scenario_id = "arrange_meeting_briefings"
 setup = NodePath("../../ArrangeMeetingBriefingsSetup")
 player = NodePath("../../Player")
 task_card = NodePath("../../DEMO_HINTS/Hint_01_Welcome/ReadableComponent")
@@ -3878,43 +3870,43 @@ skeleton = NodePath("")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=456919369]
 shape = SubResource("ConvexPolygonShape3D_stair_ramp")
 
-[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1375260276]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.04)
 shape = SubResource("ConvexPolygonShape3D_stair_guard")
 
-[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1890882808]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.62)
 shape = SubResource("ConvexPolygonShape3D_stair_guard")
 
-[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1525910108]
 transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_rail")
 
-[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=363283542]
 transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_rail")
 
-[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1388355414]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1757466879]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=815463963]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=207810139]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1488006434]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle"]
+[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle" unique_id=1177385533]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
@@ -3934,50 +3926,51 @@ skeleton = NodePath("")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=664530394]
 shape = SubResource("ConvexPolygonShape3D_stair_ramp")
 
-[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="NearGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=1621574116]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.04)
 shape = SubResource("ConvexPolygonShape3D_stair_guard")
 
-[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="FarGuardCollision" type="CollisionShape3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=1171260975]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.62)
 shape = SubResource("ConvexPolygonShape3D_stair_guard")
 
-[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="NearGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=1373818024]
 transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_rail")
 
-[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="FarGuardRail" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=1031511957]
 transform = Transform3D(0.8028, -0.5962, 0, 0.5962, 0.8028, 0, 0, 0, 1, 1.82345, 2.2747, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_rail")
 
-[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="NearGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=907015609]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="NearGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=1109218307]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="NearGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=386444625]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, 0.04)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="FarGuardPostBottom" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=714186566]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.5344, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="FarGuardPostMiddle" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=119431628]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82345, 1.7997, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2"]
+[node name="FarGuardPostTop" type="MeshInstance3D" parent="MAIN_LOBBY/stairsOpenSingle2" unique_id=2012918647]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5269, 3.065, -1.62)
 mesh = SubResource("BoxMesh_stair_guard_post")
 
-[node name="Label_CEO_Stairs" type="Label3D" parent="MAIN_LOBBY"]
+[node name="Label_CEO_Stairs" type="Label3D" parent="MAIN_LOBBY" unique_id=1889736969]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.155, 2.35, -4.18)
 billboard = 1
-text = "CEO OFFICE\nUPSTAIRS"
+text = "CEO OFFICE
+UPSTAIRS"
 font = ExtResource("12_72tca")
 font_size = 24
 outline_size = 8
@@ -6662,7 +6655,7 @@ font_size = 48
 outline_size = 10
 horizontal_alignment = 0
 
-[node name="PutBookDestination" parent="UPPER_OFFICE_CEO" instance=ExtResource("ai_play_put_book_destination")]
+[node name="PutBookDestination" parent="UPPER_OFFICE_CEO" unique_id=745788226 instance=ExtResource("ai_play_put_book_destination")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 0.08, -3.4)
 
 [node name="laptop" parent="UPPER_OFFICE_CEO" unique_id=925811638 instance=ExtResource("72_fpgjy")]
@@ -6884,77 +6877,77 @@ transform = Transform3D(1, 0, 2.13163e-14, 0, 1, 0, -2.13163e-14, 0, 1, -1, 0, -
 [node name="bookcaseClosedWide4" parent="ARCHIVE" unique_id=792950063 instance=ExtResource("29_rqlpo")]
 transform = Transform3D(1, 0, 2.13163e-14, 0, 1, 0, -2.13163e-14, 0, 1, 1.2, 0, -7.51997)
 
-[node name="books" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=585762745 instance=ExtResource("30_yjder")]
+[node name="books" parent="ARCHIVE" unique_id=585762745 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 3.05588, 1.22094, -1.11634)
 visible = false
 
-[node name="books2" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=2040553632 instance=ExtResource("30_yjder")]
+[node name="books2" parent="ARCHIVE" unique_id=2040553632 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.3711402e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711402e-08, 2.6558802, 1.7036599, -1.5934706)
 
-[node name="books3" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=593321889 instance=ExtResource("30_yjder")]
+[node name="books3" parent="ARCHIVE" unique_id=593321889 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.65588, 0.742455, -0.693467)
 
-[node name="books5" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=1479314314 instance=ExtResource("30_yjder")]
+[node name="books5" parent="ARCHIVE" unique_id=1479314314 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 0.6504271, 1.603652, -0.49346542)
 
-[node name="books6" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=1483841084 instance=ExtResource("30_yjder")]
+[node name="books6" parent="ARCHIVE" unique_id=1483841084 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.55467, 0.139511, -0.493466)
 
-[node name="books4" parent="ARCHIVE" groups=["put_book_decorative_book"] unique_id=409455667 instance=ExtResource("30_yjder")]
+[node name="books4" parent="ARCHIVE" unique_id=409455667 groups=["put_book_decorative_book"] instance=ExtResource("30_yjder")]
 transform = Transform3D(-1.31134e-07, -8.74228e-08, -1, 1, -4.37114e-08, -1.31134e-07, -4.37114e-08, -1, 8.74228e-08, 2.80461, 0.165415, -0.123862)
 visible = false
 
-[node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE"]
+[node name="PutBookShelfSlots" type="Node3D" parent="ARCHIVE" unique_id=2078666753]
 
-[node name="LeftWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="LeftWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=1249673521]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 0.22, -0.38)
 metadata/slot_id = "left_wide_low"
 metadata/shelf_id = "left_wide"
 metadata/height_tier = "low"
 
-[node name="LeftWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="LeftWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=1160106850]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 0.7, -0.38)
 metadata/slot_id = "left_wide_middle"
 metadata/shelf_id = "left_wide"
 metadata/height_tier = "middle"
 
-[node name="LeftWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="LeftWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=1920170985]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, -1.1, 1.18, -0.38)
 metadata/slot_id = "left_wide_high"
 metadata/shelf_id = "left_wide"
 metadata/height_tier = "high"
 
-[node name="CenterWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="CenterWide_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=237571204]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 0.22, -0.38)
 metadata/slot_id = "center_wide_low"
 metadata/shelf_id = "center_wide"
 metadata/height_tier = "low"
 
-[node name="CenterWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="CenterWide_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=1097391258]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 0.7, -0.38)
 metadata/slot_id = "center_wide_middle"
 metadata/shelf_id = "center_wide"
 metadata/height_tier = "middle"
 
-[node name="CenterWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="CenterWide_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=847942921]
 transform = Transform3D(-1, 0, 8.74228e-08, 0, 1, 0, -8.74228e-08, 0, -1, 1.1, 1.18, -0.38)
 metadata/slot_id = "center_wide_high"
 metadata/shelf_id = "center_wide"
 metadata/height_tier = "high"
 
-[node name="RightOpen_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="RightOpen_Low" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=120663820]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.25, -0.98)
 metadata/slot_id = "right_open_low"
 metadata/shelf_id = "right_open"
 metadata/height_tier = "low"
 
-[node name="RightOpen_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="RightOpen_Middle" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=747050364]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 0.85, -0.98)
 metadata/slot_id = "right_open_middle"
 metadata/shelf_id = "right_open"
 metadata/height_tier = "middle"
 
-[node name="RightOpen_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots"]
+[node name="RightOpen_High" type="Marker3D" parent="ARCHIVE/PutBookShelfSlots" unique_id=1452828304]
 transform = Transform3D(-4.37114e-08, 0, -1, 0, 1, 0, 1, 0, -4.37114e-08, 2.68, 1.45, -0.98)
 metadata/slot_id = "right_open_high"
 metadata/shelf_id = "right_open"
@@ -7212,7 +7205,7 @@ transform = Transform3D(1, 0, 1.19209e-07, 0, 1, 0, -1.19209e-07, 0, 1, -5.92048
 
 [node name="LockInteraction" parent="MEETING_ROOM/ConferenceDoor/FrontDoor" index="4" unique_id=1037107017 instance=ExtResource("22_2fd6x")]
 
-[node name="Label_MeetingRoom" type="Label3D" parent="MEETING_ROOM"]
+[node name="Label_MeetingRoom" type="Label3D" parent="MEETING_ROOM" unique_id=917432886]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.92048, 2.1315, -20.7487)
 billboard = 1
 text = "MEETING ROOM"
@@ -7458,7 +7451,7 @@ shape = SubResource("ConcavePolygonShape3D_upcaa")
 [node name="kitchenFridgeContainer2" parent="BREAK_ROOM" unique_id=1542335354 instance=ExtResource("57_fdyfl")]
 transform = Transform3D(-1, 0, -1.50996e-07, 0, 1, 0, 1.50996e-07, 0, -1, 3.65301, -4.84288e-08, 6.17191)
 display_name = "Fridge"
-inventory_data = SubResource("Resource_fay3r")
+inventory_data = SubResource("Resource_66ver")
 
 [node name="kitchenMicrowave2" parent="BREAK_ROOM" unique_id=700304995 instance=ExtResource("61_1x4um")]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 1.98491, 0.84, 6.39503)
@@ -7768,7 +7761,7 @@ transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 4.5367, 
 transform = Transform3D(1, 0, 1.74846e-07, 0, 1, 0, -1.74846e-07, 0, 1, 6.06102, -4.84288e-08, 0.850476)
 
 [node name="chairDesk" parent="CUBICLE_AREA" unique_id=2147117074 instance=ExtResource("21_o6psl")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.45827, 2.38419e-07, -1.05429)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.45827, 2.3841858e-07, -1.4408216)
 
 [node name="chairDesk2" parent="CUBICLE_AREA" unique_id=15553826 instance=ExtResource("21_o6psl")]
 transform = Transform3D(0.942717, 0, 0.333593, 0, 1, 0, -0.333593, 0, 0.942717, 4.92015, 7.07805e-08, -1.06486)
@@ -8450,9 +8443,8 @@ properties_to_set_OFF = {
 [node name="InventoryBag" parent="." unique_id=1523741516 instance=ExtResource("104_mm36t")]
 transform = Transform3D(0.845402, 0, -0.534131, 0, 1, 0, 0.534131, 0, 0.845402, -6.42311, 1.24142, -13.9382)
 
-[node name="AIPlayNPCs" type="Node3D" parent="."]
+[node name="AIPlayNPCs" type="Node3D" parent="." unique_id=1730869713]
 process_mode = 4
-visible = false
 script = ExtResource("ai_play_lobby_npcs")
 
 [node name="FriendlyHumanNPC" parent="AIPlayNPCs" unique_id=741285414 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
@@ -8466,99 +8458,157 @@ walk_speed = 0.35
 [node name="Camera3D" type="Camera3D" parent="AIPlayNPCs/FriendlyHumanNPC" unique_id=722238884]
 transform = Transform3D(-1.0136346, -0.06489017, 1.7228856, -0.062349867, 1.9986553, 0.038594026, -1.7229794, -0.03415072, -1.014976, 0, 0, 0)
 
-[node name="FindKeyCEONPC" parent="AIPlayNPCs" node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -4.65, 2.68, -11.1)
-route_root = NodePath("../../FriendlyHumanNPCPath")
+[node name="FindKeyCEONPC" parent="AIPlayNPCs" unique_id=110882336 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
+transform = Transform3D(0.73, 0, 0, 0, 0.73, 0, 0, 0, 0.73, -1.2814598, 2.68, -11.8)
+route_root = NodePath("../../CEONPCPath")
 final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
-walk_speed = 0.35
 use_navigation_agent = false
+walk_speed = 0.35
 
-[node name="FindKeyCubicleNPC" parent="AIPlayNPCs" node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 6.46, 0.5, -1.05)
-route_root = NodePath("../../FriendlyHumanNPCPath")
+[node name="FindKeyCubicleNPC" parent="AIPlayNPCs" unique_id=908646593 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
+transform = Transform3D(0.5384323, 0, 0.041116737, 0, 0.53999996, 0, -0.041116737, 0, 0.5384323, 3.8033056, 0.9301702, -1.05)
+route_root = NodePath("../../CubicleNPCPath")
 final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
-walk_speed = 0.35
 use_navigation_agent = false
+walk_speed = 0.35
+
+[node name="CEONPCPath" type="Node3D" parent="." unique_id=507071738]
+
+[node name="CEOOfficeDoorOutside" type="Marker3D" parent="CEONPCPath" unique_id=73768677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5017378, 2.68, -11.8)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CEONPCPath/CEOOfficeDoorOutside" unique_id=2091082089]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CEOStairUpperLanding" type="Marker3D" parent="CEONPCPath" unique_id=885478341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9196604, 2.48, -7.74386)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CEONPCPath/CEOStairUpperLanding" unique_id=554091950]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CEOStairMidpoint" type="Marker3D" parent="CEONPCPath" unique_id=323795497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.164998, 1.3688686, -6.14386)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CEONPCPath/CEOStairMidpoint" unique_id=865670377]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CEOStairLowerLanding" type="Marker3D" parent="CEONPCPath" unique_id=61927290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.164998, -0.016200515, -4.127927)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CEONPCPath/CEOStairLowerLanding" unique_id=901132029]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CubicleNPCPath" type="Node3D" parent="." unique_id=1750132551]
+
+[node name="CubiclePatrolStart" type="Marker3D" parent="CubicleNPCPath" unique_id=1798593248]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8033056, 0.05, -1.05)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CubicleNPCPath/CubiclePatrolStart" unique_id=2133861685]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CubicleExit" type="Marker3D" parent="CubicleNPCPath" unique_id=1233274808]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.0734673, 0.05, -2.9590578)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CubicleNPCPath/CubicleExit" unique_id=1366029408]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CubicleLobbyCrossing" type="Marker3D" parent="CubicleNPCPath" unique_id=118793287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.039483, 0.05, -8.395132)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CubicleNPCPath/CubicleLobbyCrossing" unique_id=504408443]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
+
+[node name="CubicleBreakRoomVisit" type="Marker3D" parent="CubicleNPCPath" unique_id=892872981]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2537853, 0.05, -10.1)
+
+[node name="DebugSphere" type="MeshInstance3D" parent="CubicleNPCPath/CubicleBreakRoomVisit" unique_id=142777237]
+mesh = SubResource("SphereMesh_lobby_path")
+surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="FriendlyHumanNPCPath" type="Node3D" parent="." unique_id=1465165633]
 
 [node name="HumanMeetingRoomStart" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=1669076572]
-transform = Transform3D(0.9910633, 0, -0.13339233, 0, 1, 0, 0.13339233, 0, 0.9910633, 5.98, 0.05, 13.2)
+transform = Transform3D(0.9910633, 0, -0.13339233, 0, 1, 0, 0.13339233, 0, 0.9910633, 5.3201537, 0.05, 13.398232)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanMeetingRoomStart" unique_id=986516014]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.77901936, 0, 0.27935696)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanMeetingRoomDoorInside" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=865011082]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.9, 0.05, 13.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.589698, 0.05, 12.671461)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanMeetingRoomDoorInside" unique_id=1457455067]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.061398983, 0, 0)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanMeetingRoomDoorOutside" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=1210287965]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6, 0.05, 10.45)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4258924, 0.05, 10.45)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanMeetingRoomDoorOutside" unique_id=163980470]
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanLobbyExitLane" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=627733691]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9150548, 0.05, 8.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1950548, 0.05, 8.4)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanLobbyExitLane" unique_id=1940353097]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.31793833, 0, 0.22396278)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanLobbyStairBypass" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=670073270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4, 0.05, 4.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.150378, 0.09, 4.4)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanLobbyStairBypass" unique_id=633506827]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.86, 0.04, 0)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanLobbyCenterApproach" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=158631196]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0.05, 1.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.67847425, 0.05, 1.4)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanLobbyCenterApproach" unique_id=2081497911]
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanMainLobbyCrossing" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=815378377]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.05, -1.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3306849, 0.05, -1.6)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanMainLobbyCrossing" unique_id=708901884]
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanBreakRoomEntrance" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=1469080224]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.8, 0.05, -6.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.728009, 0.05, -6.7445846)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanBreakRoomEntrance" unique_id=606123099]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.81, 0, 0)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanBreakRoomVisit" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=1082066520]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.432042, 0.05, -10.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.0919952, 0.033618916, -8.747376)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanBreakRoomVisit" unique_id=326775836]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.96420574, -0.016381085, 1.3526239)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanSofaApproach" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=2069998308]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.78, 0.05, -8.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6626005, 0.05, -9.68025)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanSofaApproach" unique_id=133694278]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.20638609, 0, -1.6399269)
 mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="HumanSofaStop" type="Marker3D" parent="FriendlyHumanNPCPath" unique_id=852509097]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1, 0.05, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.9691844, 0.05, -10)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="FriendlyHumanNPCPath/HumanSofaStop" unique_id=1277501466]
 mesh = SubResource("SphereMesh_lobby_path")
