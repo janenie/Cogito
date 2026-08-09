@@ -51,6 +51,7 @@ enum PromptPositionMode {
 @export var walk_speed: float = 0.65
 @export var rotation_speed: float = 8.0
 @export_range(0.0, 1.0, 0.01) var max_step_height: float = 0.0
+@export_range(0.0, 0.5, 0.01) var step_forward_distance: float = 0.0
 @export var step_visual_smoothing_speed: float = 2.0
 @export var navigation_probe_steps: int = 3
 @export var navigation_probe_step_distance: float = 0.35
@@ -394,13 +395,16 @@ func _try_step_up(horizontal_motion: Vector3) -> bool:
 	if test_move(global_transform, step_up):
 		return false
 
+	var step_forward_motion := horizontal_motion
+	if step_forward_motion.length() < step_forward_distance:
+		step_forward_motion = horizontal_motion.normalized() * step_forward_distance
 	var raised_transform := global_transform
 	raised_transform.origin += step_up
-	if test_move(raised_transform, horizontal_motion):
+	if test_move(raised_transform, step_forward_motion):
 		return false
 
 	var advanced_transform := raised_transform
-	advanced_transform.origin += horizontal_motion
+	advanced_transform.origin += step_forward_motion
 	var step_down := Vector3.DOWN * (max_step_height + floor_snap_length)
 	if not test_move(advanced_transform, step_down):
 		return false
@@ -411,7 +415,7 @@ func _try_step_up(horizontal_motion: Vector3) -> bool:
 		visual_height_before_step = visual_root.global_position.y
 		visual_local_height_before_step = visual_root.position.y
 	global_position += step_up
-	move_and_collide(horizontal_motion)
+	move_and_collide(step_forward_motion)
 	if visual_root:
 		var visual_position := visual_root.global_position
 		visual_position.y = visual_height_before_step

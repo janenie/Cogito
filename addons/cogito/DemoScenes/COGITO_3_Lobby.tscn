@@ -8601,6 +8601,8 @@ route_root = NodePath("../../CubicleNPCPath")
 final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
 use_navigation_agent = false
 walk_speed = 0.35
+max_step_height = 0.25
+step_forward_distance = 0.15
 
 [node name="CEONPCPath" type="Node3D" parent="." unique_id=507071738]
 
