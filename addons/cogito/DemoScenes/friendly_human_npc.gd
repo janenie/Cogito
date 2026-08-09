@@ -148,7 +148,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		_apply_horizontal_velocity(desired_velocity)
 		var horizontal_motion := Vector3(velocity.x, 0.0, velocity.z) * delta
-		if not _try_step_up(horizontal_motion):
+		if (
+			not _try_step_up(horizontal_motion)
+			and not _try_cross_floor_seam(horizontal_motion)
+		):
 			move_and_slide()
 	_update_walk_pose(delta, true)
 
@@ -414,6 +417,20 @@ func _try_step_up(horizontal_motion: Vector3) -> bool:
 		visual_position.y = visual_height_before_step
 		visual_root.global_position = visual_position
 		_step_visual_offset_y += visual_root.position.y - visual_local_height_before_step
+	velocity.y = 0.0
+	return true
+
+
+func _try_cross_floor_seam(horizontal_motion: Vector3) -> bool:
+	if max_step_height <= 0.0 or is_on_floor() or horizontal_motion.is_zero_approx():
+		return false
+	var floor_probe := Vector3.DOWN * (max_step_height + floor_snap_length)
+	if not test_move(global_transform, floor_probe):
+		return false
+	if test_move(global_transform, horizontal_motion):
+		return false
+
+	move_and_collide(horizontal_motion)
 	velocity.y = 0.0
 	return true
 

@@ -22,7 +22,8 @@ func _run_test() -> void:
 	var office_door: Marker3D = lobby.get_node("CEONPCPath/CEOOfficeDoorOutside")
 	var upper_landing: Marker3D = lobby.get_node("CEONPCPath/CEOStairUpperLanding")
 	var upper_landing_debug_sphere: MeshInstance3D = upper_landing.get_node("DebugSphere")
-	npc.walk_speed = 2.0
+	npc.walk_speed = 0.35
+	npc.configure_route_loop(2, -1)
 
 	_assert(
 		upper_landing.global_position.is_equal_approx(
@@ -40,7 +41,7 @@ func _run_test() -> void:
 	var previous_visual_position := npc.visual_root.global_position
 	var largest_upward_step := 0.0
 	var smooth_forward_ascent_frames := 0
-	for _frame: int in 900:
+	for _frame: int in 1200:
 		await get_tree().physics_frame
 		var visual_position := npc.visual_root.global_position
 		var upward_motion := visual_position.y - previous_visual_position.y
