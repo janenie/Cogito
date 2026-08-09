@@ -8593,6 +8593,7 @@ route_root = NodePath("../../CEONPCPath")
 final_facing_target = NodePath("../../FriendlyHumanNPCPath/HumanSofaLookTarget")
 use_navigation_agent = false
 walk_speed = 0.35
+max_step_height = 0.25
 
 [node name="FindKeyCubicleNPC" parent="AIPlayNPCs" unique_id=908646593 node_paths=PackedStringArray("route_root", "final_facing_target") instance=ExtResource("108_human_npc")]
 transform = Transform3D(0.5384323, 0, 0.041116737, 0, 0.53999996, 0, -0.041116737, 0, 0.5384323, 3.8033056, 0.9301702, -1.05)

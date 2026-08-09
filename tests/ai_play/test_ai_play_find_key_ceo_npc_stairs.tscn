@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/ai_play/test_ai_play_find_key_ceo_npc_stairs.gd" id="1_test"]
+
+[node name="AIPlayFindKeyCEONPCStairTest" type="Node"]
+script = ExtResource("1_test")

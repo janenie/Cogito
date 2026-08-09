@@ -50,6 +50,7 @@ enum PromptPositionMode {
 @export_group("Movement")
 @export var walk_speed: float = 0.65
 @export var rotation_speed: float = 8.0
+@export_range(0.0, 1.0, 0.01) var max_step_height: float = 0.0
 @export var navigation_probe_steps: int = 3
 @export var navigation_probe_step_distance: float = 0.35
 
@@ -144,7 +145,9 @@ func _physics_process(delta: float) -> void:
 		navigation_agent.velocity = desired_velocity
 	else:
 		_apply_horizontal_velocity(desired_velocity)
-		move_and_slide()
+		var horizontal_motion := Vector3(velocity.x, 0.0, velocity.z) * delta
+		if not _try_step_up(horizontal_motion):
+			move_and_slide()
 	_update_walk_pose(delta, true)
 
 
@@ -373,6 +376,33 @@ func _is_navigation_path_clear(next_position: Vector3) -> bool:
 		if move_and_collide(probe_motion, true):
 			return false
 
+	return true
+
+
+func _try_step_up(horizontal_motion: Vector3) -> bool:
+	if max_step_height <= 0.0 or not is_on_floor() or horizontal_motion.is_zero_approx():
+		return false
+	if not test_move(global_transform, horizontal_motion):
+		return false
+
+	var step_up := Vector3.UP * max_step_height
+	if test_move(global_transform, step_up):
+		return false
+
+	var raised_transform := global_transform
+	raised_transform.origin += step_up
+	if test_move(raised_transform, horizontal_motion):
+		return false
+
+	var advanced_transform := raised_transform
+	advanced_transform.origin += horizontal_motion
+	var step_down := Vector3.DOWN * (max_step_height + floor_snap_length)
+	if not test_move(advanced_transform, step_down):
+		return false
+
+	global_position += step_up
+	move_and_collide(horizontal_motion)
+	velocity.y = 0.0
 	return true
 
 
