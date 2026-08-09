@@ -65,13 +65,23 @@ def test_find_key_registry_loads_bounded_public_briefing():
     briefing, image_bytes = load_scenario_briefing("find_key")
 
     assert briefing["game_id"] == "find_key"
-    assert briefing["success_condition"] == "解锁档案室并拾取其中的当前合同钥匙。"
+    assert briefing["success_condition"] == (
+        "根据完整证据，提交与最终签署合同对应的正确钥匙。"
+    )
     assert "100" in briefing["failure_condition"]
     assert "12:00" in repr(briefing)
-    assert "一次" in repr(briefing)
     assert "SUBMITTED" in repr(briefing)
     assert "FINAL" in repr(briefing)
     assert "MEETING ROOM" in repr(briefing)
+    assert "今天" not in briefing["background"]
+    assert "ARCHIVE" not in briefing["objective"]
+    assert "四位" not in briefing["objective"]
+    assert "密码不对" in repr(briefing)
+    assert "重新输入" in repr(briefing)
+    assert "确认提交" not in repr(briefing)
+    assert "密码错误会立即" not in repr(briefing)
+    assert "拿起可见" not in repr(briefing)
+    assert "提交最终选择" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for forbidden in [

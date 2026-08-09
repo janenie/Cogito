@@ -9,6 +9,7 @@ const KEY_SUBMISSION_INTERACTION_SCENE := preload(
 )
 const KEY_SUBMISSION_NODE_NAME := "KeySubmissionInteraction"
 const KEY_SUBMISSION_TEXT := "提交此钥匙 / Submit this key"
+const WRONG_PASSWORD_TEXT := "密码不对 / WRONG CODE"
 const NPC_COLORS := {
 	"李明": Color(0.18, 0.44, 0.62),
 	"王芳": Color(0.58, 0.28, 0.62),
@@ -192,10 +193,8 @@ func _configure_archive_lock() -> void:
 	archive_door.lock_door()
 	keypad.is_locked = true
 	keypad.passcode = _round_data["current"]["password"]
-	keypad.require_submit_confirmation = true
-	keypad.submission_warning_text = (
-		"仅有一次提交机会。确认后不可修改；错误密码会立即触发安保锁定。"
-	)
+	keypad.require_submit_confirmation = false
+	keypad.open_when_unlocked = true
 	keypad.reset_submission()
 	keypad.set_state()
 
@@ -250,7 +249,7 @@ func _on_code_checked(is_correct: bool) -> void:
 	if _round_finished:
 		return
 	if not is_correct:
-		_finish_round("failure", "security_lockout")
+		keypad.code_display.text = WRONG_PASSWORD_TEXT
 
 
 func _on_key_submitted(

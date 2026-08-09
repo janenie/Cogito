@@ -144,6 +144,14 @@ func _run_test() -> void:
 	_assert(surface_count == 3, "exactly three keys use surface placement")
 	_assert(setup.npc_by_region().size() == 3, "three clue NPCs are registered")
 	_assert(monitor.archive_door.is_locked, "Archive starts locked")
+	_assert(
+		not monitor.keypad.require_submit_confirmation,
+		"find-key keypad validates a complete code immediately",
+	)
+	_assert(
+		monitor.keypad.open_when_unlocked,
+		"correct find-key password opens the Archive door",
+	)
 	_assert(not monitor.cubicle_npc.is_sitting(), "cubicle NPC walks instead of sitting")
 	_assert(
 		monitor.meeting_npc.route_root == lobby.get_node_or_null("FriendlyHumanNPCPath"),
@@ -311,25 +319,25 @@ func _run_test() -> void:
 	var wrong_code := ("0" if current_code[0] != "0" else "1") + current_code.substr(1)
 	monitor.keypad.entered_code = wrong_code
 	monitor.keypad.check_entered_code()
-	monitor.keypad.cancel_submission()
-	_assert(terminal_results.is_empty(), "cancel keeps the round alive")
-	monitor.keypad.entered_code = wrong_code
-	monitor.keypad.check_entered_code()
-	monitor.keypad.confirm_submission()
-	monitor.keypad.confirm_submission()
 	_assert(
-		terminal_results == [{"outcome": "failure", "reason": "security_lockout"}],
-		"one wrong confirmed password ends the round exactly once",
+		terminal_results.is_empty(),
+		"wrong password keeps the find-key round alive",
+	)
+	_assert(monitor.keypad.is_locked, "wrong password keeps the Archive locked")
+	_assert(
+		monitor.keypad.code_display.text == "密码不对 / WRONG CODE",
+		"wrong password shows an explicit retryable error",
 	)
 
 	monitor.configure_round(0)
 	terminal_results.clear()
 	monitor.keypad.unlock_wait_time = 0.0
+	monitor.keypad.open(monitor.player.player_interaction_component)
 	monitor.keypad.entered_code = monitor.get_round_data()["current"]["password"]
 	monitor.keypad.check_entered_code()
-	monitor.keypad.confirm_submission()
 	await process_frame
 	_assert(not monitor.archive_door.is_locked, "correct password unlocks Archive")
+	_assert(monitor.archive_door.is_open, "correct password opens Archive")
 	_assert(terminal_results.is_empty(), "unlock alone is not success")
 	var archive_key: RigidBody3D = setup.key_by_region()["ARCHIVE"]
 	archive_key.get_node("KeySubmissionInteraction").was_interacted_with.emit(

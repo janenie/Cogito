@@ -401,10 +401,11 @@ Codex 配置中的 `[memories]` 仍保持禁用。
 `find_key` 是六区域合同时间线排除题。MAIN LOBBY、CEO OFFICE、ARCHIVE、MEETING ROOM、
 BREAK ROOM 和 CUBICLE AREA 各有一把外观相同的钥匙；三把位于收纳处，三把位于桌面。
 CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回答的 NPC 共同描述
-合同从三个月前初稿、昨天上午审查稿、昨天下午 `FINAL v1.0 / PREPARED FOR SUBMISSION`
-到今天上午 `v1.1 / SUBMITTED` 的变化。玩家需辨别 FINAL 与真正提交状态，向最终经手人
-确认当前四位密码。档案室键盘只有一次确认提交机会；取消不消耗机会，错误确认产生
-`failure/security_lockout`，正确密码只解锁档案室，进入后拾取当前钥匙才产生
+合同从三个月前初稿、会议前一日上午审查稿、会议前一日下午
+`FINAL v1.0 / PREPARED FOR SUBMISSION` 到董事会会议开始（12:00）前
+`v1.1 / SUBMITTED` 的变化。玩家需辨别 FINAL 与真正提交状态，向最终经手人确认当前
+四位密码。密码输入满四位后立即验证：错误时显示“密码不对”并允许重新输入，不产生终局；
+正确时解锁并打开档案室。提交错误钥匙产生 `failure/security_lockout`，提交当前钥匙才产生
 `success/key_picked_up`。每局使用 100 次请求硬上限。
 
 三个受维护的 orchestrator 默认使用相同的 `--benchmark-cycle-seed=20260809`，也可显式改为

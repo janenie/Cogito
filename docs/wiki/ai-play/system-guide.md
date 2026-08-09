@@ -503,9 +503,9 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   BREAK ROOM 后原路折返。
   三个实例由 Lobby 的 `AIPlayNPCs` 常驻持有，`find_key` 和 `greet_npc_meeting` 复用它们；
   其他不涉及 NPC 的玩法会隐藏并停用整组 NPC，不在运行时重复实例化。
-- ARCHIVE 门每局重新锁定。键盘启用一次性确认：输入后先显示不可逆警告；取消不消耗机会，
-  确认错误立即产生 `failure/security_lockout`，确认正确只解锁房间。进入房间并实际拾取
-  ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 100。
+- ARCHIVE 门每局重新锁定。键盘输入满四位后立即验证；错误时显示“密码不对”，保持门锁定并
+  允许重新输入，不产生终局；正确时解锁并自动打开房门。提交错误钥匙产生
+  `failure/security_lockout`，提交 ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 100。
 - 六把任务钥匙都由 `COGITO_3_Lobby.tscn` 静态拥有，编辑器中保持可见并可直接调整；运行时
   只有 `find_key` 会显示、启用碰撞和配置提交交互，其他玩法统一隐藏并停用。每把钥匙固定属于
   原房间，房间内各有三个名为 `Candidate1..3` 的 `Marker3D` 候选点；本局 round seed
