@@ -864,6 +864,7 @@ def is_websocket_listening(host: str, port: int) -> bool:
             compression=None,
             open_timeout=0.2,
             close_timeout=0.2,
+            proxy=None,
         ):
             return True
     except (OSError, TimeoutError, WebSocketException):

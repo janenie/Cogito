@@ -176,6 +176,7 @@ def test_websocket_readiness_uses_a_real_protocol_handshake(monkeypatch):
         "compression": None,
         "open_timeout": 0.2,
         "close_timeout": 0.2,
+        "proxy": None,
     }
 
 
