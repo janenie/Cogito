@@ -1,33 +1,46 @@
-benchmark_id: bmk-20260803-003929
+benchmark_id: bmk-20260809-codex-awm
 task: put_book
 model: gpt-5.6-sol
 reasoning_effort: high
 mode: awm
 runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
 
-orchestrator_run_dir: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944
-trusted_log_root: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39
-run_summary: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39/run.json
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45/run.json
 
 run_1:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39/attempt-01/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45/attempt-01/trajectory.json
   result: failure/max_requests
-  total_steps: 150
+  total_steps: 100
+  progress: identified the relevant upstairs book area but did not complete placement
+  process_cn: 到达 CEO 办公室楼层并拿起目标书堆，在栏杆和楼梯口之间寻找放置区；终局仍携带书本停在楼上过道。
+  issue_cn: 识别与拿取基本成功，但对楼上目标区的位置关系判断不稳定；13 次探测中 5 次 not_found，并一度被密码交互提示分散注意力。
 
 run_2:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39/attempt-02/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45/attempt-02/trajectory.json
   result: failure/max_requests
-  total_steps: 150
+  total_steps: 100
+  progress: carried the lowest-value book into the cyan target zone; the HUD offered E Drop but MCP exposed no usable drop interaction
+  process_cn: 把最低价值书带到青色放置区正上方，画面明确显示 E Drop，并多次尝试 interact/interact2 与位置微调。
+  issue_cn: 这是明确的接口不一致：HUD 有 Drop，但 MCP available_interactions 仍只公开 Carry/Close，没有可合法调用的 drop；继续探测只产生 not_found 或移动阻塞。
 
 run_3:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39/attempt-03/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45/attempt-03/trajectory.json
   result: failure/max_requests
-  total_steps: 150
+  total_steps: 100
+  progress: carried the lowest-value book into the cyan target zone; interact/interact2 could not perform the visible drop action
+  process_cn: 成功拿书并一度接近目标区，但在楼梯与栏杆路线调整中回到一楼，终局仍携带书本面对楼梯。
+  issue_cn: 持物状态下缺少直接目标/放下动作反馈；模型用 60 次转向和 101 个移动子动作恢复路线，路径纠错挤占了最终放置预算。
 
 run_4:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/put_book/20260803-003944/trusted_mcplogs/put_book/20260803-00-39/attempt-04/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-064528__codex__gpt-5.6-sol__put_book__awm/trusted_mcplogs/put_book/20260809-06-45/attempt-04/trajectory.json
   result: failure/max_requests
-  total_steps: 150
-  note: one external Codex API reconnect occurred; the run resumed without resetting game state
+  total_steps: 100
+  progress: reached the cyan target while carrying the correct book, then exhausted the budget trying to expose a valid drop action
+  process_cn: 再次拿到正确书本并回到楼上，在目标房间外和栏杆边等待、转向、重新接近放置区。
+  issue_cn: 目标区可见性受墙体和栏杆影响，且到达后仍没有 MCP Drop；7 次 wait 也没有让交互列表刷新出可用动作。
 
 aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: the game HUD and MCP interaction contract disagree while carrying an item; the visible Drop action is not represented in available_interactions

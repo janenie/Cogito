@@ -1,0 +1,42 @@
+benchmark_id: bmk-20260809-codex-awm
+task: greet_npc_meeting
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 从大厅追踪移动 NPC，沿多处黄色路径点搜索，最后进入楼梯下方的红色按钮平台附近。
+  issue_cn: 目标持续移动，模型的观察在推理完成时已经过期；14 次探测仅 1 次 aligned、13 次 not_found，全轮没有出现 hi 问候提示。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 成功捕获 hi 提示并完成至少一次问候，随后跟随路径进入会议室并等待 NPC 到达。
+  issue_cn: 问候后的 NPC 没有可靠走进会议室，模型反复开关门和等待；动态路径状态没有通过 MCP 明确反馈，无法判断该继续等还是重新追人。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 在大厅与休息室之间寻找目标，频繁扫描电视、门口和黄色路径点；终局仍在休息室内，没有捕获问候提示。
+  issue_cn: 用了 67 次 look 和 11 次 wait，但 NPC 位置缺少稳定标识；视觉扫描范围扩大后仍无法重新锁定移动目标。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 在大厅观察 NPC 路线，长时间等待楼梯上的目标继续移动；终局画面显示一名 NPC 停在楼梯顶端附近。
+  issue_cn: 52 次 wait 仍未解除 NPC 的楼梯卡滞；模型能识别目标没有前进，但接口没有 NPC 状态、路径失败或可恢复动作，只能被动等待。
+
+aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: at least one greeting succeeded, but the NPC did not reliably proceed to the meeting room; other targets moved during model latency or became inaccessible near the stair top

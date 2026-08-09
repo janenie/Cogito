@@ -1,0 +1,42 @@
+benchmark_id: bmk-20260809-codex-awm
+task: find_contract
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 在入口附近寻找首条线索，围绕电视柜后的青色图标反复转向和探测；共执行 19 次交互探测，其中 12 次 not_found，直到终局仍未读到 1/3 线索。
+  issue_cn: 把视觉引导图标当成可直接交互物，实际物体又被电视柜和视角遮挡；缺少“图标对应哪个实体”的结构化提示，微调消耗了整轮预算。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 成功读到合同线索 1/3，随后沿黄色引导进入会议室并搜索下一目标；移动占 67 个动作，但始终没有出现下一条线索的交互提示。
+  issue_cn: 黄色标记只提供大致区域，不等同于实际线索物；门、桌椅和观察角度共同增加定位成本，12 次探测中 9 次 not_found。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 读取 1/3 线索后到达开放办公区，在隔断、桌面和发光标记附近持续移动、跳跃和转向；最终停在 cubicle 区域。
+  issue_cn: 办公隔断和台阶路线造成 6 次明确 blocked，4 次探测全部 not_found；模型知道目标区域，但无法把二维标记稳定映射到可交互实体。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-030451__codex__gpt-5.6-sol__find_contract__awm/trusted_mcplogs/find_contract/20260809-03-04/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 再次读取 1/3 线索并到达 cubicle 区域，围绕桌面后的青色图标从多个方向接近；一轮内发出了 115 个移动子动作。
+  issue_cn: 目标被桌面、显示器和平台边缘遮挡，近距离移动仍有 6 次 blocked；只有 1 次探测成功对齐，但未形成有效线索交互。
+
+aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: the model repeatedly found an initial clue and reached plausible target areas, but marker-versus-item ambiguity, occlusion, doors, stairs, and platform micro-positioning prevented completion

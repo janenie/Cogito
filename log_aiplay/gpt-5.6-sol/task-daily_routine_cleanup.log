@@ -1,0 +1,46 @@
+benchmark_id: bmk-20260809-codex-awm
+task: daily_routine_cleanup
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: approximately 1/5 objectives completed
+  process_cn: 完成 1 个清理目标后集中处理冰箱过期牛奶，在冰箱门前反复开关、转向并尝试拿取，终局仍停在打开的冰箱前。
+  issue_cn: 冰箱门与牛奶交互体距离很近，提示在打开/关闭冰箱和拿过期牛奶之间切换；48 次 look 后仍无法稳定完成“拿取再投放”的整条链。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: approximately 2/5 objectives completed
+  process_cn: 完成牛奶和另一个垃圾目标后进入卧室搜索剩余物，围绕床、床头柜和墙角逐点查看。
+  issue_cn: 剩余垃圾与普通家具缺少明显区分；58 次 look、64 个移动子动作仍没有出现稳定候选提示，搜索策略退化为低效率穷举。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: approximately 2/5 objectives completed
+  process_cn: 已完成 2/5，并把垃圾桶选为投放目标；在客厅垃圾桶附近尝试拾取和 Use，但进度没有继续增加。
+  issue_cn: 垃圾物与垃圾桶距离过近时射线容易命中错误对象，提示在 Pick up 与 Use 之间切换；模型无法确认当前手持/选中状态，3 次探测均 not_found。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-102934__codex__gpt-5.6-sol__daily_routine_cleanup__awm/trusted_mcplogs/daily_routine_cleanup/20260809-10-29/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  progress: approximately 3/5 objectives completed
+  process_cn: 提升到 3/5 后继续在客厅和相邻房间搜索最后两件垃圾，最终空手停在沙发与垃圾桶附近。
+  issue_cn: 虽然动作顺序较前三轮更好，但剩余目标发现仍依赖大范围视觉搜索；107 个移动子动作只换来一个额外进度，交互反馈不足以指导收尾。
+
+aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: door, refrigerator, and bin proximity is very narrow; nearby trash can steal the interaction ray and prompts can remain stale after the target changes

@@ -1,0 +1,42 @@
+benchmark_id: bmk-20260809-codex-awm
+task: find_key
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-01/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 找到并询问了合同记录相关 NPC，之后在大厅、楼梯和候选区域之间搜索，终局仍回到一楼大厅附近。
+  issue_cn: 只获得口供，没有读到书面合同记录；14 次交互探测有 12 次 not_found，并出现 5 次移动阻塞，无法建立可提交钥匙所需的交叉证据。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-02/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 完成 NPC 询问并成功阅读合同记录，随后进入会议室附近继续寻找钥匙候选和第二份佐证。
+  issue_cn: 已取得两类信息但没有把候选缩到唯一钥匙；门的 Open/Close/Lock 提示与目标交互竞争，15 次探测中 12 次 not_found。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-03/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 同样读到口供与合同记录，并多次往返大厅、楼梯和房间入口，最终仍停在一楼楼梯附近。
+  issue_cn: 移动过程中发生 8 次 blocked；动态 NPC 与门口位置变化使截图很快过期，模型把较多预算用于重新定位而不是验证钥匙。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-04/trajectory.json
+  result: failure/max_requests
+  total_steps: 100
+  process_cn: 直接搜索楼上候选物，成功让“提交此钥匙 / Submit this key”提示出现，并检查了办公室内多个可能位置。
+  issue_cn: 已经到达可提交状态，但因多个候选尚未充分排除而不敢提交；楼梯用了 9 次跳跃和大量移动，剩余预算不足以完成安全交叉验证。
+
+aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: NPC testimony and archive candidates were discovered, but moving NPCs, door/stair proximity, and insufficient cross-validation kept the model from making a safe final submission

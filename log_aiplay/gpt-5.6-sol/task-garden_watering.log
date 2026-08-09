@@ -1,0 +1,42 @@
+benchmark_id: bmk-20260809-codex-awm
+task: garden_watering
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38/attempt-01/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 20
+  process_cn: 识别到下雨警报后向房屋三和花圃移动，终局时已到花园外围，画面时间约 11:08，但没有执行任何 interact 动作。
+  issue_cn: 模型推理期间游戏时钟持续推进；路线判断与 11 次转向耗尽告警窗口，还没定位门铃就触发 garden_task_failed。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38/attempt-02/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 26
+  process_cn: 更接近房屋三入口和兰花区域，终局时间约 11:13；期间持续移动、冲刺并尝试一次跳跃绕行。
+  issue_cn: 已到正确区域但没让门铃交互进入 available_interactions，仍未执行 interact；视觉上“房门、门铃、花圃”的优先级不够明确。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38/attempt-03/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 22
+  process_cn: 下雨后从外侧接近房屋三，沿围墙和水面边缘寻找入口，终局约 10:53，仍隔着围墙观察花圃。
+  issue_cn: 选择了错误的围墙接近侧，14 个移动和 3 次跳跃都没有建立可交互路径；实时倒计时不给模型恢复路线的机会。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-123835__codex__gpt-5.6-sol__garden_watering__awm/trusted_mcplogs/garden_watering/20260809-12-38/attempt-04/trajectory.json
+  result: failure/garden_task_failed
+  total_steps: 13
+  process_cn: 采用更激进的冲刺和跳跃接近房屋三，但终局约 11:03 时仍在房屋外墙与花圃围栏之外。
+  issue_cn: 只有 13 个 AI 步就因时间窗失败，说明失败主要由墙钟与模型延迟耦合，而非 100 步动作上限；本轮同样没有机会调用 interact。
+
+aggregate: 0/4 success, 4/4 failure/garden_task_failed
+key_observation: all attempts missed the rain doorbell time window; the game clock continues while model calls take roughly 10-40 seconds, so inference latency dominates this challenge

@@ -1,32 +1,46 @@
-benchmark_id: bmk-20260803-003929
+benchmark_id: bmk-20260809-codex-awm
 task: arrange_meeting_briefings
 model: gpt-5.6-sol
 reasoning_effort: high
 mode: awm
 runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
 
-orchestrator_run_dir: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605
-trusted_log_root: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36
-run_summary: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/run.json
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25/run.json
 
 run_1:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-01/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25/attempt-01/trajectory.json
   result: failure/max_requests
   total_steps: 100
+  progress: read the BREAK ROOM clue and reached the upper floor, but did not collect the remaining records
+  process_cn: 读取休息室记录后沿楼梯到达上层，在墙面、按钮和可能的档案位置执行 17 次探测，终局停在上层空房间。
+  issue_cn: 15 次 probe 为 not_found；地面记录需要近距离低角度才能进入提示，而上层缺少持续可见的 Archive 导航标识。
 
 run_2:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-02/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25/attempt-02/trajectory.json
   result: failure/max_requests
   total_steps: 100
+  progress: read the break-room clue, then searched the wrong stair route and nearby CEO desk, laboratory, and restroom areas
+  process_cn: 读完休息室记录后大范围检查 CEO 区、实验室、洗手间和多个楼梯入口，终局被墙体遮住并回到一楼附近。
+  issue_cn: 62 次 look、85 个移动子动作和 26 次 sprint 说明路线搜索过于发散；楼梯正确进入侧无法从远景稳定推断。
 
 run_3:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-03/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25/attempt-03/trajectory.json
   result: failure/max_requests
   total_steps: 100
+  progress: read the break-room clue and derived the correct stair entry late in the run
+  process_cn: 前半轮在一楼查找路径，后半轮才从正确侧登上楼梯；终局站在上层平台观察各房间入口。
+  issue_cn: 到达关键楼层太晚，剩余 9 次 probe 有 8 次 not_found；只完成休息室记录，没有足够预算读取 CEO 与 Archive。
 
 run_4:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/arrange_meeting_briefings/20260803-053605/trusted_mcplogs/arrange_meeting_briefings/20260803-05-36/attempt-04/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-152548__codex__gpt-5.6-sol__arrange_meeting_briefings__awm/trusted_mcplogs/arrange_meeting_briefings/20260809-15-25/attempt-04/trajectory.json
   result: failure/max_requests
   total_steps: 100
+  progress: successfully read the BREAK ROOM and CEO records, but never located the ARCHIVE record
+  process_cn: 前两条记录读取成功，并围绕会议室、中央大厅、上层入口和办公桌搜索第三条 Archive 记录，最后回到一楼中央区域。
+  issue_cn: 已证明任务推理与基础交互可行，但 Archive 的门牌/入口发现性不足；10 次 probe 中 7 次 not_found，另有 5 次移动 blocked。
 
 aggregate: 0/4 success, 4/4 failure/max_requests
+key_observation: floor records require nearly foot-distance low-angle probing; the Archive entrance and correct side of the stair route are not discoverable enough from the public observations

@@ -1,0 +1,51 @@
+benchmark_id: bmk-20260809-codex-awm
+task: conveyor_profit
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit
+run_summary_1: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-38/run.json
+run_summary_2: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-50/run.json
+note: the orchestrator stopped its first invocation after success and stored the remaining three requested attempts in a second run directory; run_1 through run_4 below are the chronological benchmark order
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-38/attempt-01/trajectory.json
+  result: success/efficiency_target_reached
+  total_steps: 30
+  efficiency: 95
+  process_cn: 正确读取两个市场窗口，完成 10 次制作并合理分配重复配额，以 95 效率达到目标。
+  issue_cn: 游戏过程没有明显决策错误；终局后的 workflow_memory_update 仍被 invalid_workflow_memory 拒绝，因此成功经验没有写入共享记忆。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-50/attempt-01/trajectory.json
+  result: failure/efficiency_below_target
+  total_steps: 35
+  efficiency: 85
+  progress: one ingredient was misread, causing an irreversible invalid combination
+  process_cn: 完成全部 10 次制作，但一次把生菜类原料识别错误，产生不可逆的低价值/无效组合，最终效率 85。
+  issue_cn: 原料图形辨识错误一旦提交无法撤销；本轮用了 40 次 select_ingredient，高于成功轮的 38 次，错误选择直接压低总收益。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-50/attempt-02/trajectory.json
+  result: failure/efficiency_below_target
+  total_steps: 32
+  efficiency: 88
+  progress: no invalid operations, but high-value second-use quotas were committed too early across the two windows
+  process_cn: 所有配方都合法，两个窗口也都完成，但在第一窗口过早使用部分高价值原料的第二次配额，最终效率 88。
+  issue_cn: 局部贪心没有正确计算跨窗口机会成本；问题是全局资源分配而非动作接口，距离 90 分阈值只差少量收益。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-173846__codex__gpt-5.6-sol__conveyor_profit__awm/trusted_mcplogs/conveyor_profit/20260809-17-50/attempt-03/trajectory.json
+  result: success/efficiency_target_reached
+  total_steps: 33
+  efficiency: 95
+  progress: used cross-window opportunity cost and reserved high-price variants successfully
+  process_cn: 根据前轮失败调整策略，为第二窗口保留高价变体并完成 10 次合法制作，最终效率 95 成功。
+  issue_cn: 任务内没有显著执行问题，但成功后的记忆更新同样返回 invalid_workflow_memory，表明 AWM schema/validator 问题与胜负无关。
+
+aggregate: 2/4 success, 2/4 failure/efficiency_below_target; mean efficiency 90.75
+key_observation: all conveyor workflow_memory_update calls returned invalid_workflow_memory despite multiple apparently valid payload shapes, so completed_runs advanced while shared workflow content remained empty

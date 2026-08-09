@@ -1,0 +1,46 @@
+benchmark_id: bmk-20260809-codex-awm
+task: loop_staircase_anomaly
+model: gpt-5.6-sol
+reasoning_effort: high
+mode: awm
+runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
+
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20/run.json
+
+run_1:
+  address: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20/attempt-01/trajectory.json
+  result: failure/wrong_floor_selected
+  total_steps: 55
+  progress: completed five rounds but submitted from an evidence chain affected by cropped book counts and incomplete lamp history
+  process_cn: 完成五轮逐层观察，但早期书本数量和灯色记录受裁切；第五轮回到 2F 后提交，终局 wrong_floor_selected。
+  issue_cn: 没有从第一轮起固定观察视角，也没有给所有楼层维护完整条件表；后期把未决证据误当支持证据，导致交叉链并不充分。
+
+run_2:
+  address: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20/attempt-02/trajectory.json
+  result: failure/wrong_floor_selected
+  total_steps: 56
+  progress: used a stable view and isolated a strong multi-round chain, but mapped the evidence endpoint to the wrong role
+  process_cn: 使用固定视角记录访客、书本、垃圾和灯色，先收敛到一条强证据链，随后在 9F 提交；第一次 submit 还因附带额外字段被验证器拒绝，第二次标准提交后判错。
+  issue_cn: 能观察变化，但误把“发生转移/清理/灯色变化的证据端”当作最终目标；额外字段拒绝也暴露了专用动作参数约束不够直观。
+
+run_3:
+  address: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20/attempt-03/trajectory.json
+  result: failure/wrong_floor_selected
+  total_steps: 47
+  progress: separated the relationship endpoint from the direct visit-round label, but still selected the wrong target role
+  process_cn: 根据前两轮记忆区分直接访问标签和间接关系端，完整枚举后选择唯一显示第 3 轮关键词的 2F，仍判 wrong_floor_selected。
+  issue_cn: 修正了“只看变化端”的错误，却走到另一个极端——把直接标签当充分条件；同功能配对关系仍没有纳入正确的联合判断。
+
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-182023__codex__gpt-5.6-sol__loop_staircase_anomaly__awm/trusted_mcplogs/loop_staircase_anomaly/20260809-18-20/attempt-04/trajectory.json
+  result: failure/wrong_floor_selected
+  total_steps: 50
+  progress: built a per-floor evidence table and distinguished two paired endpoints, but the public UI did not support a reliable same-function pairing interpretation
+  process_cn: 从第一轮建立逐层五列表，识别出 2F/7F 的变化候选，并进一步把 6F 视为第 3 轮关键词目标、7F 视为其配对证据端，最后提交 6F 仍失败。
+  issue_cn: 单项观察已较可靠，最终瓶颈集中在“同功能配对房间”的定义和目标端/证据端逻辑；公开画面不足以验证模型采用的配对关系。
+
+aggregate: 0/4 success, 4/4 failure/wrong_floor_selected
+key_observation: the individual visual clues are observable with fixed views, but the final relation between target room and same-function paired room remains ambiguous enough to produce four different incorrect mappings

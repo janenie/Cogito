@@ -1,32 +1,46 @@
-benchmark_id: bmk-20260803-003929
+benchmark_id: bmk-20260809-codex-awm
 task: repair_lighting_circuit
 model: gpt-5.6-sol
 reasoning_effort: high
 mode: awm
 runs: 4
+analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
 
-orchestrator_run_dir: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835
-trusted_log_root: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48
-run_summary: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/run.json
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17
+run_summary: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17/run.json
 
 run_1:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-01/trajectory.json
-  result: failure/wrong_breaker
+  address: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17/attempt-01/trajectory.json
+  result: failure/max_requests
   total_steps: 100
+  progress: reached and inspected the panel, but exact right-column switch targeting remained unstable
+  process_cn: 到达配电箱后围绕四个开关反复探测，实际只稳定出现 circuit A 的开/关提示；16 次 probe 中 12 次 not_found。
+  issue_cn: B/D 等右列控制视觉可见，却没有稳定的交互射线命中区；模型花完整 100 步做像素级校准，仍无法操作完整配置。
 
 run_2:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-02/trajectory.json
-  result: failure/max_requests
-  total_steps: 100
+  address: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17/attempt-02/trajectory.json
+  result: failure/wrong_breaker
+  total_steps: 83
+  progress: treated an available Reset action label as diagnostic evidence and selected the wrong breaker
+  process_cn: 对配电箱和房间照明进行观察后捕获到“Reset CEO office lighting breaker”，将该动作标签解释为故障线索并执行选择。
+  issue_cn: available_interactions 只描述“可以做什么”，并不表示“哪里有故障”；接口没有区分操作能力与诊断证据，导致模型在第 83 步做出 wrong_breaker 提交。
 
 run_3:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-03/trajectory.json
-  result: failure/wrong_breaker
-  total_steps: 97
-
-run_4:
-  address: /private/tmp/cogito_ai_player_runs/bmk-20260803-003929/repair_lighting_circuit/20260803-034835/trusted_mcplogs/repair_lighting_circuit/20260803-03-48/attempt-04/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17/attempt-03/trajectory.json
   result: failure/max_requests
   total_steps: 100
+  progress: repeatedly realigned with the panel, but adjacent controls and tiny interaction volumes consumed the budget
+  process_cn: 成功暴露 A、C、Entrance Reset 和 Verify 提示，并尝试从多个角度寻找剩余开关；一轮使用 69 次 look。
+  issue_cn: Verify/Reset 与开关交互区互相竞争，B/D 始终难以命中；模型获得了部分配置能力，但无法确认完整状态后安全验证。
 
-aggregate: 0/4 success, 2/4 failure/wrong_breaker, 2/4 failure/max_requests
+run_4:
+  address: /Users/Shared/Cogito-test-20260809/20260809-131711__codex__gpt-5.6-sol__repair_lighting_circuit__awm/trusted_mcplogs/repair_lighting_circuit/20260809-13-17/attempt-04/trajectory.json
+  result: failure/incorrect_circuit_configuration
+  total_steps: 45
+  progress: submitted a circuit configuration, but the selected switch state was incorrect
+  process_cn: 快速到达面板，操作可访问的 A/C 开关并调用 Verify，在第 45 步触发 incorrect_circuit_configuration。
+  issue_cn: 较早提交减少了导航浪费，但仍只可靠看到 A/C，无法观察 B/D 的真实状态；在不完整状态可见性下验证必然带有猜测成分。
+
+aggregate: 0/4 success, 2/4 failure/max_requests, 1/4 failure/wrong_breaker, 1/4 failure/incorrect_circuit_configuration
+key_observation: right-column controls are visually visible but the prompt often resolves to panel A or Entrance Reset; Verify and Reset target areas also compete
