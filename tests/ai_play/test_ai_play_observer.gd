@@ -12,6 +12,16 @@ class FakeInteractable extends Node:
 	var interaction_nodes: Array[Node] = []
 
 
+class FakePriorityCarryInteraction extends Node:
+	var prefer_while_carrying: bool = true
+	var input_map_action: String = "interact2"
+	var interaction_text: String = "Place"
+	var is_disabled: bool = false
+
+	func set_disabled(_player: CogitoPlayer) -> bool:
+		return is_disabled
+
+
 func _initialize() -> void:
 	call_deferred("_run_tests")
 
@@ -70,6 +80,26 @@ func _run_tests() -> void:
 		],
 		"observer publicly exposes only approved visible interactions",
 	)
+	var carried: Node = interaction_script.new()
+	carried.input_map_action = "interact2"
+	interaction_controller.carried_object = carried
+	_assert(
+		observer.get_available_interactions() == [
+			{"action": "interact2", "binding": "E", "prompt": "Drop"},
+		],
+		"observer exposes the carried object's real drop action",
+	)
+	var priority := FakePriorityCarryInteraction.new()
+	target.add_child(priority)
+	target.interaction_nodes.assign([primary, priority])
+	_assert(
+		observer.get_available_interactions() == [
+			{"action": "interact2", "binding": "E", "prompt": "Place"},
+		],
+		"priority placement replaces generic drop while carrying",
+	)
+	interaction_controller.carried_object = null
+	target.interaction_nodes.assign([primary, secondary, disabled, unapproved])
 
 	await process_frame
 	var observation: Dictionary = observer.capture_observation([{"status": "completed"}])
@@ -184,6 +214,7 @@ func _run_tests() -> void:
 
 	observer.free()
 	find_contract_observer.free()
+	carried.free()
 	player.body.free()
 	player.head.free()
 	interaction_controller.free()

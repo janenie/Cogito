@@ -101,7 +101,10 @@ func get_bindings() -> Dictionary:
 
 func _available_interactions() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var target: Variant = player.player_interaction_component.interactable
+	var interaction_controller: Variant = player.player_interaction_component
+	if interaction_controller.get("is_carrying") == true:
+		return _available_carry_interactions(interaction_controller)
+	var target: Variant = interaction_controller.interactable
 	if target == null:
 		return result
 	for component: Variant in target.interaction_nodes:
@@ -112,6 +115,39 @@ func _available_interactions() -> Array[Dictionary]:
 			"binding": bindings.get(component.input_map_action, "unbound"),
 			"prompt": tr(component.interaction_text),
 		})
+	return result
+
+
+func _available_carry_interactions(interaction_controller: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var target: Variant = interaction_controller.interactable
+	if target != null and target.get("interaction_nodes") is Array:
+		for component: Variant in target.interaction_nodes:
+			if component.get("prefer_while_carrying") != true:
+				continue
+			if component.has_method("set_disabled") and component.set_disabled(player):
+				continue
+			if component.is_disabled or component.input_map_action not in ["interact", "interact2"]:
+				continue
+			result.append({
+				"action": component.input_map_action,
+				"binding": bindings.get(component.input_map_action, "unbound"),
+				"prompt": tr(component.interaction_text),
+			})
+	if not result.is_empty():
+		return result
+
+	var carried_object: Variant = interaction_controller.carried_object
+	if carried_object == null or not is_instance_valid(carried_object):
+		return result
+	var drop_action: Variant = carried_object.get("input_map_action")
+	if not drop_action is String or drop_action not in ["interact", "interact2"]:
+		return result
+	result.append({
+		"action": drop_action,
+		"binding": bindings.get(drop_action, "unbound"),
+		"prompt": tr("INTERACT_drop"),
+	})
 	return result
 
 

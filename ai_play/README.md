@@ -529,7 +529,10 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   各场景玩家移动层会保留补偿后的向量长度，确保 MCP 幅值不会被死区或归一化吞掉；移动受阻
   判定阈值也会随请求力度缩放，避免把有效的精细小步误报为 `blocked`。
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
-- `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`；`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
+- `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`。玩家正在携带物体时，
+  `available_interactions` 会公开携带物真实绑定对应的 Drop；准星命中带
+  `prefer_while_carrying` 的放置点时，该放置交互优先替代普通 Drop，避免 HUD 可见但 MCP
+  无法合法调用。`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
 - `probe_interaction` 只能使用 probe 专用 schema 分支：`actions` 长度必须恰好为 1，目标坐标
   各在 0～1，且界面必须关闭。运行时若仍收到混合批次，会返回包含正确提交方式的稳定错误，
   不会向 Godot 产生输入。

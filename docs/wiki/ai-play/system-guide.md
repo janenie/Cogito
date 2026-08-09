@@ -543,7 +543,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   不返回书籍身份、候选位置或结构化路线。随后按低层、中层、高层顺序一次搬运一本；所有
   槽位均可站立交互，不需要跳跃或下蹲。
 - 玩家拿起普通书或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`。观察或探测
-  不会失败；正确书在 CEO OFFICE 书籍放置点外放下后，可重新拿起继续完成该步骤。
+  不会失败；手持书时公开观察会按真实携带输入暴露 `interact2` 的 Drop，准星命中 CEO OFFICE
+  放置点时改为同一绑定的优先放置提示。正确书在放置点外放下后，可重新拿起继续完成该步骤。
 - CEO OFFICE 只有一个逻辑书籍放置点；三本任务书依序送达才产生
   `success/books_in_ceo_office`。`put_book` 的硬上限为 100 次请求，
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧它。

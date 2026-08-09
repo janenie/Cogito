@@ -468,7 +468,17 @@ func _run_test() -> void:
 			carry_component.is_disabled == (book != expected),
 			"correct carry disables every other unfinished book",
 		)
-	expected_carry.leave()
+	var ai_observer: Node = lobby.get_node("AIPlayController/Observer")
+	ai_observer.get_bindings()
+	_assert(
+		ai_observer.get_available_interactions() == [{
+			"action": "interact2",
+			"binding": "E",
+			"prompt": "Drop",
+		}],
+		"MCP observation exposes the carried book's Drop binding",
+	)
+	await player_interaction._handle_interaction("interact2")
 	_assert(monitor._current_target_index == 0, "outside drop does not advance target order")
 	_assert(terminal_results.is_empty(), "outside drop remains recoverable")
 	_assert(monitor._current_carried_book == null, "outside drop clears carried book")
@@ -502,7 +512,16 @@ func _run_test() -> void:
 		PhysicsServer3D.BODY_STATE_TRANSFORM,
 		expected.global_transform,
 	)
-	expected_carry.leave()
+	var destination_drop_available := false
+	for available_interaction: Dictionary in ai_observer.get_available_interactions():
+		if available_interaction.get("action", "") == "interact2":
+			destination_drop_available = true
+			break
+	_assert(
+		destination_drop_available,
+		"MCP observation keeps interact2 available at the destination",
+	)
+	await player_interaction._handle_interaction("interact2")
 	PhysicsServer3D.body_set_state(
 		expected.get_rid(),
 		PhysicsServer3D.BODY_STATE_TRANSFORM,
