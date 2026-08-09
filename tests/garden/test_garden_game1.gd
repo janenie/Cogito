@@ -8,7 +8,7 @@ func _init() -> void:
 	_test_game_assigns_two_watering_houses_and_orchid_alarm()
 	_test_each_watering_house_requires_two_lawns()
 	_test_wrong_four_lawns_fail_after_water_is_used()
-	_test_rain_always_starts_two_to_five_minutes_after_opening_and_lasts_five_real_minutes()
+	_test_rain_always_starts_two_to_five_minutes_after_opening_and_lasts_ten_real_minutes()
 	_test_rain_requires_orchid_alarm_before_rain_ends()
 	_test_game_completes_after_correct_watering_and_rain_alarm()
 	if failures == 0:
@@ -52,7 +52,11 @@ func _test_wrong_four_lawns_fail_after_water_is_used() -> void:
 	_assert(rules.day_failed, "using all water on the wrong lawns fails")
 	_assert(rules.failure_reason.contains("浇水对象不正确"), "wrong watering failure explains the mistake")
 
-func _test_rain_always_starts_two_to_five_minutes_after_opening_and_lasts_five_real_minutes() -> void:
+func _test_rain_always_starts_two_to_five_minutes_after_opening_and_lasts_ten_real_minutes() -> void:
+	_assert(
+		is_equal_approx(Game1Rules.RAIN_DURATION_REAL_SECONDS, 10.0 * 60.0),
+		"rain duration is ten real minutes",
+	)
 	for seed in range(1, 101):
 		var rules := Game1Rules.new()
 		rules.start_run(seed)
@@ -60,7 +64,7 @@ func _test_rain_always_starts_two_to_five_minutes_after_opening_and_lasts_five_r
 		_assert(rules.rain_scheduled, "rain is scheduled every run")
 		_assert(rules.rain_start_minute >= Game1Rules.RAIN_START_MINUTE_MIN, "rain starts no earlier than 2 real minutes after opening")
 		_assert(rules.rain_start_minute <= Game1Rules.RAIN_START_MINUTE_MAX, "rain starts no later than 5 real minutes after opening")
-		_assert(rules.rain_end_minute == min(Game1Rules.END_MINUTE, rules.rain_start_minute + Game1Rules.RAIN_DURATION_MINUTES), "rain lasts five real minutes")
+		_assert(rules.rain_end_minute == min(Game1Rules.END_MINUTE, rules.rain_start_minute + Game1Rules.RAIN_DURATION_MINUTES), "rain lasts ten real minutes")
 
 func _test_rain_requires_orchid_alarm_before_rain_ends() -> void:
 	var rules := Game1Rules.new()

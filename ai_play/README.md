@@ -459,7 +459,7 @@ MCP 结果、玩家提示或轨迹日志。
 `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
 
 `garden_watering` 是社区花园任务。玩家用 4 个满水壶浇完向日葵房和绣球花房各 2 块
-草坪，并在 HUD 显示下雨期间按下兰花房门铃。成功产生
+草坪，并在约 10 分钟现实时间的下雨期间按下兰花房门铃。成功产生
 `success/garden_tasks_complete`；浇错草坪、按错门铃、在非下雨时按兰花房门铃或错过
 下雨警报会产生 `failure/garden_task_failed`。
 
