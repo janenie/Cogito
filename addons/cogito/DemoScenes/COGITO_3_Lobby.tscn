@@ -3473,7 +3473,7 @@ surface_material_override/0 = null
 surface_material_override/0 = null
 
 [node name="MainLobbyKey" parent="MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D" index="5" unique_id=762210867 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, -0.013805747, -0.3118229)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.03, -0.15)
 freeze = true
 metadata/region_id = "MAIN_LOBBY"
 metadata/placement_kind = "storage"
@@ -3486,11 +3486,11 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0.03, -0.15)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D/FindKeyCandidates" unique_id=92909647]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.12, 0.21411085, -0.40922737)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.12, 0.03, -0.15)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D/FindKeyCandidates" unique_id=1837250022]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.9425447, 0.17416382, -0.14999962)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.12, 0.03, -0.15)
 gizmo_extents = 0.18
 
 [node name="LaboratoryFindContractAnchor" type="Marker3D" parent="MAIN_LOBBY/LAB_CONNECTOR" unique_id=180730425]
@@ -6485,19 +6485,18 @@ metadata/region_id = "UPPER_OFFICE_CEO"
 metadata/placement_kind = "storage"
 
 [node name="FindKeyCandidates" type="Node3D" parent="UPPER_OFFICE_CEO/deskCorner/Drawer" unique_id=1878295408]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03191352, 0)
 metadata/region_id = "UPPER_OFFICE_CEO"
 
 [node name="Candidate1" type="Marker3D" parent="UPPER_OFFICE_CEO/deskCorner/Drawer/FindKeyCandidates" unique_id=1972054307]
-transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 0.4105978, 0.6188941, -1.4499998)
+transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 0.1, 0.58, -1.45)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="UPPER_OFFICE_CEO/deskCorner/Drawer/FindKeyCandidates" unique_id=618273671]
-transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 0.9668293, 0.79862404, -1.4499998)
+transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, -0.05, 0.58, -1.45)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="UPPER_OFFICE_CEO/deskCorner/Drawer/FindKeyCandidates" unique_id=1403123931]
-transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 0.7948389, 0.6343398, -1.4499998)
+transform = Transform3D(0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 0.25, 0.58, -1.45)
 gizmo_extents = 0.18
 
 [node name="wallWindowSlide" type="StaticBody3D" parent="UPPER_OFFICE_CEO" unique_id=17658504]
@@ -7053,7 +7052,7 @@ transform = Transform3D(-0.173648, 0, -0.984808, 0, 1, 0, 0.984808, 0, -0.173648
 transform = Transform3D(-0.936685, 0, 0.350175, 0, 1, 0, -0.350175, 0, -0.936685, 3.39506, 1.60713, -4.24721)
 
 [node name="ArchiveKey" parent="ARCHIVE" unique_id=1916052198 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.1518285, -1.189957, -1.2498255)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.395, 1.9, -4.247)
 freeze = true
 metadata/region_id = "ARCHIVE"
 metadata/placement_kind = "storage"
@@ -7062,15 +7061,15 @@ metadata/placement_kind = "storage"
 metadata/region_id = "ARCHIVE"
 
 [node name="Candidate1" type="Marker3D" parent="ARCHIVE/FindKeyCandidates" unique_id=1485613537]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3950007, -0.6352645, -3.4522028)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.395, 1.9, -4.247)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="ARCHIVE/FindKeyCandidates" unique_id=705651681]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 3.1800005, -1.6740834, -3.7293177)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 3.18, 1.9, -4.1)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="ARCHIVE/FindKeyCandidates" unique_id=275144435]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 2.0373204, 0.5442375, -0.84929085)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 3.62, 1.9, -4.18)
 gizmo_extents = 0.18
 
 [node name="FindContract_ArchiveDecoyBox" parent="ARCHIVE" unique_id=146937592 instance=ExtResource("62_y3og2")]
@@ -7178,7 +7177,7 @@ skeleton = NodePath("")
 shape = SubResource("ConcavePolygonShape3D_4nw7u")
 
 [node name="MeetingRoomKey" parent="MEETING_ROOM" unique_id=713334132 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.0243664, 0.7146403, -23.166798)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.48, 0.91, -23.57)
 freeze = true
 metadata/region_id = "MEETING_ROOM"
 metadata/placement_kind = "surface"
@@ -7187,15 +7186,15 @@ metadata/placement_kind = "surface"
 metadata/region_id = "MEETING_ROOM"
 
 [node name="Candidate1" type="Marker3D" parent="MEETING_ROOM/FindKeyCandidates" unique_id=974967697]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.555712, 0.83903426, -23.116795)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.48, 0.91, -23.57)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="MEETING_ROOM/FindKeyCandidates" unique_id=704109932]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -4.08, 0.91, -22.710426)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -4.08, 0.91, -23.57)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="MEETING_ROOM/FindKeyCandidates" unique_id=2091026326]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -1.9610682, 0.5546064, -23.106358)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -4.48, 0.91, -23.57)
 gizmo_extents = 0.18
 
 [node name="FindContract_AuditRecord" parent="MEETING_ROOM" unique_id=743659445 instance=ExtResource("62_y3og2")]
@@ -7536,7 +7535,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_dg8i0")
 shape = SubResource("ConcavePolygonShape3D_upcaa")
 
 [node name="BreakRoomKey" parent="BREAK_ROOM" unique_id=2083501727 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 5.492447, 0.92, 5.02392)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 7.2, 0.92, 4.16)
 freeze = true
 metadata/region_id = "BREAK_ROOM"
 metadata/placement_kind = "surface"
@@ -7545,15 +7544,15 @@ metadata/placement_kind = "surface"
 metadata/region_id = "BREAK_ROOM"
 
 [node name="Candidate1" type="Marker3D" parent="BREAK_ROOM/FindKeyCandidates" unique_id=195863184]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 7.199999, 0.5357911, 4.104761)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 7.2, 0.92, 4.16)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="BREAK_ROOM/FindKeyCandidates" unique_id=1070843210]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.02, 0.5822546, 5.2736816)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.02, 0.92, 4.12)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="BREAK_ROOM/FindKeyCandidates" unique_id=1484960491]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.6616545, 0.3702696, 4.945694)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.36, 0.92, 4.12)
 gizmo_extents = 0.18
 
 [node name="kitchenFridgeContainer2" parent="BREAK_ROOM" unique_id=1542335354 instance=ExtResource("57_fdyfl")]
@@ -7857,7 +7856,7 @@ transform = Transform3D(-0.984053, 0, 0.177875, 0, 1, 0, -0.177875, 0, -0.984053
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 7.46102, -4.84288e-08, -0.74617)
 
 [node name="CubicleAreaKey" parent="CUBICLE_AREA" unique_id=773302991 instance=ExtResource("68_8mqrf")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.7379565, 1.028, -0.55)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.991, 1.028, -0.55)
 freeze = true
 metadata/region_id = "CUBICLE_AREA"
 metadata/placement_kind = "surface"
@@ -7866,15 +7865,15 @@ metadata/placement_kind = "surface"
 metadata/region_id = "CUBICLE_AREA"
 
 [node name="Candidate1" type="Marker3D" parent="CUBICLE_AREA/FindKeyCandidates" unique_id=582529677]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.728592, 1.028, -0.940409)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.991, 1.028, -0.55)
 gizmo_extents = 0.18
 
 [node name="Candidate2" type="Marker3D" parent="CUBICLE_AREA/FindKeyCandidates" unique_id=1961083033]
-transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 5.6780953, 1.028, -1.0220325)
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 7.24, 1.028, -0.55)
 gizmo_extents = 0.18
 
 [node name="Candidate3" type="Marker3D" parent="CUBICLE_AREA/FindKeyCandidates" unique_id=2126980246]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.783573, 1.1377755, -0.82933265)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.75, 1.028, -0.55)
 gizmo_extents = 0.18
 
 [node name="FindContractAnchor" type="Marker3D" parent="CUBICLE_AREA" unique_id=1331940285]

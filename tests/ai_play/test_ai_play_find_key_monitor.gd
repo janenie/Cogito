@@ -8,6 +8,14 @@ const REGIONS: Array[String] = [
 	"BREAK_ROOM",
 	"CUBICLE_AREA",
 ]
+const CANDIDATE_CLUSTER_RADIUS_BY_REGION := {
+	"MAIN_LOBBY": 0.3,
+	"UPPER_OFFICE_CEO": 0.35,
+	"ARCHIVE": 0.5,
+	"MEETING_ROOM": 1.1,
+	"BREAK_ROOM": 0.5,
+	"CUBICLE_AREA": 0.6,
+}
 
 var _failures: Array[String] = []
 var _test_scene_root: Node
@@ -53,10 +61,26 @@ func _run_test() -> void:
 			_assert(region_candidates != null, "%s owns a candidate group" % region_id)
 			if region_candidates != null:
 				_assert(
-					region_candidates.find_children("*", "Marker3D", true, false).size()
-					== 3,
+					(region_candidates as Node3D).transform.is_equal_approx(
+						Transform3D.IDENTITY
+					),
+					"%s candidate group keeps the key parent coordinate system" % region_id,
+				)
+				var candidate_markers := region_candidates.find_children(
+					"*", "Marker3D", true, false
+				)
+				_assert(
+					candidate_markers.size() == 3,
 					"%s owns exactly three key candidate markers" % region_id,
 				)
+				for candidate_node: Node in candidate_markers:
+					var candidate := candidate_node as Marker3D
+					_assert(
+						candidate.position.distance_to(static_key.position)
+						<= CANDIDATE_CLUSTER_RADIUS_BY_REGION[region_id],
+						"%s %s stays in the authored key cluster"
+						% [region_id, candidate.name],
+					)
 	root.add_child(lobby)
 	await process_frame
 
@@ -204,13 +228,25 @@ func _run_test() -> void:
 	for npc: Node in lobby_npcs.npcs():
 		_assert(npc.visible, "find-key shows all permanent NPCs")
 	var layout: Dictionary = setup.layout_snapshot()
+	var candidates_by_region: Dictionary = setup.key_candidates_by_region()
+	var archive_box := lobby.get_node("ARCHIVE/cardboardBoxOpen2") as Node3D
+	var archive_candidates: Array[Marker3D] = candidates_by_region["ARCHIVE"]
+	for candidate: Marker3D in archive_candidates:
+		_assert(
+			candidate.global_position.z > monitor.archive_door.global_position.z + 1.0,
+			"Archive %s is physically behind the locked doorway" % candidate.name,
+		)
+		_assert(
+			candidate.global_position.distance_to(archive_box.global_position) < 0.5,
+			"Archive %s sits inside the deep archive box" % candidate.name,
+		)
 	_assert(
 		layout["keys"]["ARCHIVE"]["position"].z > monitor.archive_door.global_position.z + 1.0,
 		"current Archive key is physically behind the locked doorway",
 	)
 	_assert(
 		layout["keys"]["ARCHIVE"]["position"].distance_to(
-			lobby.get_node("ARCHIVE/cardboardBoxOpen2").global_position
+			archive_box.global_position
 		) < 0.5,
 		"current Archive key sits inside the deep archive box",
 	)
@@ -222,11 +258,22 @@ func _run_test() -> void:
 	for placement_check: Dictionary in [
 		{"region": "MEETING_ROOM", "path": "MEETING_ROOM/tableGlass", "radius": 1.3},
 		{"region": "BREAK_ROOM", "path": "BREAK_ROOM/tableRound", "radius": 0.6},
-		{"region": "CUBICLE_AREA", "path": "CUBICLE_AREA/desk", "radius": 1.2},
+		{"region": "CUBICLE_AREA", "path": "CUBICLE_AREA/desk", "radius": 1.3},
 	]:
+		var furniture := lobby.get_node(placement_check["path"]) as Node3D
+		var placement_candidates: Array[Marker3D] = candidates_by_region[
+			placement_check["region"]
+		]
+		for candidate: Marker3D in placement_candidates:
+			_assert(
+				candidate.global_position.distance_to(furniture.global_position)
+				< placement_check["radius"],
+				"%s %s stays on its intended furniture"
+				% [placement_check["region"], candidate.name],
+			)
 		_assert(
 			layout["keys"][placement_check["region"]]["position"].distance_to(
-				lobby.get_node(placement_check["path"]).global_position
+				furniture.global_position
 			) < placement_check["radius"],
 			"%s surface key stays on its intended furniture" % placement_check["region"],
 		)
