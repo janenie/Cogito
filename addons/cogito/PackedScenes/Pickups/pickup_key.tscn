@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://8wkt5k4dl40u"]
+[gd_scene format=3 uid="uid://8wkt5k4dl40u"]
 
 [ext_resource type="Script" uid="uid://dmeh01c5ccjqc" path="res://addons/cogito/CogitoObjects/cogito_object.gd" id="1_ocu5l"]
 [ext_resource type="Resource" uid="uid://d4gdqvqsiiqs5" path="res://addons/cogito/InventoryPD/Items/Cogito_Key.tres" id="2_06n2f"]
@@ -32,47 +32,46 @@ size = Vector3(0.148755, 0.0302637, 0.301671)
 [sub_resource type="Resource" id="Resource_b2i46"]
 script = ExtResource("3_62irs")
 inventory_item = ExtResource("2_06n2f")
-quantity = 1
-origin_index = -1
 
-[node name="Pickup_Key" type="RigidBody3D"]
+[node name="Pickup_Key" type="RigidBody3D" unique_id=1632189322]
 collision_layer = 3
 script = ExtResource("1_ocu5l")
 cogito_name = ""
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.700584, 0, 0, 0, 0.698465, 0, 0, 0, 0.700054, 0.0106895, 0, 0.0846713)
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=1474818769]
+transform = Transform3D(0.6864074, 0, -0.070116125, 0, 0.691, 0, 0.07031995, 0, 0.6844178, 0.122036114, -0.011561818, -0.15141451)
 mesh = SubResource("BoxMesh_mrywu")
 skeleton = NodePath("../MeshInstance3D")
 surface_material_override/0 = SubResource("StandardMaterial3D_beoyg")
 
-[node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
-transform = Transform3D(-3.06003e-08, 0.700584, 3.05309e-08, 0, -3.06235e-08, 0.698465, 0.700054, 3.06235e-08, 1.33455e-15, 0.0622171, 0, 0.11281)
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="." unique_id=516812402]
+transform = Transform3D(-0.07032001, 0.6874022, 2.991685e-08, 1.7889329e-16, -3.0204568e-08, 0.68799996, 0.6864074, 0.07042191, 3.0648757e-09, 0.17042772, -0.011561818, -0.11817099)
 mesh = SubResource("PrismMesh_2wfk7")
 skeleton = NodePath("../MeshInstance3D")
 surface_material_override/0 = SubResource("StandardMaterial3D_beoyg")
 
-[node name="MeshInstance3D4" type="MeshInstance3D" parent="."]
-transform = Transform3D(-3.06003e-08, 0.700584, 3.05309e-08, 0, -3.06235e-08, 0.698465, 0.700054, 3.06235e-08, 1.33455e-15, 0.047455, 0, 0.0803687)
+[node name="MeshInstance3D4" type="MeshInstance3D" parent="." unique_id=710425993]
+transform = Transform3D(-0.07032001, 0.6874022, 2.991685e-08, 1.7889329e-16, -3.0204568e-08, 0.68799996, 0.6864074, 0.07042191, 3.0648757e-09, 0.15904868, -0.011561818, -0.15194784)
 mesh = SubResource("PrismMesh_2wfk7")
 skeleton = NodePath("../MeshInstance3D")
 surface_material_override/0 = SubResource("StandardMaterial3D_beoyg")
 
-[node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
-transform = Transform3D(-3.06003e-08, 0.700584, 3.05309e-08, 0, -3.06235e-08, 0.698465, 0.700054, 3.06235e-08, 1.33455e-15, 0.047455, 0, 0.14939)
+[node name="MeshInstance3D5" type="MeshInstance3D" parent="." unique_id=1840870357]
+transform = Transform3D(-0.07032001, 0.6874022, 2.991685e-08, 1.7889329e-16, -3.0204568e-08, 0.68799996, 0.6864074, 0.07042191, 3.0648757e-09, 0.15201452, -0.011561818, -0.08328591)
 mesh = SubResource("PrismMesh_2wfk7")
 skeleton = NodePath("../MeshInstance3D")
 surface_material_override/0 = SubResource("StandardMaterial3D_beoyg")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.700584, 0, 0, 0, 0.698465, 0, 0, 0, 0.700054, 0.0106895, 0, -0.0594844)
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1664627332]
+transform = Transform3D(0.6864074, 0, -0.070116125, 0, 0.691, 0, 0.07031995, 0, 0.6844178, 0.13672745, -0.011561818, -0.29481965)
 mesh = SubResource("CylinderMesh_j3342")
 skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_sossu")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1126518235]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00943604, -0.000981445, 0.0195401)
 shape = SubResource("BoxShape3D_xkwxe")
 
-[node name="PickupComponent" parent="." instance=ExtResource("2_6unox")]
+[node name="PickupComponent" parent="." unique_id=1426205580 instance=ExtResource("2_6unox")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.15984154)
 slot_data = SubResource("Resource_b2i46")
