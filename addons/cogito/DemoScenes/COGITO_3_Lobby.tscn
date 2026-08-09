@@ -8612,7 +8612,7 @@ mesh = SubResource("SphereMesh_lobby_path")
 surface_material_override/0 = SubResource("StandardMaterial3D_lobby_path")
 
 [node name="CEOStairUpperLanding" type="Marker3D" parent="CEONPCPath" unique_id=885478341]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9196604, 2.48, -7.74386)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9196604, 2.644346, -8.378815)
 
 [node name="DebugSphere" type="MeshInstance3D" parent="CEONPCPath/CEOStairUpperLanding" unique_id=554091950]
 mesh = SubResource("SphereMesh_lobby_path")

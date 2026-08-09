@@ -20,7 +20,20 @@ func _run_test() -> void:
 	monitor.configure_round(0)
 	var npc: FriendlyHumanNPC = monitor.ceo_npc
 	var office_door: Marker3D = lobby.get_node("CEONPCPath/CEOOfficeDoorOutside")
+	var upper_landing: Marker3D = lobby.get_node("CEONPCPath/CEOStairUpperLanding")
+	var upper_landing_debug_sphere: MeshInstance3D = upper_landing.get_node("DebugSphere")
 	npc.walk_speed = 2.0
+
+	_assert(
+		upper_landing.global_position.is_equal_approx(
+			Vector3(-0.9196604, 2.644346, -8.378815),
+		),
+		"CEO upper-landing route marker follows the adjusted yellow sphere",
+	)
+	_assert(
+		upper_landing_debug_sphere.position.is_zero_approx(),
+		"CEO upper-landing yellow sphere is centered on its route marker",
+	)
 
 	var reached_lower_end := false
 	var returned_to_office := false
