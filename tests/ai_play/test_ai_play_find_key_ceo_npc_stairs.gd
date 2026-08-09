@@ -24,8 +24,24 @@ func _run_test() -> void:
 
 	var reached_lower_end := false
 	var returned_to_office := false
+	var previous_visual_position := npc.visual_root.global_position
+	var largest_upward_step := 0.0
+	var smooth_forward_ascent_frames := 0
 	for _frame: int in 900:
 		await get_tree().physics_frame
+		var visual_position := npc.visual_root.global_position
+		var upward_motion := visual_position.y - previous_visual_position.y
+		var horizontal_motion := Vector2(
+			visual_position.x - previous_visual_position.x,
+			visual_position.z - previous_visual_position.z,
+		).length()
+		largest_upward_step = maxf(
+			largest_upward_step,
+			upward_motion,
+		)
+		if upward_motion >= 0.005 and horizontal_motion >= 0.005:
+			smooth_forward_ascent_frames += 1
+		previous_visual_position = visual_position
 		if npc._route_direction < 0:
 			reached_lower_end = true
 		if (
@@ -37,6 +53,14 @@ func _run_test() -> void:
 
 	_assert(reached_lower_end, "CEO NPC reaches the lower end of its route")
 	_assert(returned_to_office, "CEO NPC climbs the stairs and returns to the office door")
+	_assert(
+		largest_upward_step <= 0.08,
+		"CEO NPC climbs without visible vertical hops (largest step %.3f)" % largest_upward_step,
+	)
+	_assert(
+		smooth_forward_ascent_frames >= 3,
+		"CEO NPC visibly rises while continuing to move forward",
+	)
 
 	lobby.queue_free()
 	await get_tree().process_frame

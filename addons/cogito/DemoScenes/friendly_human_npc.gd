@@ -51,6 +51,7 @@ enum PromptPositionMode {
 @export var walk_speed: float = 0.65
 @export var rotation_speed: float = 8.0
 @export_range(0.0, 1.0, 0.01) var max_step_height: float = 0.0
+@export var step_visual_smoothing_speed: float = 2.0
 @export var navigation_probe_steps: int = 3
 @export var navigation_probe_step_distance: float = 0.35
 
@@ -76,6 +77,7 @@ var _wait_timer := 0.0
 var _is_sitting := false
 var _active_seat: Node3D = null
 var _stand_position_before_sit := Vector3.ZERO
+var _step_visual_offset_y := 0.0
 
 
 func _ready() -> void:
@@ -400,8 +402,18 @@ func _try_step_up(horizontal_motion: Vector3) -> bool:
 	if not test_move(advanced_transform, step_down):
 		return false
 
+	var visual_height_before_step := 0.0
+	var visual_local_height_before_step := 0.0
+	if visual_root:
+		visual_height_before_step = visual_root.global_position.y
+		visual_local_height_before_step = visual_root.position.y
 	global_position += step_up
 	move_and_collide(horizontal_motion)
+	if visual_root:
+		var visual_position := visual_root.global_position
+		visual_position.y = visual_height_before_step
+		visual_root.global_position = visual_position
+		_step_visual_offset_y += visual_root.position.y - visual_local_height_before_step
 	velocity.y = 0.0
 	return true
 
@@ -579,12 +591,10 @@ func _set_sitting_pose(is_sitting: bool) -> void:
 	if not is_sitting:
 		_active_seat = null
 		_set_limb_pitch(0.0)
-		if visual_root:
-			visual_root.position.y = 0.0
+		_set_visual_height(0.0)
 		return
 
-	if visual_root:
-		visual_root.position.y = -0.22
+	_set_visual_height(-0.22)
 	if left_arm:
 		left_arm.rotation.x = 0.35
 	if right_arm:
@@ -624,21 +634,29 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 
 
 func _update_walk_pose(delta: float, is_walking: bool) -> void:
+	_step_visual_offset_y = move_toward(
+		_step_visual_offset_y,
+		0.0,
+		step_visual_smoothing_speed * delta,
+	)
 	if _is_sitting:
 		_set_sitting_pose(true)
 		return
 
 	if not is_walking:
 		_set_limb_pitch(0.0)
-		if visual_root:
-			visual_root.position.y = 0.0
+		_set_visual_height(0.0)
 		return
 
 	_walk_cycle += delta * 5.5
 	var swing := sin(_walk_cycle) * 0.45
 	_set_limb_pitch(swing)
+	_set_visual_height(abs(sin(_walk_cycle * 2.0)) * 0.025)
+
+
+func _set_visual_height(height: float) -> void:
 	if visual_root:
-		visual_root.position.y = abs(sin(_walk_cycle * 2.0)) * 0.025
+		visual_root.position.y = height + _step_visual_offset_y
 
 
 func _set_limb_pitch(swing: float) -> void:
