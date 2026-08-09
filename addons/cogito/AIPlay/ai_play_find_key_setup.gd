@@ -1,28 +1,15 @@
 class_name AIPlayFindKeySetup
 extends Node3D
 
-@export var spawned_keys: Array[RigidBody3D]
+@export var spawned_key_paths: Array[NodePath]
 @export var contract_documents: Array[ReadableComponent]
+@export var key_candidate_root_paths: Array[NodePath]
 
-var _external_keys: Array[RigidBody3D] = []
 var _external_npcs: Array[FriendlyHumanNPC] = []
 
 
 func _ready() -> void:
 	set_scenario_active(false)
-
-
-func register_external_key(
-	key: RigidBody3D,
-	region_id: String,
-	placement_kind: String,
-) -> void:
-	if key == null:
-		return
-	key.set_meta("region_id", region_id)
-	key.set_meta("placement_kind", placement_kind)
-	if key not in _external_keys:
-		_external_keys.append(key)
 
 
 func register_external_npc(npc: FriendlyHumanNPC, region_id: String) -> void:
@@ -34,8 +21,11 @@ func register_external_npc(npc: FriendlyHumanNPC, region_id: String) -> void:
 
 
 func keys() -> Array[RigidBody3D]:
-	var result: Array[RigidBody3D] = spawned_keys.duplicate()
-	result.append_array(_external_keys)
+	var result: Array[RigidBody3D] = []
+	for key_path: NodePath in spawned_key_paths:
+		var key := get_node_or_null(key_path) as RigidBody3D
+		if key != null:
+			result.append(key)
 	return result
 
 
@@ -48,6 +38,42 @@ func key_by_region() -> Dictionary:
 	for key: RigidBody3D in keys():
 		result[str(key.get_meta("region_id", ""))] = key
 	return result
+
+
+func key_candidates_by_region() -> Dictionary:
+	var result := {}
+	for candidate_root_path: NodePath in key_candidate_root_paths:
+		var candidate_root := get_node_or_null(candidate_root_path) as Node3D
+		if candidate_root == null:
+			continue
+		var region_id := str(candidate_root.get_meta("region_id", ""))
+		var candidates: Array[Marker3D] = []
+		for child: Node in candidate_root.get_children():
+			if child is Marker3D:
+				candidates.append(child as Marker3D)
+		candidates.sort_custom(
+			func(left: Marker3D, right: Marker3D) -> bool:
+				return left.name.naturalnocasecmp_to(right.name) < 0
+		)
+		result[region_id] = candidates
+	return result
+
+
+func place_keys(seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var candidates_by_region := key_candidates_by_region()
+	var regions: Array = key_by_region().keys()
+	regions.sort()
+	for region_value: Variant in regions:
+		var region_id := str(region_value)
+		var candidates: Array[Marker3D] = candidates_by_region.get(region_id, [])
+		if candidates.is_empty():
+			push_error("find_key region has no authored candidates: %s" % region_id)
+			continue
+		var key: RigidBody3D = key_by_region()[region_id]
+		var candidate_index := rng.randi_range(0, candidates.size() - 1)
+		key.global_transform = candidates[candidate_index].global_transform
 
 
 func npc_by_region() -> Dictionary:
@@ -94,6 +120,7 @@ func set_scenario_active(active: bool) -> void:
 			else 0
 		)
 	for key: RigidBody3D in keys():
+		key.visible = active
 		key.collision_layer = 3 if active else 0
 		key.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 	for document: ReadableComponent in contract_documents:

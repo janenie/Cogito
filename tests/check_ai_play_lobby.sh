@@ -47,7 +47,7 @@ grep -q 'npc = NodePath("../../AIPlayNPCs/FriendlyHumanNPC")' "$scene"
 grep -q 'npc_candidates = \[NodePath("../../AIPlayNPCs/FriendlyHumanNPC"), NodePath("../../AIPlayNPCs/FindKeyCEONPC"), NodePath("../../AIPlayNPCs/FindKeyCubicleNPC")\]' "$scene"
 grep -q 'conference_door = NodePath("../../MEETING_ROOM/ConferenceDoor/FrontDoor")' "$scene"
 grep -q 'meeting_room = NodePath("../../MEETING_ROOM")' "$scene"
-test "$(grep -c 'name="Pickup_Key"' "$scene")" -eq 1
+bash tests/check_ai_play_find_key_static_keys.sh
 for marker in \
 	LaptopDeskAnchor \
 	ArchiveSofaAnchor \

@@ -32,6 +32,31 @@ func _run_test() -> void:
 		static_lobby_npcs != null and static_lobby_npcs.visible,
 		"Lobby NPCs are visible in the editor before runtime scenario filtering",
 	)
+	var static_key_paths := {
+		"MAIN_LOBBY": "MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D/MainLobbyKey",
+		"UPPER_OFFICE_CEO": "UPPER_OFFICE_CEO/deskCorner/Drawer/CEOOfficeKey",
+		"ARCHIVE": "ARCHIVE/ArchiveKey",
+		"MEETING_ROOM": "MEETING_ROOM/MeetingRoomKey",
+		"BREAK_ROOM": "BREAK_ROOM/BreakRoomKey",
+		"CUBICLE_AREA": "CUBICLE_AREA/CubicleAreaKey",
+	}
+	for region_id: String in REGIONS:
+		var static_key: Node3D = lobby.get_node_or_null(static_key_paths[region_id])
+		_assert(
+			static_key != null and static_key.visible,
+			"%s key is static and editor-visible" % region_id,
+		)
+		if static_key != null:
+			var region_candidates: Node = static_key.get_parent().get_node_or_null(
+				"FindKeyCandidates"
+			)
+			_assert(region_candidates != null, "%s owns a candidate group" % region_id)
+			if region_candidates != null:
+				_assert(
+					region_candidates.find_children("*", "Marker3D", true, false).size()
+					== 3,
+					"%s owns exactly three key candidate markers" % region_id,
+				)
 	root.add_child(lobby)
 	await process_frame
 
@@ -181,17 +206,11 @@ func _run_test() -> void:
 		) < 0.5,
 		"current Archive key sits inside the deep archive box",
 	)
-	_assert(
-		setup.key_by_region()["UPPER_OFFICE_CEO"].get_parent() == monitor.ceo_drawer,
-		"CEO key moves with the desk drawer",
-	)
-	_assert(
-		setup.key_by_region()["MAIN_LOBBY"].get_parent()
-		== lobby.get_node(
-			"MAIN_LOBBY/LAB_CONNECTOR/LaboratoryClueDesk/AnimatableBody3D"
-		),
-		"Lobby key uses the existing laboratory desk drawer",
-	)
+	for key: RigidBody3D in setup.keys():
+		_assert(
+			key == lobby.get_node(static_key_paths[key.get_meta("region_id")]),
+			"%s key remains the authored Lobby node" % key.get_meta("region_id"),
+		)
 	for placement_check: Dictionary in [
 		{"region": "MEETING_ROOM", "path": "MEETING_ROOM/tableGlass", "radius": 1.3},
 		{"region": "BREAK_ROOM", "path": "BREAK_ROOM/tableRound", "radius": 0.6},
@@ -208,8 +227,41 @@ func _run_test() -> void:
 	_assert(not setup.visible, "inactive setup is invisible")
 	_assert(setup.process_mode == Node.PROCESS_MODE_DISABLED, "inactive setup does not process")
 	for key: Node in setup.keys():
+		_assert(not key.visible, "inactive key is hidden")
 		_assert(key.collision_layer == 0, "inactive key does not collide")
 	setup.set_scenario_active(true)
+	for key: Node in setup.keys():
+		_assert(key.visible, "active find-key scenario shows each key")
+
+	var layouts_by_seed: Dictionary = {}
+	for seed_value: int in range(6):
+		monitor.configure_round(seed_value)
+		var positions: Array[Vector3] = []
+		for region_id: String in REGIONS:
+			var key: RigidBody3D = setup.key_by_region()[region_id]
+			var candidate_group: Node = key.get_parent().get_node("FindKeyCandidates")
+			var matches_candidate := false
+			for marker: Node in candidate_group.get_children():
+				if marker is Marker3D and key.global_transform.is_equal_approx(
+					(marker as Marker3D).global_transform
+				):
+					matches_candidate = true
+					break
+			_assert(matches_candidate, "%s key uses an authored candidate" % region_id)
+			positions.append(key.global_position)
+		layouts_by_seed[seed_value] = positions
+	monitor.configure_round(2)
+	var repeated_positions: Array[Vector3] = []
+	for region_id: String in REGIONS:
+		repeated_positions.append(setup.key_by_region()[region_id].global_position)
+	_assert(
+		repeated_positions == layouts_by_seed[2],
+		"the same round seed reproduces the same key layout",
+	)
+	_assert(
+		_unique_count(layouts_by_seed.values()) > 1,
+		"different round seeds produce more than one key layout",
+	)
 
 	for seed_value: int in range(4):
 		monitor.configure_round(seed_value)

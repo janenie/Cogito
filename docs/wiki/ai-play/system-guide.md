@@ -506,6 +506,11 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 - ARCHIVE 门每局重新锁定。键盘启用一次性确认：输入后先显示不可逆警告；取消不消耗机会，
   确认错误立即产生 `failure/security_lockout`，确认正确只解锁房间。进入房间并实际拾取
   ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 100。
+- 六把任务钥匙都由 `COGITO_3_Lobby.tscn` 静态拥有，编辑器中保持可见并可直接调整；运行时
+  只有 `find_key` 会显示、启用碰撞和配置提交交互，其他玩法统一隐藏并停用。每把钥匙固定属于
+  原房间，房间内各有三个名为 `Candidate1..3` 的 `Marker3D` 候选点；本局 round seed
+  确定性地选择其中一个位置，相同 seed 必须复现相同布局。运行时只同步钥匙 Transform，禁止
+  reparent 或用脚本硬编码覆盖编辑器位置。
 - 四套房间/经手人脚本由可信的非负 `--ai-play-round-seed=N` 确定。supervisor 对每个 cycle
   生成连续四个对齐种子并以确定性洗牌实现不放回；异常重试复用同一命令。启动日志只显示
   `--ai-play-round-seed=REDACTED`。脚本 ID、种子、NPC 映射、密码、正确钥匙和源码路径都属于

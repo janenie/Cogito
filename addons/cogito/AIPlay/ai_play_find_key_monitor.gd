@@ -20,9 +20,6 @@ const NPC_COLORS := {
 @export var player: Node3D
 @export var task_card: ReadableComponent
 @export var setup: AIPlayFindKeySetup
-@export var ceo_key: RigidBody3D
-@export var ceo_drawer: Node3D
-@export var main_lobby_drawer: Node3D
 @export var meeting_npc: FriendlyHumanNPC
 @export var ceo_npc: FriendlyHumanNPC
 @export var cubicle_npc: FriendlyHumanNPC
@@ -72,6 +69,7 @@ func configure_round(seed_value: int = 0) -> void:
 	_round_data = AIPlayFindKeyRound.build(seed_value)
 	_round_finished = false
 	setup.set_scenario_active(true)
+	setup.place_keys(seed_value)
 	_configure_keys()
 	_configure_documents()
 	_configure_npcs()
@@ -101,21 +99,9 @@ func get_decoy_keys() -> Array[RigidBody3D]:
 func _register_setup_objects() -> void:
 	if _registered_setup:
 		return
-	setup.register_external_key(ceo_key, "UPPER_OFFICE_CEO", "storage")
 	setup.register_external_npc(meeting_npc, "MEETING_ROOM")
 	setup.register_external_npc(ceo_npc, "UPPER_OFFICE_CEO")
 	setup.register_external_npc(cubicle_npc, "CUBICLE_AREA")
-	ceo_key.reparent(ceo_drawer, false)
-	ceo_key.transform = Transform3D(
-		Basis.from_euler(Vector3(0.0, deg_to_rad(75.0), 0.0)),
-		Vector3(0.1, 0.58, -1.45),
-	)
-	var main_lobby_key: RigidBody3D = setup.key_by_region()["MAIN_LOBBY"]
-	main_lobby_key.reparent(main_lobby_drawer, false)
-	main_lobby_key.transform = Transform3D(
-		Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0)),
-		Vector3(0.0, 0.03, -0.15),
-	)
 	_registered_setup = true
 
 
@@ -290,9 +276,6 @@ func _has_required_nodes() -> bool:
 		player,
 		task_card,
 		setup,
-		ceo_key,
-		ceo_drawer,
-		main_lobby_drawer,
 		meeting_npc,
 		ceo_npc,
 		cubicle_npc,
