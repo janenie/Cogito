@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -229,6 +230,7 @@ class _FakeProcess:
         self.stdin = _FakeStdin()
         self.stdout = iter(["codex line one\n", "codex line two\n"])
         self.terminated = False
+        self.signals = []
 
     def wait(self, timeout=None):
         return 17
@@ -241,6 +243,36 @@ class _FakeProcess:
 
     def kill(self):
         self.terminated = True
+
+    def send_signal(self, signum):
+        self.signals.append(signum)
+
+
+def test_internal_wrapper_forwards_termination_signals(monkeypatch):
+    orchestrator = load_orchestrator()
+    process = _FakeProcess()
+    installed = {}
+    restored = []
+
+    monkeypatch.setattr(orchestrator.signal, "getsignal", lambda signum: f"old-{signum}")
+
+    def fake_signal(signum, handler):
+        if callable(handler):
+            installed[signum] = handler
+        else:
+            restored.append((signum, handler))
+
+    monkeypatch.setattr(orchestrator.signal, "signal", fake_signal)
+
+    with orchestrator._forward_child_signals(process):
+        installed[signal.SIGTERM](signal.SIGTERM, None)
+        installed[signal.SIGINT](signal.SIGINT, None)
+
+    assert process.signals == [signal.SIGTERM, signal.SIGINT]
+    assert restored == [
+        (signal.SIGTERM, f"old-{signal.SIGTERM}"),
+        (signal.SIGINT, f"old-{signal.SIGINT}"),
+    ]
 
 
 def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, capsys):

@@ -300,6 +300,38 @@ CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effo
 验收仍会产生截图、令牌、费用和本地轨迹，必须单独获得用户确认；自动化测试只使用伪凭据和
 伪进程，不调用 Yibu 或启动游戏。
 
+### Codex + Doubao（本地 Responses 兼容代理）
+
+`tools/ai_play_codex_doubao_orchestrator.py` 保留 Codex CLI 自己的 agent loop、MCP 调用和多轮
+上下文，只在 Codex 与 Yibu Responses API 之间启动一个随机端口、仅绑定 `127.0.0.1` 的短生命周期
+兼容代理。代理删除 Yibu 不接受的 Codex 扩展字段，将获准的 MCP namespace 工具转换为普通
+function tools，并把 Doubao 返回的扁平函数名还原为 Codex 的 MCP namespace 调用；它不执行游戏
+决策，也不实现另一套 agent loop。默认模型为 `doubao-seed-2-1-pro-260628`，默认三局并启用 AWM，
+不设置也不接受 reasoning effort；每次 provider 交互默认限制为 8192 个输出 token，可用
+`--max-output-tokens` 调整到 1～32768。
+
+凭据默认从仓库中已忽略的 `.claude/settings.local.json` 读取。入口只解析 JSON `env` 对象，并按
+顺序使用 `ANTHROPIC_AUTH_TOKEN` 或 `ANTHROPIC_API_KEY`；`ANTHROPIC_BASE_URL` 必须是 HTTPS，且
+路径只能为空或 `/v1`。真实 Yibu token 只存在于可信 wrapper/代理环境；Codex 进程只得到随机的
+本地代理 bearer，临时 `CODEX_HOME` 只包含不含真实 token 的 `0600` 配置并在退出时删除。
+
+```bash
+.venv/bin/python tools/ai_play_codex_doubao_orchestrator.py \
+  --runs 3 \
+  --scenario garden_watering \
+  --workflow-memory enabled \
+  --model doubao-seed-2-1-pro-260628 \
+  --credentials .claude/settings.local.json \
+  --session-root /Users/aidy/workspace/ai_play_doubao_logs
+```
+
+代理只接受带随机 bearer 的 `POST /v1/responses`，过滤 Codex 内建工具，关闭 parallel tool calls，
+不重试 provider 请求，并逐帧验证和转发 SSE。无效模型、工具或请求返回本地 400/401；Yibu 400、
+429 等状态原样有界转发；连接超时、破损 SSE、未知函数名和缺失终局事件会失败关闭，不会伪造
+成功完成。Codex 未内建该模型 metadata 时会打印 fallback metadata 警告，这不等于 API 失败。
+真实三局运行会产生截图、token 消耗、费用和本地轨迹，仍须单独确认后才能执行；自动化测试只用
+假的 Yibu 响应和本地 MCP fixture。
+
 ### Claude Code
 
 `tools/ai_play_claude_orchestrator.py` 已按

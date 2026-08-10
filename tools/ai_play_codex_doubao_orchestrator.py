@@ -10,9 +10,11 @@ import json
 import os
 from pathlib import Path
 import secrets
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 from typing import Any, Callable, Iterator, Mapping, Sequence
 from urllib.parse import urlsplit
 
@@ -313,6 +315,28 @@ def _parse_internal_args(argv: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+@contextmanager
+def _forward_child_signals(process: Any) -> Iterator[None]:
+    """Forward wrapper termination to Codex so proxy cleanup can still run."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    watched = (signal.SIGTERM, signal.SIGINT)
+    previous = {signum: signal.getsignal(signum) for signum in watched}
+
+    def forward(signum: int, _frame: Any) -> None:
+        if process.poll() is None:
+            process.send_signal(signum)
+
+    try:
+        for signum in watched:
+            signal.signal(signum, forward)
+        yield
+    finally:
+        for signum in watched:
+            signal.signal(signum, previous[signum])
+
+
 def run_internal_player(
     argv: Sequence[str],
     *,
@@ -378,11 +402,12 @@ def run_internal_player(
             try:
                 if process.stdin is None or process.stdout is None:
                     raise RuntimeError("Codex process pipes were not created")
-                process.stdin.write(prompt)
-                process.stdin.close()
-                for line in process.stdout:
-                    print(line, end="", flush=True)
-                return int(process.wait())
+                with _forward_child_signals(process):
+                    process.stdin.write(prompt)
+                    process.stdin.close()
+                    for line in process.stdout:
+                        print(line, end="", flush=True)
+                    return int(process.wait())
             except BaseException:
                 if process.poll() is None:
                     process.terminate()
