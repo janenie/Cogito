@@ -9,12 +9,14 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import queue
 import secrets
 import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 from typing import Any, Callable, Iterator, Mapping, Sequence
 from urllib.parse import urlsplit
 
@@ -316,25 +318,84 @@ def _parse_internal_args(argv: Sequence[str]) -> argparse.Namespace:
 
 
 @contextmanager
-def _forward_child_signals(process: Any) -> Iterator[None]:
+def _forward_child_signals(process: Any) -> Iterator[queue.SimpleQueue[int]]:
     """Forward wrapper termination to Codex so proxy cleanup can still run."""
+    received: queue.SimpleQueue[int] = queue.SimpleQueue()
     if threading.current_thread() is not threading.main_thread():
-        yield
+        yield received
         return
     watched = (signal.SIGTERM, signal.SIGINT)
     previous = {signum: signal.getsignal(signum) for signum in watched}
 
     def forward(signum: int, _frame: Any) -> None:
+        received.put(signum)
         if process.poll() is None:
             process.send_signal(signum)
 
     try:
         for signum in watched:
             signal.signal(signum, forward)
-        yield
+        yield received
     finally:
         for signum in watched:
             signal.signal(signum, previous[signum])
+
+
+def _terminate_codex_process(process: Any, timeout: float = 5.0) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=timeout)
+
+
+def _relay_codex_output(process: Any, errors: list[BaseException]) -> None:
+    try:
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line, end="", flush=True)
+    except BaseException as error:
+        errors.append(error)
+
+
+def _monitor_codex_process(
+    process: Any,
+    proxy: Any,
+    received_signals: queue.SimpleQueue[int],
+) -> int:
+    relay_errors: list[BaseException] = []
+    relay = threading.Thread(
+        target=_relay_codex_output,
+        args=(process, relay_errors),
+        name="codex-doubao-output",
+        daemon=True,
+    )
+    relay.start()
+    proxy_failure = getattr(proxy, "failure_event", threading.Event())
+    while process.poll() is None:
+        try:
+            signum = received_signals.get_nowait()
+        except queue.Empty:
+            signum = None
+        if signum is not None:
+            _terminate_codex_process(process)
+            relay.join(timeout=5.0)
+            return 128 + signum
+        if proxy_failure.is_set():
+            _terminate_codex_process(process)
+            relay.join(timeout=5.0)
+            error = getattr(proxy, "thread_error", None)
+            raise RuntimeError("Doubao proxy stopped unexpectedly") from error
+        time.sleep(0.05)
+    relay.join(timeout=5.0)
+    if relay.is_alive():
+        raise RuntimeError("Codex output relay did not stop")
+    if relay_errors:
+        raise RuntimeError("Codex output relay failed") from relay_errors[0]
+    return int(process.wait())
 
 
 def run_internal_player(
@@ -402,20 +463,16 @@ def run_internal_player(
             try:
                 if process.stdin is None or process.stdout is None:
                     raise RuntimeError("Codex process pipes were not created")
-                with _forward_child_signals(process):
+                with _forward_child_signals(process) as received_signals:
                     process.stdin.write(prompt)
                     process.stdin.close()
-                    for line in process.stdout:
-                        print(line, end="", flush=True)
-                    return int(process.wait())
+                    return _monitor_codex_process(
+                        process,
+                        proxy,
+                        received_signals,
+                    )
             except BaseException:
-                if process.poll() is None:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5.0)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=5.0)
+                _terminate_codex_process(process)
                 raise
 
 
@@ -598,7 +655,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == INTERNAL_PLAYER_FLAG:
         try:
             raise SystemExit(run_internal_player(sys.argv[2:]))
-        except ValueError as error:
+        except (RuntimeError, ValueError) as error:
             print(str(error), file=sys.stderr)
             raise SystemExit(2)
     raise SystemExit(main())

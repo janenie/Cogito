@@ -278,6 +278,31 @@ def test_sse_transform_accepts_response_failed_as_terminal():
     assert b"response.failed" in output
 
 
+def test_sse_transform_accepts_response_incomplete_as_terminal():
+    output = b"".join(
+        transform_sse_chunks(
+            [
+                _sse(
+                    "response.incomplete",
+                    {
+                        "type": "response.incomplete",
+                        "response": {
+                            "status": "incomplete",
+                            "incomplete_details": {
+                                "reason": "max_output_tokens"
+                            },
+                        },
+                    },
+                )
+            ],
+            {},
+        )
+    )
+
+    assert b"response.incomplete" in output
+    assert b"max_output_tokens" in output
+
+
 @pytest.mark.parametrize(
     ("chunks", "message"),
     [
@@ -517,3 +542,13 @@ def test_http_proxy_reports_upstream_timeout_without_retry():
     assert response.status_code == 502
     assert len(calls) == 1
     assert any(event["error_type"] == "ReadTimeout" for event in logs)
+
+
+def test_proxy_exposes_unexpected_server_thread_exit():
+    proxy = _proxy(_FakeUpstream(_FakeResponse()))
+
+    with proxy:
+        proxy._server.shutdown()
+        proxy._thread.join(timeout=2)
+        assert proxy.failure_event.wait(timeout=1)
+        assert isinstance(proxy.thread_error, RuntimeError)

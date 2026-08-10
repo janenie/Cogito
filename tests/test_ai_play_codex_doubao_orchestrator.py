@@ -3,11 +3,13 @@ import io
 import json
 import os
 from pathlib import Path
+import queue
 import shutil
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from types import SimpleNamespace
 
@@ -226,23 +228,26 @@ class _FakeStdin:
 
 
 class _FakeProcess:
-    def __init__(self):
+    def __init__(self, *, running=False):
         self.stdin = _FakeStdin()
         self.stdout = iter(["codex line one\n", "codex line two\n"])
         self.terminated = False
         self.signals = []
+        self.running = running
 
     def wait(self, timeout=None):
         return 17
 
     def poll(self):
-        return None
+        return None if self.running else 17
 
     def terminate(self):
         self.terminated = True
+        self.running = False
 
     def kill(self):
         self.terminated = True
+        self.running = False
 
     def send_signal(self, signum):
         self.signals.append(signum)
@@ -250,7 +255,7 @@ class _FakeProcess:
 
 def test_internal_wrapper_forwards_termination_signals(monkeypatch):
     orchestrator = load_orchestrator()
-    process = _FakeProcess()
+    process = _FakeProcess(running=True)
     installed = {}
     restored = []
 
@@ -264,15 +269,35 @@ def test_internal_wrapper_forwards_termination_signals(monkeypatch):
 
     monkeypatch.setattr(orchestrator.signal, "signal", fake_signal)
 
-    with orchestrator._forward_child_signals(process):
+    with orchestrator._forward_child_signals(process) as received:
         installed[signal.SIGTERM](signal.SIGTERM, None)
         installed[signal.SIGINT](signal.SIGINT, None)
 
     assert process.signals == [signal.SIGTERM, signal.SIGINT]
+    assert [received.get_nowait(), received.get_nowait()] == [
+        signal.SIGTERM,
+        signal.SIGINT,
+    ]
     assert restored == [
         (signal.SIGTERM, f"old-{signal.SIGTERM}"),
         (signal.SIGINT, f"old-{signal.SIGINT}"),
     ]
+
+
+def test_monitor_bounds_cleanup_after_forwarded_termination():
+    orchestrator = load_orchestrator()
+    process = _FakeProcess(running=True)
+    received = queue.SimpleQueue()
+    received.put(signal.SIGTERM)
+
+    result = orchestrator._monitor_codex_process(
+        process,
+        SimpleNamespace(failure_event=threading.Event()),
+        received,
+    )
+
+    assert result == 128 + signal.SIGTERM
+    assert process.terminated
 
 
 def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, capsys):
@@ -347,6 +372,83 @@ def test_internal_wrapper_rejects_empty_prompt_before_proxy_start(tmp_path):
             base_env={},
             proxy_factory=lambda **kwargs: pytest.fail("proxy must not start"),
         )
+
+
+def test_internal_wrapper_terminates_codex_when_proxy_thread_fails(tmp_path):
+    orchestrator = load_orchestrator()
+    process = _FakeProcess(running=True)
+
+    class FailedProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+        failure_event = threading.Event()
+        thread_error = RuntimeError("proxy thread failed")
+
+        def __enter__(self):
+            self.failure_event.set()
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    with pytest.raises(RuntimeError, match="proxy stopped unexpectedly"):
+        orchestrator.run_internal_player(
+            [
+                "--codex-bin", "/codex",
+                "--player-workspace", str(tmp_path),
+                "--model", orchestrator.DEFAULT_MODEL,
+                "--mcp-url", "http://127.0.0.1:8766/mcp",
+                "--max-output-tokens", "8192",
+                "--workflow-memory", "disabled",
+            ],
+            stdin_text="play",
+            base_env={
+                orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+                orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+            },
+            popen_factory=lambda *args, **kwargs: process,
+            proxy_factory=lambda **kwargs: FailedProxy(),
+        )
+
+    assert process.terminated
+
+
+def test_internal_wrapper_closes_proxy_when_codex_start_fails(tmp_path):
+    orchestrator = load_orchestrator()
+    lifecycle = []
+
+    class FakeProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+
+        def __enter__(self):
+            lifecycle.append("enter")
+            return self
+
+        def __exit__(self, *args):
+            lifecycle.append("exit")
+
+    def fail_start(*args, **kwargs):
+        raise OSError("could not start Codex")
+
+    with pytest.raises(OSError, match="could not start Codex"):
+        orchestrator.run_internal_player(
+            [
+                "--codex-bin", "/codex",
+                "--player-workspace", str(tmp_path),
+                "--model", orchestrator.DEFAULT_MODEL,
+                "--mcp-url", "http://127.0.0.1:8766/mcp",
+                "--max-output-tokens", "8192",
+                "--workflow-memory", "disabled",
+            ],
+            stdin_text="play",
+            base_env={
+                orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+                orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+            },
+            popen_factory=fail_start,
+            proxy_factory=lambda **kwargs: FakeProxy(),
+        )
+
+    assert lifecycle == ["enter", "exit"]
 
 
 def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp_path):

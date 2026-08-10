@@ -255,7 +255,8 @@ Authorization、prompt、工具参数或响应正文。
 
 默认模型是 `doubao-seed-2-1-pro-260628`，默认三局、启用 AWM、每次 provider 交互最多 8192 个
 输出 token，允许范围 1～32768。入口不提供 `--reasoning-effort`，临时配置也不写该字段，
-`session.json` 以 `"none"` 记录。默认凭据源为仓库中已忽略的
+`session.json` 以 `"none"` 记录。Codex 提前正常退出时默认最多启动 8 个恢复 turn，每次都会
+继续产生 provider token 消耗，可用 `--codex-max-restarts` 收紧。默认凭据源为仓库中已忽略的
 `.claude/settings.local.json`；只解析 JSON `env` 中的 `ANTHROPIC_AUTH_TOKEN`（优先）、
 `ANTHROPIC_API_KEY`（回退）和 `ANTHROPIC_BASE_URL`。base URL 必须使用 HTTPS 且路径为空或
 `/v1`。真实 token 只进入可信 wrapper 和代理；Codex 环境只收到一次性随机本地 bearer，临时

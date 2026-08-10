@@ -243,7 +243,11 @@ def transform_sse_chunks(
             output, event_type = _transform_sse_frame(raw_frame, aliases)
             if terminal:
                 raise SseTransformError("SSE data followed a terminal event")
-            if event_type in ("response.completed", "response.failed"):
+            if event_type in (
+                "response.completed",
+                "response.failed",
+                "response.incomplete",
+            ):
                 terminal = True
             yield output
     if buffer:
@@ -303,6 +307,9 @@ class DoubaoProxyServer:
         self._thread: threading.Thread | None = None
         self._active_lock = threading.Lock()
         self._active_responses: set[Any] = set()
+        self._stopping_event = threading.Event()
+        self._failure_event = threading.Event()
+        self._thread_error: BaseException | None = None
 
     @staticmethod
     def _print_event(event: Mapping[str, Any]) -> None:
@@ -326,9 +333,20 @@ class DoubaoProxyServer:
     def base_url(self) -> str:
         return f"http://{self.host}:{self.port}/v1"
 
+    @property
+    def failure_event(self) -> threading.Event:
+        return self._failure_event
+
+    @property
+    def thread_error(self) -> BaseException | None:
+        return self._thread_error
+
     def __enter__(self) -> "DoubaoProxyServer":
         if self._server is not None:
             raise RuntimeError("proxy server is already running")
+        self._stopping_event.clear()
+        self._failure_event.clear()
+        self._thread_error = None
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -349,6 +367,7 @@ class DoubaoProxyServer:
                 authorization = self.headers.get("authorization", "")
                 expected = "Bearer " + owner._proxy_token
                 if not hmac.compare_digest(authorization, expected):
+                    self.close_connection = True
                     self._send_json(401, {"error": {"message": "unauthorized"}})
                     return
                 raw_length = self.headers.get("content-length")
@@ -357,9 +376,11 @@ class DoubaoProxyServer:
                 except ValueError:
                     length = -1
                 if length < 0:
+                    self.close_connection = True
                     self._send_json(411, {"error": {"message": "content length required"}})
                     return
                 if length > MAX_REQUEST_BODY_BYTES:
+                    self.close_connection = True
                     self._send_json(413, {"error": {"message": "request body too large"}})
                     return
                 body = self.rfile.read(length)
@@ -497,8 +518,22 @@ class DoubaoProxyServer:
                 return
 
         self._server = _LoopbackHttpServer((self.host, 0), Handler)
+        def serve() -> None:
+            try:
+                assert owner._server is not None
+                owner._server.serve_forever()
+            except BaseException as error:
+                owner._thread_error = error
+            finally:
+                if not owner._stopping_event.is_set():
+                    if owner._thread_error is None:
+                        owner._thread_error = RuntimeError(
+                            "Doubao proxy server thread exited unexpectedly"
+                        )
+                    owner._failure_event.set()
+
         self._thread = threading.Thread(
-            target=self._server.serve_forever,
+            target=serve,
             name="doubao-responses-proxy",
             daemon=True,
         )
@@ -523,6 +558,7 @@ class DoubaoProxyServer:
             self._active_responses.discard(response)
 
     def close(self) -> None:
+        self._stopping_event.set()
         with self._active_lock:
             responses = list(self._active_responses)
         for response in responses:

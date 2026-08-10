@@ -308,7 +308,8 @@ CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effo
 function tools，并把 Doubao 返回的扁平函数名还原为 Codex 的 MCP namespace 调用；它不执行游戏
 决策，也不实现另一套 agent loop。默认模型为 `doubao-seed-2-1-pro-260628`，默认三局并启用 AWM，
 不设置也不接受 reasoning effort；每次 provider 交互默认限制为 8192 个输出 token，可用
-`--max-output-tokens` 调整到 1～32768。
+`--max-output-tokens` 调整到 1～32768。Codex 提前正常退出时默认最多恢复 8 次；每次恢复都是
+新的 provider turn，会继续消耗 token，可用 `--codex-max-restarts` 收紧。
 
 凭据默认从仓库中已忽略的 `.claude/settings.local.json` 读取。入口只解析 JSON `env` 对象，并按
 顺序使用 `ANTHROPIC_AUTH_TOKEN` 或 `ANTHROPIC_API_KEY`；`ANTHROPIC_BASE_URL` 必须是 HTTPS，且
