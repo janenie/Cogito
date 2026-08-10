@@ -228,9 +228,15 @@ harness 配置 Yibu Responses provider。它默认使用 `gemini-3.6-flash`、�
   --workflow-memory enabled
 ```
 
-该入口的 Codex 配置使用 `model_provider = "yibu"`、`wire_api = "responses"` 和规范化后的
-HTTPS `/v1` base URL。Codex 的模型传输层需要访问该 provider，但玩家工具网络 profile 仍只
-allowlist `127.0.0.1` MCP 边车；这不放宽 Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
+该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
+指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
+规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
+`function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
+代理只接受 `POST /v1/responses`，不持久化请求、响应、图片或 key，并纳入统一子进程 readiness、
+失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数不含 key。
+
+Codex 的模型传输层只访问该回环代理，玩家工具网络 profile 仍只 allowlist `127.0.0.1`；这不放宽
+Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
 Codex 默认开启的 shell/unified exec，以及 apps、plugins、subagents、goals、tool suggestions
 和本地图片工具，不能只依赖提示词要求第三方模型使用 MCP。未知模型可能触发 Codex
 fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹

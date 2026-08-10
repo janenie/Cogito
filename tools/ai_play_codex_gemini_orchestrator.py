@@ -48,8 +48,13 @@ validate_isolated_session_root = _codex.validate_isolated_session_root
 validate_model_argument = _codex.validate_model_argument
 DEFAULT_MODEL = "gemini-3.6-flash"
 DEFAULT_YIBU_CREDENTIALS = REPO_ROOT / "opus.py"
+DEFAULT_PROVIDER_PROXY_PORT = 18767
+RESPONSES_NAMESPACE_PROXY_PATH = (
+    REPO_ROOT / "tools" / "ai_play_responses_namespace_proxy.py"
+)
 YIBU_ENV_KEY = "YIBU_API_KEY"
 YIBU_PROVIDER_ID = "yibu"
+MCP_TOOL_NAMESPACE = "mcp__cogito_ai_play"
 
 
 @dataclass(frozen=True)
@@ -107,6 +112,22 @@ def _normalize_yibu_base_url(value: object) -> str:
         return base_url + "/v1"
     if parsed.path.rstrip("/") != "/v1":
         raise ValueError("yibu credential URL path must be /v1 or empty")
+    return base_url
+
+
+def _normalize_loopback_provider_base_url(value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("loopback provider URL must be a non-empty string")
+    base_url = value.strip().rstrip("/")
+    parsed = urlsplit(base_url)
+    if parsed.scheme != "http" or parsed.hostname != DEFAULT_WS_HOST:
+        raise ValueError("loopback provider URL must use http://127.0.0.1")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("loopback provider URL must not contain credentials")
+    if parsed.port is None:
+        raise ValueError("loopback provider URL must include a port")
+    if parsed.query or parsed.fragment or parsed.path.rstrip("/") != "/v1":
+        raise ValueError("loopback provider URL path must be /v1 without query")
     return base_url
 
 
@@ -207,7 +228,8 @@ def write_player_codex_gemini_config(
                 "",
                 f"[model_providers.{YIBU_PROVIDER_ID}]",
                 'name = "Yibu API"',
-                f"base_url = {_toml_basic_string(_normalize_yibu_base_url(base_url))}",
+                "base_url = "
+                f"{_toml_basic_string(_normalize_loopback_provider_base_url(base_url))}",
                 f"env_key = {_toml_basic_string(YIBU_ENV_KEY)}",
                 'wire_api = "responses"',
                 "",
@@ -255,6 +277,41 @@ def build_player_env(
     return env
 
 
+def build_provider_proxy_env(
+    base_env: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    return _codex.build_core_env(base_env)
+
+
+def build_provider_proxy_command(
+    *,
+    python_bin: str,
+    port: int,
+    upstream_base_url: str,
+    workflow_memory_enabled: bool,
+) -> list[str]:
+    command = [
+        python_bin,
+        str(RESPONSES_NAMESPACE_PROXY_PATH),
+        "--host",
+        DEFAULT_WS_HOST,
+        "--port",
+        str(port),
+        "--upstream-base-url",
+        _normalize_yibu_base_url(upstream_base_url),
+        "--namespace",
+        MCP_TOOL_NAMESPACE,
+    ]
+    tool_names = (
+        AWM_PLAYER_TOOL_NAMES
+        if workflow_memory_enabled
+        else BASE_PLAYER_TOOL_NAMES
+    )
+    for tool_name in tool_names:
+        command.extend(("--allowed-tool", tool_name))
+    return command
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -281,6 +338,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--godot-bin", default="godot")
     parser.add_argument("--scene")
     parser.add_argument("--mcp-port", type=int, default=DEFAULT_MCP_PORT)
+    parser.add_argument(
+        "--provider-proxy-port",
+        type=int,
+        default=DEFAULT_PROVIDER_PROXY_PORT,
+    )
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument(
         "--benchmark-cycle-seed",
@@ -321,9 +383,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.timeout_seconds <= 0:
         raise SystemExit("--timeout-seconds must be positive")
     _validate_port("--mcp-port", args.mcp_port)
+    _validate_port("--provider-proxy-port", args.provider_proxy_port)
     if DEFAULT_WS_PORT == args.mcp_port:
         raise SystemExit(
             "--mcp-port must differ from fixed bridge port %s" % DEFAULT_WS_PORT
+        )
+    if args.provider_proxy_port in (DEFAULT_WS_PORT, args.mcp_port):
+        raise SystemExit(
+            "--provider-proxy-port must differ from bridge and MCP ports"
         )
     if args.mcp_start_timeout_seconds <= 0:
         raise SystemExit("--mcp-start-timeout-seconds must be positive")
@@ -340,6 +407,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for label, port in (
         ("AI Play bridge", DEFAULT_WS_PORT),
         ("MCP HTTP", args.mcp_port),
+        ("provider proxy", args.provider_proxy_port),
     ):
         if is_port_listening(DEFAULT_WS_HOST, port):
             raise SystemExit(
@@ -365,6 +433,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             execution={
                 "ws_port": DEFAULT_WS_PORT,
                 "mcp_port": args.mcp_port,
+                "provider_proxy_port": args.provider_proxy_port,
                 "max_retries": args.max_retries,
                 "attempt_timeout_seconds": args.timeout_seconds,
                 "mcp_start_timeout_seconds": args.mcp_start_timeout_seconds,
@@ -378,6 +447,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
     mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
+    provider_proxy_command = build_provider_proxy_command(
+        python_bin=args.python_bin,
+        port=args.provider_proxy_port,
+        upstream_base_url=credentials.base_url,
+        workflow_memory_enabled=workflow_memory_enabled,
+    )
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,
         runs=args.runs,
@@ -404,7 +479,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         write_player_codex_gemini_config(
             player_home,
             args.model,
-            credentials.base_url,
+            "http://%s:%s/v1"
+            % (DEFAULT_WS_HOST, args.provider_proxy_port),
             f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp",
             workflow_memory_enabled=workflow_memory_enabled,
         )
@@ -433,6 +509,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             player_exit_grace_seconds=args.codex_exit_grace_seconds,
             idle_timeout_seconds=args.idle_timeout_seconds,
             player_final_grace_seconds=args.codex_final_grace_seconds,
+            provider_proxy_command=provider_proxy_command,
+            provider_proxy_env=build_provider_proxy_env(),
+            provider_proxy_cwd=REPO_ROOT,
+            provider_proxy_port=args.provider_proxy_port,
         )
 
 
