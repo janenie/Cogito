@@ -230,7 +230,9 @@ harness 配置 Yibu Responses provider。它默认使用 `gemini-3.6-flash`、�
 
 该入口的 Codex 配置使用 `model_provider = "yibu"`、`wire_api = "responses"` 和规范化后的
 HTTPS `/v1` base URL。Codex 的模型传输层需要访问该 provider，但玩家工具网络 profile 仍只
-allowlist `127.0.0.1` MCP 边车；这不放宽 Web 搜索、shell 或 MCP 能力。未知模型可能触发 Codex
+allowlist `127.0.0.1` MCP 边车；这不放宽 Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
+Codex 默认开启的 shell/unified exec，以及 apps、plugins、subagents、goals、tool suggestions
+和本地图片工具，不能只依赖提示词要求第三方模型使用 MCP。未知模型可能触发 Codex
 fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹
 持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。
 

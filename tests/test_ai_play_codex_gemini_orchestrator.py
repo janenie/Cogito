@@ -122,6 +122,16 @@ def test_write_player_config_uses_responses_provider_without_secret_or_effort(
         '"act", "workflow_memory_update"]'
     ) in text
     assert 'web_search = "disabled"' in text
+    assert "[features]" in text
+    assert "shell_tool = false" in text
+    assert "unified_exec = false" in text
+    assert "apps = false" in text
+    assert "goals = false" in text
+    assert "multi_agent = false" in text
+    assert "plugins = false" in text
+    assert "tool_suggest = false" in text
+    assert "[tools]" in text
+    assert "view_image = false" in text
     assert 'default_permissions = "ai_play_player"' in text
     assert '":minimal" = "read"' in text
     assert '"." = "read"' in text
