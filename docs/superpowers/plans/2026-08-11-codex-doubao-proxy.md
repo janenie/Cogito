@@ -187,7 +187,7 @@ through its isolated environment.
 
 - [ ] **Step 4: Run affected orchestrator tests**
 
-Run: `.venv/bin/pytest -q tests/test_ai_play_codex_doubao_orchestrator.py tests/test_ai_play_codex_gemini_orchestrator.py tests/test_ai_play_codex_orchestrator.py tests/test_ai_play_orchestrator_common.py`
+Run: `.venv/bin/pytest -q tests/test_ai_play_codex_doubao_orchestrator.py tests/test_ai_play_codex_gemini_orchestrator.py tests/test_ai_play_codex_orchestrator.py tests/test_ai_play_supervisor.py`
 
 Expected: all tests pass.
 
@@ -238,7 +238,7 @@ categories, and real-test confirmation requirements.
 
 - [ ] **Step 2: Run focused and affected tests**
 
-Run: `.venv/bin/pytest -q tests/test_ai_play_doubao_responses_proxy.py tests/test_ai_play_codex_doubao_orchestrator.py tests/test_ai_play_codex_gemini_orchestrator.py tests/test_ai_play_codex_orchestrator.py tests/test_ai_play_orchestrator_common.py tests/test_ai_play_supervisor.py tests/test_ai_play_mcp_server.py`
+Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest ai_play/tests ai_host/tests tests/*.py tests/conveyor_profit/test_protocol_parity.py -q`
 
 Expected: all tests pass.
 
