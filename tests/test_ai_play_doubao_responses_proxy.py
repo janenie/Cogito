@@ -106,6 +106,17 @@ def test_transform_request_flattens_namespaced_function_calls_in_input():
     payload = _request()
     payload["input"] = [
         {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "output_text",
+                    "text": "calling briefing",
+                    "annotations": [],
+                }
+            ],
+        },
+        {
             "type": "function_call",
             "name": "briefing",
             "namespace": "mcp__cogito_ai_play",
@@ -127,7 +138,9 @@ def test_transform_request_flattens_namespaced_function_calls_in_input():
         ),
     )
 
-    function_call = transformed.payload["input"][0]
+    assistant_message = transformed.payload["input"][0]
+    function_call = transformed.payload["input"][1]
+    assert assistant_message["status"] == "completed"
     assert function_call["name"] == "mcp__cogito_ai_play__briefing"
     assert function_call["status"] == "completed"
     assert "namespace" not in function_call

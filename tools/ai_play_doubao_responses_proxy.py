@@ -134,6 +134,12 @@ def _flatten_input_function_calls(value: Any, settings: ProxySettings) -> None:
         return
     if not isinstance(value, dict):
         return
+    if (
+        value.get("type") == "message"
+        and value.get("role") == "assistant"
+        and "status" not in value
+    ):
+        value["status"] = "completed"
     if value.get("type") == "function_call" and "namespace" in value:
         namespace = value.get("namespace")
         name = value.get("name")
