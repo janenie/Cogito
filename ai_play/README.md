@@ -313,7 +313,8 @@ CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effo
 `tools/ai_play_codex_doubao_orchestrator.py` 保留 Codex CLI 自己的 agent loop、MCP 调用和多轮
 上下文，只在 Codex 与 Yibu Responses API 之间启动一个随机端口、仅绑定 `127.0.0.1` 的短生命周期
 兼容代理。代理删除 Yibu 不接受的 Codex 扩展字段，将获准的 MCP namespace 工具转换为普通
-function tools，并把 Doubao 返回的扁平函数名还原为 Codex 的 MCP namespace 调用；它不执行游戏
+function tools；后续 turn 还会把 Codex 历史 `input` 中的短工具名与 `namespace` 重新展平。
+Doubao 返回的扁平函数名则还原为 Codex 的 MCP namespace 调用；代理不执行游戏
 决策，也不实现另一套 agent loop。默认模型为 `doubao-seed-2-1-pro-260628`，默认三局并启用 AWM，
 不设置也不接受 reasoning effort；每次 provider 交互默认限制为 8192 个输出 token，可用
 `--max-output-tokens` 调整到 1～32768。Codex 提前正常退出时默认最多恢复 8 次；每次恢复都是

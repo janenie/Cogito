@@ -102,6 +102,65 @@ def test_transform_request_preserves_other_include_values():
     assert transformed.payload["include"] == ["safe.value"]
 
 
+def test_transform_request_flattens_namespaced_function_calls_in_input():
+    payload = _request()
+    payload["input"] = [
+        {
+            "type": "function_call",
+            "name": "briefing",
+            "namespace": "mcp__cogito_ai_play",
+            "arguments": "{}",
+            "call_id": "call_1",
+        },
+        {
+            "type": "function_call_output",
+            "call_id": "call_1",
+            "output": "ready",
+        },
+    ]
+
+    transformed = transform_request(
+        payload,
+        ProxySettings(
+            model="doubao-seed-2-1-pro-260628",
+            enabled_tools=("briefing", "observe", "act"),
+        ),
+    )
+
+    function_call = transformed.payload["input"][0]
+    assert function_call["name"] == "mcp__cogito_ai_play__briefing"
+    assert "namespace" not in function_call
+
+
+@pytest.mark.parametrize(
+    "function_call",
+    [
+        {
+            "type": "function_call",
+            "name": "briefing",
+            "namespace": "mcp__other_server",
+        },
+        {
+            "type": "function_call",
+            "name": "stop",
+            "namespace": "mcp__cogito_ai_play",
+        },
+    ],
+)
+def test_transform_request_rejects_unapproved_namespaced_input_calls(function_call):
+    payload = _request()
+    payload["input"] = [function_call]
+
+    with pytest.raises(RequestTransformError, match="input function call"):
+        transform_request(
+            payload,
+            ProxySettings(
+                model="doubao-seed-2-1-pro-260628",
+                enabled_tools=("briefing", "observe", "act"),
+            ),
+        )
+
+
 def test_transform_request_uses_explicit_output_limit():
     transformed = transform_request(
         _request(),

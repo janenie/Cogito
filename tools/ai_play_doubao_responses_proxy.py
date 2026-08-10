@@ -127,6 +127,30 @@ def _flatten_enabled_tools(
     return flattened, aliases
 
 
+def _flatten_input_function_calls(value: Any, settings: ProxySettings) -> None:
+    if isinstance(value, list):
+        for item in value:
+            _flatten_input_function_calls(item, settings)
+        return
+    if not isinstance(value, dict):
+        return
+    if value.get("type") == "function_call" and "namespace" in value:
+        namespace = value.get("namespace")
+        name = value.get("name")
+        if (
+            namespace != settings.namespace
+            or not isinstance(name, str)
+            or name not in settings.enabled_tools
+        ):
+            raise RequestTransformError(
+                "request input function call is outside the AI Play allowlist"
+            )
+        value["name"] = _flat_tool_alias(settings.namespace, name)
+        value.pop("namespace")
+    for item in value.values():
+        _flatten_input_function_calls(item, settings)
+
+
 def transform_request(
     payload: Mapping[str, Any],
     settings: ProxySettings,
@@ -159,6 +183,7 @@ def transform_request(
     )
     tools, aliases = _flatten_enabled_tools(namespace_tool, settings)
     transformed["tools"] = tools
+    _flatten_input_function_calls(transformed.get("input"), settings)
     transformed["parallel_tool_calls"] = False
     transformed["max_output_tokens"] = settings.max_output_tokens
     return TransformedRequest(payload=transformed, aliases=aliases)
@@ -477,15 +502,16 @@ class DoubaoProxyServer:
                             self.close_connection = True
                             raise
                 except (httpx.HTTPError, OSError, SseTransformError) as error:
-                    owner._event_logger(
-                        {
-                            "event": "request_failed",
-                            "error_type": type(error).__name__,
-                            "request_bytes": len(body),
-                            "response_bytes": response_bytes,
-                            "duration_ms": int((time.monotonic() - started) * 1000),
-                        }
-                    )
+                    failure_event = {
+                        "event": "request_failed",
+                        "error_type": type(error).__name__,
+                        "request_bytes": len(body),
+                        "response_bytes": response_bytes,
+                        "duration_ms": int((time.monotonic() - started) * 1000),
+                    }
+                    if isinstance(error, SseTransformError):
+                        failure_event["error_reason"] = str(error)
+                    owner._event_logger(failure_event)
                     if not self.wfile.closed and not self.close_connection:
                         self._send_json(502, {"error": {"message": "upstream failure"}})
                     return
