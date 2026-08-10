@@ -1,8 +1,15 @@
 import copy
+from contextlib import contextmanager
+import http.client
+import json
 
+import httpx
 import pytest
 
 from tools.ai_play_doubao_responses_proxy import (
+    MAX_ERROR_BODY_BYTES,
+    MAX_REQUEST_BODY_BYTES,
+    DoubaoProxyServer,
     ProxySettings,
     RequestTransformError,
     SseTransformError,
@@ -306,3 +313,205 @@ def test_sse_transform_rejects_unknown_function_alias_before_forwarding_frame():
 
     with pytest.raises(SseTransformError, match="unknown function alias"):
         next(iterator)
+
+
+class _FakeResponse:
+    def __init__(self, status_code=200, chunks=(), headers=None):
+        self.status_code = status_code
+        self._chunks = list(chunks)
+        self.headers = headers or {"content-type": "text/event-stream"}
+        self.closed = False
+
+    def iter_bytes(self):
+        yield from self._chunks
+
+    def close(self):
+        self.closed = True
+
+
+class _FakeUpstream:
+    def __init__(self, response):
+        self.response = response
+        self.calls = []
+
+    @contextmanager
+    def __call__(self, url, headers, content, timeout):
+        self.calls.append(
+            {"url": url, "headers": dict(headers), "content": content, "timeout": timeout}
+        )
+        try:
+            yield self.response
+        finally:
+            self.response.close()
+
+
+def _proxy(fake_upstream, logs=None):
+    return DoubaoProxyServer(
+        settings=ProxySettings(
+            model="doubao-seed-2-1-pro-260628",
+            enabled_tools=("briefing", "observe", "act"),
+        ),
+        upstream_base_url="https://yibuapi.com/v1",
+        upstream_token="real-yibu-secret",
+        proxy_token="local-proxy-secret",
+        upstream_factory=fake_upstream,
+        event_logger=(logs.append if logs is not None else None),
+    )
+
+
+def _completed_sse():
+    return _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    )
+
+
+def test_http_proxy_health_and_fail_closed_routes():
+    upstream = _FakeUpstream(_FakeResponse(chunks=[_completed_sse()]))
+    with _proxy(upstream) as server:
+        assert server.host == "127.0.0.1"
+        health = httpx.get(server.base_url.removesuffix("/v1") + "/healthz")
+        wrong_path = httpx.post(server.base_url + "/other")
+        wrong_method = httpx.get(server.base_url + "/responses")
+        unauthenticated = httpx.post(server.base_url + "/responses", json=_request())
+
+    assert health.status_code == 200
+    assert wrong_path.status_code == 404
+    assert wrong_method.status_code == 405
+    assert unauthenticated.status_code == 401
+    assert upstream.calls == []
+
+
+def test_http_proxy_replaces_auth_transforms_and_streams_without_secret_logs():
+    logs = []
+    upstream = _FakeUpstream(
+        _FakeResponse(
+            chunks=[_completed_sse()],
+            headers={
+                "content-type": "text/event-stream",
+                "x-request-id": "upstream-request",
+                "set-cookie": "must-not-forward",
+            },
+        )
+    )
+    request = _request()
+    request["input"][0]["content"] = "private prompt text"
+
+    with _proxy(upstream, logs) as server:
+        response = httpx.post(
+            server.base_url + "/responses",
+            headers={"authorization": "Bearer local-proxy-secret"},
+            json=request,
+        )
+
+    assert response.status_code == 200
+    assert "response.completed" in response.text
+    assert response.headers["x-request-id"] == "upstream-request"
+    assert "set-cookie" not in response.headers
+    assert len(upstream.calls) == 1
+    call = upstream.calls[0]
+    assert call["url"] == "https://yibuapi.com/v1/responses"
+    assert call["headers"]["authorization"] == "Bearer real-yibu-secret"
+    assert "local-proxy-secret" not in repr(call)
+    sent = json.loads(call["content"])
+    assert "reasoning" not in sent
+    assert sent["max_output_tokens"] == 8192
+    assert [tool["name"] for tool in sent["tools"]] == [
+        "mcp__cogito_ai_play__briefing",
+        "mcp__cogito_ai_play__observe",
+        "mcp__cogito_ai_play__act",
+    ]
+    logged = repr(logs)
+    assert "private prompt text" not in logged
+    assert "real-yibu-secret" not in logged
+    assert "local-proxy-secret" not in logged
+    assert upstream.response.closed
+
+
+def test_http_proxy_rejects_oversized_body_without_upstream_call():
+    upstream = _FakeUpstream(_FakeResponse(chunks=[_completed_sse()]))
+    with _proxy(upstream) as server:
+        connection = http.client.HTTPConnection(server.host, server.port, timeout=5)
+        connection.putrequest("POST", "/v1/responses")
+        connection.putheader("Authorization", "Bearer local-proxy-secret")
+        connection.putheader("Content-Length", str(MAX_REQUEST_BODY_BYTES + 1))
+        connection.endheaders()
+        response = connection.getresponse()
+        response.read()
+        connection.close()
+
+    assert response.status == 413
+    assert upstream.calls == []
+
+
+def test_http_proxy_bounds_and_forwards_upstream_error_without_retry():
+    body = b"x" * (MAX_ERROR_BODY_BYTES + 100)
+    logs = []
+    upstream = _FakeUpstream(
+        _FakeResponse(
+            status_code=429,
+            chunks=[body],
+            headers={"content-type": "application/json", "x-request-id": "rate-id"},
+        )
+    )
+
+    with _proxy(upstream, logs) as server:
+        response = httpx.post(
+            server.base_url + "/responses",
+            headers={"authorization": "Bearer local-proxy-secret"},
+            json=_request(),
+        )
+
+    assert response.status_code == 429
+    assert len(response.content) == MAX_ERROR_BODY_BYTES
+    assert response.headers["x-request-id"] == "rate-id"
+    assert len(upstream.calls) == 1
+    assert len(logs) == 1
+    assert logs[0]["event"] == "request_completed"
+    assert logs[0]["status"] == 429
+    assert logs[0]["request_bytes"] > 0
+    assert logs[0]["response_bytes"] == MAX_ERROR_BODY_BYTES
+    assert logs[0]["request_id"] == "rate-id"
+
+
+def test_http_proxy_does_not_turn_interrupted_sse_into_successful_completion():
+    upstream = _FakeUpstream(
+        _FakeResponse(
+            chunks=[
+                _sse(
+                    "response.output_text.delta",
+                    {"type": "response.output_text.delta", "delta": "partial"},
+                )
+            ]
+        )
+    )
+
+    with _proxy(upstream) as server:
+        with pytest.raises(httpx.RemoteProtocolError):
+            httpx.post(
+                server.base_url + "/responses",
+                headers={"authorization": "Bearer local-proxy-secret"},
+                json=_request(),
+            )
+
+
+def test_http_proxy_reports_upstream_timeout_without_retry():
+    calls = []
+
+    @contextmanager
+    def timeout_upstream(url, headers, content, timeout):
+        calls.append((url, headers, content, timeout))
+        raise httpx.ReadTimeout("slow upstream")
+        yield
+
+    logs = []
+    with _proxy(timeout_upstream, logs) as server:
+        response = httpx.post(
+            server.base_url + "/responses",
+            headers={"authorization": "Bearer local-proxy-secret"},
+            json=_request(),
+        )
+
+    assert response.status_code == 502
+    assert len(calls) == 1
+    assert any(event["error_type"] == "ReadTimeout" for event in logs)

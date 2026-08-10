@@ -5,13 +5,24 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+from contextlib import contextmanager
+import hmac
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import re
-from typing import Any, Iterable, Iterator, Mapping
+import threading
+import time
+from typing import Any, Callable, ContextManager, Iterable, Iterator, Mapping
+
+import httpx
 
 
 AI_PLAY_NAMESPACE = "mcp__cogito_ai_play"
 MAX_PROVIDER_OUTPUT_TOKENS = 32768
+MAX_REQUEST_BODY_BYTES = 16 * 1024 * 1024
+MAX_ERROR_BODY_BYTES = 64 * 1024
+UPSTREAM_CONNECT_TIMEOUT_SECONDS = 30.0
+UPSTREAM_READ_TIMEOUT_SECONDS = 660.0
 
 
 class RequestTransformError(ValueError):
@@ -231,3 +242,293 @@ def transform_sse_chunks(
         raise SseTransformError("incomplete SSE frame at upstream disconnect")
     if not terminal:
         raise SseTransformError("SSE stream ended without a terminal event")
+
+
+UpstreamFactory = Callable[
+    [str, Mapping[str, str], bytes, httpx.Timeout],
+    ContextManager[Any],
+]
+
+
+@contextmanager
+def _default_upstream_factory(
+    url: str,
+    headers: Mapping[str, str],
+    content: bytes,
+    timeout: httpx.Timeout,
+) -> Iterator[httpx.Response]:
+    with httpx.stream(
+        "POST",
+        url,
+        headers=dict(headers),
+        content=content,
+        timeout=timeout,
+    ) as response:
+        yield response
+
+
+class _LoopbackHttpServer(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = False
+
+
+class DoubaoProxyServer:
+    """Authenticated loopback-only streaming proxy for one Codex player."""
+
+    def __init__(
+        self,
+        *,
+        settings: ProxySettings,
+        upstream_base_url: str,
+        upstream_token: str,
+        proxy_token: str,
+        upstream_factory: UpstreamFactory | None = None,
+        event_logger: Callable[[Mapping[str, Any]], None] | None = None,
+    ) -> None:
+        self.settings = settings
+        self.upstream_base_url = upstream_base_url.rstrip("/")
+        self._upstream_token = upstream_token
+        self._proxy_token = proxy_token
+        self._upstream_factory = upstream_factory or _default_upstream_factory
+        self._event_logger = event_logger or self._print_event
+        self._server: _LoopbackHttpServer | None = None
+        self._thread: threading.Thread | None = None
+        self._active_lock = threading.Lock()
+        self._active_responses: set[Any] = set()
+
+    @staticmethod
+    def _print_event(event: Mapping[str, Any]) -> None:
+        print(
+            "[doubao-proxy] "
+            + json.dumps(event, ensure_ascii=False, separators=(",", ":")),
+            flush=True,
+        )
+
+    @property
+    def host(self) -> str:
+        return "127.0.0.1"
+
+    @property
+    def port(self) -> int:
+        if self._server is None:
+            raise RuntimeError("proxy server is not running")
+        return int(self._server.server_address[1])
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self.host}:{self.port}/v1"
+
+    def __enter__(self) -> "DoubaoProxyServer":
+        if self._server is not None:
+            raise RuntimeError("proxy server is already running")
+        owner = self
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self) -> None:
+                if self.path == "/healthz":
+                    self._send_json(200, {"status": "ready"})
+                elif self.path == "/v1/responses":
+                    self._send_json(405, {"error": {"message": "method not allowed"}})
+                else:
+                    self._send_json(404, {"error": {"message": "not found"}})
+
+            def do_POST(self) -> None:
+                if self.path != "/v1/responses":
+                    self._send_json(404, {"error": {"message": "not found"}})
+                    return
+                authorization = self.headers.get("authorization", "")
+                expected = "Bearer " + owner._proxy_token
+                if not hmac.compare_digest(authorization, expected):
+                    self._send_json(401, {"error": {"message": "unauthorized"}})
+                    return
+                raw_length = self.headers.get("content-length")
+                try:
+                    length = int(raw_length) if raw_length is not None else -1
+                except ValueError:
+                    length = -1
+                if length < 0:
+                    self._send_json(411, {"error": {"message": "content length required"}})
+                    return
+                if length > MAX_REQUEST_BODY_BYTES:
+                    self._send_json(413, {"error": {"message": "request body too large"}})
+                    return
+                body = self.rfile.read(length)
+                started = time.monotonic()
+                try:
+                    payload = json.loads(body)
+                    transformed = transform_request(payload, owner.settings)
+                except (json.JSONDecodeError, RequestTransformError) as error:
+                    self._send_json(400, {"error": {"message": str(error)}})
+                    return
+                upstream_body = json.dumps(
+                    transformed.payload,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                upstream_headers = {
+                    "authorization": "Bearer " + owner._upstream_token,
+                    "content-type": "application/json",
+                    "accept": "text/event-stream",
+                }
+                timeout = httpx.Timeout(
+                    connect=UPSTREAM_CONNECT_TIMEOUT_SECONDS,
+                    read=UPSTREAM_READ_TIMEOUT_SECONDS,
+                    write=UPSTREAM_CONNECT_TIMEOUT_SECONDS,
+                    pool=UPSTREAM_CONNECT_TIMEOUT_SECONDS,
+                )
+                response = None
+                response_bytes = 0
+                try:
+                    with owner._upstream_factory(
+                        owner.upstream_base_url + "/responses",
+                        upstream_headers,
+                        upstream_body,
+                        timeout,
+                    ) as response:
+                        owner._register_response(response)
+                        status = int(response.status_code)
+                        if status != 200:
+                            error_body = bytearray()
+                            for chunk in response.iter_bytes():
+                                remaining = MAX_ERROR_BODY_BYTES - len(error_body)
+                                if remaining <= 0:
+                                    break
+                                error_body.extend(chunk[:remaining])
+                            response_bytes = len(error_body)
+                            self._send_bytes(
+                                status,
+                                bytes(error_body),
+                                owner._safe_headers(response.headers),
+                            )
+                            owner._event_logger(
+                                {
+                                    "event": "request_completed",
+                                    "status": status,
+                                    "request_bytes": len(body),
+                                    "response_bytes": response_bytes,
+                                    "duration_ms": int(
+                                        (time.monotonic() - started) * 1000
+                                    ),
+                                    "request_id": response.headers.get(
+                                        "x-request-id"
+                                    ),
+                                }
+                            )
+                            return
+                        self.send_response(200)
+                        for name, value in owner._safe_headers(response.headers).items():
+                            self.send_header(name, value)
+                        self.send_header("transfer-encoding", "chunked")
+                        self.end_headers()
+                        try:
+                            for chunk in transform_sse_chunks(
+                                response.iter_bytes(),
+                                transformed.aliases,
+                            ):
+                                response_bytes += len(chunk)
+                                self.wfile.write((f"{len(chunk):X}\r\n").encode("ascii"))
+                                self.wfile.write(chunk)
+                                self.wfile.write(b"\r\n")
+                                self.wfile.flush()
+                            self.wfile.write(b"0\r\n\r\n")
+                            self.wfile.flush()
+                        except (OSError, SseTransformError):
+                            self.close_connection = True
+                            raise
+                except (httpx.HTTPError, OSError, SseTransformError) as error:
+                    owner._event_logger(
+                        {
+                            "event": "request_failed",
+                            "error_type": type(error).__name__,
+                            "request_bytes": len(body),
+                            "response_bytes": response_bytes,
+                            "duration_ms": int((time.monotonic() - started) * 1000),
+                        }
+                    )
+                    if not self.wfile.closed and not self.close_connection:
+                        self._send_json(502, {"error": {"message": "upstream failure"}})
+                    return
+                finally:
+                    if response is not None:
+                        owner._unregister_response(response)
+                owner._event_logger(
+                    {
+                        "event": "request_completed",
+                        "status": 200,
+                        "request_bytes": len(body),
+                        "response_bytes": response_bytes,
+                        "duration_ms": int((time.monotonic() - started) * 1000),
+                        "request_id": (
+                            response.headers.get("x-request-id")
+                            if response is not None
+                            else None
+                        ),
+                    }
+                )
+
+            def _send_json(self, status: int, payload: Mapping[str, Any]) -> None:
+                body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+                self._send_bytes(status, body, {"content-type": "application/json"})
+
+            def _send_bytes(
+                self,
+                status: int,
+                body: bytes,
+                headers: Mapping[str, str],
+            ) -> None:
+                self.send_response(status)
+                for name, value in headers.items():
+                    self.send_header(name, value)
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        self._server = _LoopbackHttpServer((self.host, 0), Handler)
+        self._thread = threading.Thread(
+            target=self._server.serve_forever,
+            name="doubao-responses-proxy",
+            daemon=True,
+        )
+        self._thread.start()
+        return self
+
+    @staticmethod
+    def _safe_headers(headers: Mapping[str, str]) -> dict[str, str]:
+        safe = {}
+        for name in ("content-type", "x-request-id"):
+            value = headers.get(name)
+            if value:
+                safe[name] = value
+        return safe
+
+    def _register_response(self, response: Any) -> None:
+        with self._active_lock:
+            self._active_responses.add(response)
+
+    def _unregister_response(self, response: Any) -> None:
+        with self._active_lock:
+            self._active_responses.discard(response)
+
+    def close(self) -> None:
+        with self._active_lock:
+            responses = list(self._active_responses)
+        for response in responses:
+            try:
+                response.close()
+            except Exception:
+                pass
+        if self._server is not None:
+            self._server.shutdown()
+            self._server.server_close()
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+        self._server = None
+        self._thread = None
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
