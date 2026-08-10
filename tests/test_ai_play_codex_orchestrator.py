@@ -892,6 +892,109 @@ def test_session_starts_trusted_mcp_before_codex_and_supervisor(
     assert processes["mcp"].terminated
 
 
+def test_session_starts_provider_proxy_before_mcp_codex_and_supervisor(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    started = []
+    processes = {
+        "provider-proxy": FakeProcess(),
+        "mcp": FakeProcess(),
+        "codex": FakeProcess(),
+        "supervisor": FakeProcess(return_codes=[0]),
+    }
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_start_process",
+        lambda label, command, cwd, env, stdin_text=None: (
+            started.append(label) or processes[label]
+        ),
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python", "mcp.py"],
+        player_label="codex",
+        player_command=["codex", "exec"],
+        supervisor_command=["python", "supervisor.py"],
+        prompt="briefing",
+        mcp_env={},
+        player_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        player_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        player_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        player_final_grace_seconds=0.0,
+        provider_proxy_command=["python", "proxy.py"],
+        provider_proxy_env={},
+        provider_proxy_cwd=tmp_path,
+        provider_proxy_port=8767,
+    )
+
+    assert result == 0
+    assert started == ["provider-proxy", "mcp", "codex", "supervisor"]
+    assert processes["provider-proxy"].terminated
+
+
+def test_provider_proxy_readiness_failure_starts_no_other_process(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    started = []
+    provider_proxy = FakeProcess()
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_start_process",
+        lambda label, command, cwd, env, stdin_text=None: (
+            started.append(label) or provider_proxy
+        ),
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: False,
+    )
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python", "mcp.py"],
+        player_label="codex",
+        player_command=["codex", "exec"],
+        supervisor_command=["python", "supervisor.py"],
+        prompt="briefing",
+        mcp_env={},
+        player_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        player_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        player_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        player_final_grace_seconds=0.0,
+        provider_proxy_command=["python", "proxy.py"],
+        provider_proxy_env={},
+        provider_proxy_cwd=tmp_path,
+        provider_proxy_port=8767,
+    )
+
+    assert result == 4
+    assert started == ["provider-proxy"]
+    assert provider_proxy.terminated
+
+
 def test_session_allows_codex_to_finish_after_supervisor_terminal_exit(
     monkeypatch,
     tmp_path,

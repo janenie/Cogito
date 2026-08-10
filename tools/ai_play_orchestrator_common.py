@@ -613,13 +613,52 @@ def run_orchestrated_session(
     player_final_grace_seconds: float,
     player_restart_limit: int = 0,
     player_restart_prompt: str | None = None,
+    provider_proxy_command: Sequence[str] | None = None,
+    provider_proxy_env: Mapping[str, str] | None = None,
+    provider_proxy_cwd: Path | None = None,
+    provider_proxy_port: int | None = None,
 ) -> int:
     outputs: queue.Queue[tuple[str, str | None]] = queue.Queue()
+    provider_proxy = None
     mcp = None
     player = None
     supervisor = None
     player_restarts = 0
     try:
+        if provider_proxy_command is not None:
+            if (
+                provider_proxy_env is None
+                or provider_proxy_cwd is None
+                or provider_proxy_port is None
+            ):
+                raise ValueError(
+                    "provider proxy command requires env, cwd, and port"
+                )
+            provider_proxy = _start_process(
+                "provider-proxy",
+                provider_proxy_command,
+                provider_proxy_cwd,
+                provider_proxy_env,
+            )
+            _start_output_reader("provider-proxy", provider_proxy, outputs)
+            if not wait_for_listener(
+                provider_proxy,
+                DEFAULT_WS_HOST,
+                provider_proxy_port,
+                mcp_start_timeout_seconds,
+                outputs,
+            ):
+                print(
+                    "[orchestrator] provider proxy did not listen on %s:%s "
+                    "within %.1fs"
+                    % (
+                        DEFAULT_WS_HOST,
+                        provider_proxy_port,
+                        mcp_start_timeout_seconds,
+                    ),
+                    flush=True,
+                )
+                return 4
         mcp = _start_process("mcp", mcp_command, mcp_cwd, mcp_env)
         _start_output_reader("mcp", mcp, outputs)
         if not wait_for_listener(
@@ -727,7 +766,7 @@ def run_orchestrated_session(
                 return 5
             time.sleep(0.05)
     finally:
-        for process in (supervisor, player, mcp):
+        for process in (supervisor, player, mcp, provider_proxy):
             if process is not None:
                 _terminate_process(process)
         _print_available_output(outputs)

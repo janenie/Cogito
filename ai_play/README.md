@@ -291,9 +291,17 @@ supervisor、空玩家工作区和 AWM，只把 Codex 的模型 provider 切换�
   --workflow-memory enabled
 ```
 
-临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。Codex 自身向配置的
-HTTPS provider 发起模型请求；模型生成的工具/命令仍受既有玩家权限 profile 限制，只能访问
-字面量回环 MCP 地址，不能借此进行 Web 搜索或访问公网。临时配置还显式关闭 Codex 的 shell、
+临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。由于 Codex 当前会把
+MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通
+`function_call`，编排器先启动一个受信任的回环 Responses 代理（默认 `127.0.0.1:18767`）。Codex
+只连接这个代理；代理通过已验证的 HTTPS `/v1/responses` 转发到 Yibu，并且只对当前启用的
+Cogito MCP 工具补上缺失的 `mcp__cogito_ai_play` namespace。它不修改参数或工具结果，不记录请求、
+响应、图片或 key，并随编排器在正常退出、中断和失败路径中终止。可用
+`--provider-proxy-port` 改用其他空闲回环端口。
+
+模型生成的工具/命令仍受既有玩家权限 profile 限制，只能访问字面量回环地址，不能借此进行 Web
+搜索或访问公网。Yibu API key 仍只注入 Codex 玩家进程，并由 Codex 的 provider 请求以 HTTP
+Authorization 经过本机代理转发；代理进程环境、命令和配置均不含 key。临时配置还显式关闭 Codex 的 shell、
 unified exec、apps、plugins、subagents、goals、tool suggestions 和本地图片工具，避免第三方模型
 偏离到非游戏工具；玩家只保留白名单 AI Play MCP 工具。若当前 Codex 尚无该模型的内建 metadata，
 CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effort。真实 Gemini/Godot

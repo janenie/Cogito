@@ -100,7 +100,7 @@ def test_write_player_config_uses_responses_provider_without_secret_or_effort(
     config_path = orchestrator.write_player_codex_gemini_config(
         tmp_path,
         model="gemini-3.6-flash",
-        base_url="https://yibuapi.com/v1",
+        base_url="http://127.0.0.1:18767/v1",
         mcp_url="http://127.0.0.1:8766/mcp",
     )
 
@@ -110,7 +110,7 @@ def test_write_player_config_uses_responses_provider_without_secret_or_effort(
     assert "model_reasoning_effort" not in text
     assert "model_supports_reasoning_summaries = false" in text
     assert '[model_providers.yibu]' in text
-    assert 'base_url = "https://yibuapi.com/v1"' in text
+    assert 'base_url = "http://127.0.0.1:18767/v1"' in text
     assert 'env_key = "YIBU_API_KEY"' in text
     assert 'wire_api = "responses"' in text
     assert "secret" not in text
@@ -153,7 +153,7 @@ def test_write_player_config_can_disable_workflow_memory_tools(tmp_path):
     config_path = orchestrator.write_player_codex_gemini_config(
         tmp_path,
         model="gemini-3.6-flash",
-        base_url="https://yibuapi.com/v1",
+        base_url="http://127.0.0.1:18767/v1",
         mcp_url="http://127.0.0.1:8766/mcp",
         workflow_memory_enabled=False,
     )
@@ -209,7 +209,45 @@ def test_parse_args_defaults_to_gemini_flash_without_reasoning_option():
     assert args.scenario == "find_contract"
     assert args.yibu_credentials == orchestrator.REPO_ROOT / "opus.py"
     assert args.workflow_memory == "enabled"
+    assert args.provider_proxy_port == 18767
     assert not hasattr(args, "reasoning_effort")
+
+
+def test_build_provider_proxy_command_uses_exact_tool_whitelist():
+    orchestrator = load_orchestrator()
+
+    command = orchestrator.build_provider_proxy_command(
+        python_bin="python",
+        port=18767,
+        upstream_base_url="https://yibuapi.com/v1",
+        workflow_memory_enabled=False,
+    )
+
+    assert command[:2] == [
+        "python",
+        str(orchestrator.RESPONSES_NAMESPACE_PROXY_PATH),
+    ]
+    assert "127.0.0.1" in command
+    assert "https://yibuapi.com/v1" in command
+    assert "mcp__cogito_ai_play" in command
+    allowed = [
+        command[index + 1]
+        for index, value in enumerate(command)
+        if value == "--allowed-tool"
+    ]
+    assert allowed == ["briefing", "observe", "act"]
+
+
+def test_write_player_config_rejects_non_loopback_provider_url(tmp_path):
+    orchestrator = load_orchestrator()
+
+    with pytest.raises(ValueError, match="loopback provider URL"):
+        orchestrator.write_player_codex_gemini_config(
+            tmp_path,
+            model="gemini-3.6-flash",
+            base_url="https://yibuapi.com/v1",
+            mcp_url="http://127.0.0.1:8766/mcp",
+        )
 
 
 def test_parse_args_rejects_reasoning_effort_option():
@@ -345,6 +383,11 @@ def test_main_wires_yibu_key_only_to_codex_player_environment(
         "build_supervisor_env",
         lambda *_args, **_kwargs: {"GODOT": "safe"},
     )
+    monkeypatch.setattr(
+        orchestrator,
+        "build_provider_proxy_env",
+        lambda *_args, **_kwargs: {"PROXY": "safe"},
+    )
 
     def fake_run_orchestrated_session(**kwargs):
         captured["session"] = kwargs
@@ -381,6 +424,11 @@ def test_main_wires_yibu_key_only_to_codex_player_environment(
     assert session["player_env"]["YIBU_API_KEY"] == "fixture-secret"
     assert "fixture-secret" not in captured["config_text"]
     assert 'model_provider = "yibu"' in captured["config_text"]
+    assert 'base_url = "http://127.0.0.1:18767/v1"' in captured["config_text"]
     assert "model_reasoning_effort" not in captured["config_text"]
+    assert session["provider_proxy_port"] == 18767
+    assert session["provider_proxy_env"] == {"PROXY": "safe"}
+    assert "fixture-secret" not in repr(session["provider_proxy_command"])
+    assert "fixture-secret" not in repr(session["provider_proxy_env"])
     assert session["mcp_env"] == {"MCP": "safe"}
     assert session["supervisor_env"] == {"GODOT": "safe"}
