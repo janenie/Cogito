@@ -4,39 +4,44 @@ model: gpt-5.6-sol
 reasoning_effort: high
 mode: awm
 runs: 4
+benchmark_cycle_seed: 20260809
+round_seeds: 81043236, 81043237, 81043238, 81043239
+repository_commit: c94f3e6a6877668ece37683cc139359482e0329f
 analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
 
-orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm
-trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37
-run_summary: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/run.json
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm
+session_manifest: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/session.json
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44
+run_summary: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44/run.json
 
 run_1:
-  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-01/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44/attempt-01/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 找到并询问了合同记录相关 NPC，之后在大厅、楼梯和候选区域之间搜索，终局仍回到一楼大厅附近。
-  issue_cn: 只获得口供，没有读到书面合同记录；14 次交互探测有 12 次 not_found，并出现 5 次移动阻塞，无法建立可提交钥匙所需的交叉证据。
+  process_cn: 先误走 LABORATORY 一侧楼梯并探索上层实验室，又探测红色墙面装饰；接近终局才到达 Meeting Room 一带。
+  issue_cn: 远距离标识判断和楼梯路线选择不稳，小台阶多次阻挡移动，前期预算大量消耗在错误楼层，未形成提交钥匙所需证据。
 
 run_2:
-  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-02/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44/attempt-02/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 完成 NPC 询问并成功阅读合同记录，随后进入会议室附近继续寻找钥匙候选和第二份佐证。
-  issue_cn: 已取得两类信息但没有把候选缩到唯一钥匙；门的 Open/Close/Lock 提示与目标交互竞争，15 次探测中 12 次 not_found。
+  process_cn: 更快进入 Meeting Room，并看到“Ask about contract”；随后检查绿色物品、橙色物品/钥匙、显示器和抽屉，还尝试穿过门板附近的狭窄通道。
+  issue_cn: 即使逐步靠近 NPC，交互仍反复返回“Need to get closer”；门、沙发与狭窄位置导致卡位，物品探测没有收敛到可安全提交的钥匙。
 
 run_3:
-  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-03/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44/attempt-03/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 同样读到口供与合同记录，并多次往返大厅、楼梯和房间入口，最终仍停在一楼楼梯附近。
-  issue_cn: 移动过程中发生 8 次 blocked；动态 NPC 与门口位置变化使截图很快过期，模型把较多预算用于重新定位而不是验证钥匙。
+  process_cn: 任务目标为 Atlas；经过多次楼梯和楼梯下方路线修正，约第 61–66 步登上 CEO 区域，取得 NPC 的初始草稿记录，并约第 88 步进入 CEO Office 检查桌面和笔记本电脑。
+  issue_cn: 获得的记录不是已提交的正式记录，办公室探测也未找到补充证据；正确上楼太晚，剩余步数不足以继续交叉验证和提交。
 
 run_4:
-  address: /Users/Shared/Cogito-test-20260809/20260809-043711__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260809-04-37/attempt-04/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-004412__codex__gpt-5.6-sol__find_key__awm/trusted_mcplogs/find_key/20260810-00-44/attempt-04/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 直接搜索楼上候选物，成功让“提交此钥匙 / Submit this key”提示出现，并检查了办公室内多个可能位置。
-  issue_cn: 已经到达可提交状态，但因多个候选尚未充分排除而不敢提交；楼梯用了 9 次跳跃和大量移动，剩余预算不足以完成安全交叉验证。
+  process_cn: 任务目标为 Orbit；较早读完任务卡，随后检查 Cubicle 和 Meeting Room，在显示器、桌面和候选区域间继续寻找证据。
+  issue_cn: 门口、NPC 和高低平台边缘反复造成位置调整；一次动作参数校验失败也损失预算，最终没有完成唯一钥匙判断。
 
 aggregate: 0/4 success, 4/4 failure/max_requests
-key_observation: NPC testimony and archive candidates were discovered, but moving NPCs, door/stair proximity, and insufficient cross-validation kept the model from making a safe final submission
+key_observation_cn: 模型能够读取任务卡并到达部分关键区域，但楼梯/门口导航、近距离交互距离判断和证据收敛共同消耗了 100 步预算；第 3 轮最接近完整证据链。
+infrastructure_note_cn: 第 1、2 轮出现约 5–7 分钟的客户端传输停顿并自动重连；另有 AWM 更新首次因结构不合规被拒后压缩重试成功。它们会增加墙钟时间，但四轮正式终局均由动作上限触发。

@@ -4,39 +4,44 @@ model: gpt-5.6-sol
 reasoning_effort: high
 mode: awm
 runs: 4
+benchmark_cycle_seed: 20260809
+round_seeds: 20260869782428, 20260869782429, 20260869782430, 20260869782431
+repository_commit: c94f3e6a6877668ece37683cc139359482e0329f
 analysis_scope_cn: 仅依据公开 MCP 观察、动作请求/结果、终局画面与 run.json，不使用场景源码或隐藏答案。
 
-orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm
-trusted_log_root: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45
-run_summary: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/run.json
+orchestrator_run_dir: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm
+session_manifest: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/session.json
+trusted_log_root: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49
+run_summary: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49/run.json
 
 run_1:
-  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-01/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49/attempt-01/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 从大厅追踪移动 NPC，沿多处黄色路径点搜索，最后进入楼梯下方的红色按钮平台附近。
-  issue_cn: 目标持续移动，模型的观察在推理完成时已经过期；14 次探测仅 1 次 aligned、13 次 not_found，全轮没有出现 hi 问候提示。
+  process_cn: 任务卡指定绿色 M. Chen，路线覆盖 CEO OFFICE 外侧与楼梯区域；模型沿路线追踪，多次在栏杆和楼梯附近探测，约第 99 步曾短暂得到 aligned。
+  issue_cn: NPC 持续移动，截图中的位置到下一次工具调用时已变化；模型还在不可通行楼梯和无交互红色按钮平台浪费步数，未完成问候。
 
 run_2:
-  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-02/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49/attempt-02/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 成功捕获 hi 提示并完成至少一次问候，随后跟随路径进入会议室并等待 NPC 到达。
-  issue_cn: 问候后的 NPC 没有可靠走进会议室，模型反复开关门和等待；动态路径状态没有通过 MCP 明确反馈，无法判断该继续等还是重新追人。
+  process_cn: 任务卡指定橙色 R. Diaz，路线覆盖 CUBICLE、MAIN LOBBY 和 BREAK ROOM；多次正确识别目标，并在路线端点等待和快速探测，两次得到 aligned。
+  issue_cn: 常规工具轮次约 10–17 秒，目标会在 probe 到达前离开；即使 aligned 也未暴露可执行问候，后续动作再次错失窗口，最终没有问候任何同事。
 
 run_3:
-  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-03/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49/attempt-03/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 在大厅与休息室之间寻找目标，频繁扫描电视、门口和黄色路径点；终局仍在休息室内，没有捕获问候提示。
-  issue_cn: 用了 67 次 look 和 11 次 wait，但 NPC 位置缺少稳定标识；视觉扫描范围扩大后仍无法重新锁定移动目标。
+  process_cn: 任务卡指定蓝色 H. Voss，路线覆盖 MAIN LOBBY、BREAK ROOM 和 SOFA；模型多次接近正确目标，并改用约 1 秒的等待/探测连发和 SOFA 端点等待。
+  issue_cn: 快速采样缩短了延迟，却快速消耗 100 次请求；目标仍会离开探测位置，整轮没有出现可执行问候，也没有问候错误 NPC。
 
 run_4:
-  address: /Users/Shared/Cogito-test-20260809/20260809-084515__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260809-08-45/attempt-04/trajectory.json
+  address: /Users/Shared/Cogito-test-20260809/20260810-034946__codex__gpt-5.6-sol__greet_npc_meeting__awm/trusted_mcplogs/greet_npc_meeting/20260810-03-49/attempt-04/trajectory.json
   result: failure/max_requests
   total_steps: 100
-  process_cn: 在大厅观察 NPC 路线，长时间等待楼梯上的目标继续移动；终局画面显示一名 NPC 停在楼梯顶端附近。
-  issue_cn: 52 次 wait 仍未解除 NPC 的楼梯卡滞；模型能识别目标没有前进，但接口没有 NPC 状态、路径失败或可恢复动作，只能被动等待。
+  process_cn: 再次指定绿色 M. Chen；约第 5 步读完任务卡，第 15 步左右到达较低楼梯区域，随后在楼梯正面和路线端点进行坐标网格快速探测与分批等待。
+  issue_cn: 能反复看到绿色目标移动，但踏板遮挡和高度变化使 probe 持续 not_found；后半程在端点等待仍没有交互窗口，未问候错误 NPC，但耗尽请求上限。
 
 aggregate: 0/4 success, 4/4 failure/max_requests
-key_observation: at least one greeting succeeded, but the NPC did not reliably proceed to the meeting room; other targets moved during model latency or became inaccessible near the stair top
+key_observation_cn: 绿色、橙色、蓝色 NPC 均在公开画面中沿各自路线持续移动，未再观察到门柱原地踏步，近期 NPC 路径修复看起来已生效。当前主要瓶颈是动态目标的观察与交互不是原子过程：截图位置在 10–17 秒工具轮次内过期，aligned 只完成瞄准而不能保证下一动作仍可交互；快速连发虽降至约 1 秒，却会迅速耗尽 100 步。
+infrastructure_note_cn: AWM 失败复盘均成功提交；第 2 轮一次更新因瓶颈条目过多被拒，压缩后重试成功。退出时出现 Godot shader/RID 泄漏告警，不改变 run.json 的正式任务结果。
