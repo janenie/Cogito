@@ -1,7 +1,13 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -17,8 +23,6 @@ def load_orchestrator():
         ORCHESTRATOR_PATH,
     )
     module = importlib.util.module_from_spec(spec)
-    import sys
-
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
@@ -364,3 +368,183 @@ def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp
     assert session["supervisor_env"] == {"GODOT": "safe"}
     assert session["player_env"][orchestrator.DOUBAO_UPSTREAM_KEY_ENV] == "real-secret"
     assert "real-secret" not in repr(captured["run"])
+
+
+def _native_codex_bin():
+    candidates = [
+        Path(
+            "/usr/local/lib/node_modules/@openai/codex/node_modules/"
+            "@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
+        ),
+        Path(shutil.which("codex") or ""),
+    ]
+    return next((str(path) for path in candidates if path.is_file()), None)
+
+
+def _free_port():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _wait_port(port, timeout=10):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                return
+        except OSError:
+            time.sleep(0.05)
+    raise AssertionError(f"port {port} did not open")
+
+
+def _response_sse(events):
+    return b"".join(
+        (
+            f"event: {event['type']}\n"
+            f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
+        ).encode()
+        for event in events
+    )
+
+
+def _tool_call_stream(model):
+    alias = "mcp__cogito_ai_play__briefing"
+    item = {
+        "id": "fc_test",
+        "type": "function_call",
+        "status": "completed",
+        "arguments": "{}",
+        "call_id": "call_test",
+        "name": alias,
+    }
+    response = {
+        "id": "resp_tool",
+        "object": "response",
+        "created_at": 1,
+        "status": "completed",
+        "model": model,
+        "output": [item],
+        "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+    }
+    return _response_sse(
+        [
+            {"type": "response.created", "response": response | {"status": "in_progress", "output": []}},
+            {"type": "response.output_item.added", "output_index": 0, "item": item | {"status": "in_progress", "arguments": ""}},
+            {"type": "response.function_call_arguments.done", "item_id": "fc_test", "output_index": 0, "arguments": "{}"},
+            {"type": "response.output_item.done", "output_index": 0, "item": item},
+            {"type": "response.completed", "response": response},
+        ]
+    )
+
+
+def _final_text_stream(model):
+    item = {
+        "id": "msg_test",
+        "type": "message",
+        "status": "completed",
+        "role": "assistant",
+        "content": [{"type": "output_text", "text": "integration complete", "annotations": []}],
+    }
+    response = {
+        "id": "resp_final",
+        "object": "response",
+        "created_at": 2,
+        "status": "completed",
+        "model": model,
+        "output": [item],
+        "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2},
+    }
+    return _response_sse(
+        [
+            {"type": "response.created", "response": response | {"status": "in_progress", "output": []}},
+            {"type": "response.output_item.added", "output_index": 0, "item": item | {"status": "in_progress", "content": []}},
+            {"type": "response.output_text.delta", "item_id": "msg_test", "output_index": 0, "content_index": 0, "delta": "integration complete"},
+            {"type": "response.output_item.done", "output_index": 0, "item": item},
+            {"type": "response.completed", "response": response},
+        ]
+    )
+
+
+def test_codex_proxy_routes_flat_function_call_to_mcp(tmp_path):
+    codex_bin = _native_codex_bin()
+    if codex_bin is None:
+        pytest.skip("Codex CLI is unavailable")
+    orchestrator = load_orchestrator()
+    proxy_module = importlib.import_module("tools.ai_play_doubao_responses_proxy")
+    marker = tmp_path / "briefing-called"
+    port = _free_port()
+    mcp_process = subprocess.Popen(
+        [
+            sys.executable,
+            str(REPO_ROOT / "tests" / "fixtures" / "fake_ai_play_mcp_server.py"),
+            "--port", str(port),
+            "--marker", str(marker),
+        ],
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    _wait_port(port)
+    calls = []
+
+    class Response:
+        status_code = 200
+        headers = {"content-type": "text/event-stream"}
+
+        def __init__(self, body):
+            self.body = body
+
+        def iter_bytes(self):
+            yield self.body
+
+        def close(self):
+            pass
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def upstream(url, headers, content, timeout):
+        calls.append(json.loads(content))
+        body = (
+            _tool_call_stream(orchestrator.DEFAULT_MODEL)
+            if len(calls) == 1
+            else _final_text_stream(orchestrator.DEFAULT_MODEL)
+        )
+        yield Response(body)
+
+    def proxy_factory(**kwargs):
+        return proxy_module.DoubaoProxyServer(
+            **kwargs,
+            upstream_factory=upstream,
+            event_logger=lambda event: None,
+        )
+
+    try:
+        result = orchestrator.run_internal_player(
+            [
+                "--codex-bin", codex_bin,
+                "--player-workspace", str(tmp_path),
+                "--model", orchestrator.DEFAULT_MODEL,
+                "--mcp-url", f"http://127.0.0.1:{port}/mcp",
+                "--max-output-tokens", "8192",
+                "--workflow-memory", "disabled",
+            ],
+            stdin_text="Call briefing once, then finish.",
+            base_env={
+                "PATH": os.environ["PATH"],
+                orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "fake-upstream-token",
+                orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+            },
+            proxy_factory=proxy_factory,
+            token_factory=lambda: "local-proxy-token",
+        )
+    finally:
+        mcp_process.terminate()
+        mcp_process.wait(timeout=5)
+
+    assert result == 0
+    assert marker.read_text(encoding="utf-8") == "briefing-called"
+    assert calls
+    assert [tool["type"] for tool in calls[0]["tools"]] == ["function"] * 3

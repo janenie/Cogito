@@ -81,9 +81,9 @@ def test_transform_request_removes_codex_extensions_and_filters_tools():
     ]
     assert all(tool["type"] == "function" for tool in transformed.payload["tools"])
     assert transformed.aliases == {
-        "mcp__cogito_ai_play__briefing": "mcp__cogito_ai_play__briefing",
-        "mcp__cogito_ai_play__observe": "mcp__cogito_ai_play__observe",
-        "mcp__cogito_ai_play__act": "mcp__cogito_ai_play__act",
+        "mcp__cogito_ai_play__briefing": "briefing",
+        "mcp__cogito_ai_play__observe": "observe",
+        "mcp__cogito_ai_play__act": "act",
     }
 
 
@@ -225,11 +225,13 @@ def test_sse_transform_handles_split_frames_and_nested_function_calls():
     chunks = [payload[:7], payload[7:31], payload[31:93], payload[93:]]
 
     output = b"".join(
-        transform_sse_chunks(chunks, {alias: alias})
+        transform_sse_chunks(chunks, {alias: "briefing"})
     )
 
     assert b": keepalive\n\n" in output
-    assert output.count(alias.encode()) == 2
+    assert output.count(b'"name":"briefing"') == 2
+    assert output.count(b'"namespace":"mcp__cogito_ai_play"') == 2
+    assert alias.encode() not in output
     assert b"event: response.completed" in output
 
 

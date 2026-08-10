@@ -112,7 +112,10 @@ def _flatten_enabled_tools(
         tool = deepcopy(raw_tool)
         tool["name"] = alias
         flattened.append(tool)
-        aliases[alias] = alias
+        # Codex registers namespaced MCP tools under their original short name.
+        # Yibu needs the flattened alias in the provider request, so translate
+        # that alias back before Codex routes the returned function call.
+        aliases[alias] = name
         found.add(name)
 
     missing = [name for name in settings.enabled_tools if name not in found]
@@ -175,7 +178,12 @@ def _rewrite_function_calls(value: Any, aliases: Mapping[str, str]) -> None:
         name = value.get("name")
         if not isinstance(name, str) or name not in aliases:
             raise SseTransformError(f"unknown function alias: {name!r}")
-        value["name"] = aliases[name]
+        short_name = aliases[name]
+        suffix = f"__{short_name}"
+        if not name.endswith(suffix):
+            raise SseTransformError(f"invalid function alias mapping: {name!r}")
+        value["name"] = short_name
+        value["namespace"] = name[: -len(suffix)]
     for item in value.values():
         _rewrite_function_calls(item, aliases)
 
