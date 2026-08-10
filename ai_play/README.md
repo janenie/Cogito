@@ -266,6 +266,38 @@ MCP shutdown、超时和没有正式终局的提前退出属于异常，只重�
 退出码 2 收束。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。
 
+### Codex + Gemini（Yibu Responses）
+
+`tools/ai_play_codex_gemini_orchestrator.py` 复用上面的 Codex harness、可信 MCP 边车、Godot
+supervisor、空玩家工作区和 AWM，只把 Codex 的模型 provider 切换为 Yibu 的 Responses API。
+默认模型是 `gemini-3.6-flash`，默认连续运行三局 `find_contract`，不设置也不接受
+`--reasoning-effort`：第三方模型是否支持该 Codex 参数不能从模型名安全推断，运行元数据中因此
+固定记录 `reasoning_effort: "none"`。
+
+凭据默认从仓库根目录中已忽略的 `opus.py` 读取，也可用 `--yibu-credentials` 指定其他文件。
+入口只用 Python AST 读取字面量 `ak` 字典，不导入或执行该文件；`ak["key"]` 必须为非空字符串，
+`ak["url"]` 必须是 HTTPS URL，且路径为空或 `/v1`。空路径会规范化为 `/v1`。API key 只以
+`YIBU_API_KEY` 注入 Codex 玩家进程；Codex 的 `shell_environment_policy` 不把它传给模型生成的
+命令。key、凭据文件路径和玩家环境都不会写入 `config.toml`、`session.json`、可信 MCP 日志或
+启动命令。临时 `CODEX_HOME` 只含本局生成的 `0600` 配置，退出时删除，不读取或复制
+`auth.json`，也不需要 `codex login`。
+
+```bash
+.venv/bin/python tools/ai_play_codex_gemini_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model gemini-3.6-flash \
+  --yibu-credentials ./opus.py \
+  --workflow-memory enabled
+```
+
+临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。Codex 自身向配置的
+HTTPS provider 发起模型请求；模型生成的工具/命令仍受既有玩家权限 profile 限制，只能访问
+字面量回环 MCP 地址，不能借此进行 Web 搜索或访问公网。若当前 Codex 尚无该模型的内建 metadata，
+CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effort。真实 Gemini/Godot
+验收仍会产生截图、令牌、费用和本地轨迹，必须单独获得用户确认；自动化测试只使用伪凭据和
+伪进程，不调用 Yibu 或启动游戏。
+
 ### Claude Code
 
 `tools/ai_play_claude_orchestrator.py` 已按

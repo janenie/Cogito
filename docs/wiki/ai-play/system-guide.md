@@ -204,6 +204,36 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
 会涉及截图、令牌、费用和本地轨迹持久化，仍须用户单独确认。
 
+### Codex + Gemini custom provider
+
+`tools/ai_play_codex_gemini_orchestrator.py` 在不改变公共编排层和黑盒工具边界的前提下，为 Codex
+harness 配置 Yibu Responses provider。它默认使用 `gemini-3.6-flash`、三局
+`find_contract` 和启用的 AWM；支持与标准 Codex 入口相同的场景白名单、隔离 session root、
+端口检查、supervisor 生命周期和失败收束。入口不提供 `--reasoning-effort`，临时配置也不写
+`model_reasoning_effort`；`session.json` 用 `"none"` 明确表示未配置该能力。
+
+默认凭据源是仓库中已忽略的 `opus.py`。可信入口通过 AST 只解析字面量 `ak` 字典，不导入或
+执行凭据文件；key 必须非空，provider URL 必须使用 HTTPS 且只接受空路径或 `/v1`。API key
+仅通过 `YIBU_API_KEY` 进入 Codex 玩家进程，用于 Codex 自身的 provider 请求；模型生成命令的
+环境继承仍关闭，因此工具不能读取 key。临时 `CODEX_HOME` 不复制 `auth.json`，只保存本局
+生成的 `0600` 配置，并在退出时删除。凭据值、凭据源路径、子进程环境和完整命令不得进入运行
+元数据或可信轨迹。
+
+```bash
+.venv/bin/python tools/ai_play_codex_gemini_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model gemini-3.6-flash \
+  --yibu-credentials ./opus.py \
+  --workflow-memory enabled
+```
+
+该入口的 Codex 配置使用 `model_provider = "yibu"`、`wire_api = "responses"` 和规范化后的
+HTTPS `/v1` base URL。Codex 的模型传输层需要访问该 provider，但玩家工具网络 profile 仍只
+allowlist `127.0.0.1` MCP 边车；这不放宽 Web 搜索、shell 或 MCP 能力。未知模型可能触发 Codex
+fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹
+持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。
+
 ### Claude Code orchestrator
 
 > 状态：已于 2026-08-04 实施；设计来源见
@@ -765,4 +795,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
