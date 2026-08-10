@@ -165,6 +165,7 @@ def transform_request(
 
 
 _SSE_FRAME_END = re.compile(br"\r?\n\r?\n")
+_SSE_DONE_EVENT = "__provider_done__"
 
 
 def _rewrite_function_calls(value: Any, aliases: Mapping[str, str]) -> None:
@@ -209,8 +210,11 @@ def _transform_sse_frame(
             prefix_lines.append(line)
     if not data_lines:
         return (text + "\n\n").encode("utf-8"), None
+    joined_data = "\n".join(data_lines)
+    if joined_data == "[DONE]":
+        return b"", _SSE_DONE_EVENT
     try:
-        payload = json.loads("\n".join(data_lines))
+        payload = json.loads(joined_data)
     except json.JSONDecodeError as error:
         raise SseTransformError("SSE data is not valid JSON") from error
     _rewrite_function_calls(payload, aliases)
@@ -242,7 +246,13 @@ def transform_sse_chunks(
                 continue
             output, event_type = _transform_sse_frame(raw_frame, aliases)
             if terminal:
+                if event_type in (None, _SSE_DONE_EVENT):
+                    continue
                 raise SseTransformError("SSE data followed a terminal event")
+            if event_type == _SSE_DONE_EVENT:
+                raise SseTransformError(
+                    "SSE [DONE] arrived before a terminal response event"
+                )
             if event_type in (
                 "response.completed",
                 "response.failed",

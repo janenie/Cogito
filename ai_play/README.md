@@ -337,7 +337,8 @@ function tools，并把 Doubao 返回的扁平函数名还原为 Codex 的 MCP n
 代理只接受带随机 bearer 的 `POST /v1/responses`，过滤 Codex 内建工具，关闭 parallel tool calls，
 不重试 provider 请求，并逐帧验证和转发 SSE。无效模型、工具或请求返回本地 400/401；Yibu 400、
 429 等状态原样有界转发；连接超时、破损 SSE、未知函数名和缺失终局事件会失败关闭，不会伪造
-成功完成。Codex 未内建该模型 metadata 时会打印 fallback metadata 警告，这不等于 API 失败。
+成功完成。合法 Responses 终局后允许 Yibu 追加 keepalive 或 `[DONE]` 尾帧，但终局后的其他 JSON
+事件仍会被拒绝。Codex 未内建该模型 metadata 时会打印 fallback metadata 警告，这不等于 API 失败。
 真实三局运行会产生截图、token 消耗、费用和本地轨迹，仍须单独确认后才能执行；自动化测试只用
 假的 Yibu 响应和本地 MCP fixture。
 

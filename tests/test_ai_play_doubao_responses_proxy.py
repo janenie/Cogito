@@ -303,6 +303,43 @@ def test_sse_transform_accepts_response_incomplete_as_terminal():
     assert b"max_output_tokens" in output
 
 
+def test_sse_transform_accepts_done_sentinel_and_keepalive_after_terminal():
+    completed = _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    )
+
+    output = b"".join(
+        transform_sse_chunks(
+            [completed, b": keepalive\n\n", b"data: [DONE]\n\n"],
+            {},
+        )
+    )
+
+    assert b"response.completed" in output
+    assert b"[DONE]" not in output
+    assert b"keepalive" not in output
+
+
+def test_sse_transform_rejects_done_sentinel_before_terminal():
+    with pytest.raises(SseTransformError, match="before a terminal"):
+        list(transform_sse_chunks([b"data: [DONE]\n\n"], {}))
+
+
+def test_sse_transform_rejects_json_event_after_terminal():
+    completed = _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    )
+    extra = _sse(
+        "response.output_text.delta",
+        {"type": "response.output_text.delta", "delta": "late"},
+    )
+
+    with pytest.raises(SseTransformError, match="followed a terminal"):
+        list(transform_sse_chunks([completed, extra], {}))
+
+
 @pytest.mark.parametrize(
     ("chunks", "message"),
     [

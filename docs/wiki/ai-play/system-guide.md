@@ -256,7 +256,8 @@ Responses 端点接受。代理因此删除整个 `reasoning` 与 `client_metada
 `cogito_ai_play` 工具展平为 `mcp__cogito_ai_play__<tool>` 普通函数，并强制关闭 parallel tool
 calls。响应侧逐 SSE frame 验证所有 function call，将扁平名还原为短工具名与 MCP namespace 后
 再交给 Codex 路由。未知工具、重复别名、非法 JSON、破损或无终局 SSE 都失败关闭；代理不重试
-上游请求。Yibu 非 2xx 状态和最多 64 KiB 的错误正文有界转发，日志只记录安全元数据，不记录
+上游请求。合法 Responses 终局后可以消费 Yibu 追加的 keepalive 或 `[DONE]`，但其他终局后 JSON
+事件仍失败关闭。Yibu 非 2xx 状态和最多 64 KiB 的错误正文有界转发，日志只记录安全元数据，不记录
 Authorization、prompt、工具参数或响应正文。
 
 默认模型是 `doubao-seed-2-1-pro-260628`，默认三局、启用 AWM、每次 provider 交互最多 8192 个
