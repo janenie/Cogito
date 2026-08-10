@@ -300,6 +300,62 @@ def test_monitor_bounds_cleanup_after_forwarded_termination():
     assert process.terminated
 
 
+def test_monitor_kills_child_that_ignores_termination(monkeypatch):
+    orchestrator = load_orchestrator()
+
+    class StubbornProcess(_FakeProcess):
+        def __init__(self):
+            super().__init__(running=True)
+            self.killed = False
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, timeout=None):
+            if self.running:
+                raise subprocess.TimeoutExpired("codex", timeout)
+            return -9
+
+        def kill(self):
+            self.killed = True
+            self.running = False
+
+    process = StubbornProcess()
+    received = queue.SimpleQueue()
+    received.put(signal.SIGTERM)
+    monkeypatch.setattr(
+        orchestrator,
+        "CODEX_INNER_TERMINATION_GRACE_SECONDS",
+        0.01,
+    )
+
+    result = orchestrator._monitor_codex_process(
+        process,
+        SimpleNamespace(failure_event=threading.Event()),
+        received,
+    )
+
+    assert result == 128 + signal.SIGTERM
+    assert process.terminated
+    assert process.killed
+
+
+def test_monitor_prioritizes_proxy_failure_after_codex_exit():
+    orchestrator = load_orchestrator()
+    failure = threading.Event()
+    failure.set()
+
+    with pytest.raises(RuntimeError, match="proxy stopped unexpectedly"):
+        orchestrator._monitor_codex_process(
+            _FakeProcess(running=False),
+            SimpleNamespace(
+                failure_event=failure,
+                thread_error=RuntimeError("proxy failed"),
+            ),
+            queue.SimpleQueue(),
+        )
+
+
 def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, capsys):
     orchestrator = load_orchestrator()
     captured = {}

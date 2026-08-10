@@ -65,6 +65,7 @@ DEFAULT_MODEL = "doubao-seed-2-1-pro-260628"
 DEFAULT_CREDENTIALS = REPO_ROOT / ".claude" / "settings.local.json"
 DEFAULT_MAX_OUTPUT_TOKENS = 8192
 DEFAULT_CODEX_MAX_RESTARTS = 8
+CODEX_INNER_TERMINATION_GRACE_SECONDS = 2.0
 INTERNAL_PLAYER_FLAG = "--internal-doubao-player"
 DOUBAO_UPSTREAM_KEY_ENV = "AI_PLAY_DOUBAO_UPSTREAM_KEY"
 DOUBAO_UPSTREAM_URL_ENV = "AI_PLAY_DOUBAO_UPSTREAM_URL"
@@ -341,7 +342,12 @@ def _forward_child_signals(process: Any) -> Iterator[queue.SimpleQueue[int]]:
             signal.signal(signum, previous[signum])
 
 
-def _terminate_codex_process(process: Any, timeout: float = 5.0) -> None:
+def _terminate_codex_process(
+    process: Any,
+    timeout: float | None = None,
+) -> None:
+    if timeout is None:
+        timeout = CODEX_INNER_TERMINATION_GRACE_SECONDS
     if process.poll() is not None:
         return
     process.terminate()
@@ -391,6 +397,9 @@ def _monitor_codex_process(
             raise RuntimeError("Doubao proxy stopped unexpectedly") from error
         time.sleep(0.05)
     relay.join(timeout=5.0)
+    if proxy_failure.is_set():
+        error = getattr(proxy, "thread_error", None)
+        raise RuntimeError("Doubao proxy stopped unexpectedly") from error
     if relay.is_alive():
         raise RuntimeError("Codex output relay did not stop")
     if relay_errors:
