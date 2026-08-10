@@ -146,6 +146,7 @@ def _flatten_input_function_calls(value: Any, settings: ProxySettings) -> None:
                 "request input function call is outside the AI Play allowlist"
             )
         value["name"] = _flat_tool_alias(settings.namespace, name)
+        value["status"] = "completed"
         value.pop("namespace")
     for item in value.values():
         _flatten_input_function_calls(item, settings)
@@ -191,6 +192,9 @@ def transform_request(
 
 _SSE_FRAME_END = re.compile(br"\r?\n\r?\n")
 _SSE_DONE_EVENT = "__provider_done__"
+_SSE_TERMINAL_EVENTS = frozenset(
+    {"response.completed", "response.failed", "response.incomplete"}
+)
 
 
 def _rewrite_function_calls(value: Any, aliases: Mapping[str, str]) -> None:
@@ -278,15 +282,25 @@ def transform_sse_chunks(
                 raise SseTransformError(
                     "SSE [DONE] arrived before a terminal response event"
                 )
-            if event_type in (
-                "response.completed",
-                "response.failed",
-                "response.incomplete",
-            ):
+            if event_type in _SSE_TERMINAL_EVENTS:
                 terminal = True
             yield output
     if buffer:
-        raise SseTransformError("incomplete SSE frame at upstream disconnect")
+        output, event_type = _transform_sse_frame(buffer, aliases)
+        if terminal:
+            if event_type not in (None, _SSE_DONE_EVENT):
+                raise SseTransformError("SSE data followed a terminal event")
+        elif event_type in _SSE_TERMINAL_EVENTS:
+            terminal = True
+            yield output
+        elif event_type == _SSE_DONE_EVENT:
+            raise SseTransformError(
+                "SSE [DONE] arrived before a terminal response event"
+            )
+        else:
+            raise SseTransformError(
+                "incomplete SSE frame at upstream disconnect"
+            )
     if not terminal:
         raise SseTransformError("SSE stream ended without a terminal event")
 

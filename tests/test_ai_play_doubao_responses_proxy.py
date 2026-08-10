@@ -129,6 +129,7 @@ def test_transform_request_flattens_namespaced_function_calls_in_input():
 
     function_call = transformed.payload["input"][0]
     assert function_call["name"] == "mcp__cogito_ai_play__briefing"
+    assert function_call["status"] == "completed"
     assert "namespace" not in function_call
 
 
@@ -380,6 +381,17 @@ def test_sse_transform_accepts_done_sentinel_and_keepalive_after_terminal():
     assert b"keepalive" not in output
 
 
+def test_sse_transform_accepts_terminal_frame_without_final_blank_line():
+    completed = _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    ).removesuffix(b"\n\n")
+
+    output = b"".join(transform_sse_chunks([completed], {}))
+
+    assert b"response.completed" in output
+
+
 def test_sse_transform_rejects_done_sentinel_before_terminal():
     with pytest.raises(SseTransformError, match="before a terminal"):
         list(transform_sse_chunks([b"data: [DONE]\n\n"], {}))
@@ -404,7 +416,7 @@ def test_sse_transform_rejects_json_event_after_terminal():
     [
         ([b"data: not-json\n\n"], "JSON"),
         ([b"data: \xff\n\n"], "UTF-8"),
-        ([b'data: {"type":"response.completed"}'], "incomplete"),
+        ([b'data: {"type":"response.output_text.delta"}'], "incomplete"),
         (
             [_sse("response.output_text.delta", {"type": "response.output_text.delta"})],
             "terminal",
