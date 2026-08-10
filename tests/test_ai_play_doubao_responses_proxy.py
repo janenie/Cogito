@@ -5,6 +5,8 @@ import pytest
 from tools.ai_play_doubao_responses_proxy import (
     ProxySettings,
     RequestTransformError,
+    SseTransformError,
+    transform_sse_chunks,
     transform_request,
 )
 
@@ -180,3 +182,127 @@ def test_transform_request_rejects_duplicate_aliases():
                 enabled_tools=("briefing",),
             ),
         )
+
+
+def _sse(event_type, payload):
+    import json
+
+    return (
+        f"event: {event_type}\n"
+        f"data: {json.dumps(payload, separators=(',', ':'))}\n\n"
+    ).encode()
+
+
+def test_sse_transform_handles_split_frames_and_nested_function_calls():
+    alias = "mcp__cogito_ai_play__briefing"
+    added = _sse(
+        "response.output_item.added",
+        {
+            "type": "response.output_item.added",
+            "item": {"type": "function_call", "name": alias, "arguments": "{}"},
+        },
+    )
+    completed = _sse(
+        "response.completed",
+        {
+            "type": "response.completed",
+            "response": {
+                "output": [
+                    {"type": "reasoning", "summary": []},
+                    {"type": "function_call", "name": alias, "arguments": "{}"},
+                ]
+            },
+        },
+    )
+    payload = b": keepalive\n\n" + added + completed
+    chunks = [payload[:7], payload[7:31], payload[31:93], payload[93:]]
+
+    output = b"".join(
+        transform_sse_chunks(chunks, {alias: alias})
+    )
+
+    assert b": keepalive\n\n" in output
+    assert output.count(alias.encode()) == 2
+    assert b"event: response.completed" in output
+
+
+def test_sse_transform_parses_multiline_data():
+    frame = (
+        b"event: response.completed\n"
+        b'data: {"type":"response.completed",\n'
+        b'data: "response":{"output":[]}}\n\n'
+    )
+
+    output = b"".join(transform_sse_chunks([frame], {}))
+
+    assert b'"type":"response.completed"' in output
+
+
+def test_sse_transform_passes_reasoning_and_text_frames():
+    reasoning = _sse(
+        "response.reasoning_summary_text.delta",
+        {"type": "response.reasoning_summary_text.delta", "delta": "plan"},
+    )
+    text = _sse(
+        "response.output_text.delta",
+        {"type": "response.output_text.delta", "delta": "hello"},
+    )
+    completed = _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    )
+
+    output = b"".join(transform_sse_chunks([reasoning, text, completed], {}))
+
+    assert b"plan" in output
+    assert b"hello" in output
+
+
+def test_sse_transform_accepts_response_failed_as_terminal():
+    failed = _sse(
+        "response.failed",
+        {"type": "response.failed", "response": {"error": {"code": "bad"}}},
+    )
+
+    output = b"".join(transform_sse_chunks([failed], {}))
+
+    assert b"response.failed" in output
+
+
+@pytest.mark.parametrize(
+    ("chunks", "message"),
+    [
+        ([b"data: not-json\n\n"], "JSON"),
+        ([b"data: \xff\n\n"], "UTF-8"),
+        ([b'data: {"type":"response.completed"}'], "incomplete"),
+        (
+            [_sse("response.output_text.delta", {"type": "response.output_text.delta"})],
+            "terminal",
+        ),
+    ],
+)
+def test_sse_transform_rejects_malformed_or_interrupted_streams(chunks, message):
+    with pytest.raises(SseTransformError, match=message):
+        list(transform_sse_chunks(chunks, {}))
+
+
+def test_sse_transform_rejects_unknown_function_alias_before_forwarding_frame():
+    unknown = _sse(
+        "response.output_item.added",
+        {
+            "type": "response.output_item.added",
+            "item": {
+                "type": "function_call",
+                "name": "mcp__cogito_ai_play__unknown",
+                "arguments": "{}",
+            },
+        },
+    )
+    completed = _sse(
+        "response.completed",
+        {"type": "response.completed", "response": {"output": []}},
+    )
+    iterator = transform_sse_chunks([unknown, completed], {})
+
+    with pytest.raises(SseTransformError, match="unknown function alias"):
+        next(iterator)

@@ -5,7 +5,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Mapping
+import json
+import re
+from typing import Any, Iterable, Iterator, Mapping
 
 
 AI_PLAY_NAMESPACE = "mcp__cogito_ai_play"
@@ -14,6 +16,10 @@ MAX_PROVIDER_OUTPUT_TOKENS = 32768
 
 class RequestTransformError(ValueError):
     """The Codex request cannot be translated without widening permissions."""
+
+
+class SseTransformError(ValueError):
+    """The upstream event stream cannot be safely forwarded to Codex."""
 
 
 @dataclass(frozen=True)
@@ -142,3 +148,86 @@ def transform_request(
     transformed["parallel_tool_calls"] = False
     transformed["max_output_tokens"] = settings.max_output_tokens
     return TransformedRequest(payload=transformed, aliases=aliases)
+
+
+_SSE_FRAME_END = re.compile(br"\r?\n\r?\n")
+
+
+def _rewrite_function_calls(value: Any, aliases: Mapping[str, str]) -> None:
+    if isinstance(value, list):
+        for item in value:
+            _rewrite_function_calls(item, aliases)
+        return
+    if not isinstance(value, dict):
+        return
+    if value.get("type") == "function_call":
+        name = value.get("name")
+        if not isinstance(name, str) or name not in aliases:
+            raise SseTransformError(f"unknown function alias: {name!r}")
+        value["name"] = aliases[name]
+    for item in value.values():
+        _rewrite_function_calls(item, aliases)
+
+
+def _transform_sse_frame(
+    raw_frame: bytes,
+    aliases: Mapping[str, str],
+) -> tuple[bytes, str | None]:
+    try:
+        text = raw_frame.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise SseTransformError("SSE frame is not valid UTF-8") from error
+    lines = text.splitlines()
+    data_lines: list[str] = []
+    prefix_lines: list[str] = []
+    for line in lines:
+        if line.startswith("data:"):
+            data = line[5:]
+            if data.startswith(" "):
+                data = data[1:]
+            data_lines.append(data)
+        else:
+            prefix_lines.append(line)
+    if not data_lines:
+        return (text + "\n\n").encode("utf-8"), None
+    try:
+        payload = json.loads("\n".join(data_lines))
+    except json.JSONDecodeError as error:
+        raise SseTransformError("SSE data is not valid JSON") from error
+    _rewrite_function_calls(payload, aliases)
+    event_type = payload.get("type") if isinstance(payload, dict) else None
+    output_lines = prefix_lines + [
+        "data: " + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    ]
+    return ("\n".join(output_lines) + "\n\n").encode("utf-8"), event_type
+
+
+def transform_sse_chunks(
+    chunks: Iterable[bytes],
+    aliases: Mapping[str, str],
+) -> Iterator[bytes]:
+    """Frame, validate, and translate one streaming Responses SSE body."""
+    buffer = b""
+    terminal = False
+    for chunk in chunks:
+        if not isinstance(chunk, bytes):
+            raise SseTransformError("SSE chunks must be bytes")
+        buffer += chunk
+        while True:
+            match = _SSE_FRAME_END.search(buffer)
+            if match is None:
+                break
+            raw_frame = buffer[: match.start()]
+            buffer = buffer[match.end() :]
+            if not raw_frame:
+                continue
+            output, event_type = _transform_sse_frame(raw_frame, aliases)
+            if terminal:
+                raise SseTransformError("SSE data followed a terminal event")
+            if event_type in ("response.completed", "response.failed"):
+                terminal = True
+            yield output
+    if buffer:
+        raise SseTransformError("incomplete SSE frame at upstream disconnect")
+    if not terminal:
+        raise SseTransformError("SSE stream ended without a terminal event")
