@@ -58,6 +58,14 @@ Godot 桥的安全边界。
   不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
   `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
   50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
+- 公开 briefing 必须说明 `interact` 和 `interact2` 是动态交互槽而非固定含义的操作：模型必须
+  从当前 `available_interactions.action` 选择槽，以 `prompt` 判断实际含义，并且不得把仅供人类
+  参考的 `binding` 写入动作对象。briefing 还必须明确区分动作类型和交互槽：合法交互对象只允许
+  `{"type":"interact","action":"interact"}` 和
+  `{"type":"interact","action":"interact2"}`，坐标探测只允许独立的
+  `{"type":"probe_interaction","target_x":0..1,"target_y":0..1}`。briefing 还必须列出缺少
+  `type`/`action`、把 `interact2` 写成 `type`、使用 `target`，以及把探测坐标放进
+  `interact` 等常见错误，并说明这些格式会被拒绝且不产生游戏输入。
 - 所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局只允许
   `success/correct_password`、`failure/wrong_password` 和 `failure/max_requests`；
   `find_key` 只允许 `success/key_picked_up`、`failure/security_lockout` 和

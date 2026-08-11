@@ -571,11 +571,20 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   各场景玩家移动层会保留补偿后的向量长度，确保 MCP 幅值不会被死区或归一化吞掉；移动受阻
   判定阈值也会随请求力度缩放，避免把有效的精细小步误报为 `blocked`。
 - `jump`、`crouch`、`close_ui`、`wait`；`wait.duration_ms` 在 50～2000。
-- `interact` 只能使用当前观察中可用的 `interact` 或 `interact2`。玩家正在携带物体时，
+- `interact` 和 `interact2` 是动态交互槽，不是固定含义的操作；必须从当前
+  `available_interactions` 的 `action` 选择可用槽，并以 `prompt` 判断这次交互的实际含义。
+  `binding` 只是人类按键提示，不能写入动作对象。`interact` 只能使用当前观察中可用的槽，
+  动作对象必须精确写成
+  `{"type":"interact","action":"interact"}` 或
+  `{"type":"interact","action":"interact2"}`：`type` 固定表示动作类型，`action`
+  才表示当前公开的交互槽。`{"type":"interact"}`、`{"action":"interact"}`、
+  `{"type":"interact","target":"use"}`、`{"type":"interact2"}`，以及在 `interact`
+  中放入 `target_x`/`target_y` 都是无效格式；运行时会拒绝且不产生任何游戏输入。玩家正在携带物体时，
   `available_interactions` 会公开携带物真实绑定对应的 Drop；准星命中带
   `prefer_while_carrying` 的放置点时，该放置交互优先替代普通 Drop，避免 HUD 可见但 MCP
   无法合法调用。`enter_digits` 只能在界面打开时输入 1～6 位 ASCII 数字。
-- `probe_interaction` 只能使用 probe 专用 schema 分支：`actions` 长度必须恰好为 1，目标坐标
+- `probe_interaction` 只能使用 probe 专用 schema 分支，例如
+  `{"type":"probe_interaction","target_x":0.5,"target_y":0.6}`；`actions` 长度必须恰好为 1，目标坐标
   各在 0～1，且界面必须关闭。运行时若仍收到混合批次，会返回包含正确提交方式的稳定错误，
   不会向 Godot 产生输入。
 - `conveyor_profit` 只允许 `select_ingredient`、`make` 和 `wait_next_window`：选材按

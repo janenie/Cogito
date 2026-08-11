@@ -51,6 +51,33 @@ COMMON_CONTROL_RULES = [
         "act 的 schema 为它提供独立分支：actions 必须恰好只包含这一个动作，不能与 move、"
         "look、wait 或其他动作组合，且只能在界面关闭时使用。"
     ),
+    (
+        "interact 和 interact2 是两个动态交互槽，不是固定含义的操作。每次都必须读取当前 "
+        "observation.interface.available_interactions：action 指定可调用的交互槽，prompt 说明"
+        "这次交互实际会做什么，binding 只是当前的人类按键提示，不能写入动作对象。没有公开的"
+        "交互槽不能调用。"
+    ),
+    (
+        "交互动作对象的格式必须精确为 {\"type\":\"interact\",\"action\":\"interact\"} "
+        "或 {\"type\":\"interact\",\"action\":\"interact2\"}。type 固定表示动作类型 "
+        "interact，action 才表示当前 observation.interface.available_interactions 中公开的"
+        "交互槽 interact 或 interact2。"
+    ),
+    (
+        "坐标探测不是 interact：它的精确格式是 "
+        "{\"type\":\"probe_interaction\",\"target_x\":0.5,\"target_y\":0.6}。"
+        "target_x 和 target_y 只能用于 probe_interaction，interact 不接受 target、target_x "
+        "或 target_y。"
+    ),
+    (
+        "常见无效交互格式及原因：{\"type\":\"interact\"} 缺少 action；"
+        "{\"action\":\"interact\"} 缺少 type；"
+        "{\"type\":\"interact\",\"target\":\"use\"} 使用了不存在的 target；"
+        "{\"type\":\"interact2\"} 错把交互槽写成动作类型；"
+        "{\"type\":\"interact\",\"target_x\":0.5,\"target_y\":0.6} 错把探测坐标放入"
+        "交互动作。无效格式会被校验拒绝，不会执行任何游戏输入；应依据错误原因修正格式，"
+        "不要原样重试。"
+    ),
     "每个 act 的 actions 批次必须包含 1 到 3 个动作。",
     "interact、enter_digits、close_ui 等会改变上下文的动作必须放在批次最后。",
     "wait 的 duration_ms 范围是 50 到 2000；不要把 wait 当作默认探索方式。",

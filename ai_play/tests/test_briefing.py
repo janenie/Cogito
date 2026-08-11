@@ -404,6 +404,33 @@ def test_all_scenario_briefings_include_shared_control_rules():
             assert rule in briefing["rules"]
 
 
+def test_shared_control_rules_explain_interaction_shapes_and_common_errors():
+    serialized_rules = "\n".join(COMMON_CONTROL_RULES)
+
+    for valid_shape in [
+        '{"type":"interact","action":"interact"}',
+        '{"type":"interact","action":"interact2"}',
+        '{"type":"probe_interaction","target_x":0.5,"target_y":0.6}',
+    ]:
+        assert valid_shape in serialized_rules
+
+    for invalid_shape in [
+        '{"type":"interact"}',
+        '{"action":"interact"}',
+        '{"type":"interact","target":"use"}',
+        '{"type":"interact2"}',
+        '{"type":"interact","target_x":0.5,"target_y":0.6}',
+    ]:
+        assert invalid_shape in serialized_rules
+
+    assert "缺少 action" in serialized_rules
+    assert "缺少 type" in serialized_rules
+    assert "不是固定含义" in serialized_rules
+    assert "prompt" in serialized_rules
+    assert "binding" in serialized_rules
+    assert "不会执行任何游戏输入" in serialized_rules
+
+
 def test_all_scenario_briefing_titles_are_chinese_first_with_english_aid():
     for scenario_id in supported_scenario_ids():
         briefing, _image_bytes = load_scenario_briefing(scenario_id)
