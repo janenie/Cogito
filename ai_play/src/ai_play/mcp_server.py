@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import argparse
 import base64
+import json
 import os
 import sys
 import tempfile
@@ -38,6 +39,7 @@ game_session = None
 config = None
 trajectory_logger = None
 workflow_memory = None
+codex_media_output = False
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,7 @@ class ServerOptions:
     transport: Literal["stdio", "streamable-http"]
     http_host: str
     http_port: int
+    codex_media_output: bool = False
 
 
 def _parse_http_port(value: str) -> int:
@@ -76,6 +79,14 @@ def parse_server_options(argv: Sequence[str] | None = None) -> ServerOptions:
         type=_parse_http_port,
         default=8766,
     )
+    parser.add_argument(
+        "--codex-media-output",
+        action="store_true",
+        help=(
+            "return approved JSON as text beside media so Codex preserves "
+            "MCP image content"
+        ),
+    )
     parsed = parser.parse_args(argv)
     if (
         parsed.transport == "streamable-http"
@@ -86,6 +97,7 @@ def parse_server_options(argv: Sequence[str] | None = None) -> ServerOptions:
         transport=parsed.transport,
         http_host=parsed.http_host,
         http_port=parsed.http_port,
+        codex_media_output=parsed.codex_media_output,
     )
 
 
@@ -120,6 +132,18 @@ def _result(payload, image_bytes=None, depth_image_bytes=None):
         return _error("image_export_failed")
     if approved_paths:
         payload = {**payload, "approved_image_paths": approved_paths}
+    if codex_media_output:
+        content.append(
+            TextContent(
+                type="text",
+                text=json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
+            )
+        )
+        return CallToolResult(content=content)
     return CallToolResult(
         content=content,
         structuredContent=payload,
@@ -209,6 +233,14 @@ def _begin_logged_call(tool, request):
 def _complete_logged_call(token, result, image_bytes=None):
     try:
         logged_content = result.structuredContent
+        if logged_content is None and codex_media_output:
+            for item in result.content:
+                if not isinstance(item, TextContent):
+                    continue
+                candidate = json.loads(item.text)
+                if isinstance(candidate, dict):
+                    logged_content = candidate
+                    break
         if isinstance(logged_content, dict) and "approved_image_paths" in logged_content:
             logged_content = {
                 key: value
@@ -383,7 +415,9 @@ async def workflow_memory_update(
 
 def main(argv: Sequence[str] | None = None) -> None:
     global config, game_session, trajectory_logger, workflow_memory
+    global codex_media_output
     options = parse_server_options(argv)
+    codex_media_output = options.codex_media_output
     config = Config.from_env()
     trajectory_logger = TrajectoryLogger(config.log_root)
     workflow_memory = SessionWorkflowMemory()

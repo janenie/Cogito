@@ -543,7 +543,13 @@ def test_http_proxy_replaces_auth_transforms_and_streams_without_secret_logs():
         )
     )
     request = _request()
-    request["input"][0]["content"] = "private prompt text"
+    request["input"][0]["content"] = [
+        {"type": "input_text", "text": "private prompt text"},
+        {
+            "type": "input_image",
+            "image_url": "data:image/jpeg;base64,private-image-data",
+        },
+    ]
 
     with _proxy(upstream, logs) as server:
         response = httpx.post(
@@ -570,6 +576,7 @@ def test_http_proxy_replaces_auth_transforms_and_streams_without_secret_logs():
         "mcp__cogito_ai_play__act",
     ]
     logged = repr(logs)
+    assert logs[0]["input_image_count"] == 1
     assert "private prompt text" not in logged
     assert "real-yibu-secret" not in logged
     assert "local-proxy-secret" not in logged

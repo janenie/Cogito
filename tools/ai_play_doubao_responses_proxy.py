@@ -158,6 +158,16 @@ def _flatten_input_function_calls(value: Any, settings: ProxySettings) -> None:
         _flatten_input_function_calls(item, settings)
 
 
+def _count_input_images(value: Any) -> int:
+    if isinstance(value, list):
+        return sum(_count_input_images(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+    return int(value.get("type") == "input_image") + sum(
+        _count_input_images(item) for item in value.values()
+    )
+
+
 def transform_request(
     payload: Mapping[str, Any],
     settings: ProxySettings,
@@ -451,6 +461,9 @@ class DoubaoProxyServer:
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ).encode("utf-8")
+                input_image_count = _count_input_images(
+                    transformed.payload.get("input")
+                )
                 upstream_headers = {
                     "authorization": "Bearer " + owner._upstream_token,
                     "content-type": "application/json",
@@ -491,6 +504,7 @@ class DoubaoProxyServer:
                                     "event": "request_completed",
                                     "status": status,
                                     "request_bytes": len(body),
+                                    "input_image_count": input_image_count,
                                     "response_bytes": response_bytes,
                                     "duration_ms": int(
                                         (time.monotonic() - started) * 1000
@@ -526,6 +540,7 @@ class DoubaoProxyServer:
                         "event": "request_failed",
                         "error_type": type(error).__name__,
                         "request_bytes": len(body),
+                        "input_image_count": input_image_count,
                         "response_bytes": response_bytes,
                         "duration_ms": int((time.monotonic() - started) * 1000),
                     }
@@ -543,6 +558,7 @@ class DoubaoProxyServer:
                         "event": "request_completed",
                         "status": 200,
                         "request_bytes": len(body),
+                        "input_image_count": input_image_count,
                         "response_bytes": response_bytes,
                         "duration_ms": int((time.monotonic() - started) * 1000),
                         "request_id": (

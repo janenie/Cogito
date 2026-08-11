@@ -429,8 +429,13 @@ def build_supervisor_env(
     return build_isolated_process_env(environment_root, base_env)
 
 
-def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
-    return [
+def build_mcp_command(
+    python_bin: str,
+    mcp_port: int,
+    *,
+    codex_media_output: bool = False,
+) -> list[str]:
+    command = [
         python_bin,
         "-m",
         "ai_play.mcp_server",
@@ -441,6 +446,9 @@ def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
         "--http-port",
         str(mcp_port),
     ]
+    if codex_media_output:
+        command.append("--codex-media-output")
+    return command
 
 
 def build_supervisor_command(

@@ -144,6 +144,30 @@ def test_write_codex_config_targets_loopback_proxy_without_real_secret(tmp_path)
 
     text = path.read_text(encoding="utf-8")
     assert 'model = "doubao-seed-2-1-pro-260628"' in text
+    catalog_path = tmp_path / "model-catalog.json"
+    assert f'model_catalog_json = "{catalog_path}"' in text
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    assert len(catalog["models"]) == 1
+    catalog_model = catalog["models"][0]
+    assert catalog_model["slug"] == "doubao-seed-2-1-pro-260628"
+    assert catalog_model["display_name"] == "doubao-seed-2-1-pro-260628"
+    assert catalog_model["supported_reasoning_levels"] == []
+    assert catalog_model["shell_type"] == "shell_command"
+    assert catalog_model["visibility"] == "list"
+    assert catalog_model["supported_in_api"] is True
+    assert catalog_model["priority"] == 0
+    assert catalog_model["base_instructions"] == (
+        "You are an AI game-playing agent. Follow the developer instructions."
+    )
+    assert catalog_model["support_verbosity"] is False
+    assert catalog_model["truncation_policy"] == {
+        "mode": "tokens",
+        "limit": 10000,
+    }
+    assert catalog_model["supports_parallel_tool_calls"] is False
+    assert catalog_model["experimental_supported_tools"] == []
+    assert catalog_model["input_modalities"] == ["text", "image"]
+    assert catalog_path.stat().st_mode & 0o777 == 0o600
     assert 'model_provider = "doubao_proxy"' in text
     assert '[model_providers.doubao_proxy]' in text
     assert 'base_url = "http://127.0.0.1:43210/v1"' in text
@@ -203,6 +227,18 @@ def test_parse_args_has_doubao_defaults_and_no_effort_option():
     assert args.codex_max_restarts == 8
     assert args.credentials == orchestrator.REPO_ROOT / ".claude/settings.local.json"
     assert not hasattr(args, "reasoning_effort")
+
+
+def test_doubao_mcp_command_enables_codex_media_output():
+    orchestrator = load_orchestrator()
+
+    command = orchestrator.build_mcp_command(
+        "python",
+        8766,
+        codex_media_output=True,
+    )
+
+    assert command[-1] == "--codex-media-output"
 
 
 def test_restart_prompt_recovers_public_state_for_awm_modes():
@@ -524,7 +560,11 @@ def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp
     monkeypatch.setattr(orchestrator, "is_port_listening", lambda *args: False)
     monkeypatch.setattr(orchestrator, "collect_runtime_metadata", lambda **kwargs: {"runtime": "ok"})
     monkeypatch.setattr(orchestrator, "create_run_paths", lambda *args, **kwargs: (captured.setdefault("run", kwargs), paths)[1])
-    monkeypatch.setattr(orchestrator, "build_mcp_command", lambda *args: ["mcp"])
+    monkeypatch.setattr(
+        orchestrator,
+        "build_mcp_command",
+        lambda *args, **kwargs: ["mcp"],
+    )
     monkeypatch.setattr(orchestrator, "build_supervisor_command", lambda **kwargs: ["supervisor"])
     monkeypatch.setattr(orchestrator, "build_trusted_mcp_env", lambda *args: {"MCP": "safe"})
     monkeypatch.setattr(orchestrator, "build_supervisor_env", lambda *args: {"GODOT": "safe"})

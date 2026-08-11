@@ -272,6 +272,14 @@ Authorization、prompt、工具参数或响应正文。
 `/v1`。真实 token 只进入可信 wrapper 和代理；Codex 环境只收到一次性随机本地 bearer，临时
 `CODEX_HOME` 为 `0700`、配置为 `0600`，退出时删除。
 
+临时 `CODEX_HOME` 还包含一个仅声明当前 Doubao 模型的 model catalog，显式把输入模态设为
+`text` 与 `image`。Codex 0.145 在 MCP 工具结果同时存在 `structuredContent` 和媒体内容时只把
+结构化结果送入模型，因此 Doubao orchestrator 单独为可信边车启用内部
+`--codex-media-output`：边车仍先执行相同的公开投影，但把获准 JSON 作为紧邻
+`ImageContent` 的 `TextContent` 返回并省略重复的 `structuredContent`，使 Codex 能生成
+Responses `input_image`。该模式不扩展公开字段，不把 Base64 写入轨迹，也不影响默认 stdio MCP、
+标准 Codex、Gemini、Claude 或 Kimi 入口。
+
 ```bash
 .venv/bin/python tools/ai_play_codex_doubao_orchestrator.py \
   --runs 3 \

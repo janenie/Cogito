@@ -342,6 +342,13 @@ Doubao 返回的扁平函数名则还原为 Codex 的 MCP namespace 调用；代
 成功完成。Yibu 最终 terminal frame 可在断流前省略空行分隔；合法终局后也允许追加 keepalive 或
 `[DONE]` 尾帧，但终局后的其他 JSON 事件仍会被拒绝。Codex 未内建该模型 metadata 时会打印
 fallback metadata 警告，这不等于 API 失败。
+
+Doubao 入口会在临时 `CODEX_HOME` 写入只包含当前模型的本地 model catalog，显式声明模型支持
+文本和图片输入。Codex 0.145 在 MCP 结果同时含有 `structuredContent` 与 `ImageContent` 时会优先
+序列化结构化结果、丢弃媒体；因此该入口单独以内部 `--codex-media-output` 模式启动 MCP 边车：
+获准的同一 JSON payload 作为文本内容附在图片后，不再重复设置 `structuredContent`。这只改变
+Codex 对既有公开结果的传输表示，不增加可见字段，也不影响普通 stdio MCP 或其他 orchestrator。
+
 真实三局运行会产生截图、token 消耗、费用和本地轨迹，仍须单独确认后才能执行；自动化测试只用
 假的 Yibu 响应和本地 MCP fixture。
 

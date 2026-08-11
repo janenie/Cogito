@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -6,7 +7,7 @@ import sys
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
-from mcp.types import ImageContent
+from mcp.types import ImageContent, TextContent
 
 from ai_play.common_briefing_rules import COMMON_CONTROL_RULES
 from ai_play.config import Config
@@ -417,6 +418,25 @@ def test_observe_contains_structured_state_and_mcp_image(monkeypatch):
     asyncio.run(run())
 
 
+def test_codex_media_output_preserves_images_and_moves_payload_to_text(monkeypatch):
+    logger = RecordingTrajectoryLogger()
+    configure_server(monkeypatch, logger=logger)
+    monkeypatch.setattr(mcp_server, "codex_media_output", True)
+
+    result = call_tool("observe", {})
+
+    assert result.structuredContent is None
+    images = [item for item in result.content if isinstance(item, ImageContent)]
+    assert [item.mimeType for item in images] == ["image/jpeg", "image/png"]
+    text_items = [item for item in result.content if isinstance(item, TextContent)]
+    assert len(text_items) == 1
+    payload = json.loads(text_items[0].text)
+    assert payload["observation"]["observation_id"] == 7
+    assert result.isError is False
+    assert logger.completed[0][2] == payload
+    assert logger.completed[0][3] == b"\xff\xd8\xffmcp-image\xff\xd9"
+
+
 def test_observe_exports_only_approved_images_for_restricted_read(
     monkeypatch,
     tmp_path,
@@ -811,6 +831,13 @@ def test_parse_server_options_defaults_to_stdio():
     assert options.transport == "stdio"
     assert options.http_host == "127.0.0.1"
     assert options.http_port == 8766
+    assert options.codex_media_output is False
+
+
+def test_parse_server_options_enables_codex_media_output():
+    options = mcp_server.parse_server_options(["--codex-media-output"])
+
+    assert options.codex_media_output is True
 
 
 @pytest.mark.parametrize("host", ["localhost", "::1", "0.0.0.0"])

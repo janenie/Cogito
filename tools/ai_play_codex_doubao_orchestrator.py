@@ -161,6 +161,44 @@ def write_player_codex_doubao_config(
 ) -> Path:
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     player_home = _toml_string(str(home.resolve()))
+    model_catalog_path = home / "model-catalog.json"
+    model_catalog_path.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {
+                        "slug": model,
+                        "display_name": model,
+                        "description": (
+                            "Doubao AI Play model through the Yibu Responses API."
+                        ),
+                        "supported_reasoning_levels": [],
+                        "shell_type": "shell_command",
+                        "visibility": "list",
+                        "supported_in_api": True,
+                        "priority": 0,
+                        "base_instructions": (
+                            "You are an AI game-playing agent. "
+                            "Follow the developer instructions."
+                        ),
+                        "support_verbosity": False,
+                        "truncation_policy": {
+                            "mode": "tokens",
+                            "limit": 10_000,
+                        },
+                        "supports_parallel_tool_calls": False,
+                        "experimental_supported_tools": [],
+                        "input_modalities": ["text", "image"],
+                    }
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    os.chmod(model_catalog_path, 0o600)
     enabled_tools = (
         AWM_PLAYER_TOOL_NAMES if workflow_memory_enabled else BASE_PLAYER_TOOL_NAMES
     )
@@ -169,6 +207,8 @@ def write_player_codex_doubao_config(
         "\n".join(
             [
                 f"model = {_toml_string(model)}",
+                "model_catalog_json = "
+                f"{_toml_string(str(model_catalog_path.resolve()))}",
                 f'model_provider = "{PROXY_PROVIDER_ID}"',
                 "model_supports_reasoning_summaries = false",
                 "developer_instructions = "
@@ -614,7 +654,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     mcp_url = f"http://{DEFAULT_WS_HOST}:{args.mcp_port}/mcp"
     return run_orchestrated_session(
-        mcp_command=build_mcp_command(args.python_bin, args.mcp_port),
+        mcp_command=build_mcp_command(
+            args.python_bin,
+            args.mcp_port,
+            codex_media_output=True,
+        ),
         player_label="codex-doubao",
         player_command=build_internal_player_command(
             python_bin=args.python_bin,
