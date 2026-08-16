@@ -270,7 +270,9 @@ Authorization、prompt、工具参数或响应正文。
 `codex exec resume --last`。默认最多启动 8 个 resume turn，每次都会继续产生 provider token
 消耗，可用 `--codex-max-resumes` 收紧。达到上限返回基础设施失败，不伪造游戏终局或推进下一 Run；
 Supervisor 完成所请求的正式终局后，公共 orchestrator 立即停止 Doubao wrapper，不等待玩家 final
-grace，避免终局后额外调用 provider。默认凭据源为仓库中已忽略的
+grace，避免终局后额外调用 provider。
+每个 resume 边界还必须等待短暂的取消交接窗口，并同时检查 Supervisor 信号、代理线程状态和
+输出 relay 状态；任一失败都在创建下一个 Codex 子进程前收束。默认凭据源为仓库中已忽略的
 `.claude/settings.local.json`；只解析 JSON `env` 中的 `ANTHROPIC_AUTH_TOKEN`（优先）、
 `ANTHROPIC_API_KEY`（回退）和 `ANTHROPIC_BASE_URL`。base URL 必须使用 HTTPS 且路径为空或
 `/v1`。真实 token 只进入可信 wrapper 和代理；Codex 环境只收到一次性随机本地 bearer，临时

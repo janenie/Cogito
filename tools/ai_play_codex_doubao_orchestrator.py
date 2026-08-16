@@ -66,6 +66,7 @@ DEFAULT_CREDENTIALS = REPO_ROOT / ".claude" / "settings.local.json"
 DEFAULT_MAX_OUTPUT_TOKENS = 8192
 DEFAULT_CODEX_MAX_RESUMES = 8
 NATIVE_RESUME_LIMIT_EXIT_CODE = 6
+NATIVE_RESUME_HANDOFF_SECONDS = 0.2
 CODEX_INNER_TERMINATION_GRACE_SECONDS = 2.0
 INTERNAL_PLAYER_FLAG = "--internal-doubao-player"
 DOUBAO_UPSTREAM_KEY_ENV = "AI_PLAY_DOUBAO_UPSTREAM_KEY"
@@ -444,6 +445,30 @@ def _received_signal_exit_code(
         return None
 
 
+def _raise_for_proxy_failure(proxy: Any) -> None:
+    failure = getattr(proxy, "failure_event", threading.Event())
+    if failure.is_set():
+        error = getattr(proxy, "thread_error", None)
+        raise RuntimeError("Doubao proxy stopped unexpectedly") from error
+
+
+def _wait_for_resume_handoff(
+    proxy: Any,
+    received_signals: queue.SimpleQueue[int],
+    timeout: float = NATIVE_RESUME_HANDOFF_SECONDS,
+) -> int | None:
+    deadline = time.monotonic() + timeout
+    while True:
+        signal_code = _received_signal_exit_code(received_signals)
+        if signal_code is not None:
+            return signal_code
+        _raise_for_proxy_failure(proxy)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        time.sleep(min(0.01, remaining))
+
+
 def _relay_codex_output(process: Any, errors: list[BaseException]) -> None:
     try:
         assert process.stdout is not None
@@ -468,6 +493,10 @@ def _monitor_codex_process(
     relay.start()
     proxy_failure = getattr(proxy, "failure_event", threading.Event())
     while process.poll() is None:
+        if relay_errors:
+            _terminate_codex_process(process)
+            relay.join(timeout=5.0)
+            raise RuntimeError("Codex output relay failed") from relay_errors[0]
         try:
             signum = received_signals.get_nowait()
         except queue.Empty:
@@ -479,13 +508,11 @@ def _monitor_codex_process(
         if proxy_failure.is_set():
             _terminate_codex_process(process)
             relay.join(timeout=5.0)
-            error = getattr(proxy, "thread_error", None)
-            raise RuntimeError("Doubao proxy stopped unexpectedly") from error
+            _raise_for_proxy_failure(proxy)
         time.sleep(0.05)
     relay.join(timeout=5.0)
     if proxy_failure.is_set():
-        error = getattr(proxy, "thread_error", None)
-        raise RuntimeError("Doubao proxy stopped unexpectedly") from error
+        _raise_for_proxy_failure(proxy)
     if relay.is_alive():
         raise RuntimeError("Codex output relay did not stop")
     if relay_errors:
@@ -553,6 +580,7 @@ def run_internal_player(
                     signal_code = _received_signal_exit_code(received_signals)
                     if signal_code is not None:
                         return signal_code
+                    _raise_for_proxy_failure(proxy)
                     process = popen_factory(
                         command,
                         cwd=args.player_workspace,
@@ -586,6 +614,12 @@ def run_internal_player(
                         return result
                     if resumes_started >= args.max_resumes:
                         return NATIVE_RESUME_LIMIT_EXIT_CODE
+                    signal_code = _wait_for_resume_handoff(
+                        proxy,
+                        received_signals,
+                    )
+                    if signal_code is not None:
+                        return signal_code
                     resumes_started += 1
                     command = build_codex_resume_command(args.codex_bin)
                     turn_prompt = build_player_resume_prompt(

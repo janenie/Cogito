@@ -510,6 +510,34 @@ def test_monitor_prioritizes_proxy_failure_after_codex_exit():
         )
 
 
+def test_monitor_terminates_running_codex_when_output_relay_fails(monkeypatch):
+    orchestrator = load_orchestrator()
+    process = _FakeProcess(running=True)
+
+    class BrokenStdout:
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            raise OSError("relay broke")
+
+    process.stdout = BrokenStdout()
+    monkeypatch.setattr(
+        orchestrator.time,
+        "sleep",
+        lambda _seconds: setattr(process, "running", False),
+    )
+
+    with pytest.raises(RuntimeError, match="output relay failed"):
+        orchestrator._monitor_codex_process(
+            process,
+            SimpleNamespace(failure_event=threading.Event()),
+            queue.SimpleQueue(),
+        )
+
+    assert process.terminated
+
+
 def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, capsys):
     orchestrator = load_orchestrator()
     captured = {}
@@ -670,6 +698,124 @@ def test_internal_wrapper_returns_exact_code_when_native_resume_limit_exhausted(
     assert len(commands) == 2
 
 
+def test_internal_wrapper_does_not_spawn_resume_after_proxy_fails_between_turns(
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    failure = threading.Event()
+    commands = []
+
+    class ProxyFailsAfterWaitProcess(_FakeProcess):
+        def __init__(self):
+            super().__init__(returncode=0)
+
+        def wait(self, timeout=None):
+            failure.set()
+            return 0
+
+    processes = [ProxyFailsAfterWaitProcess(), _FakeProcess(returncode=17)]
+
+    class FailingProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+        failure_event = failure
+        thread_error = RuntimeError("proxy failed between turns")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_popen(command, **kwargs):
+        commands.append(command)
+        return processes[len(commands) - 1]
+
+    with pytest.raises(RuntimeError, match="proxy stopped unexpectedly"):
+        orchestrator.run_internal_player(
+            [
+                "--codex-bin", "/codex",
+                "--player-workspace", str(tmp_path),
+                "--model", orchestrator.DEFAULT_MODEL,
+                "--mcp-url", "http://127.0.0.1:8766/mcp",
+                "--max-output-tokens", "8192",
+                "--workflow-memory", "disabled",
+                "--runs", "3",
+                "--max-resumes", "8",
+            ],
+            stdin_text="play",
+            base_env={
+                orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+                orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+            },
+            popen_factory=fake_popen,
+            proxy_factory=lambda **kwargs: FailingProxy(),
+        )
+
+    assert len(commands) == 1
+
+
+def test_internal_wrapper_handoff_catches_delayed_supervisor_signal_before_resume(
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    commands = []
+    first_finished = threading.Event()
+
+    class InitialProcess(_FakeProcess):
+        def __init__(self):
+            super().__init__(returncode=0)
+
+        def wait(self, timeout=None):
+            first_finished.set()
+            return 0
+
+    processes = [InitialProcess(), _FakeProcess(running=True)]
+
+    class FakeProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_popen(command, **kwargs):
+        commands.append(command)
+        return processes[len(commands) - 1]
+
+    def delayed_stop():
+        if first_finished.wait(timeout=5):
+            time.sleep(0.05)
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    stopper = threading.Thread(target=delayed_stop, daemon=True)
+    stopper.start()
+    result = orchestrator.run_internal_player(
+        [
+            "--codex-bin", "/codex",
+            "--player-workspace", str(tmp_path),
+            "--model", orchestrator.DEFAULT_MODEL,
+            "--mcp-url", "http://127.0.0.1:8766/mcp",
+            "--max-output-tokens", "8192",
+            "--workflow-memory", "disabled",
+            "--runs", "3",
+            "--max-resumes", "8",
+        ],
+        stdin_text="play",
+        base_env={
+            orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+            orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+        },
+        popen_factory=fake_popen,
+        proxy_factory=lambda **kwargs: FakeProxy(),
+    )
+    stopper.join(timeout=5)
+
+    assert result == 128 + signal.SIGTERM
+    assert len(commands) == 1
+
+
 def test_internal_wrapper_rejects_empty_prompt_before_proxy_start(tmp_path):
     orchestrator = load_orchestrator()
     with pytest.raises(ValueError, match="prompt"):
@@ -690,9 +836,10 @@ def test_internal_wrapper_rejects_empty_prompt_before_proxy_start(tmp_path):
         )
 
 
-def test_internal_wrapper_terminates_codex_when_proxy_thread_fails(tmp_path):
+def test_internal_wrapper_does_not_start_codex_when_proxy_thread_already_failed(
+    tmp_path,
+):
     orchestrator = load_orchestrator()
-    process = _FakeProcess(running=True)
 
     class FailedProxy:
         base_url = "http://127.0.0.1:41234/v1"
@@ -723,11 +870,11 @@ def test_internal_wrapper_terminates_codex_when_proxy_thread_fails(tmp_path):
                 orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
                 orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
             },
-            popen_factory=lambda *args, **kwargs: process,
+            popen_factory=lambda *args, **kwargs: pytest.fail(
+                "Codex must not start after proxy failure"
+            ),
             proxy_factory=lambda **kwargs: FailedProxy(),
         )
-
-    assert process.terminated
 
 
 def test_internal_wrapper_closes_proxy_when_codex_start_fails(tmp_path):

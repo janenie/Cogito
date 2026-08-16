@@ -324,6 +324,9 @@ MCP 会话，并用原生 `codex exec resume --last` 接续，而不是重建 ag
 次，每次都会继续消耗 provider token，可用 `--codex-max-resumes` 收紧。达到上限属于基础设施未
 完成，不伪造终局，也不推进下一 Run；Supervisor 完成所请求的正式终局后会立即停止 wrapper，
 避免在终局后的 grace 窗口再产生一次付费 resume。
+每个 resume 前还有一个短暂的取消交接窗口，用于接收 Supervisor 终止信号或代理失败；窗口内
+出现任一事件都不会创建新的 Codex 子进程。输出 relay 在线失败同样会立即终止当前 Codex，避免
+无可见输出时继续产生调用。
 
 凭据默认从仓库中已忽略的 `.claude/settings.local.json` 读取。入口只解析 JSON `env` 对象，并按
 顺序使用 `ANTHROPIC_AUTH_TOKEN` 或 `ANTHROPIC_API_KEY`；`ANTHROPIC_BASE_URL` 必须是 HTTPS，且
