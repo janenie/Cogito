@@ -64,7 +64,8 @@ validate_model_argument = _codex.validate_model_argument
 DEFAULT_MODEL = "doubao-seed-2-1-pro-260628"
 DEFAULT_CREDENTIALS = REPO_ROOT / ".claude" / "settings.local.json"
 DEFAULT_MAX_OUTPUT_TOKENS = 8192
-DEFAULT_CODEX_MAX_RESTARTS = 8
+DEFAULT_CODEX_MAX_RESUMES = 8
+NATIVE_RESUME_LIMIT_EXIT_CODE = 6
 CODEX_INNER_TERMINATION_GRACE_SECONDS = 2.0
 INTERNAL_PLAYER_FLAG = "--internal-doubao-player"
 DOUBAO_UPSTREAM_KEY_ENV = "AI_PLAY_DOUBAO_UPSTREAM_KEY"
@@ -300,7 +301,7 @@ def build_codex_proxy_env(
     return env
 
 
-def build_player_restart_prompt(runs: int, workflow_memory_enabled: bool) -> str:
+def build_player_resume_prompt(runs: int, workflow_memory_enabled: bool) -> str:
     startup = (
         "workflow_memory_read、briefing、observe"
         if workflow_memory_enabled
@@ -314,6 +315,31 @@ def build_player_restart_prompt(runs: int, workflow_memory_enabled: bool) -> str
     )
 
 
+def build_codex_initial_command(
+    codex_bin: str,
+    player_workspace: Path,
+) -> list[str]:
+    return [
+        codex_bin,
+        "exec",
+        "--cd",
+        str(player_workspace),
+        "--skip-git-repo-check",
+        "-",
+    ]
+
+
+def build_codex_resume_command(codex_bin: str) -> list[str]:
+    return [
+        codex_bin,
+        "exec",
+        "resume",
+        "--last",
+        "--skip-git-repo-check",
+        "-",
+    ]
+
+
 def build_internal_player_command(
     *,
     python_bin: str,
@@ -323,6 +349,8 @@ def build_internal_player_command(
     mcp_url: str,
     max_output_tokens: int,
     workflow_memory_enabled: bool,
+    runs: int,
+    max_resumes: int,
 ) -> list[str]:
     return [
         python_bin,
@@ -340,6 +368,10 @@ def build_internal_player_command(
         str(max_output_tokens),
         "--workflow-memory",
         "enabled" if workflow_memory_enabled else "disabled",
+        "--runs",
+        str(runs),
+        "--max-resumes",
+        str(max_resumes),
     ]
 
 
@@ -350,6 +382,8 @@ def _parse_internal_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--model", required=True)
     parser.add_argument("--mcp-url", required=True)
     parser.add_argument("--max-output-tokens", type=int, required=True)
+    parser.add_argument("--runs", type=int, required=True)
+    parser.add_argument("--max-resumes", type=int, required=True)
     parser.add_argument(
         "--workflow-memory",
         choices=("enabled", "disabled"),
@@ -359,8 +393,10 @@ def _parse_internal_args(argv: Sequence[str]) -> argparse.Namespace:
 
 
 @contextmanager
-def _forward_child_signals(process: Any) -> Iterator[queue.SimpleQueue[int]]:
-    """Forward wrapper termination to Codex so proxy cleanup can still run."""
+def _forward_child_signals(
+    current_process: list[Any | None],
+) -> Iterator[queue.SimpleQueue[int]]:
+    """Capture wrapper termination across every Codex turn and cleanup gap."""
     received: queue.SimpleQueue[int] = queue.SimpleQueue()
     if threading.current_thread() is not threading.main_thread():
         yield received
@@ -370,7 +406,8 @@ def _forward_child_signals(process: Any) -> Iterator[queue.SimpleQueue[int]]:
 
     def forward(signum: int, _frame: Any) -> None:
         received.put(signum)
-        if process.poll() is None:
+        process = current_process[0]
+        if process is not None and process.poll() is None:
             process.send_signal(signum)
 
     try:
@@ -396,6 +433,15 @@ def _terminate_codex_process(
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=timeout)
+
+
+def _received_signal_exit_code(
+    received_signals: queue.SimpleQueue[int],
+) -> int | None:
+    try:
+        return 128 + received_signals.get_nowait()
+    except queue.Empty:
+        return None
 
 
 def _relay_codex_output(process: Any, errors: list[BaseException]) -> None:
@@ -476,53 +522,76 @@ def run_internal_player(
         max_output_tokens=args.max_output_tokens,
     )
     proxy_token = (token_factory or (lambda: secrets.token_urlsafe(32)))()
-    with proxy_factory(
-        settings=settings,
-        upstream_base_url=_normalize_yibu_base_url(upstream_url),
-        upstream_token=upstream_token,
-        proxy_token=proxy_token,
-    ) as proxy:
-        with temporary_player_codex_home() as player_home:
-            write_player_codex_doubao_config(
-                player_home,
-                model=args.model,
-                proxy_base_url=proxy.base_url,
-                mcp_url=args.mcp_url,
-                workflow_memory_enabled=args.workflow_memory == "enabled",
-            )
-            codex_env = build_codex_proxy_env(
-                player_home,
-                proxy_token,
-                base_env=source_env,
-            )
-            command = _codex.build_codex_command(
-                args.codex_bin,
-                args.player_workspace,
-            )
-            process = popen_factory(
-                command,
-                cwd=args.player_workspace,
-                env=codex_env,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-            try:
-                if process.stdin is None or process.stdout is None:
-                    raise RuntimeError("Codex process pipes were not created")
-                with _forward_child_signals(process) as received_signals:
-                    process.stdin.write(prompt)
-                    process.stdin.close()
-                    return _monitor_codex_process(
-                        process,
-                        proxy,
-                        received_signals,
+    current_process: list[Any | None] = [None]
+    with _forward_child_signals(current_process) as received_signals:
+        with proxy_factory(
+            settings=settings,
+            upstream_base_url=_normalize_yibu_base_url(upstream_url),
+            upstream_token=upstream_token,
+            proxy_token=proxy_token,
+        ) as proxy:
+            with temporary_player_codex_home() as player_home:
+                write_player_codex_doubao_config(
+                    player_home,
+                    model=args.model,
+                    proxy_base_url=proxy.base_url,
+                    mcp_url=args.mcp_url,
+                    workflow_memory_enabled=args.workflow_memory == "enabled",
+                )
+                codex_env = build_codex_proxy_env(
+                    player_home,
+                    proxy_token,
+                    base_env=source_env,
+                )
+                command = build_codex_initial_command(
+                    args.codex_bin,
+                    args.player_workspace,
+                )
+                turn_prompt = prompt
+                resumes_started = 0
+                while True:
+                    signal_code = _received_signal_exit_code(received_signals)
+                    if signal_code is not None:
+                        return signal_code
+                    process = popen_factory(
+                        command,
+                        cwd=args.player_workspace,
+                        env=codex_env,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
                     )
-            except BaseException:
-                _terminate_codex_process(process)
-                raise
+                    current_process[0] = process
+                    try:
+                        if process.stdin is None or process.stdout is None:
+                            raise RuntimeError("Codex process pipes were not created")
+                        process.stdin.write(turn_prompt)
+                        process.stdin.close()
+                        result = _monitor_codex_process(
+                            process,
+                            proxy,
+                            received_signals,
+                        )
+                    except BaseException:
+                        _terminate_codex_process(process)
+                        raise
+                    finally:
+                        current_process[0] = None
+                    signal_code = _received_signal_exit_code(received_signals)
+                    if signal_code is not None:
+                        return signal_code
+                    if result != 0:
+                        return result
+                    if resumes_started >= args.max_resumes:
+                        return NATIVE_RESUME_LIMIT_EXIT_CODE
+                    resumes_started += 1
+                    command = build_codex_resume_command(args.codex_bin)
+                    turn_prompt = build_player_resume_prompt(
+                        args.runs,
+                        args.workflow_memory == "enabled",
+                    )
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -545,9 +614,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=DEFAULT_MAX_OUTPUT_TOKENS,
     )
     parser.add_argument(
-        "--codex-max-restarts",
+        "--codex-max-resumes",
         type=int,
-        default=DEFAULT_CODEX_MAX_RESTARTS,
+        default=DEFAULT_CODEX_MAX_RESUMES,
     )
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument("--python-bin", default=sys.executable)
@@ -591,8 +660,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--runs must be at least 1")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
-    if args.codex_max_restarts < 0:
-        raise SystemExit("--codex-max-restarts must be at least 0")
+    if args.codex_max_resumes < 0:
+        raise SystemExit("--codex-max-resumes must be at least 0")
     if not 0 <= args.benchmark_cycle_seed <= MAX_BENCHMARK_CYCLE_SEED:
         raise SystemExit(
             "--benchmark-cycle-seed must be between 0 and %d"
@@ -647,7 +716,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "player_exit_grace_seconds": args.codex_exit_grace_seconds,
                 "idle_timeout_seconds": args.idle_timeout_seconds,
                 "player_final_grace_seconds": args.codex_final_grace_seconds,
-                "player_restart_limit": args.codex_max_restarts,
+                "player_restart_limit": 0,
+                "native_resume_limit": args.codex_max_resumes,
                 "max_output_tokens": args.max_output_tokens,
             },
         ),
@@ -668,6 +738,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             mcp_url=mcp_url,
             max_output_tokens=args.max_output_tokens,
             workflow_memory_enabled=workflow_memory_enabled,
+            runs=args.runs,
+            max_resumes=args.codex_max_resumes,
         ),
         supervisor_command=build_supervisor_command(
             python_bin=args.python_bin,
@@ -696,11 +768,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         player_exit_grace_seconds=args.codex_exit_grace_seconds,
         idle_timeout_seconds=args.idle_timeout_seconds,
         player_final_grace_seconds=args.codex_final_grace_seconds,
-        player_restart_limit=args.codex_max_restarts,
-        player_restart_prompt=build_player_restart_prompt(
-            args.runs,
-            workflow_memory_enabled,
-        ),
+        player_restart_limit=0,
+        player_restart_prompt=None,
+        stop_player_on_supervisor_exit=True,
     )
 
 

@@ -1137,6 +1137,58 @@ def test_session_stops_when_all_children_are_idle(monkeypatch, tmp_path):
     assert all(process.terminated for process in processes.values())
 
 
+def test_native_resume_limit_is_infrastructure_failure_without_game_over(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    orchestrator = load_orchestrator()
+    started = []
+    processes = {
+        "mcp": FakeProcess(),
+        "codex-doubao": FakeProcess(return_codes=[None, 6]),
+        "supervisor": FakeProcess(),
+    }
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_start_process",
+        lambda label, command, cwd, env, stdin_text=None: (
+            started.append(label) or processes[label]
+        ),
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python"],
+        player_label="codex-doubao",
+        player_command=["codex"],
+        supervisor_command=["supervisor"],
+        prompt="briefing",
+        mcp_env={},
+        player_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        player_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        player_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        player_final_grace_seconds=0.0,
+        player_restart_limit=0,
+    )
+
+    assert result == 6
+    assert started.count("codex-doubao") == 1
+    assert processes["supervisor"].terminated
+    assert "game_over" not in capsys.readouterr().out
+
+
 def test_sidecar_readiness_failure_never_starts_codex_or_supervisor(
     monkeypatch,
     tmp_path,

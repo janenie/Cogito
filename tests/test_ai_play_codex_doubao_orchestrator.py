@@ -224,9 +224,60 @@ def test_parse_args_has_doubao_defaults_and_no_effort_option():
     assert args.runs == 3
     assert args.workflow_memory == "enabled"
     assert args.max_output_tokens == 8192
-    assert args.codex_max_restarts == 8
+    assert args.codex_max_resumes == 8
     assert args.credentials == orchestrator.REPO_ROOT / ".claude/settings.local.json"
     assert not hasattr(args, "reasoning_effort")
+
+
+def test_parse_args_rejects_removed_codex_max_restarts_option():
+    orchestrator = load_orchestrator()
+
+    with pytest.raises(SystemExit):
+        orchestrator.parse_args(["--codex-max-restarts", "1"])
+
+
+def test_doubao_codex_commands_use_persistent_native_session(tmp_path):
+    orchestrator = load_orchestrator()
+
+    initial = orchestrator.build_codex_initial_command("/codex", tmp_path)
+    resume = orchestrator.build_codex_resume_command("/codex")
+
+    assert initial == [
+        "/codex",
+        "exec",
+        "--cd",
+        str(tmp_path),
+        "--skip-git-repo-check",
+        "-",
+    ]
+    assert "--ephemeral" not in initial
+    assert resume == [
+        "/codex",
+        "exec",
+        "resume",
+        "--last",
+        "--skip-git-repo-check",
+        "-",
+    ]
+
+
+def test_internal_player_command_passes_runs_and_native_resume_limit(tmp_path):
+    orchestrator = load_orchestrator()
+
+    command = orchestrator.build_internal_player_command(
+        python_bin="python",
+        codex_bin="/codex",
+        player_workspace=tmp_path,
+        model=orchestrator.DEFAULT_MODEL,
+        mcp_url="http://127.0.0.1:8766/mcp",
+        max_output_tokens=8192,
+        workflow_memory_enabled=True,
+        runs=3,
+        max_resumes=8,
+    )
+
+    assert command[command.index("--runs") + 1] == "3"
+    assert command[command.index("--max-resumes") + 1] == "8"
 
 
 def test_doubao_mcp_command_enables_codex_media_output():
@@ -241,10 +292,10 @@ def test_doubao_mcp_command_enables_codex_media_output():
     assert command[-1] == "--codex-media-output"
 
 
-def test_restart_prompt_recovers_public_state_for_awm_modes():
+def test_resume_prompt_recovers_public_state_for_awm_modes():
     orchestrator = load_orchestrator()
-    enabled = orchestrator.build_player_restart_prompt(3, True)
-    disabled = orchestrator.build_player_restart_prompt(3, False)
+    enabled = orchestrator.build_player_resume_prompt(3, True)
+    disabled = orchestrator.build_player_resume_prompt(3, False)
     assert "workflow_memory_read、briefing、observe" in enabled
     assert "completed_runs" in enabled
     assert "workflow_memory_read" not in disabled
@@ -264,18 +315,19 @@ class _FakeStdin:
 
 
 class _FakeProcess:
-    def __init__(self, *, running=False):
+    def __init__(self, *, running=False, returncode=17):
         self.stdin = _FakeStdin()
         self.stdout = iter(["codex line one\n", "codex line two\n"])
         self.terminated = False
         self.signals = []
         self.running = running
+        self.returncode = returncode
 
     def wait(self, timeout=None):
-        return 17
+        return self.returncode
 
     def poll(self):
-        return None if self.running else 17
+        return None if self.running else self.returncode
 
     def terminate(self):
         self.terminated = True
@@ -305,7 +357,7 @@ def test_internal_wrapper_forwards_termination_signals(monkeypatch):
 
     monkeypatch.setattr(orchestrator.signal, "signal", fake_signal)
 
-    with orchestrator._forward_child_signals(process) as received:
+    with orchestrator._forward_child_signals([process]) as received:
         installed[signal.SIGTERM](signal.SIGTERM, None)
         installed[signal.SIGINT](signal.SIGINT, None)
 
@@ -318,6 +370,72 @@ def test_internal_wrapper_forwards_termination_signals(monkeypatch):
         (signal.SIGTERM, f"old-{signal.SIGTERM}"),
         (signal.SIGINT, f"old-{signal.SIGINT}"),
     ]
+
+
+def test_internal_wrapper_does_not_resume_after_signal_between_turns(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    installed = {}
+    commands = []
+
+    class SignalAfterExitProcess(_FakeProcess):
+        def __init__(self):
+            super().__init__(returncode=0)
+            self.sent = False
+
+        def wait(self, timeout=None):
+            if not self.sent:
+                self.sent = True
+                installed[signal.SIGTERM](signal.SIGTERM, None)
+            return 0
+
+    processes = [SignalAfterExitProcess(), _FakeProcess(returncode=17)]
+
+    class FakeProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    monkeypatch.setattr(orchestrator.signal, "getsignal", lambda signum: signal.SIG_DFL)
+
+    def fake_signal(signum, handler):
+        if callable(handler):
+            installed[signum] = handler
+
+    monkeypatch.setattr(orchestrator.signal, "signal", fake_signal)
+
+    def fake_popen(command, **kwargs):
+        commands.append(command)
+        return processes[len(commands) - 1]
+
+    result = orchestrator.run_internal_player(
+        [
+            "--codex-bin", "/codex",
+            "--player-workspace", str(tmp_path),
+            "--model", orchestrator.DEFAULT_MODEL,
+            "--mcp-url", "http://127.0.0.1:8766/mcp",
+            "--max-output-tokens", "8192",
+            "--workflow-memory", "disabled",
+            "--runs", "3",
+            "--max-resumes", "8",
+        ],
+        stdin_text="play",
+        base_env={
+            orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+            orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+        },
+        popen_factory=fake_popen,
+        proxy_factory=lambda **kwargs: FakeProxy(),
+    )
+
+    assert result == 128 + signal.SIGTERM
+    assert len(commands) == 1
 
 
 def test_monitor_bounds_cleanup_after_forwarded_termination():
@@ -425,6 +543,8 @@ def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, c
             "--mcp-url", "http://127.0.0.1:8766/mcp",
             "--max-output-tokens", "8192",
             "--workflow-memory", "enabled",
+            "--runs", "3",
+            "--max-resumes", "8",
         ],
         stdin_text="play exactly this",
         base_env={
@@ -448,6 +568,108 @@ def test_internal_wrapper_forwards_prompt_output_and_isolates_secret(tmp_path, c
     assert "codex line one" in capsys.readouterr().out
 
 
+def test_internal_wrapper_resumes_same_native_session_after_normal_exit(tmp_path):
+    orchestrator = load_orchestrator()
+    processes = [
+        _FakeProcess(returncode=0),
+        _FakeProcess(returncode=17),
+    ]
+    calls = []
+
+    class FakeProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_popen(command, **kwargs):
+        calls.append((command, kwargs))
+        return processes[len(calls) - 1]
+
+    result = orchestrator.run_internal_player(
+        [
+            "--codex-bin", "/codex",
+            "--player-workspace", str(tmp_path),
+            "--model", orchestrator.DEFAULT_MODEL,
+            "--mcp-url", "http://127.0.0.1:8766/mcp",
+            "--max-output-tokens", "8192",
+            "--workflow-memory", "enabled",
+            "--runs", "3",
+            "--max-resumes", "8",
+        ],
+        stdin_text="play exactly this",
+        base_env={
+            orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+            orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+        },
+        popen_factory=fake_popen,
+        proxy_factory=lambda **kwargs: FakeProxy(),
+        token_factory=lambda: "local-proxy-token",
+    )
+
+    assert result == 17
+    assert len(calls) == 2
+    assert calls[0][0] == orchestrator.build_codex_initial_command(
+        "/codex",
+        tmp_path,
+    )
+    assert calls[1][0] == orchestrator.build_codex_resume_command("/codex")
+    assert calls[0][1]["env"]["CODEX_HOME"] == calls[1][1]["env"]["CODEX_HOME"]
+    assert calls[0][1]["cwd"] == calls[1][1]["cwd"] == tmp_path
+    assert processes[0].stdin.value == "play exactly this"
+    assert processes[1].stdin.value == orchestrator.build_player_resume_prompt(3, True)
+
+
+def test_internal_wrapper_returns_exact_code_when_native_resume_limit_exhausted(
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    processes = [
+        _FakeProcess(returncode=0),
+        _FakeProcess(returncode=0),
+    ]
+    commands = []
+
+    class FakeProxy:
+        base_url = "http://127.0.0.1:41234/v1"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_popen(command, **kwargs):
+        commands.append(command)
+        return processes[len(commands) - 1]
+
+    result = orchestrator.run_internal_player(
+        [
+            "--codex-bin", "/codex",
+            "--player-workspace", str(tmp_path),
+            "--model", orchestrator.DEFAULT_MODEL,
+            "--mcp-url", "http://127.0.0.1:8766/mcp",
+            "--max-output-tokens", "8192",
+            "--workflow-memory", "disabled",
+            "--runs", "3",
+            "--max-resumes", "1",
+        ],
+        stdin_text="play",
+        base_env={
+            orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "real-secret",
+            orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
+        },
+        popen_factory=fake_popen,
+        proxy_factory=lambda **kwargs: FakeProxy(),
+    )
+
+    assert result == orchestrator.NATIVE_RESUME_LIMIT_EXIT_CODE == 6
+    assert len(commands) == 2
+
+
 def test_internal_wrapper_rejects_empty_prompt_before_proxy_start(tmp_path):
     orchestrator = load_orchestrator()
     with pytest.raises(ValueError, match="prompt"):
@@ -459,6 +681,8 @@ def test_internal_wrapper_rejects_empty_prompt_before_proxy_start(tmp_path):
                 "--mcp-url", "http://127.0.0.1:8766/mcp",
                 "--max-output-tokens", "8192",
                 "--workflow-memory", "enabled",
+                "--runs", "3",
+                "--max-resumes", "8",
             ],
             stdin_text="",
             base_env={},
@@ -491,6 +715,8 @@ def test_internal_wrapper_terminates_codex_when_proxy_thread_fails(tmp_path):
                 "--mcp-url", "http://127.0.0.1:8766/mcp",
                 "--max-output-tokens", "8192",
                 "--workflow-memory", "disabled",
+                "--runs", "3",
+                "--max-resumes", "8",
             ],
             stdin_text="play",
             base_env={
@@ -530,6 +756,8 @@ def test_internal_wrapper_closes_proxy_when_codex_start_fails(tmp_path):
                 "--mcp-url", "http://127.0.0.1:8766/mcp",
                 "--max-output-tokens", "8192",
                 "--workflow-memory", "disabled",
+                "--runs", "3",
+                "--max-resumes", "8",
             ],
             stdin_text="play",
             base_env={
@@ -543,7 +771,7 @@ def test_internal_wrapper_closes_proxy_when_codex_start_fails(tmp_path):
     assert lifecycle == ["enter", "exit"]
 
 
-def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp_path):
+def test_main_wires_native_resume_and_metadata_without_secret(monkeypatch, tmp_path):
     orchestrator = load_orchestrator()
     credentials = _credential_file(tmp_path)
     run_dir = tmp_path / "run"
@@ -558,7 +786,13 @@ def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp
     monkeypatch.setattr(orchestrator, "validate_isolated_session_root", lambda path: Path(path))
     monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda value: "/native/codex")
     monkeypatch.setattr(orchestrator, "is_port_listening", lambda *args: False)
-    monkeypatch.setattr(orchestrator, "collect_runtime_metadata", lambda **kwargs: {"runtime": "ok"})
+    monkeypatch.setattr(
+        orchestrator,
+        "collect_runtime_metadata",
+        lambda **kwargs: (
+            captured.setdefault("runtime", kwargs) or {"runtime": "ok"}
+        ),
+    )
     monkeypatch.setattr(orchestrator, "create_run_paths", lambda *args, **kwargs: (captured.setdefault("run", kwargs), paths)[1])
     monkeypatch.setattr(
         orchestrator,
@@ -590,10 +824,15 @@ def test_main_wires_wrapper_restart_and_metadata_without_secret(monkeypatch, tmp
     assert captured["run"]["model"] == "doubao-seed-2-1-pro-260628"
     assert captured["run"]["reasoning_effort"] == "none"
     session = captured["session"]
-    assert session["player_restart_limit"] == 8
-    assert "workflow_memory_read" in session["player_restart_prompt"]
+    assert session["player_restart_limit"] == 0
+    assert session["player_restart_prompt"] is None
+    assert session["stop_player_on_supervisor_exit"] is True
+    assert captured["runtime"]["execution"]["player_restart_limit"] == 0
+    assert captured["runtime"]["execution"]["native_resume_limit"] == 8
     assert session["player_command"][1].endswith("ai_play_codex_doubao_orchestrator.py")
     assert session["player_command"][2] == orchestrator.INTERNAL_PLAYER_FLAG
+    assert session["player_command"][session["player_command"].index("--runs") + 1] == "3"
+    assert session["player_command"][session["player_command"].index("--max-resumes") + 1] == "8"
     assert session["mcp_env"] == {"MCP": "safe"}
     assert session["supervisor_env"] == {"GODOT": "safe"}
     assert session["player_env"][orchestrator.DOUBAO_UPSTREAM_KEY_ENV] == "real-secret"
