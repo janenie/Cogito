@@ -935,7 +935,9 @@ def _final_text_stream(model):
     )
 
 
-def test_codex_proxy_routes_flat_function_call_to_mcp(tmp_path):
+def test_codex_proxy_routes_flat_function_call_to_mcp_across_native_resume(
+    tmp_path,
+):
     codex_bin = _native_codex_bin()
     if codex_bin is None:
         pytest.skip("Codex CLI is unavailable")
@@ -957,6 +959,11 @@ def test_codex_proxy_routes_flat_function_call_to_mcp(tmp_path):
     )
     _wait_port(port)
     calls = []
+    commands = []
+    player_homes = []
+    proxy_ports = []
+    resume_tool_output_started = threading.Event()
+    release_upstream = threading.Event()
 
     class Response:
         status_code = 200
@@ -976,19 +983,56 @@ def test_codex_proxy_routes_flat_function_call_to_mcp(tmp_path):
     @contextmanager
     def upstream(url, headers, content, timeout):
         calls.append(json.loads(content))
-        body = (
-            _tool_call_stream(orchestrator.DEFAULT_MODEL)
-            if len(calls) == 1
-            else _final_text_stream(orchestrator.DEFAULT_MODEL)
-        )
+        if len(calls) == 1:
+            body = _final_text_stream(orchestrator.DEFAULT_MODEL)
+        elif len(calls) == 2:
+            body = _tool_call_stream(orchestrator.DEFAULT_MODEL)
+        else:
+            resume_tool_output_started.set()
+            if not release_upstream.wait(timeout=10):
+                raise TimeoutError("test did not release fake upstream")
+            body = _final_text_stream(orchestrator.DEFAULT_MODEL)
         yield Response(body)
 
     def proxy_factory(**kwargs):
-        return proxy_module.DoubaoProxyServer(
+        proxy = proxy_module.DoubaoProxyServer(
             **kwargs,
             upstream_factory=upstream,
             event_logger=lambda event: None,
         )
+
+        class RecordingProxy:
+            def __enter__(self):
+                entered = proxy.__enter__()
+                proxy_ports.append(
+                    int(entered.base_url.split(":")[2].split("/")[0])
+                )
+                return entered
+
+            def __exit__(self, *args):
+                return proxy.__exit__(*args)
+
+        return RecordingProxy()
+
+    real_popen = subprocess.Popen
+
+    def recording_popen(command, **kwargs):
+        commands.append(command)
+        player_homes.append(Path(kwargs["env"]["CODEX_HOME"]))
+        return real_popen(command, **kwargs)
+
+    signal_thread_errors = []
+
+    def stop_after_resumed_tool_output():
+        if not resume_tool_output_started.wait(timeout=10):
+            signal_thread_errors.append("resume tool output did not start")
+            release_upstream.set()
+            return
+        os.kill(os.getpid(), signal.SIGTERM)
+        release_upstream.set()
+
+    stopper = threading.Thread(target=stop_after_resumed_tool_output, daemon=True)
+    stopper.start()
 
     try:
         result = orchestrator.run_internal_player(
@@ -999,21 +1043,38 @@ def test_codex_proxy_routes_flat_function_call_to_mcp(tmp_path):
                 "--mcp-url", f"http://127.0.0.1:{port}/mcp",
                 "--max-output-tokens", "8192",
                 "--workflow-memory", "disabled",
+                "--runs", "3",
+                "--max-resumes", "8",
             ],
-            stdin_text="Call briefing once, then finish.",
+            stdin_text="Finish this initial turn.",
             base_env={
                 "PATH": os.environ["PATH"],
                 orchestrator.DOUBAO_UPSTREAM_KEY_ENV: "fake-upstream-token",
                 orchestrator.DOUBAO_UPSTREAM_URL_ENV: "https://yibuapi.com/v1",
             },
+            popen_factory=recording_popen,
             proxy_factory=proxy_factory,
             token_factory=lambda: "local-proxy-token",
         )
     finally:
+        release_upstream.set()
+        stopper.join(timeout=10)
         mcp_process.terminate()
         mcp_process.wait(timeout=5)
 
-    assert result == 0
+    assert not signal_thread_errors
+    assert result == 128 + signal.SIGTERM
     assert marker.read_text(encoding="utf-8") == "briefing-called"
-    assert calls
-    assert [tool["type"] for tool in calls[0]["tools"]] == ["function"] * 3
+    assert len(commands) == 2
+    assert commands[0] == orchestrator.build_codex_initial_command(
+        codex_bin,
+        tmp_path,
+    )
+    assert commands[1] == orchestrator.build_codex_resume_command(codex_bin)
+    assert player_homes[0] == player_homes[1]
+    assert not player_homes[0].exists()
+    assert proxy_ports and not orchestrator.is_port_listening(
+        "127.0.0.1",
+        proxy_ports[0],
+    )
+    assert [tool["type"] for tool in calls[1]["tools"]] == ["function"] * 3
