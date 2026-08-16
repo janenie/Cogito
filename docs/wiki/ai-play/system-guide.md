@@ -245,8 +245,8 @@ fallback metadata 警告。真实运行与其他外部玩家一样，必须事�
 ### Codex + Doubao loopback compatibility proxy
 
 `tools/ai_play_codex_doubao_orchestrator.py` 复用公共 MCP sidecar、supervisor、隔离运行目录、AWM
-和恢复 turn，同时保留 Codex CLI 作为唯一 agent loop。内部 wrapper 为每个 Codex 进程启动仅绑定
-`127.0.0.1` 随机端口的 `tools/ai_play_doubao_responses_proxy.py`：Codex 把 Responses 请求发给
+和恢复 turn，同时保留 Codex CLI 作为唯一 agent loop。内部 wrapper 在整个游戏会话内只启动一个
+绑定 `127.0.0.1` 随机端口的 `tools/ai_play_doubao_responses_proxy.py`：Codex 把 Responses 请求发给
 本地代理，代理再用真实凭据访问 Yibu。代理只做协议转换，不观察游戏、不选择动作，也不直接调用
 MCP。
 
@@ -265,12 +265,17 @@ Authorization、prompt、工具参数或响应正文。
 
 默认模型是 `doubao-seed-2-1-pro-260628`，默认三局、启用 AWM、每次 provider 交互最多 8192 个
 输出 token，允许范围 1～32768。入口不提供 `--reasoning-effort`，临时配置也不写该字段，
-`session.json` 以 `"none"` 记录。Codex 提前正常退出时默认最多启动 8 个恢复 turn，每次都会
-继续产生 provider token 消耗，可用 `--codex-max-restarts` 收紧。默认凭据源为仓库中已忽略的
+`session.json` 以 `"none"` 记录。首次 Codex 命令不带 `--ephemeral`；Codex 提前正常退出且 Godot
+尚未产生正式 `game_over` 时，wrapper 在同一个临时 `CODEX_HOME`、代理和 MCP 会话中执行原生
+`codex exec resume --last`。默认最多启动 8 个 resume turn，每次都会继续产生 provider token
+消耗，可用 `--codex-max-resumes` 收紧。达到上限返回基础设施失败，不伪造游戏终局或推进下一 Run；
+Supervisor 完成所请求的正式终局后，公共 orchestrator 立即停止 Doubao wrapper，不等待玩家 final
+grace，避免终局后额外调用 provider。默认凭据源为仓库中已忽略的
 `.claude/settings.local.json`；只解析 JSON `env` 中的 `ANTHROPIC_AUTH_TOKEN`（优先）、
 `ANTHROPIC_API_KEY`（回退）和 `ANTHROPIC_BASE_URL`。base URL 必须使用 HTTPS 且路径为空或
 `/v1`。真实 token 只进入可信 wrapper 和代理；Codex 环境只收到一次性随机本地 bearer，临时
-`CODEX_HOME` 为 `0700`、配置为 `0600`，退出时删除。
+`CODEX_HOME` 为 `0700`、配置为 `0600`，本局原生 session 只存在于该目录并在 wrapper 退出时
+删除。wrapper 生命周期级信号处理覆盖 turn 间隙；停止信号到达后不得再创建 resume 子进程。
 
 临时 `CODEX_HOME` 还包含一个仅声明当前 Doubao 模型的 model catalog，显式把输入模态设为
 `text` 与 `image`。Codex 0.145 在 MCP 工具结果同时存在 `structuredContent` 和媒体内容时只把

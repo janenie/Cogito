@@ -318,13 +318,19 @@ function tools；后续 turn 还会把 Codex 历史 `input` 中的短工具名�
 Doubao 返回的扁平函数名则还原为 Codex 的 MCP namespace 调用；代理不执行游戏
 决策，也不实现另一套 agent loop。默认模型为 `doubao-seed-2-1-pro-260628`，默认三局并启用 AWM，
 不设置也不接受 reasoning effort；每次 provider 交互默认限制为 8192 个输出 token，可用
-`--max-output-tokens` 调整到 1～32768。Codex 提前正常退出时默认最多恢复 8 次；每次恢复都是
-新的 provider turn，会继续消耗 token，可用 `--codex-max-restarts` 收紧。
+`--max-output-tokens` 调整到 1～32768。Doubao 首次以非 ephemeral 的 `codex exec` 启动；Codex
+提前正常退出而 Godot 尚未产生正式 `game_over` 时，wrapper 保留同一个临时 `CODEX_HOME`、代理和
+MCP 会话，并用原生 `codex exec resume --last` 接续，而不是重建 agent loop。默认最多 resume 8
+次，每次都会继续消耗 provider token，可用 `--codex-max-resumes` 收紧。达到上限属于基础设施未
+完成，不伪造终局，也不推进下一 Run；Supervisor 完成所请求的正式终局后会立即停止 wrapper，
+避免在终局后的 grace 窗口再产生一次付费 resume。
 
 凭据默认从仓库中已忽略的 `.claude/settings.local.json` 读取。入口只解析 JSON `env` 对象，并按
 顺序使用 `ANTHROPIC_AUTH_TOKEN` 或 `ANTHROPIC_API_KEY`；`ANTHROPIC_BASE_URL` 必须是 HTTPS，且
 路径只能为空或 `/v1`。真实 Yibu token 只存在于可信 wrapper/代理环境；Codex 进程只得到随机的
-本地代理 bearer，临时 `CODEX_HOME` 只包含不含真实 token 的 `0600` 配置并在退出时删除。
+本地代理 bearer，临时 `CODEX_HOME` 只包含不含真实 token 的 `0600` 配置和本局原生 session，并
+在 wrapper 退出时整体删除。信号处理覆盖所有 Codex turn 及其间隙，收到停止信号后不会再启动
+resume。
 
 ```bash
 .venv/bin/python tools/ai_play_codex_doubao_orchestrator.py \
