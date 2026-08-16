@@ -621,6 +621,7 @@ def run_orchestrated_session(
     player_final_grace_seconds: float,
     player_restart_limit: int = 0,
     player_restart_prompt: str | None = None,
+    stop_player_on_supervisor_exit: bool = False,
     provider_proxy_command: Sequence[str] | None = None,
     provider_proxy_env: Mapping[str, str] | None = None,
     provider_proxy_cwd: Path | None = None,
@@ -728,6 +729,9 @@ def run_orchestrated_session(
             if mcp_code is not None:
                 return 4 if mcp_code == 0 else mcp_code
             if supervisor_code is not None:
+                if stop_player_on_supervisor_exit:
+                    _terminate_process(player)
+                    return supervisor_code
                 return _finish_after_supervisor(
                     supervisor_code,
                     mcp,
