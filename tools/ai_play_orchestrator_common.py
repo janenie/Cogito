@@ -429,8 +429,13 @@ def build_supervisor_env(
     return build_isolated_process_env(environment_root, base_env)
 
 
-def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
-    return [
+def build_mcp_command(
+    python_bin: str,
+    mcp_port: int,
+    *,
+    codex_media_output: bool = False,
+) -> list[str]:
+    command = [
         python_bin,
         "-m",
         "ai_play.mcp_server",
@@ -441,6 +446,9 @@ def build_mcp_command(python_bin: str, mcp_port: int) -> list[str]:
         "--http-port",
         str(mcp_port),
     ]
+    if codex_media_output:
+        command.append("--codex-media-output")
+    return command
 
 
 def build_supervisor_command(
@@ -613,6 +621,7 @@ def run_orchestrated_session(
     player_final_grace_seconds: float,
     player_restart_limit: int = 0,
     player_restart_prompt: str | None = None,
+    stop_player_on_supervisor_exit: bool = False,
     provider_proxy_command: Sequence[str] | None = None,
     provider_proxy_env: Mapping[str, str] | None = None,
     provider_proxy_cwd: Path | None = None,
@@ -720,6 +729,9 @@ def run_orchestrated_session(
             if mcp_code is not None:
                 return 4 if mcp_code == 0 else mcp_code
             if supervisor_code is not None:
+                if stop_player_on_supervisor_exit:
+                    _terminate_process(player)
+                    return supervisor_code
                 return _finish_after_supervisor(
                     supervisor_code,
                     mcp,

@@ -250,6 +250,66 @@ Codex 默认开启的 shell/unified exec，以及 apps、plugins、subagents、g
 fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹
 持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。
 
+### Codex + Doubao loopback compatibility proxy
+
+`tools/ai_play_codex_doubao_orchestrator.py` 复用公共 MCP sidecar、supervisor、隔离运行目录、AWM
+和恢复 turn，同时保留 Codex CLI 作为唯一 agent loop。内部 wrapper 在整个游戏会话内只启动一个
+绑定 `127.0.0.1` 随机端口的 `tools/ai_play_doubao_responses_proxy.py`：Codex 把 Responses 请求发给
+本地代理，代理再用真实凭据访问 Yibu。代理只做协议转换，不观察游戏、不选择动作，也不直接调用
+MCP。
+
+Codex 0.145 发送的 `reasoning.summary`、`client_metadata` 和 namespace tool 结构不被当前 Yibu
+Responses 端点接受。代理因此删除整个 `reasoning` 与 `client_metadata`，从 `include` 删除
+`reasoning.encrypted_content`，丢弃所有 Codex 内建工具，只把当前 AWM 模式白名单内的
+`cogito_ai_play` 工具展平为 `mcp__cogito_ai_play__<tool>` 普通函数，并强制关闭 parallel tool
+calls。后续 turn 会把 Codex 历史 `input` 中的短工具名和 `namespace` 重新展平，为已完成的
+assistant message 和函数调用补入 Yibu 要求的 `status`，并拒绝非白名单
+历史调用。响应侧逐 SSE frame 验证所有 function call，将扁平名还原为短工具名与 MCP namespace 后
+再交给 Codex 路由。未知工具、重复别名、非法 JSON、破损或无终局 SSE 都失败关闭；代理不重试
+上游请求。Yibu 的最终 terminal frame 可以省略 SSE 空行分隔；合法终局后也可以消费追加的
+keepalive 或 `[DONE]`，但其他终局后 JSON 事件仍失败关闭。Yibu 非 2xx 状态和最多 64 KiB 的
+错误正文有界转发，日志只记录安全元数据，不记录
+Authorization、prompt、工具参数或响应正文。
+
+默认模型是 `doubao-seed-2-1-pro-260628`，默认三局、启用 AWM、每次 provider 交互最多 8192 个
+输出 token，允许范围 1～32768。入口不提供 `--reasoning-effort`，临时配置也不写该字段，
+`session.json` 以 `"none"` 记录。首次 Codex 命令不带 `--ephemeral`；Codex 提前正常退出且 Godot
+尚未产生正式 `game_over` 时，wrapper 在同一个临时 `CODEX_HOME`、代理和 MCP 会话中执行原生
+`codex exec resume --last`。默认最多启动 8 个 resume turn，每次都会继续产生 provider token
+消耗，可用 `--codex-max-resumes` 收紧。达到上限返回基础设施失败，不伪造游戏终局或推进下一 Run；
+Supervisor 完成所请求的正式终局后，公共 orchestrator 立即停止 Doubao wrapper，不等待玩家 final
+grace，避免终局后额外调用 provider。
+每个 resume 边界还必须等待短暂的取消交接窗口，并同时检查 Supervisor 信号、代理线程状态和
+输出 relay 状态；任一失败都在创建下一个 Codex 子进程前收束。默认凭据源为仓库中已忽略的
+`.claude/settings.local.json`；只解析 JSON `env` 中的 `ANTHROPIC_AUTH_TOKEN`（优先）、
+`ANTHROPIC_API_KEY`（回退）和 `ANTHROPIC_BASE_URL`。base URL 必须使用 HTTPS 且路径为空或
+`/v1`。真实 token 只进入可信 wrapper 和代理；Codex 环境只收到一次性随机本地 bearer，临时
+`CODEX_HOME` 为 `0700`、配置为 `0600`，本局原生 session 只存在于该目录并在 wrapper 退出时
+删除。wrapper 生命周期级信号处理覆盖 turn 间隙；停止信号到达后不得再创建 resume 子进程。
+
+临时 `CODEX_HOME` 还包含一个仅声明当前 Doubao 模型的 model catalog，显式把输入模态设为
+`text` 与 `image`。Codex 0.145 在 MCP 工具结果同时存在 `structuredContent` 和媒体内容时只把
+结构化结果送入模型，因此 Doubao orchestrator 单独为可信边车启用内部
+`--codex-media-output`：边车仍先执行相同的公开投影，但把获准 JSON 作为紧邻
+`ImageContent` 的 `TextContent` 返回并省略重复的 `structuredContent`，使 Codex 能生成
+Responses `input_image`。该模式不扩展公开字段，不把 Base64 写入轨迹，也不影响默认 stdio MCP、
+标准 Codex、Gemini、Claude 或 Kimi 入口。
+
+```bash
+.venv/bin/python tools/ai_play_codex_doubao_orchestrator.py \
+  --runs 3 \
+  --scenario garden_watering \
+  --workflow-memory enabled \
+  --model doubao-seed-2-1-pro-260628 \
+  --credentials .claude/settings.local.json \
+  --session-root /Users/aidy/workspace/ai_play_doubao_logs
+```
+
+未知模型 metadata 的 fallback 警告本身不是 provider 失败。实际错误应按本地请求拒绝、Yibu
+HTTP 状态、连接/超时、SSE 协议、Codex 生命周期和 Godot 玩法终局分别诊断。真实验收仍需要
+事先确认截图、token、费用和本地轨迹持久化影响；自动化测试不得读取真实 settings 或发起外部
+模型请求。
+
 ### Claude Code orchestrator
 
 > 状态：已于 2026-08-04 实施；设计来源见
@@ -811,4 +871,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_codex_doubao_orchestrator.py`](../../../tools/ai_play_codex_doubao_orchestrator.py)、[`tools/ai_play_doubao_responses_proxy.py`](../../../tools/ai_play_doubao_responses_proxy.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
