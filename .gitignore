@@ -28,6 +28,7 @@ __pycache__/
 api_key.py
 new_ak.py
 opus.py
+gemini_ak.py
 ai_play/.env
 ai_play/runtime/
 ai_play/**/*.log
