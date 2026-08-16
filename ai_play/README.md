@@ -537,6 +537,8 @@ MAIN LOBBY—BREAK ROOM—SOFA，绿衣 M. Chen 从 CEO OFFICE 门外经过楼�
 读取任务卡上的目标后通过往返观察推断映射；只有一次断路器选择机会，选错会产生
 `failure/wrong_breaker`。复位后须把四组灯配置到目标状态并按 Verify；正确时产生
 `success/circuit_repaired`，否则产生 `failure/incorrect_circuit_configuration`。
+该玩法启用时只为面板开关和按钮附加有限的场景局部交互命中区，退出后立即移除；任务卡位于
+面板左侧，不遮挡 A～D 的观察和探测路径。
 映射、故障线路和回合种子只存在于可信 Godot 运行时，不进入 briefing、MCP 结果或玩家提示。
 
 `arrange_meeting_briefings` 每局随机生成李明、王芳、陈宇、赵宁到会议桌电视侧、
@@ -615,10 +617,13 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
   扫视房间，5～15 度适合微调准星。Godot 映射会抵消玩家的垂直轴反转设置。
 - `move` / `sprint`：`forward`、`right` 在 -1～1，`duration_ms` 在 50～250。
   `forward` 与 `right` 组成的输入向量长度会保留为实际移动力度（上限为 1）；单轴绝对值 1
-  是满强度，0.2～0.4 适合精细对位。`duration_ms` 是按住移动键的毫秒数；250ms 满强度 `move`
-  约等于连续走四分之一秒，满强度 `sprint` 约等于连续跑四分之一秒。接近普通目标时优先用
-  100～150ms；穿过狭窄门口或贴近门框时优先用单轴 0.2～0.4、50～100ms，并在每步后
-  使用 `act` 返回的新观察和 `movement_feedback` 修正，不要连续使用满强度 250ms。
+  是满强度，0.2～0.4 只用于确认需要的近距精细对位，不能作为普通导航默认力度。`duration_ms`
+  是按住移动键的毫秒数；250ms 满强度 `move` 约等于连续走四分之一秒，满强度 `sprint` 约等于
+  连续跑四分之一秒。开阔路线优先使用满强度 150～250ms，远距离直线可用 `sprint`；只有进入
+  近距门框、狭窄通道、平台边缘或精细对位阶段，或 `movement_feedback.blocked` 为 true 时，
+  才缩小到单轴 0.2～0.6、50～100ms。连续两次同方向移动未受阻且路线仍清楚时，下一次应增大
+  力度、持续时间或在同一批提交最多三个同方向移动；楼梯对齐且玩家高度持续变化时，应保持
+  满强度 150～250ms 上下楼，而不是逐阶微调。
   `movement_feedback` 只包含公开位置可推导出的平面位移、实际移动距离和受阻标记。
   Godot 执行器会补偿项目 Input Map 的移动死区，
   各场景玩家移动层会保留补偿后的向量长度，确保 MCP 幅值不会被死区或归一化吞掉；移动受阻
@@ -639,7 +644,9 @@ stdio Server，把 MCP 工具转换成 Responses API function tools，并转发�
 - `probe_interaction` 只能使用 probe 专用 schema 分支，例如
   `{"type":"probe_interaction","target_x":0.5,"target_y":0.6}`；`actions` 长度必须恰好为 1，目标坐标
   各在 0～1，且界面必须关闭。运行时若仍收到混合批次，会返回包含正确提交方式的稳定错误，
-  不会向 Godot 产生输入。
+  不会向 Godot 产生输入。每个扫描朝向会在物理更新后进行有界的跨帧确认；成功时动作结果的
+  `available_interactions` 直接返回当前 HUD 已公开的 `action`、`binding` 和 `prompt`，并与
+  随后的 observation 保持一致。失败结果不携带该字段，也不会公开对象 ID、坐标或隐藏状态。
 - `conveyor_profit` 只允许 `select_ingredient`、`make` 和 `wait_next_window`：选材按
   固定英文食材 ID 请求当前画面中的同名盘；`wait_next_window` 必须单独提交，且只能推进一个
   已经锁定的窗口。托盘最多容纳五项；食材一旦选入就不可取回，第 6 次选材返回 `tray_full`

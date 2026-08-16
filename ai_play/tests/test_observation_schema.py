@@ -134,13 +134,27 @@ def test_fixed_camera_conveyor_rejects_depth_image():
         validate_observation(observation, "conveyor_profit")
 
 
-@pytest.mark.parametrize("outcome", ["aligned", "not_found"])
-def test_probe_result_accepts_completed_outcome(outcome):
+def test_probe_result_accepts_aligned_with_public_interactions():
     results = [{
         "status": "completed",
         "type": "probe_interaction",
-        "outcome": outcome,
+        "outcome": "aligned",
         "scan_steps": 3,
+        "available_interactions": [{
+            "action": "interact",
+            "binding": "E",
+            "prompt": "Switch circuit C on",
+        }],
+    }]
+    assert validate_action_results(results) == results
+
+
+def test_probe_result_accepts_not_found_without_interactions():
+    results = [{
+        "status": "completed",
+        "type": "probe_interaction",
+        "outcome": "not_found",
+        "scan_steps": 9,
     }]
     assert validate_action_results(results) == results
 
@@ -170,7 +184,53 @@ def test_probe_result_rejects_invalid_fields(patch):
         "type": "probe_interaction",
         "outcome": "aligned",
         "scan_steps": 1,
+        "available_interactions": [{
+            "action": "interact",
+            "binding": "E",
+            "prompt": "Switch circuit A on",
+        }],
         **patch,
+    }
+    with pytest.raises(ObservationValidationError):
+        validate_action_results([result])
+
+
+@pytest.mark.parametrize(
+    "interactions",
+    [
+        [],
+        [{"action": "interact", "binding": "", "prompt": "Use"}],
+        [{"action": "use", "binding": "E", "prompt": "Use"}],
+        [{"action": "interact", "binding": "E", "prompt": "Use", "id": "A"}],
+        [
+            {"action": "interact", "binding": "E", "prompt": "Use"},
+            {"action": "interact", "binding": "E", "prompt": "Use again"},
+        ],
+    ],
+)
+def test_probe_result_rejects_non_public_interactions(interactions):
+    result = {
+        "status": "completed",
+        "type": "probe_interaction",
+        "outcome": "aligned",
+        "scan_steps": 1,
+        "available_interactions": interactions,
+    }
+    with pytest.raises(ObservationValidationError):
+        validate_action_results([result])
+
+
+def test_probe_result_rejects_interactions_for_not_found():
+    result = {
+        "status": "completed",
+        "type": "probe_interaction",
+        "outcome": "not_found",
+        "scan_steps": 9,
+        "available_interactions": [{
+            "action": "interact",
+            "binding": "E",
+            "prompt": "Use",
+        }],
     }
     with pytest.raises(ObservationValidationError):
         validate_action_results([result])

@@ -651,7 +651,7 @@ def test_player_prompt_prioritizes_nearby_task_card_before_leaving_spawn(
 
 
 @pytest.mark.parametrize("workflow_memory_enabled", [False, True])
-def test_player_prompt_teaches_precise_doorway_movement(workflow_memory_enabled):
+def test_player_prompt_scales_movement_to_navigation_risk(workflow_memory_enabled):
     orchestrator = load_orchestrator()
 
     prompt = orchestrator.build_player_prompt(
@@ -659,10 +659,16 @@ def test_player_prompt_teaches_precise_doorway_movement(workflow_memory_enabled)
         workflow_memory_enabled=workflow_memory_enabled,
     )
 
-    assert "穿过狭窄门口或贴近门框" in prompt
-    assert "单轴 0.2 到 0.4" in prompt
+    assert "开阔、方向明确的路线" in prompt
+    assert "满强度 move 150 到 250ms" in prompt
+    assert "单轴 0.2 到 0.6" in prompt
     assert "50 到 100ms" in prompt
-    assert "不要连续使用满强度 250ms" in prompt
+    assert "连续两次同方向移动都未受阻" in prompt
+    assert "不要继续用相同或更小步幅逐帧确认" in prompt
+    assert "楼梯对齐且公开玩家高度持续变化" in prompt
+    assert "先转向 15 到 30 度重新对齐" in prompt
+    assert "再选择与路线风险相称的移动或转身" in prompt
+    assert "再小步移动或转身" not in prompt
 
 
 def test_player_prompt_requires_awm_lifecycle(tmp_path):

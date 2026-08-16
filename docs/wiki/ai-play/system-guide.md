@@ -56,8 +56,11 @@ Godot 桥的安全边界。
   让黑盒玩家知道何时用扫视、微调和小步移动；`forward`/`right` 输入向量的长度必须保留为
   实际移动力度（上限为 1）。Godot 执行器必须补偿 Input Map 的移动死区，各场景玩家移动层
   不能再把补偿后的向量归一化掉，受阻位移阈值还必须随请求力度缩放，避免精细小步被误报为
-  `blocked`。`move`/`sprint` 单次最大 250ms；狭窄门口精调应优先使用单轴 0.2～0.4、
-  50～100ms，并在每步后使用 `act` 自带的新观察和 `movement_feedback` 修正站位。
+  `blocked`。`move`/`sprint` 单次最大 250ms；开阔路线应优先使用满强度 150～250ms，远距离
+  直线可使用 `sprint`。单轴 0.2～0.6、50～100ms 仅用于已经确认的近距门框、狭窄通道、
+  平台边缘或精细对位阶段，以及受阻后的修正，不能泛化为普通导航默认值。连续两次同方向移动
+  未受阻且路线仍清楚时应增大下一步或批量同方向移动；楼梯对齐且公开玩家高度持续变化时，
+  应保持满强度 150～250ms 上下楼，避免逐阶微调耗尽请求预算。
 - 公开 briefing 必须说明 `interact` 和 `interact2` 是动态交互槽而非固定含义的操作：模型必须
   从当前 `available_interactions.action` 选择槽，以 `prompt` 判断实际含义，并且不得把仅供人类
   参考的 `binding` 写入动作对象。briefing 还必须明确区分动作类型和交互槽：合法交互对象只允许
@@ -66,6 +69,9 @@ Godot 桥的安全边界。
   `{"type":"probe_interaction","target_x":0..1,"target_y":0..1}`。briefing 还必须列出缺少
   `type`/`action`、把 `interact2` 写成 `type`、使用 `target`，以及把探测坐标放进
   `interact` 等常见错误，并说明这些格式会被拒绝且不产生游戏输入。
+- `probe_interaction` 每个扫描朝向必须等待物理更新，并在节点处理后进行有界跨帧确认。成功结果
+  必须只在 `available_interactions` 中回传当前 HUD 已公开的 `action`、`binding`、`prompt`，
+  并和随后观察保持一致；`not_found` 不得携带该字段。不得加入对象 ID、节点路径、坐标或隐藏状态。
 - 所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局只允许
   `success/correct_password`、`failure/wrong_password` 和 `failure/max_requests`；
   `find_key` 只允许 `success/key_picked_up`、`failure/security_lockout` 和
@@ -710,6 +716,8 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
 
 - 玩家从入口控制面板和任务卡附近开始；面板包含 A～D 四个未知控制开关、入口、CEO、
   大厅和休息室四个断路器按钮，以及 Verify 按钮。
+- 任务启用时为上述九个面板控件附加 `0.32 × 0.08 × 0.32m` 的场景局部命中区，玩法退出时
+  移除，不修改通用开关和按钮预制体；任务卡放在面板左侧并保持可重复阅读，不遮挡控件视线。
 - 四组受控设备分别是入口落地灯、CEO 办公室落地灯、大厅六盏顶灯和休息室落地灯。
   任务启用时禁用灯自身的直接交互，未选择该任务时普通 Lobby 和既有灯光行为保持不变。
 - 每局用确定性非零回合种子生成 A～D 到四组灯的一对一随机映射、一条跳闸线路以及随机

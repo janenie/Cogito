@@ -13,6 +13,7 @@ const SCAN_OFFSETS_DEGREES: Array[Vector2] = [
 	Vector2(4.0, -4.0),
 	Vector2(-4.0, -4.0),
 ]
+const INTERACTION_SETTLE_CHECKS: int = 3
 
 var player: Node
 var interaction_provider: Callable
@@ -39,23 +40,67 @@ func probe(target_x: float, target_y: float) -> Dictionary:
 		var scan_rotation := target_rotation + SCAN_OFFSETS_DEGREES[scan_index]
 		_emit_mouse_rotation(scan_rotation - previous_rotation)
 		previous_rotation = scan_rotation
-		await get_tree().process_frame
-		if generation != _generation:
-			return {"status": "cancelled", "reason": _cancel_reason}
-		var interactions: Variant = interaction_provider.call() if interaction_provider.is_valid() else []
-		if interactions is Array and not interactions.is_empty():
-			return {
-				"status": "completed",
-				"type": "probe_interaction",
-				"outcome": "aligned",
-				"scan_steps": scan_index + 1,
-			}
+		for _settle_check: int in INTERACTION_SETTLE_CHECKS:
+			await _wait_for_interaction_update()
+			if generation != _generation:
+				return {"status": "cancelled", "reason": _cancel_reason}
+			var interactions: Variant = (
+				interaction_provider.call() if interaction_provider.is_valid() else []
+			)
+			var public_interactions := _public_interactions(interactions)
+			if not public_interactions.is_empty():
+				return {
+					"status": "completed",
+					"type": "probe_interaction",
+					"outcome": "aligned",
+					"scan_steps": scan_index + 1,
+					"available_interactions": public_interactions,
+				}
 	return {
 		"status": "completed",
 		"type": "probe_interaction",
 		"outcome": "not_found",
 		"scan_steps": SCAN_OFFSETS_DEGREES.size(),
 	}
+
+
+func _wait_for_interaction_update() -> void:
+	await get_tree().physics_frame
+	await get_tree().create_timer(0.0).timeout
+
+
+func _public_interactions(value: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var seen_actions: Array[String] = []
+	if not value is Array:
+		return result
+	for candidate: Variant in value:
+		if not candidate is Dictionary:
+			continue
+		var interaction := candidate as Dictionary
+		var action: Variant = interaction.get("action")
+		var binding: Variant = interaction.get("binding")
+		var prompt: Variant = interaction.get("prompt")
+		if (
+			not action is String
+			or action not in ["interact", "interact2"]
+			or action in seen_actions
+			or not binding is String
+			or binding.is_empty()
+			or binding.length() > 32
+			or not prompt is String
+			or prompt.length() > 200
+		):
+			continue
+		seen_actions.append(action)
+		result.append({
+			"action": action,
+			"binding": binding,
+			"prompt": prompt,
+		})
+		if result.size() == 2:
+			break
+	return result
 
 
 func cancel(reason: String) -> void:

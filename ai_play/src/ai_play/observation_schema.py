@@ -121,6 +121,38 @@ def _text(value, label, maximum, allow_empty=True):
     return value
 
 
+def _validate_probe_interactions(value):
+    if not isinstance(value, list) or not 1 <= len(value) <= 2:
+        raise ObservationValidationError("probe available_interactions is invalid")
+    safe_interactions = []
+    seen_actions = set()
+    for interaction in value:
+        _exact(
+            interaction,
+            {"action", "binding", "prompt"},
+            "probe interaction",
+        )
+        action = interaction["action"]
+        if action not in {"interact", "interact2"} or action in seen_actions:
+            raise ObservationValidationError("probe interaction action is invalid")
+        seen_actions.add(action)
+        safe_interactions.append({
+            "action": action,
+            "binding": _text(
+                interaction["binding"],
+                "probe interaction binding",
+                32,
+                allow_empty=False,
+            ),
+            "prompt": _text(
+                interaction["prompt"],
+                "probe interaction prompt",
+                200,
+            ),
+        })
+    return safe_interactions
+
+
 def _vector(value, length, label, lower, upper):
     if not isinstance(value, list) or len(value) != length:
         raise ObservationValidationError(f"{label} has invalid dimensions")
@@ -239,7 +271,7 @@ def validate_action_results(results):
         if not isinstance(result, dict) or not set(result).issubset(
             {
                 "status", "type", "error", "reason", "outcome", "scan_steps",
-                "ingredient", "recipe_id",
+                "ingredient", "recipe_id", "available_interactions",
             }
         ) or "status" not in result:
             raise ObservationValidationError("action result has invalid fields")
@@ -282,18 +314,27 @@ def validate_action_results(results):
             safe_results.append(safe_result)
             continue
         if status == "completed" and result.get("type") == "probe_interaction":
-            if result_fields != {"status", "type", "outcome", "scan_steps"}:
-                raise ObservationValidationError("probe result fields are invalid")
-            if result["outcome"] not in {"aligned", "not_found"}:
+            outcome = result.get("outcome")
+            if outcome not in {"aligned", "not_found"}:
                 raise ObservationValidationError("probe outcome is invalid")
+            expected_fields = {"status", "type", "outcome", "scan_steps"}
+            if outcome == "aligned":
+                expected_fields.add("available_interactions")
+            if result_fields != expected_fields:
+                raise ObservationValidationError("probe result fields are invalid")
             if type(result["scan_steps"]) is not int or not 0 <= result["scan_steps"] <= 9:
                 raise ObservationValidationError("probe scan_steps is invalid")
-            safe_results.append({
+            safe_result = {
                 "status": status,
                 "type": "probe_interaction",
-                "outcome": result["outcome"],
+                "outcome": outcome,
                 "scan_steps": result["scan_steps"],
-            })
+            }
+            if outcome == "aligned":
+                safe_result["available_interactions"] = (
+                    _validate_probe_interactions(result["available_interactions"])
+                )
+            safe_results.append(safe_result)
             continue
         if (
             (status == "completed" and result_fields != {"status", "type"})

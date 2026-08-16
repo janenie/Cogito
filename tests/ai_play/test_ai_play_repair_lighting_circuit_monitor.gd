@@ -97,24 +97,57 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		> monitor.control_switch_a.global_position.z,
 		"task card stays on the same indoor side as the player",
 	)
-	var camera: Camera3D = monitor.player.get_node("Body/Neck/Head/Eyes/Camera")
-	var sight_direction: Vector3 = (
-		monitor.control_switch_a.global_position - camera.global_position
-	).normalized()
-	var sight_query := PhysicsRayQueryParameters3D.create(
-		camera.global_position,
-		monitor.control_switch_a.global_position + sight_direction * 0.25,
-		3,
-		[monitor.player.get_rid()],
-	)
-	var sight_hit: Dictionary = camera.get_world_3d().direct_space_state.intersect_ray(
-		sight_query
-	)
+	var panel_interactables: Array[Node] = [
+		monitor.control_switch_a,
+		monitor.control_switch_b,
+		monitor.control_switch_c,
+		monitor.control_switch_d,
+	]
+	panel_interactables.append_array(_panel_buttons(monitor))
+	var leftmost_panel_x: float = INF
+	for panel_object: Node3D in panel_interactables:
+		leftmost_panel_x = minf(leftmost_panel_x, panel_object.global_position.x)
+		var interaction_hitbox := panel_object.get_node_or_null(
+			"AIPlayInteractionHitbox"
+		) as CollisionShape3D
+		_assert(
+			interaction_hitbox != null,
+			"%s receives a scenario-local interaction hitbox" % panel_object.name,
+		)
+		if interaction_hitbox != null:
+			var hitbox_shape := interaction_hitbox.shape as BoxShape3D
+			_assert(
+				hitbox_shape != null and hitbox_shape.size == Vector3(0.32, 0.08, 0.32),
+				"%s interaction hitbox has the bounded panel size" % panel_object.name,
+			)
 	_assert(
-		sight_hit.get("collider") == monitor.control_switch_a,
-		"no wall blocks the initial view of the control panel: hit=%s"
-		% sight_hit.get("collider"),
+		monitor.task_card.get_parent_node_3d().global_position.x < leftmost_panel_x - 0.5,
+		"task card is positioned clear of the panel interaction fan",
 	)
+	var camera: Camera3D = monitor.player.get_node("Body/Neck/Head/Eyes/Camera")
+	for control: Node3D in [
+		monitor.control_switch_a,
+		monitor.control_switch_b,
+		monitor.control_switch_c,
+		monitor.control_switch_d,
+	]:
+		var sight_direction: Vector3 = (
+			control.global_position - camera.global_position
+		).normalized()
+		var sight_query := PhysicsRayQueryParameters3D.create(
+			camera.global_position,
+			control.global_position + sight_direction * 0.25,
+			3,
+			[monitor.player.get_rid()],
+		)
+		var sight_hit: Dictionary = camera.get_world_3d().direct_space_state.intersect_ray(
+			sight_query
+		)
+		_assert(
+			sight_hit.get("collider") == control,
+			"no wall or task card blocks the initial view of %s: hit=%s"
+			% [control.name, sight_hit.get("collider")],
+		)
 	for label_name: String in [
 		"TitleLabel",
 		"SwitchLabelA",
@@ -172,6 +205,7 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		monitor.verify_button.usable_interaction_text == "Verify lighting configuration",
 		"Verify publishes a semantic prompt",
 	)
+	await _assert_controls_are_probe_discoverable(lobby, monitor)
 	_assert(
 		monitor.task_card.readable_content.contains("入口落地灯"),
 		"task card lists entrance target",
@@ -309,6 +343,11 @@ func _test_selected(lobby: Node, monitor: Node, setup: Node) -> void:
 		_assert(control.collision_layer == 0, "exit disables %s collision" % control.name)
 	for button: Node in _panel_buttons(monitor):
 		_assert(button.collision_layer == 0, "exit disables %s collision" % button.name)
+	for panel_object: Node in panel_interactables:
+		_assert(
+			panel_object.get_node_or_null("AIPlayInteractionHitbox") == null,
+			"exit removes %s scenario-local interaction hitbox" % panel_object.name,
+		)
 	for object: Node in monitor._original_panel_collision_layers:
 		_assert(
 			object.collision_layer == monitor._original_panel_collision_layers[object],
@@ -355,6 +394,16 @@ func _test_isolation(lobby: Node, monitor: Node, setup: Node) -> void:
 			button.get_node("BasicInteraction").is_disabled,
 			"%s interaction stays disabled" % button.name,
 		)
+	for panel_object: Node in [
+		monitor.control_switch_a,
+		monitor.control_switch_b,
+		monitor.control_switch_c,
+		monitor.control_switch_d,
+	] + _panel_buttons(monitor):
+		_assert(
+			panel_object.get_node_or_null("AIPlayInteractionHitbox") == null,
+			"unselected scenario does not add a hitbox to %s" % panel_object.name,
+		)
 
 
 func _assert_task_readable_without_scroll(readable: Node) -> void:
@@ -391,6 +440,73 @@ func _assert_task_readable_without_scroll(readable: Node) -> void:
 			scroll.size,
 		],
 	)
+
+
+func _assert_controls_are_probe_discoverable(lobby: Node, monitor: Node) -> void:
+	var player := monitor.player as Node3D
+	var body := player.get_node("Body") as Node3D
+	var neck := player.get_node("Body/Neck") as Node3D
+	var head := player.get_node("Body/Neck/Head") as Node3D
+	var eyes := player.get_node("Body/Neck/Head/Eyes") as Node3D
+	var camera := player.get_node("Body/Neck/Head/Eyes/Camera") as Camera3D
+	body.rotation = Vector3.ZERO
+	neck.rotation = Vector3.ZERO
+	head.rotation = Vector3.ZERO
+	eyes.rotation = Vector3.ZERO
+	camera.rotation = Vector3.ZERO
+	player.global_position = Vector3(6.31, monitor.panel_spawn.global_position.y, -14.45)
+	var panel_center := Vector3(6.31, 1.1, -15.8447)
+	var flat_direction := panel_center - player.global_position
+	flat_direction.y = 0.0
+	var player_transform := player.global_transform
+	player_transform.basis = Basis.looking_at(flat_direction.normalized(), Vector3.UP)
+	player.global_transform = player_transform
+	var camera_direction := panel_center - camera.global_position
+	head.rotation.x = atan2(
+		camera_direction.y,
+		Vector2(camera_direction.x, camera_direction.z).length(),
+	)
+	await physics_frame
+	await create_timer(0.0).timeout
+
+	var probe: Node = lobby.get_node("AIPlayController/InteractionProbe")
+	var viewport_size: Vector2 = camera.get_viewport().get_visible_rect().size
+	for control_id: String in ["A", "B", "C", "D"]:
+		var control := monitor._control_switches()[control_id] as Node3D
+		_assert(
+			not camera.is_position_behind(control.global_position),
+			"%s is in front of the panel test camera" % control.name,
+		)
+		var screen_position: Vector2 = camera.unproject_position(control.global_position)
+		var result: Dictionary = await probe.probe(
+			screen_position.x / viewport_size.x,
+			screen_position.y / viewport_size.y,
+		)
+		var interactions: Variant = result.get("available_interactions", [])
+		_assert(
+			result.get("outcome") == "aligned"
+			and interactions is Array
+			and not interactions.is_empty(),
+			"probe discovers %s from the marked panel operating area: %s"
+			% [control.name, result],
+		)
+		if interactions is Array and not interactions.is_empty():
+			_assert(
+				String(interactions[0].get("prompt", "")).begins_with(
+					"Switch circuit %s " % control_id
+				),
+				"probe returns %s's public semantic prompt: %s"
+				% [control_id, interactions],
+			)
+			await physics_frame
+			await create_timer(0.0).timeout
+			var current_interactions: Array = lobby.get_node(
+				"AIPlayController/Observer"
+			).get_available_interactions()
+			_assert(
+				current_interactions == interactions,
+				"%s prompt remains stable for the following observation" % control_id,
+			)
 
 
 func _first_non_fault_circuit(fault_circuit: String) -> String:

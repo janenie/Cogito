@@ -1498,12 +1498,19 @@ func _test_probe_recaptures_immediately(controller_script: GDScript) -> void:
 				"target_y": 0.5,
 			}],
 		})
-		fixture.executor.batch_finished.emit([{
+		var probe_result := {
 			"status": "completed",
 			"type": "probe_interaction",
 			"outcome": outcome,
 			"scan_steps": 2 if outcome == "aligned" else 9,
-		}])
+		}
+		if outcome == "aligned":
+			probe_result["available_interactions"] = [{
+				"action": "interact",
+				"binding": "E",
+				"prompt": "Use",
+			}]
+		fixture.executor.batch_finished.emit([probe_result])
 		_assert(fixture.timer.is_stopped(), "%s probe does not start interval timer" % outcome)
 		_assert(
 			fixture.observer.capture_count == initial_capture_count,

@@ -62,7 +62,11 @@ class InteractionProvider:
 	func get_interactions() -> Array:
 		calls += 1
 		if calls == reveal_on_call:
-			return [{"action": "interact"}]
+			return [{
+				"action": "interact",
+				"binding": "E",
+				"prompt": "Switch circuit C on",
+			}]
 		return interactions
 
 
@@ -123,9 +127,17 @@ func _run_tests() -> void:
 		"status": "completed",
 		"type": "probe_interaction",
 		"outcome": "aligned",
-		"scan_steps": 3,
-	}, "probe stops after the third visible interaction check")
-	_assert(aligned_provider.calls == 3, "probe checks interactions once per aligned scan step")
+		"scan_steps": 1,
+		"available_interactions": [{
+			"action": "interact",
+			"binding": "E",
+			"prompt": "Switch circuit C on",
+		}],
+	}, "probe returns the public prompt after the target settles")
+	_assert(
+		aligned_provider.calls == probe.INTERACTION_SETTLE_CHECKS,
+		"probe polls a stable orientation for bounded post-physics frames",
+	)
 	_assert(_contains_no_interaction_actions(event_sink.events), "probe never emits interaction actions")
 	_assert(
 		_all_mouse_events_use_device(event_sink.events, probe.SYNTHETIC_DEVICE_ID),
@@ -148,7 +160,11 @@ func _run_tests() -> void:
 		},
 		"probe reports not found after all nine scan steps",
 	)
-	_assert(missing_provider.calls == 9, "probe checks interactions exactly once per bounded scan step")
+	_assert(
+		missing_provider.calls
+		== probe.SCAN_OFFSETS_DEGREES.size() * probe.INTERACTION_SETTLE_CHECKS,
+		"probe performs only bounded settle checks for each scan step",
+	)
 	var missing_mouse_events: Array[InputEventMouseMotion] = _mouse_events(event_sink.events)
 	_assert(
 		missing_mouse_events.size() == probe.SCAN_OFFSETS_DEGREES.size() + 1,

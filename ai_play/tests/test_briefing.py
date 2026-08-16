@@ -423,6 +423,10 @@ def test_shared_control_rules_explain_interaction_shapes_and_common_errors():
     ]:
         assert invalid_shape in serialized_rules
 
+    assert "动作结果会通过 available_interactions 返回" in serialized_rules
+    for public_field in ["action、binding 和 prompt", "随后 observation"]:
+        assert public_field in serialized_rules
+
     assert "缺少 action" in serialized_rules
     assert "缺少 type" in serialized_rules
     assert "不是固定含义" in serialized_rules
@@ -477,8 +481,12 @@ def test_all_scenario_briefings_explain_action_parameter_scale():
         assert "满强度 sprint 约等于连续跑四分之一秒" in serialized_rules
         assert "输入向量长度会控制实际移动力度" in serialized_rules
         assert "单轴 0.2 到 0.4" in serialized_rules
+        assert "不能作为普通导航的默认力度" in serialized_rules
+        assert "开阔路线优先使用满强度 150 到 250ms" in serialized_rules
+        assert "连续两次同方向移动都未受阻" in serialized_rules
+        assert "不要继续用相同或更小的步幅逐帧确认" in serialized_rules
+        assert "楼梯对齐且玩家高度持续变化" in serialized_rules
         assert "50 到 100ms" in serialized_rules
-        assert "不要在门口连续使用满强度 250ms" in serialized_rules
         assert "连续多次 look" not in serialized_rules
         assert "360 度环顾" not in serialized_rules
 

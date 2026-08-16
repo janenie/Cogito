@@ -16,6 +16,8 @@ const BREAKER_PROMPT_LABELS := {
 	"lobby": "Lobby ceiling lighting",
 	"break_room": "Break room lighting",
 }
+const PANEL_INTERACTION_HITBOX_NAME := "AIPlayInteractionHitbox"
+const PANEL_INTERACTION_HITBOX_SIZE := Vector3(0.32, 0.08, 0.32)
 
 @export var scenario_id: String = "repair_lighting_circuit"
 @export var setup: Node3D
@@ -53,6 +55,7 @@ var _original_control_states: Dictionary = {}
 var _original_panel_collision_layers: Dictionary = {}
 var _original_panel_interaction_states: Dictionary = {}
 var _original_break_room_collision_layer: int = 0
+var _panel_interaction_hitboxes: Array[CollisionShape3D] = []
 
 
 func _ready() -> void:
@@ -76,6 +79,7 @@ func _activate_task() -> void:
 	setup.process_mode = Node.PROCESS_MODE_INHERIT
 	_original_a_targets = control_switch_a.objects_call_interact.duplicate()
 	control_switch_a.objects_call_interact.clear()
+	_add_panel_interaction_hitboxes()
 	_set_panel_interactions_enabled(true)
 	for lamp: CogitoSwitch in _controlled_lamps():
 		_set_basic_interaction_disabled(lamp, true)
@@ -251,6 +255,34 @@ func _restore_panel_state() -> void:
 				object,
 				_original_panel_interaction_states[object],
 			)
+	_remove_panel_interaction_hitboxes()
+
+
+func _add_panel_interaction_hitboxes() -> void:
+	_remove_panel_interaction_hitboxes()
+	for object: Node3D in _panel_objects():
+		var source := object.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if source == null:
+			continue
+		var hitbox := CollisionShape3D.new()
+		hitbox.name = PANEL_INTERACTION_HITBOX_NAME
+		hitbox.transform = source.transform
+		var shape := BoxShape3D.new()
+		shape.size = PANEL_INTERACTION_HITBOX_SIZE
+		hitbox.shape = shape
+		object.add_child(hitbox)
+		_panel_interaction_hitboxes.append(hitbox)
+
+
+func _remove_panel_interaction_hitboxes() -> void:
+	for hitbox: CollisionShape3D in _panel_interaction_hitboxes:
+		if not is_instance_valid(hitbox):
+			continue
+		var parent := hitbox.get_parent()
+		if parent != null:
+			parent.remove_child(hitbox)
+		hitbox.queue_free()
+	_panel_interaction_hitboxes.clear()
 
 
 func _place_player_and_task_card() -> void:
