@@ -44,6 +44,27 @@ def test_rewrite_adds_namespace_to_allowed_plain_function_call():
     assert rewritten["item"]["namespace"] == "mcp__cogito_ai_play"
 
 
+def test_rewrite_normalizes_provider_colon_qualified_mcp_tool_call():
+    proxy = load_proxy()
+    event = {
+        "type": "response.output_item.done",
+        "item": {
+            "type": "function_call",
+            "name": "cogito_ai_play:briefing",
+            "arguments": "{}",
+        },
+    }
+
+    rewritten = proxy.rewrite_response_event(
+        event,
+        namespace="mcp__cogito_ai_play",
+        allowed_tools={"briefing"},
+    )
+
+    assert rewritten["item"]["name"] == "briefing"
+    assert rewritten["item"]["namespace"] == "mcp__cogito_ai_play"
+
+
 def test_rewrite_preserves_builtin_and_existing_namespace_calls():
     proxy = load_proxy()
     event = {

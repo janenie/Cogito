@@ -327,7 +327,8 @@ MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能�
 `function_call`，编排器先启动一个受信任的回环 Responses 代理（默认 `127.0.0.1:18767`）。Codex
 只连接这个代理；代理通过已验证的 HTTPS `/v1/responses` 转发到 Yibu，并且只对当前启用的
 Cogito MCP 工具补上缺失的 `mcp__cogito_ai_play` namespace。它不修改参数或工具结果，仅记录上述
-不含内容的图片传输元数据，并随编排器在正常退出、中断和失败路径中终止。可用
+不含内容的图片传输元数据；provider 返回的 `cogito_ai_play:<tool>` 限定名也会在严格工具白名单
+内规范化为同一 namespace 调用。代理随编排器在正常退出、中断和失败路径中终止。可用
 `--provider-proxy-port` 改用其他空闲回环端口。
 
 模型生成的工具/命令仍受既有玩家权限 profile 限制，只能访问字面量回环地址，不能借此进行 Web

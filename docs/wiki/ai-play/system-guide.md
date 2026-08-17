@@ -258,6 +258,8 @@ Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多�
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
 规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
 `function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
+provider 返回的 `cogito_ai_play:<tool>` 形式只会在 `<tool>` 属于当前严格白名单时规范化为相同
+namespace 调用。
 代理只接受 `POST /v1/responses`，除上述图片元数据外不持久化请求、响应、图片内容或 key，并纳入
 统一子进程 readiness、失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数
 不含 key。

@@ -42,12 +42,18 @@ def rewrite_response_event(
     allowed_tools: set[str] | frozenset[str],
 ) -> Any:
     if isinstance(value, dict):
-        if (
-            value.get("type") == "function_call"
-            and value.get("name") in allowed_tools
-            and not value.get("namespace")
-        ):
-            value["namespace"] = namespace
+        if value.get("type") == "function_call" and not value.get("namespace"):
+            tool_name = value.get("name")
+            provider_prefix = namespace.removeprefix("mcp__") + ":"
+            if (
+                isinstance(tool_name, str)
+                and tool_name.startswith(provider_prefix)
+                and tool_name.removeprefix(provider_prefix) in allowed_tools
+            ):
+                tool_name = tool_name.removeprefix(provider_prefix)
+                value["name"] = tool_name
+            if tool_name in allowed_tools:
+                value["namespace"] = namespace
         for child in value.values():
             rewrite_response_event(
                 child,
