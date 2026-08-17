@@ -180,7 +180,7 @@ def resolve_codex_bin(codex_bin: str) -> str:
     resolved = shutil.which(codex_bin)
     if resolved is None:
         raise ValueError(f"could not locate Codex executable: {codex_bin}")
-    return resolved
+    return str(Path(resolved).resolve())
 
 
 def build_codex_command(

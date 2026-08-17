@@ -730,18 +730,23 @@ def test_loop_staircase_prompt_distinguishes_room_floor_and_board_actions():
     assert "不要使用 move 或 sprint" in prompt
 
 
-def test_resolve_codex_bin_uses_absolute_shim_path(monkeypatch, tmp_path):
+def test_resolve_codex_bin_resolves_path_shim_symlink(monkeypatch, tmp_path):
     orchestrator = load_orchestrator()
-    resolved = tmp_path / "codex.cmd"
+    executable = tmp_path / "releases" / "codex"
+    executable.parent.mkdir()
+    executable.write_text("", encoding="utf-8")
+    shim = tmp_path / "bin" / "codex"
+    shim.parent.mkdir()
+    shim.symlink_to(executable)
     monkeypatch.setattr(
         orchestrator.shutil,
         "which",
-        lambda command: str(resolved) if command == "codex" else None,
+        lambda command: str(shim) if command == "codex" else None,
     )
 
     result = orchestrator.resolve_codex_bin("codex")
 
-    assert result == str(resolved)
+    assert result == str(executable)
 
 
 def test_parse_args_exposes_only_hardened_player_options():

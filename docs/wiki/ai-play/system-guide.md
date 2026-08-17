@@ -228,13 +228,20 @@ harness 配置 Yibu Responses provider。它默认使用 `gemini-3.6-flash`、�
 元数据或可信轨迹。
 
 ```bash
+GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
+
 .venv/bin/python tools/ai_play_codex_gemini_orchestrator.py \
   --runs 3 \
-  --scenario find_contract \
+  --scenario find_key \
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
-  --workflow-memory enabled
+  --workflow-memory enabled \
+  --session-root "$GEMINI_RUN_ROOT"
 ```
+
+运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
+整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
+`trusted_mcplogs/`。`--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
 
 该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
@@ -248,7 +255,9 @@ Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
 Codex 默认开启的 shell/unified exec，以及 apps、plugins、subagents、goals、tool suggestions
 和本地图片工具，不能只依赖提示词要求第三方模型使用 MCP。未知模型可能触发 Codex
 fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹
-持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。
+持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。公共入口会把 PATH 找到的 Codex shim
+解析为真实可执行文件，避免 macOS 沙箱通过软链接启动 Codex 时无法读取临时观察图片；仍遇到
+`Operation not permitted` 时，可用 `--codex-bin` 指向非脚本、非软链接的绝对二进制路径。
 
 ### Codex + Grok xAI provider
 

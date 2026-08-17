@@ -283,13 +283,31 @@ supervisor、空玩家工作区和 AWM，只把 Codex 的模型 provider 切换�
 `auth.json`，也不需要 `codex login`。
 
 ```bash
+GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
+
 .venv/bin/python tools/ai_play_codex_gemini_orchestrator.py \
   --runs 3 \
-  --scenario find_contract \
+  --scenario find_key \
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
-  --workflow-memory enabled
+  --workflow-memory enabled \
+  --session-root "$GEMINI_RUN_ROOT"
 ```
+
+`--workflow-memory enabled` 开启会话级 AWM；改为 `disabled` 才是无 AWM 对照。`--session-root`
+必须使用隔离目录：它及其祖先不能位于仓库内，也不能含 `.git`、`AGENTS.md` 或
+`.codex/config.toml`，所以不要直接把用户主目录下的普通归档目录当作运行根。进程正常退出后，
+可把完整结果归档到需要的位置，例如：
+
+```bash
+mkdir -p /Users/jan/workspace/ai_play_gemini_10games
+cp -R "$GEMINI_RUN_ROOT"/. /Users/jan/workspace/ai_play_gemini_10games/
+```
+
+每次运行会创建一个带时间、模型、场景和 AWM 标记的子目录；`session.json` 保存安全运行元数据，
+`trusted_mcplogs/` 保存可信侧截图和轨迹。归档应在 orchestrator 退出后执行，不能边运行边移动目录。
+真实运行会把获准的截图、briefing 和工具结果发送给 Gemini/Yibu，产生 token/费用并在本地持久化
+上述日志，因此执行前必须完成相应确认。
 
 临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。由于 Codex 当前会把
 MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通
@@ -306,7 +324,10 @@ unified exec、apps、plugins、subagents、goals、tool suggestions 和本地�
 偏离到非游戏工具；玩家只保留白名单 AI Play MCP 工具。若当前 Codex 尚无该模型的内建 metadata，
 CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effort。真实 Gemini/Godot
 验收仍会产生截图、令牌、费用和本地轨迹，必须单独获得用户确认；自动化测试只使用伪凭据和
-伪进程，不调用 Yibu 或启动游戏。
+伪进程，不调用 Yibu 或启动游戏。编排器会把 PATH 找到的 Codex shim 规范化为真实可执行文件；
+这可避免 macOS 沙箱加载 `temp_obs_*.jpg` 时因执行软链接 shim 而报 `Operation not permitted`。
+若仍出现该错误，可用 `--codex-bin /absolute/path/to/real/codex` 显式指定真实二进制，并确认该路径
+不是 shell 脚本或软链接。
 
 ### Codex + Grok（xAI Responses）
 
