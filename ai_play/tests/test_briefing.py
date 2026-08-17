@@ -23,7 +23,7 @@ SPATIAL_SCENARIO_IDS = (
 def test_every_briefing_publicizes_the_uniform_request_cap(scenario_id):
     briefing, _image_bytes = load_scenario_briefing(scenario_id)
 
-    assert "100" in briefing["failure_condition"]
+    assert "150" in briefing["failure_condition"]
 
 
 def test_load_public_briefing_returns_fresh_sanitized_data_and_jpeg():
@@ -68,7 +68,7 @@ def test_find_key_registry_loads_bounded_public_briefing():
     assert briefing["success_condition"] == (
         "根据完整证据，提交与最终签署合同对应的正确钥匙。"
     )
-    assert "100" in briefing["failure_condition"]
+    assert "150" in briefing["failure_condition"]
     assert "12:00" in repr(briefing)
     assert "SUBMITTED" in repr(briefing)
     assert "FINAL" in repr(briefing)
@@ -108,7 +108,7 @@ def test_put_book_registry_loads_bounded_public_briefing():
         "按低层、中层、高层顺序，将三本经 HUD 名称确认为任务书的书逐本送到 "
         "CEO OFFICE 的书籍放置点。"
     )
-    assert "100" in briefing["failure_condition"]
+    assert "150" in briefing["failure_condition"]
     assert image_bytes.startswith(b"\xff\xd8\xff")
     serialized = repr(briefing)
     for required in [
@@ -154,7 +154,7 @@ def test_greet_npc_meeting_registry_loads_bounded_public_briefing():
 
     assert briefing["game_id"] == "greet_npc_meeting"
     assert "玩家和联系人都到达" in briefing["success_condition"]
-    assert "100" in briefing["failure_condition"]
+    assert "150" in briefing["failure_condition"]
     assert "第二次问候错误同事" in briefing["failure_condition"]
     assert "MEETING ROOM" in repr(briefing)
     assert "从走廊一侧关门" in repr(briefing)
@@ -182,7 +182,7 @@ def test_daily_routine_cleanup_briefing_is_public_and_bounded():
     assert "冰箱处于关闭状态" in briefing["success_condition"]
     assert "4 个散落垃圾" in briefing["objective"]
     assert "已扔 5/5" in briefing["success_condition"]
-    assert "100 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
     serialized = repr(briefing)
     for forbidden in [
         "DailyRoutineManager",
@@ -202,7 +202,7 @@ def test_garden_watering_briefing_is_public_and_bounded():
     assert "向日葵房" in briefing["objective"]
     assert "绣球花房" in briefing["objective"]
     assert "兰花房" in briefing["objective"]
-    assert "100 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
     assert "不需要额外 Verify" in repr(briefing)
     assert any(
         "三个房子" in rule and "公共水池" in rule and "不要越界" in rule
@@ -225,7 +225,7 @@ def test_repair_lighting_circuit_briefing_is_public_and_bounded():
 
     assert briefing["game_id"] == "repair_lighting_circuit"
     assert "任务卡" in briefing["objective"]
-    assert "100 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
     assert "一次" in repr(briefing)
     assert image_bytes.startswith(b"\xff\xd8\xff")
     assert image_bytes.endswith(b"\xff\xd9")
@@ -373,7 +373,7 @@ def test_arrange_meeting_briefings_briefing_is_public_and_bounded():
     assert "顺时针" in serialized
     assert "无需持续按住" in serialized
     assert "手动旋转" in serialized
-    assert "100 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
     assert "一次" in serialized
     assert image_bytes.startswith(b"\xff\xd8\xff")
     assert image_bytes.endswith(b"\xff\xd9")
@@ -491,7 +491,7 @@ def test_find_contract_briefing_teaches_flexible_look_and_depth_estimation():
     assert "act 返回的新观察" in serialized_rules
     assert "深度估计" in serialized_rules
     assert "自己与物体的距离" in serialized_rules
-    assert "100 次 act 请求" in briefing["failure_condition"]
+    assert "150 次 act 请求" in briefing["failure_condition"]
 
 
 def test_find_contract_briefing_requires_task_card_first():

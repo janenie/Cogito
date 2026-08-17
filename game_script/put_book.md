@@ -44,7 +44,7 @@ outcome = failure
 reason = max_requests
 ```
 
-`put_book` 的 MCP `act` 请求硬上限为 100 次。第 100 次请求仍先按正常规则执行；如果该
+`put_book` 的 MCP `act` 请求硬上限为 150 次。第 150 次请求仍先按正常规则执行；如果该
 请求让书进入目标箱，以 `success/book_in_box` 为准，否则触发 `failure/max_requests`。
 
 普通玩家模式不调用 MCP，因此不适用请求次数终局。

@@ -19,7 +19,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "正确线路已复位，四组灯全部符合任务卡目标，并按下 Verify。",
     "failure_condition": (
-        "断路器只能选择一次，选错立即失败；错误 Verify 立即失败；最多允许 100 次 act 请求。"
+        "断路器只能选择一次，选错立即失败；错误 Verify 立即失败；最多允许 150 次 act 请求。"
     ),
     "rules": COMMON_CONTROL_RULES + [
         "第一步一定要找到并读取面板附近的任务卡；任务卡可重复阅读。",

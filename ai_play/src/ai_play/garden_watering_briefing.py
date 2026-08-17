@@ -19,7 +19,7 @@ PUBLIC_BRIEFING = {
     "success_condition": "4 块正确草坪都已浇水，并在下雨期间按过兰花房门铃。",
     "failure_condition": (
         "浇错草坪、按错门铃、非下雨时按兰花房门铃、雨停前未报警，"
-        "或达到 100 次 act 请求上限。"
+        "或达到 150 次 act 请求上限。"
     ),
     "rules": COMMON_CONTROL_RULES + [
         "观察 HUD 的游戏时间、天气、水壶状态、浇水进度和警报状态。",

@@ -19,7 +19,8 @@ grep -q 'scenario_id = "garden_watering"' "$scene"
 grep -q 'name="GameOverScreen" parent="AIPlayController/GardenMonitor"' "$scene"
 grep -q '"garden_watering": \[' addons/cogito/AIPlay/ai_play_controller.gd
 grep -q '"garden_watering": ScenarioDefinition(' ai_play/src/ai_play/scenarios.py
-test "$(grep -c 'max_act_requests=100' ai_play/src/ai_play/scenarios.py)" -eq 11
+grep -q 'DEFAULT_SCENARIO_ACT_REQUEST_LIMIT = 150' ai_play/src/ai_play/scenarios.py
+test "$(grep -c 'max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT' ai_play/src/ai_play/scenarios.py)" -eq 11
 grep -q '"garden_tasks_complete": "任务成功"' \
 	addons/cogito/AIPlay/ai_play_game_over_screen.gd
 grep -q '"garden_task_failed": "任务失败"' \

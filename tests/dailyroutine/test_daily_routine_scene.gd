@@ -2,6 +2,17 @@ extends SceneTree
 
 var failures := 0
 
+const TRASH_CANDIDATE_PATHS := [
+	"Entryway/PaperTrashEntry",
+	"Entryway/PaperTrashEntryB",
+	"LivingRoom/PaperTrashLivingRoom",
+	"LivingRoom/PaperTrashLivingRoomB",
+	"Kitchen/PaperTrashA",
+	"Kitchen/PaperTrashB",
+	"Bedroom/PaperTrashBedroomA",
+	"Bedroom/PaperTrashBedroomB",
+]
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -60,6 +71,9 @@ func _test_home_scene_structure() -> void:
 	_assert(scene.get_node_or_null("TrashRandomizer") != null, "scene has random trash selector")
 	_assert(scene.get_node_or_null("LivingRoom/FinishButton") != null, "living room has finish button beside trash bin")
 	_assert(_active_trash_count(scene) == 4, "home has four active loose trash items")
+	_assert(_trash_randomizer_uses_grouped_candidates(scene), "home selects one of two candidates per room")
+	_assert(_active_trash_is_one_per_room(scene), "home activates exactly one loose trash item per room")
+	_assert(_scene_trash_layouts_follow_seed(scene), "home trash layouts are deterministic and vary by seed")
 	_assert(_loose_trash_is_visible_enough(scene), "loose trash is large and raised enough to see on the floor")
 	_assert(_loose_trash_is_in_open_floor_positions(scene), "loose trash candidates are placed in open floor positions")
 	_assert(scene.get_node_or_null("HomeRoutineTimeSystem") != null, "scene has time system")
@@ -162,26 +176,14 @@ func _active_trash_count(scene: Node) -> int:
 			randomizer.randomize_trash()
 		return int(randomizer.get("active_trash_count"))
 	var count := 0
-	var trash_paths := [
-		"Entryway/PaperTrashEntry",
-		"LivingRoom/PaperTrashLivingRoom",
-		"Kitchen/PaperTrashA",
-		"Bedroom/PaperTrashBedroomA",
-	]
-	for trash_path in trash_paths:
+	for trash_path in TRASH_CANDIDATE_PATHS:
 		var trash := scene.get_node_or_null(trash_path)
 		if trash != null and trash.visible:
 			count += 1
 	return count
 
 func _loose_trash_is_visible_enough(scene: Node) -> bool:
-	var trash_paths := [
-		"Entryway/PaperTrashEntry",
-		"LivingRoom/PaperTrashLivingRoom",
-		"Kitchen/PaperTrashA",
-		"Bedroom/PaperTrashBedroomA",
-	]
-	for trash_path in trash_paths:
+	for trash_path in TRASH_CANDIDATE_PATHS:
 		var trash := scene.get_node_or_null(trash_path) as Node3D
 		var mesh_node := scene.get_node_or_null(trash_path + "/Mesh") as MeshInstance3D
 		if trash == null or mesh_node == null:
@@ -194,19 +196,98 @@ func _loose_trash_is_visible_enough(scene: Node) -> bool:
 	return true
 
 func _loose_trash_is_in_open_floor_positions(scene: Node) -> bool:
-	var entry := scene.get_node_or_null("Entryway/PaperTrashEntry") as Node3D
-	var living := scene.get_node_or_null("LivingRoom/PaperTrashLivingRoom") as Node3D
-	var kitchen_a := scene.get_node_or_null("Kitchen/PaperTrashA") as Node3D
-	var bedroom_a := scene.get_node_or_null("Bedroom/PaperTrashBedroomA") as Node3D
-	if entry == null or living == null or kitchen_a == null or bedroom_a == null:
+	for trash_path in TRASH_CANDIDATE_PATHS:
+		var trash := scene.get_node_or_null(trash_path) as Node3D
+		if trash == null:
+			return false
+		var room_id := str(trash.get("room_id"))
+		match room_id:
+			"entry":
+				if not _position_is_in_rect(trash.position, 4.4, 6.2, 1.2, 3.3):
+					return false
+			"living_room":
+				if not _position_is_in_rect(trash.position, -5.7, -4.3, 1.1, 2.7):
+					return false
+			"kitchen":
+				if not _position_is_in_rect(trash.position, 2.4, 4.8, -1.9, -0.5):
+					return false
+			"bedroom":
+				if not _position_is_in_rect(trash.position, -6.8, -4.4, -4.1, -3.2):
+					return false
+			_:
+				return false
+	return true
+
+
+func _position_is_in_rect(
+	position: Vector3,
+	min_x: float,
+	max_x: float,
+	min_z: float,
+	max_z: float,
+) -> bool:
+	return position.x >= min_x and position.x <= max_x \
+		and position.z >= min_z and position.z <= max_z
+
+
+func _trash_randomizer_uses_grouped_candidates(scene: Node) -> bool:
+	var randomizer := scene.get_node_or_null("TrashRandomizer")
+	if randomizer == null:
 		return false
-	return entry.position.x > 4.1 \
-		and entry.position.z > 2.4 \
-		and living.position.x < -4.4 \
-		and living.position.z > 2.0 \
-		and kitchen_a.position.z > -1.8 \
-		and bedroom_a.position.x < -6.0 \
-		and bedroom_a.position.z < -3.0
+	var trash_paths: Array = randomizer.get("trash_paths")
+	return randomizer.get("select_one_per_room") == true \
+		and trash_paths.size() == TRASH_CANDIDATE_PATHS.size()
+
+
+func _active_trash_is_one_per_room(scene: Node) -> bool:
+	var active_by_room := {
+		"entry": 0,
+		"living_room": 0,
+		"kitchen": 0,
+		"bedroom": 0,
+	}
+	for trash_path in TRASH_CANDIDATE_PATHS:
+		var trash := scene.get_node_or_null(trash_path)
+		if trash == null:
+			return false
+		if trash.visible:
+			var room_id := str(trash.get("room_id"))
+			if not active_by_room.has(room_id):
+				return false
+			active_by_room[room_id] = int(active_by_room[room_id]) + 1
+	for room_id in active_by_room:
+		if int(active_by_room[room_id]) != 1:
+			return false
+	return true
+
+
+func _scene_trash_layouts_follow_seed(scene: Node) -> bool:
+	var randomizer := scene.get_node_or_null("TrashRandomizer")
+	if randomizer == null or not randomizer.has_method("randomize_trash"):
+		return false
+	randomizer.set("round_seed", 3001)
+	randomizer.randomize_trash()
+	var first := _active_trash_signature(scene)
+	randomizer.randomize_trash()
+	if _active_trash_signature(scene) != first:
+		return false
+
+	var signatures := {}
+	for seed in range(3001, 3011):
+		randomizer.set("round_seed", seed)
+		randomizer.randomize_trash()
+		if not _active_trash_is_one_per_room(scene):
+			return false
+		signatures[_active_trash_signature(scene)] = true
+	return signatures.size() > 1
+
+
+func _active_trash_signature(scene: Node) -> String:
+	var pieces: Array[String] = []
+	for trash_path in TRASH_CANDIDATE_PATHS:
+		var trash := scene.get_node_or_null(trash_path)
+		pieces.append("1" if trash != null and trash.visible else "0")
+	return "".join(pieces)
 
 func _label_text(scene: Node, path: String) -> String:
 	var label := scene.get_node_or_null(path) as Label3D

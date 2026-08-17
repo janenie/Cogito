@@ -12,7 +12,7 @@ class Config:
     ws_port: int = 8765
     wait_timeout_seconds: float = 30.0
     stop_timeout_seconds: float = 5.0
-    max_act_requests: int = 500
+    max_act_requests: int = 150
     log_root: Path = Path("~/workspace/cogito_logs/mcplogs").expanduser()
     approved_image_root: Path | None = None
 

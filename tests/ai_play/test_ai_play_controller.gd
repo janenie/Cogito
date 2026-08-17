@@ -73,7 +73,7 @@ class FakeInteractionProbe extends Node:
 class FakeTerminalMonitor extends Node:
 	signal game_finished(outcome: String, reason: String)
 	var scenario_id: String = "find_contract"
-	var act_request_limit: int = 100
+	var act_request_limit: int = 150
 
 	var shown_results: Array[Dictionary] = []
 
@@ -717,7 +717,7 @@ func _test_find_key_hello_includes_round_request_limit(
 	var fixture: Dictionary = await _make_fixture(controller_script)
 	fixture.controller._active_scenario_id = "find_key"
 	fixture.terminal_monitor.scenario_id = "find_key"
-	fixture.terminal_monitor.act_request_limit = 100
+	fixture.terminal_monitor.act_request_limit = 150
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 
@@ -733,7 +733,7 @@ func _test_find_key_hello_includes_round_request_limit(
 			"type": "hello",
 			"protocol_version": 4,
 			"scenario_id": "find_key",
-			"act_request_limit": 100,
+			"act_request_limit": 150,
 		},
 		"find_key hello includes the allowlisted round request limit",
 	)
@@ -746,7 +746,7 @@ func _test_find_key_hello_rejects_invalid_round_request_limit(
 	var fixture: Dictionary = await _make_fixture(controller_script)
 	fixture.controller._active_scenario_id = "find_key"
 	fixture.terminal_monitor.scenario_id = "find_key"
-	fixture.terminal_monitor.act_request_limit = 150
+	fixture.terminal_monitor.act_request_limit = 201
 	fixture.controller.enable_ai()
 	fixture.bridge.connected.emit()
 

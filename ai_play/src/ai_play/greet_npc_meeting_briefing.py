@@ -18,7 +18,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "已问候正确联系人，玩家和联系人都到达本局指定区域，并从会议室内关门。",
     "failure_condition": (
-        "第二次问候错误同事会立即失败；同一错误同事只计一次。最多允许 100 次 act 请求，"
+        "第二次问候错误同事会立即失败；同一错误同事只计一次。最多允许 150 次 act 请求，"
         "达到上限仍未完成也会失败。"
     ),
     "rules": COMMON_CONTROL_RULES + [

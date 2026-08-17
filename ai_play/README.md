@@ -308,6 +308,51 @@ CLI 可能显示 fallback metadata 警告，但不会因此启用 reasoning effo
 验收仍会产生截图、令牌、费用和本地轨迹，必须单独获得用户确认；自动化测试只使用伪凭据和
 伪进程，不调用 Yibu 或启动游戏。
 
+### Codex + Grok（xAI Responses）
+
+`tools/ai_play_codex_grok_orchestrator.py` 复用同一 Codex custom-provider harness、可信 MCP
+边车、Godot supervisor、空玩家工作区和 AWM，把 Codex 的模型 provider 指向 xAI 官方
+Responses API。默认模型是 `grok-4.6`，默认三局 `find_contract`，默认
+`--reasoning-effort high`；`--reasoning-effort` 只接受 `low`、`medium`、`high` 和 `xhigh`。
+运行元数据会记录实际传入的模型和 reasoning effort。
+
+凭据默认从仓库中已忽略的 `.xai/settings.local.json` 读取，也可用 `--xai-credentials` 指定。
+入口只解析 JSON `env` 对象，仅读取 `XAI_API_KEY` 和可选 `XAI_BASE_URL`；未设置 base URL 时
+使用 `https://api.x.ai/v1`。自定义 base URL 必须是 HTTPS，且路径只能为空或 `/v1`。API key
+只以 `XAI_API_KEY` 注入 Codex 玩家进程；临时 `CODEX_HOME`、`config.toml`、`session.json`、
+可信 MCP 日志、代理环境和启动命令均不包含 key 或凭据文件路径。
+
+```json
+{
+  "env": {
+    "XAI_API_KEY": "xai-REPLACE_ME",
+    "XAI_BASE_URL": "https://api.x.ai/v1"
+  }
+}
+```
+
+```bash
+.venv/bin/python tools/ai_play_codex_grok_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model grok-4.6 \
+  --reasoning-effort high \
+  --xai-credentials .xai/settings.local.json \
+  --workflow-memory enabled
+```
+
+临时 Codex 配置使用 `model_provider = "xai"` 和 `wire_api = "responses"`，provider base URL 指向
+受信任的回环 Responses namespace 代理（默认 `127.0.0.1:18768`）。Codex 只连接本机代理；
+代理再把请求转发到已验证的 xAI HTTPS `/v1/responses`，并只对当前 AI Play MCP 工具白名单中
+缺少 namespace 的 `function_call` 补 `mcp__cogito_ai_play`。它不启用 xAI 内建 Web/X search、
+code execution 或其他 provider 工具，不持久化请求、响应、图片或 key，并纳入统一 readiness、
+失败和退出清理。可用 `--provider-proxy-port` 改用其他空闲回环端口。
+
+玩家权限 profile 仍只 allowlist 字面量 `127.0.0.1`，并关闭 shell、unified exec、apps、plugins、
+subagents、goals、tool suggestions 和本地图片工具；玩家只保留白名单 AI Play MCP 工具。真实
+Grok/Godot 验收会产生截图、xAI token/费用和本地轨迹，必须单独获得用户确认；自动化测试只使用
+伪凭据和伪进程，不调用 xAI 或启动游戏。
+
 ### Codex + Doubao（本地 Responses 兼容代理）
 
 `tools/ai_play_codex_doubao_orchestrator.py` 保留 Codex CLI 自己的 agent loop、MCP 调用和多轮
@@ -501,9 +546,9 @@ CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回
 `v1.1 / SUBMITTED` 的变化。玩家需辨别 FINAL 与真正提交状态，向最终经手人确认当前
 四位密码。密码输入满四位后立即验证：错误时显示“密码不对”并允许重新输入，不产生终局；
 正确时解锁并打开档案室。提交错误钥匙产生 `failure/security_lockout`，提交当前钥匙才产生
-`success/key_picked_up`。每局使用 100 次请求硬上限。
+`success/key_picked_up`。每局使用 150 次请求硬上限。
 
-三个受维护的 orchestrator 默认使用相同的 `--benchmark-cycle-seed=20260809`，也可显式改为
+受维护的 orchestrator 默认使用相同的 `--benchmark-cycle-seed=20260809`，也可显式改为
 0～1000000000。supervisor 从任务、cycle 和逻辑局次确定 `--ai-play-round-seed=N`；异常重试
 复用原命令。`find_key` 连续四次逻辑尝试使用同一 cycle 的四个对齐种子，确定性覆盖四套脚本
 且不放回；`conveyor_profit` 固定供给 seed，仅递增可信 draw index。逐局 seed 写入可信
@@ -520,7 +565,7 @@ CEO OFFICE、MEETING ROOM、CUBICLE AREA 的三份历史记录和三名如实回
 命中，目标楼梯及办公室入口使用公开英文导视，CEO OFFICE 门保持打开；这些辅助不公开
 书籍身份、随机布局或结构化路线。拿起普通书
 或顺序错误的任务书会立即产生 `failure/wrong_book_pickup`；三本依序送达才产生
-`success/books_in_ceo_office`。该玩法的请求硬上限为 100，仍可通过
+`success/books_in_ceo_office`。该玩法的请求硬上限为 150，仍可通过
 `AI_PLAY_MAX_ACT_REQUESTS` 进一步收紧。
 
 `greet_npc_meeting` 使用三名穿不同颜色上衣、沿三条固定路线移动的同事：蓝衣 H. Voss 沿
@@ -550,6 +595,8 @@ MCP 结果、玩家提示或轨迹日志。
 
 `daily_routine_cleanup` 是家庭日常清理任务。玩家根据 HUD 目标和可见交互提示，把 4 个
 散落垃圾和冰箱里的过期牛奶扔进客厅垃圾桶，确认冰箱关闭后点击垃圾桶旁边的完成按钮。
+玄关、客厅、厨房和卧室各维护两个经过审核的开阔地面候选点；每局按回合 seed 在每个区域
+选择一个，因此垃圾数量和区域覆盖保持固定，位置组合可以复现并在不同逻辑局次间变化。
 成功产生 `success/cleanup_complete`；任一完成条件未满足时提交会产生
 `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
 
@@ -669,7 +716,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 每个到达 Python `act()` 函数的请求都会消耗一次请求额度，包括过期观察、非法动作、
 上下文不允许和已有动作在途等被拒绝的调用；`briefing`、`workflow_memory_read`、
 `workflow_memory_update`、`observe`、MCP `stop()` 不计数。
-所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局为 `success/correct_password`、
+所有玩法统一使用 150 次请求硬上限。`find_contract` 的终局为 `success/correct_password`、
 `failure/wrong_password` 或 `failure/max_requests`；`find_key` 的
 终局为 `success/key_picked_up`、`failure/security_lockout` 或 `failure/max_requests`；`put_book` 的终局为
 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 或
@@ -782,7 +829,7 @@ mcplogs/
   daily routine 或 garden 内部节点路径、随机下雨时间、传送带未来供给、内部牌组标识、
   理论最优路线、循环楼梯答案、实验材料隐藏属性、随机种子或任务内部知识。
 - 旧 `ai_host --adapter codex-local` 因无法提供受维护入口同等级的本机权限隔离而明确禁用；
-  Codex、Claude 和 Kimi 黑盒验收分别只使用对应的 `tools/ai_play_*_orchestrator.py`，并仍须先
+  Codex 及其 provider 变体、Claude 和 Kimi 黑盒验收分别只使用对应的 `tools/ai_play_*_orchestrator.py`，并仍须先
   确认截图、令牌、费用和轨迹影响。
 
 ## 配置
@@ -794,12 +841,12 @@ AI_PLAY_WS_HOST=127.0.0.1
 AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
-AI_PLAY_MAX_ACT_REQUESTS=500
+AI_PLAY_MAX_ACT_REQUESTS=150
 AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 
 桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
-自身统一的 100 次硬上限；等待时间有界，日志根目录支持 `~`
+自身统一的 150 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP
 协议使用。

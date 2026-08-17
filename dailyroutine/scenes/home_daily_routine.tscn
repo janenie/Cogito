@@ -301,6 +301,21 @@ surface_material_override/0 = SubResource("Mat_paper")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Entryway/PaperTrashEntry"]
 shape = SubResource("SphereShape3D_paper")
 
+[node name="PaperTrashEntryB" type="StaticBody3D" parent="Entryway"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.95, 0.38, 1.65)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "entry"
+
+[node name="Mesh" type="MeshInstance3D" parent="Entryway/PaperTrashEntryB"]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Entryway/PaperTrashEntryB"]
+shape = SubResource("SphereShape3D_paper")
+
 [node name="LivingRoom" type="Node3D" parent="." unique_id=1826979293]
 
 [node name="RoomLabel" type="Label3D" parent="LivingRoom" unique_id=351986297]
@@ -343,6 +358,21 @@ mesh = SubResource("SphereMesh_paper")
 surface_material_override/0 = SubResource("Mat_paper")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/PaperTrashLivingRoom"]
+shape = SubResource("SphereShape3D_paper")
+
+[node name="PaperTrashLivingRoomB" type="StaticBody3D" parent="LivingRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.65, 0.38, 1.45)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "living_room"
+
+[node name="Mesh" type="MeshInstance3D" parent="LivingRoom/PaperTrashLivingRoomB"]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LivingRoom/PaperTrashLivingRoomB"]
 shape = SubResource("SphereShape3D_paper")
 
 [node name="LivingRoomTrashBin" type="StaticBody3D" parent="LivingRoom" unique_id=957368806]
@@ -488,6 +518,21 @@ surface_material_override/0 = SubResource("Mat_paper")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashA" unique_id=1683576605]
 shape = SubResource("SphereShape3D_paper")
 
+[node name="PaperTrashB" type="StaticBody3D" parent="Kitchen"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.45, 0.38, -1.55)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "kitchen"
+
+[node name="Mesh" type="MeshInstance3D" parent="Kitchen/PaperTrashB"]
+transform = Transform3D(0.58, 0, 0, 0, 0.58, 0, 0, 0, 0.58, 0, 0, 0)
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Kitchen/PaperTrashB"]
+shape = SubResource("SphereShape3D_paper")
+
 [node name="Bedroom" type="Node3D" parent="." unique_id=71429479]
 
 [node name="RoomLabel" type="Label3D" parent="Bedroom" unique_id=1509108558]
@@ -528,6 +573,20 @@ surface_material_override/0 = SubResource("Mat_paper")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomA" unique_id=691063474]
 shape = SubResource("SphereShape3D_paper")
 
+[node name="PaperTrashBedroomB" type="StaticBody3D" parent="Bedroom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.75, 0.38, -3.75)
+collision_layer = 2
+script = ExtResource("7_paper")
+manager_path = NodePath("../../DailyRoutineManager")
+room_id = "bedroom"
+
+[node name="Mesh" type="MeshInstance3D" parent="Bedroom/PaperTrashBedroomB"]
+mesh = SubResource("SphereMesh_paper")
+surface_material_override/0 = SubResource("Mat_paper")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bedroom/PaperTrashBedroomB"]
+shape = SubResource("SphereShape3D_paper")
+
 [node name="CogitoPlayer" type="CharacterBody3D" parent="." unique_id=1696268016]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -3.35, 1.05, 2.35)
 script = ExtResource("4_player")
@@ -565,7 +624,8 @@ script = ExtResource("22_trash_randomizer")
 manager_path = NodePath("../DailyRoutineManager")
 min_active_trash = 4
 max_active_trash = 4
-trash_paths = Array[NodePath]([NodePath("../Entryway/PaperTrashEntry"), NodePath("../LivingRoom/PaperTrashLivingRoom"), NodePath("../Bedroom/PaperTrashBedroomA"), NodePath("../Kitchen/PaperTrashA")])
+select_one_per_room = true
+trash_paths = Array[NodePath]([NodePath("../Entryway/PaperTrashEntry"), NodePath("../Entryway/PaperTrashEntryB"), NodePath("../LivingRoom/PaperTrashLivingRoom"), NodePath("../LivingRoom/PaperTrashLivingRoomB"), NodePath("../Bedroom/PaperTrashBedroomA"), NodePath("../Bedroom/PaperTrashBedroomB"), NodePath("../Kitchen/PaperTrashA"), NodePath("../Kitchen/PaperTrashB")])
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=385618428]
 script = ExtResource("3_hud")

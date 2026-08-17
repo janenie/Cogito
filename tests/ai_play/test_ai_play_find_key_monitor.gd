@@ -131,7 +131,7 @@ func _run_test() -> void:
 		lobby_npcs.find_children("*", "FriendlyHumanNPC", true, false).size() == 3,
 		"Lobby permanently owns exactly three NPC instances",
 	)
-	_assert(monitor.get_act_request_limit() == 100, "find-key allows 100 requests")
+	_assert(monitor.get_act_request_limit() == 150, "find-key allows 150 requests")
 	_assert(setup.keys().size() == 6, "active setup exposes six identical keys")
 	for key: RigidBody3D in setup.keys():
 		var pickup := key.get_node_or_null("PickupComponent")

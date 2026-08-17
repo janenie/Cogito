@@ -15,7 +15,7 @@ PUBLIC_BRIEFING = {
         "把每轮新线索与此前画面结合，在第五轮选择唯一符合完整累计证据链的楼层。"
     ),
     "success_condition": "第五轮选择唯一满足完整累计证据链的楼层。",
-    "failure_condition": "选择错误楼层，或达到 100 次 act 请求上限。",
+    "failure_condition": "选择错误楼层，或达到 150 次 act 请求上限。",
     "rules": [
         '使用 {"type":"floor_up"} 切换到下一层，使用 {"type":"floor_down"} 切换到上一层。',
         '房间内移动使用 {"type":"front","step":"small"}、{"type":"back","step":"small"}、{"type":"left","step":"small"} 或 {"type":"right","step":"small"}；step 也可为 large。',

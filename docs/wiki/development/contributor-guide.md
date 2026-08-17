@@ -99,11 +99,11 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 修改玩家 orchestrator 或 Godot supervisor 时，运行对应的纯本地 Python 单元测试：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_claude_orchestrator.py tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_kimi_orchestrator.py tests\test_ai_play_supervisor.py -q
+.\.venv\Scripts\python.exe -m pytest tests\test_ai_play_claude_orchestrator.py tests\test_ai_play_codex_orchestrator.py tests\test_ai_play_codex_gemini_orchestrator.py tests\test_ai_play_codex_grok_orchestrator.py tests\test_ai_play_codex_doubao_orchestrator.py tests\test_ai_play_kimi_orchestrator.py tests\test_ai_play_supervisor.py -q
 ```
 
-这些测试只使用临时目录和伪进程，覆盖隔离运行目录、三种玩家的临时认证配置、HTTP MCP 工具白名单、
-异常重试及停止标识解析；它们不启动真实 Codex、MCP Server 或 Godot。controller 的 Escape
+这些测试只使用临时目录和伪进程，覆盖隔离运行目录、多种玩家的临时认证配置、HTTP MCP 工具白名单、
+异常重试及停止标识解析；它们不启动真实 Codex、Claude、Kimi、xAI、MCP Server 或 Godot。controller 的 Escape
 或 MCP stop 会让 supervisor 返回 `stopped` 并中止整次运行；桥断开、MCP shutdown、超时和
 无正式终局的提前退出只重试当前有效局次，不能计入任务成功率。
 
@@ -117,7 +117,7 @@ Godot 断线和停止时的输入释放；测试不得启动真实外部模型�
 黑盒玩家测试覆盖模型/思考强度必填、认证文件白名单及临时配置清理、空且隔离的玩家目录、
 确定性临时模型配置、按 `--workflow-memory enabled|disabled` 选择的 HTTP MCP 工具白名单、
 玩家/可信侧环境隔离、提示词不含游戏实现信息，
-以及 MCP/玩家/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、Claude、MCP Server 或 Godot。
+以及 MCP/玩家/supervisor 任一异常后的收束。测试仍不得启动真实 Codex、Claude、Kimi、xAI、MCP Server 或 Godot。
 
 Godot AI 契约测试：
 

@@ -490,7 +490,7 @@ def test_bridge_routes_find_key_success_to_session():
 
 @pytest.mark.parametrize(
     ("announced_limit", "effective_limit"),
-    [(50, 50), (100, 100), (150, 100)],
+    [(50, 50), (100, 100), (150, 150), (200, 150)],
 )
 def test_bridge_accepts_find_key_round_request_limit_without_echoing_it(
     announced_limit,
@@ -594,7 +594,7 @@ def test_bridge_accepts_legacy_find_key_hello_with_default_limit():
         handle.close()
 
     assert result["scenario_id"] == "find_key"
-    assert session.act_request_limit == 100
+    assert session.act_request_limit == 150
 
 
 def test_bridge_rejects_unknown_scenario():

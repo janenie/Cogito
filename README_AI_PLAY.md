@@ -316,7 +316,7 @@ $env:PYTHONPATH = "ai_play/src"
 
 每次进入 Python `act()` 的调用都会计入请求上限，即使观察编号过期、动作非法、上下文
 不允许或已有动作在途；`briefing`、`observe`、`stop` 和工作流记忆工具不计数。
-所有玩法统一使用 100 次请求硬上限。`find_contract` 允许 `success/correct_password`、
+所有玩法统一使用 150 次请求硬上限。`find_contract` 允许 `success/correct_password`、
 `failure/wrong_password` 和 `failure/max_requests`；`find_key` 允许
 `success/key_picked_up`、`failure/security_lockout` 和 `failure/max_requests`；`put_book` 允许
 `success/books_in_ceo_office`、`failure/wrong_book_pickup` 和 `failure/max_requests`；
@@ -447,7 +447,7 @@ AI_PLAY_WS_HOST=127.0.0.1
 AI_PLAY_WS_PORT=8765
 AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
-AI_PLAY_MAX_ACT_REQUESTS=500
+AI_PLAY_MAX_ACT_REQUESTS=150
 AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
 ```
 

@@ -14,7 +14,7 @@ def test_config_has_no_model_or_credential_fields(monkeypatch):
     assert config.ws_port == 8765
     assert config.wait_timeout_seconds == 30.0
     assert config.stop_timeout_seconds == 5.0
-    assert config.max_act_requests == 500
+    assert config.max_act_requests == 150
     assert config.approved_image_root is None
     assert not hasattr(config, "api_key")
     assert not hasattr(config, "model")

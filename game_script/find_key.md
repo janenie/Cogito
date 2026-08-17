@@ -218,11 +218,11 @@ outcome = failure
 reason = max_requests
 ```
 
-`find_key` 的场景硬上限是 100 次 MCP `act` 请求。每个到达 Python `act()` 的调用都
+`find_key` 的场景硬上限是 150 次 MCP `act` 请求。每个到达 Python `act()` 的调用都
 计数，包括观察编号过期、动作非法、上下文不允许和已有动作在途等失败请求；
 `briefing`、`observe` 和 `stop` 不计数。
 
-第 200 次请求仍先按正常规则执行：如果该请求成功拾取钥匙，以
+第 150 次请求仍先按正常规则执行：如果该请求成功拾取钥匙，以
 `success/key_picked_up` 为准；否则触发 `failure/max_requests`，并沿用 AI Play 既有
 失败界面和输入释放流程。连接成功附加或重连时，本局请求计数清零。
 
@@ -258,7 +258,7 @@ reason = max_requests
 - `find_key` 是独立场景模式，不运行合同密码、三段记录或密码盘终局逻辑。
 - 两个任务不能在同一回合同时初始化。
 - 两个模式可以复用出生点和任务卡锚点，但各自负责自己的任务内容和终局信号。
-- `find_contract` 与 `find_key` 的请求硬上限均为 100。
+- `find_contract` 与 `find_key` 的请求硬上限均为 150。
 - `AI_PLAY_MAX_ACT_REQUESTS` 只作为全局收紧值；实际请求上限取场景硬上限与该配置中
   较小者，不能用环境变量把场景放宽到超过其硬上限。
 

@@ -21,7 +21,7 @@ const LEGACY_ROUND_SEED_SCENARIOS: Array[String] = [
 ]
 const EXIT_ON_GAME_OVER_ARG: String = "--ai-play-exit-on-game-over"
 const GAME_OVER_ACK_TIMEOUT_SECONDS: float = 1.0
-const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100]
+const FIND_KEY_ACT_REQUEST_LIMITS: Array[int] = [50, 100, 150, 200]
 const SCENARIO_TERMINAL_RESULTS := {
 	"find_contract": [
 		["success", "correct_password"],

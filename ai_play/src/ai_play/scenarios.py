@@ -25,9 +25,10 @@ from .repair_lighting_circuit_briefing import (
 
 
 DEFAULT_SCENARIO_ID = "find_contract"
-# Protocol v4 clients predating the uniform cap may still announce 150. It is
-# accepted for reconnect compatibility, then clamped to the current hard cap.
-FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100, 150})
+DEFAULT_SCENARIO_ACT_REQUEST_LIMIT = 150
+# Protocol v4 clients may announce older allowlisted find_key limits, including
+# 200. They are accepted for reconnect compatibility and clamped to this cap.
+FIND_KEY_ROUND_ACT_REQUEST_LIMITS = frozenset({50, 100, 150, 200})
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,7 @@ class ScenarioDefinition:
 _SCENARIOS = {
     "find_contract": ScenarioDefinition(
         briefing_loader=load_public_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "correct_password"),
             ("failure", "wrong_password"),
@@ -49,7 +50,7 @@ _SCENARIOS = {
     ),
     "find_key": ScenarioDefinition(
         briefing_loader=load_find_key_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "key_picked_up"),
             ("failure", "security_lockout"),
@@ -58,7 +59,7 @@ _SCENARIOS = {
     ),
     "put_book": ScenarioDefinition(
         briefing_loader=load_put_book_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "books_in_ceo_office"),
             ("failure", "wrong_book_pickup"),
@@ -67,7 +68,7 @@ _SCENARIOS = {
     ),
     "greet_npc_meeting": ScenarioDefinition(
         briefing_loader=load_greet_npc_meeting_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "meeting_door_closed"),
             ("failure", "wrong_npc_limit"),
@@ -76,7 +77,7 @@ _SCENARIOS = {
     ),
     "daily_routine_cleanup": ScenarioDefinition(
         briefing_loader=load_daily_routine_cleanup_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "cleanup_complete"),
             ("failure", "cleanup_incomplete"),
@@ -85,7 +86,7 @@ _SCENARIOS = {
     ),
     "garden_watering": ScenarioDefinition(
         briefing_loader=load_garden_watering_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "garden_tasks_complete"),
             ("failure", "garden_task_failed"),
@@ -94,7 +95,7 @@ _SCENARIOS = {
     ),
     "repair_lighting_circuit": ScenarioDefinition(
         briefing_loader=load_repair_lighting_circuit_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "circuit_repaired"),
             ("failure", "wrong_breaker"),
@@ -104,7 +105,7 @@ _SCENARIOS = {
     ),
     "arrange_meeting_briefings": ScenarioDefinition(
         briefing_loader=load_arrange_meeting_briefings_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "meeting_prepared"),
             ("failure", "incorrect_seating_assignment"),
@@ -113,7 +114,7 @@ _SCENARIOS = {
     ),
     "conveyor_profit": ScenarioDefinition(
         briefing_loader=load_conveyor_profit_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "efficiency_target_reached"),
             ("failure", "efficiency_below_target"),
@@ -122,7 +123,7 @@ _SCENARIOS = {
     ),
     "loop_staircase_anomaly": ScenarioDefinition(
         briefing_loader=load_loop_staircase_anomaly_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "correct_floor_selected"),
             ("failure", "wrong_floor_selected"),
@@ -131,7 +132,7 @@ _SCENARIOS = {
     ),
     "laboratory_experiment": ScenarioDefinition(
         briefing_loader=load_laboratory_experiment_briefing,
-        max_act_requests=100,
+        max_act_requests=DEFAULT_SCENARIO_ACT_REQUEST_LIMIT,
         terminal_results=frozenset({
             ("success", "experiment_completed"),
             ("failure", "experiment_attempts_exhausted"),

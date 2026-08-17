@@ -20,7 +20,7 @@ grep -q 'briefing' ai_play/README.md
 grep -q 'observe' ai_play/README.md
 grep -q 'act' ai_play/README.md
 grep -q 'stop' ai_play/README.md
-grep -q 'AI_PLAY_MAX_ACT_REQUESTS=500' ai_play/README.md
+grep -q 'AI_PLAY_MAX_ACT_REQUESTS=150' ai_play/README.md
 grep -q '内部桥协议版本为 4' ai_play/README.md
 grep -q -- '-- --ai-play' ai_play/README.md
 if grep -nE 'AI_PLAY_API_KEY|OpenAI\(|AI_PLAY_MODEL|memory\.json|RunLogger|AgentLoop' ai_play/README.md; then

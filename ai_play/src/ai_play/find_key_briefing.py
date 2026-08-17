@@ -21,7 +21,7 @@ PUBLIC_BRIEFING = {
     ),
     "success_condition": "根据完整证据，提交与最终签署合同对应的正确钥匙。",
     "failure_condition": (
-        "最多允许 100 次 act 请求。提交错误钥匙会触发安保锁定并失败；"
+        "最多允许 150 次 act 请求。提交错误钥匙会触发安保锁定并失败；"
         "达到请求上限仍未提交正确钥匙也会失败。"
     ),
     "rules": COMMON_CONTROL_RULES + [

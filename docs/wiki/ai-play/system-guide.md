@@ -66,7 +66,7 @@ Godot 桥的安全边界。
   `{"type":"probe_interaction","target_x":0..1,"target_y":0..1}`。briefing 还必须列出缺少
   `type`/`action`、把 `interact2` 写成 `type`、使用 `target`，以及把探测坐标放进
   `interact` 等常见错误，并说明这些格式会被拒绝且不产生游戏输入。
-- 所有玩法统一使用 100 次请求硬上限。`find_contract` 的终局只允许
+- 所有玩法统一使用 150 次请求硬上限。`find_contract` 的终局只允许
   `success/correct_password`、`failure/wrong_password` 和 `failure/max_requests`；
   `find_key` 只允许 `success/key_picked_up`、`failure/security_lockout` 和
   `failure/max_requests`；`put_book` 只允许 `success/books_in_ceo_office`、
@@ -196,7 +196,7 @@ python3 tools/ai_play_codex_orchestrator.py \
 以及 benchmark cycle/逐局 seed、Git 可用性、commit 与脏状态、Python/关键包/Godot/玩家 CLI 版本和
 纯数值执行配置，但不得保存凭据、认证/settings 路径、进程环境或完整启动命令。每次会话的
 `trusted_mcplogs/` 位于运行目录的可信侧，玩家工作区创建时为空，orchestrator 不在其中写入
-游戏产物。Codex、Claude 与 Kimi 入口复用同一布局。
+游戏产物。Codex 及其 provider 变体、Claude 与 Kimi 入口复用同一布局。
 Git 信息不可读取时，`repository.available` 为 `false`，无法取得的 `commit` 和 `dirty` 为
 `null`，不得把检测失败记录成 `dirty: false`。
 
@@ -250,6 +250,42 @@ Codex 默认开启的 shell/unified exec，以及 apps、plugins、subagents、g
 fallback metadata 警告。真实运行与其他外部玩家一样，必须事先确认截图、令牌、费用和本地轨迹
 持久化影响；测试不得读取真实 `opus.py` 或调用外部 API。
 
+### Codex + Grok xAI provider
+
+`tools/ai_play_codex_grok_orchestrator.py` 复用 Codex custom-provider 编排层、可信 MCP sidecar、
+Godot supervisor、隔离运行目录和 AWM，只把 Codex 的 provider 配置为 xAI 官方 Responses API。
+默认模型为 `grok-4.6`，默认三局 `find_contract` 并启用 AWM。入口默认设置
+`--reasoning-effort high`，并只允许 `low`、`medium`、`high` 与 `xhigh`；`session.json` 记录实际
+传入值。
+
+默认凭据源是仓库中已忽略的 `.xai/settings.local.json`。可信入口只解析 JSON `env` 中的
+`XAI_API_KEY` 和可选 `XAI_BASE_URL`；未设置 base URL 时使用 `https://api.x.ai/v1`。自定义 base
+URL 必须使用 HTTPS，路径为空或 `/v1`，且不得包含用户名、密码、query 或 fragment。API key
+仅通过 `XAI_API_KEY` 进入 Codex 玩家进程，用于 Codex 自身 provider 请求；临时 Codex 配置、
+运行元数据、可信 MCP 日志、代理环境和启动参数均不包含 key 或 settings 路径。
+
+```bash
+.venv/bin/python tools/ai_play_codex_grok_orchestrator.py \
+  --runs 3 \
+  --scenario find_contract \
+  --model grok-4.6 \
+  --reasoning-effort high \
+  --xai-credentials .xai/settings.local.json \
+  --workflow-memory enabled
+```
+
+该入口的 Codex 配置使用 `model_provider = "xai"` 和 `wire_api = "responses"`，provider base URL
+指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18768`）。代理把请求转发到 xAI
+HTTPS `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的 `function_call` 补
+`mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。代理不启用 xAI 内建
+Web/X search、code execution 或其他 provider 工具，不持久化请求、响应、图片或 key，并纳入统一
+子进程 readiness、失败和退出清理。
+
+Codex 的模型传输层只访问该回环代理，玩家网络 profile 仍只 allowlist `127.0.0.1`。临时配置还
+显式关闭 shell/unified exec、apps、plugins、subagents、goals、tool suggestions 和本地图片工具。
+真实 Grok/Godot 验收仍须事先确认截图、xAI token/费用和本地轨迹持久化影响；测试不得读取真实
+`.xai/settings.local.json` 或调用 xAI。
+
 ### Codex + Doubao loopback compatibility proxy
 
 `tools/ai_play_codex_doubao_orchestrator.py` 复用公共 MCP sidecar、supervisor、隔离运行目录、AWM
@@ -293,7 +329,7 @@ grace，避免终局后额外调用 provider。
 `--codex-media-output`：边车仍先执行相同的公开投影，但把获准 JSON 作为紧邻
 `ImageContent` 的 `TextContent` 返回并省略重复的 `structuredContent`，使 Codex 能生成
 Responses `input_image`。该模式不扩展公开字段，不把 Base64 写入轨迹，也不影响默认 stdio MCP、
-标准 Codex、Gemini、Claude 或 Kimi 入口。
+标准 Codex、Gemini、Grok、Claude 或 Kimi 入口。
 
 ```bash
 .venv/bin/python tools/ai_play_codex_doubao_orchestrator.py \
@@ -463,7 +499,7 @@ Godot 输出 `AI_PLAY disabled; reason=mcp_stop` 或
 不得进入玩家 HUD、briefing、observation、动作结果或 AWM。人工在同一 Godot 进程内重开时
 使用私有进程内计数器。
 
-Codex、Claude 与 Kimi orchestrator 默认共享 benchmark cycle seed `20260809`，可用
+Codex 及其 provider 变体、Claude 与 Kimi orchestrator 默认共享 benchmark cycle seed `20260809`，可用
 `--benchmark-cycle-seed` 覆盖。supervisor 为所有任务传入脱敏的
 `--ai-play-round-seed`，基础设施重试复用同一 seed；普通随机任务按逻辑局次变化，`find_key`
 保持四局对齐脚本包，`conveyor_profit` 保持固定供给 seed 并只变化 draw index。实际 seed 仅保存
@@ -611,7 +647,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   其他不涉及 NPC 的玩法会隐藏并停用整组 NPC，不在运行时重复实例化。
 - ARCHIVE 门每局重新锁定。键盘输入满四位后立即验证；错误时显示“密码不对”，保持门锁定并
   允许重新输入，不产生终局；正确时解锁并自动打开房门。提交错误钥匙产生
-  `failure/security_lockout`，提交 ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 100。
+  `failure/security_lockout`，提交 ARCHIVE 钥匙才产生 `success/key_picked_up`。请求硬上限为 150。
 - 六把任务钥匙都由 `COGITO_3_Lobby.tscn` 静态拥有，编辑器中保持可见并可直接调整；运行时
   只有 `find_key` 会显示、启用碰撞和配置提交交互，其他玩法统一隐藏并停用。每把钥匙固定属于
   原房间，房间内各有三个名为 `Candidate1..3` 的 `Marker3D` 候选点；本局 round seed
@@ -652,7 +688,7 @@ godot --path . addons/cogito/DemoScenes/COGITO_3_Lobby.tscn \
   不会失败；手持书时公开观察会按真实携带输入暴露 `interact2` 的 Drop，准星命中 CEO OFFICE
   放置点时改为同一绑定的优先放置提示。正确书在放置点外放下后，可重新拿起继续完成该步骤。
 - CEO OFFICE 只有一个逻辑书籍放置点；三本任务书依序送达才产生
-  `success/books_in_ceo_office`。`put_book` 的硬上限为 100 次请求，
+  `success/books_in_ceo_office`。`put_book` 的硬上限为 150 次请求，
   `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧它。
 - 非零 `round_seed` 仅供本地确定性初始化和测试。种子、已选槽位、任务书身份及其他
   运行时答案不得作为结构化事实进入公开简报、观察或 MCP 协议；身份只能经正常游戏画面
@@ -781,6 +817,10 @@ godot --path . dailyroutine/scenes/home_daily_routine.tscn \
   stdio MCP Server、WebSocket 桥、动作执行器和终局上限机制。
 - 玩家根据 HUD 目标、画面观察和可见交互提示，把 4 个散落垃圾和过期牛奶放进客厅
   垃圾桶，确认冰箱关闭后点击完成按钮。
+- 玄关、客厅、厨房和卧室各有两个经过审核的开阔地面候选点。每局按隐藏回合 seed 在每个
+  区域选择一个，保持固定的 4 个垃圾和全屋覆盖，同时让不同逻辑局次产生可复现的小幅变化；
+  候选点列表和 seed 不得进入模型输入，选择结果只能从正常游戏画面发现，不得作为结构化
+  事实进入公开观察或简报。
 - 完成按钮在所有目标垃圾已进入客厅垃圾桶且冰箱关闭后产生
   `success/cleanup_complete`；任一完成条件未满足就点击完成按钮，产生
   `failure/cleanup_incomplete`，且不会公开具体缺少哪项条件。
@@ -848,7 +888,7 @@ godot --path . addons/cogito/DemoScenes/LoopStaircase/loop_staircase_anomaly.tsc
 - AI 接口不得把房间前后左右移动、楼层上下切换与调查板上下选行复用成同一按键动作；
   结构化公开状态只包含当前楼层、当前轮次和终局
   布尔值；线索文字、截图内容、陈设变化、候选集合、随机种子、答案楼层和完整楼层表不得
-  进入结构化观察、briefing 或其他模型输入。成功、失败与 100 次动作上限沿用既有终局契约。
+  进入结构化观察、briefing 或其他模型输入。成功、失败与 150 次动作上限沿用既有终局契约。
 
 ## laboratory_experiment 回合规则
 
@@ -871,4 +911,4 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 来源
 
-本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_codex_doubao_orchestrator.py`](../../../tools/ai_play_codex_doubao_orchestrator.py)、[`tools/ai_play_doubao_responses_proxy.py`](../../../tools/ai_play_doubao_responses_proxy.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
+本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_codex_grok_orchestrator.py`](../../../tools/ai_play_codex_grok_orchestrator.py)、[`tools/ai_play_codex_doubao_orchestrator.py`](../../../tools/ai_play_codex_doubao_orchestrator.py)、[`tools/ai_play_doubao_responses_proxy.py`](../../../tools/ai_play_doubao_responses_proxy.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
