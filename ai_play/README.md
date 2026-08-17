@@ -266,6 +266,40 @@ MCP shutdown、超时和没有正式终局的提前退出属于异常，只重�
 退出码 2 收束。跨局“自进化”只能发生在隔离
 玩家 Codex 基于公开 MCP 结果做出的策略总结中。
 
+### 统一 Yibu Codex 入口
+
+`tools/ai_play_codex_yibu_orchestrator.py` 使用 `opus.py` 中的 Yibu Responses 凭据，并要求显式传入
+任意合法 `--model`。未知模型统一声明 `text + image` 输入，不根据模型名猜测 reasoning effort 或
+并行工具能力。`gemini-3.1-pro-preview`、`grok-4.6`、`h:qwen3.8-max-preview`、
+`MiniMax-M3` 和 `hy3` 都是可接受的模型 ID；这不表示仓库已对这些收费模型完成真实 preflight。
+
+```bash
+YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
+
+.venv/bin/python tools/ai_play_codex_yibu_orchestrator.py \
+  --model gemini-3.1-pro-preview \
+  --runs 1 \
+  --scenario find_key \
+  --yibu-credentials ./opus.py \
+  --context-window 128000 \
+  --auto-compact-token-limit 90000 \
+  --workflow-memory enabled \
+  --session-root "$YIBU_RUN_ROOT"
+```
+
+默认上下文窗口为 128000，自动压缩阈值为 90000；覆盖时阈值必须为正且小于窗口。入口在权限为
+`0700` 的临时 `CODEX_HOME` 中生成权限为 `0600` 的单模型 catalog 和配置，并始终使用
+`--codex-media-output` 启动 MCP，使获准公开的 JSON、RGB JPEG 和可选 depth PNG 进入模型输入。
+provider 代理在 `provider_requests.jsonl` 中只记录请求序号、请求字节数、图片数量、MIME、字节数、
+SHA-256、`previous_response_id` 是否存在和 `store` 布尔值，不保存 prompt、图片或响应正文。第一版
+不主动裁剪历史图片；上游拒绝图片或 namespace 转换失败时会失败关闭，不能静默无图继续游戏。
+
+代理的 model catalog 设计和 Responses namespace flatten/restore 行为改编自
+[CC Switch](../tools/third_party/cc-switch/SOURCE.md) 固定 commit，并保留其 MIT 许可；运行时不依赖
+CC Switch 应用、SQLite 或全局 `~/.codex`。旧 `ai_play_codex_gemini_orchestrator.py` 是默认
+`gemini-3.6-flash` 的薄兼容包装；xAI 官方 Grok 与专用 Doubao 入口不迁移。真实 preflight、游戏
+和 benchmark 仍须单独确认截图、token、费用和本地日志影响。
+
 ### Codex + Gemini（Yibu Responses）
 
 `tools/ai_play_codex_gemini_orchestrator.py` 复用上面的 Codex harness、可信 MCP 边车、Godot

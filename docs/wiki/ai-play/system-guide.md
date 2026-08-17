@@ -212,6 +212,50 @@ Godot bridge 固定为 `127.0.0.1:8765`，可信 MCP HTTP 边车默认是
 用户级别的强隔离，不能抵抗同一 Windows 用户下的恶意本机进程。真实 Codex/Godot 多局验收
 会涉及截图、令牌、费用和本地轨迹持久化，仍须用户单独确认。
 
+### 统一 Yibu Codex provider
+
+> 设计来源见
+> [统一 Yibu Codex orchestrator spec](../../scope/2026-08-18-unified-yibu-codex-orchestrator/spec-unified-yibu-codex-orchestrator.md)。
+
+统一入口 `tools/ai_play_codex_yibu_orchestrator.py` 通过同一个 `opus.py` Yibu Responses 凭据
+接收任意合法模型 ID。未知模型默认声明 `text` 与 `image` 输入，不根据名称猜测 reasoning effort
+或并行工具能力；图片不兼容必须失败关闭，不能静默退化为只依赖结构化观察的无图玩家。首批目标
+模型是 `gemini-3.1-pro-preview`、`grok-4.6`、`h:qwen3.8-max-preview`、`MiniMax-M3`
+和 `hy3`；这些是入口接受的 ID，不代表已执行收费 API preflight。
+
+```bash
+YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
+
+.venv/bin/python tools/ai_play_codex_yibu_orchestrator.py \
+  --model gemini-3.1-pro-preview \
+  --runs 1 \
+  --scenario find_key \
+  --yibu-credentials ./opus.py \
+  --context-window 128000 \
+  --auto-compact-token-limit 90000 \
+  --workflow-memory enabled \
+  --session-root "$YIBU_RUN_ROOT"
+```
+
+每次会话在隔离临时 `CODEX_HOME` 生成只含当前模型的 `0600` model catalog；默认上下文窗口为
+128000，默认自动压缩阈值为 90000，并允许显式覆盖。MCP 边车使用已有的
+`--codex-media-output` 表示，把相同公开 JSON 作为紧邻 `ImageContent` 的文本返回且不再重复
+`structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。provider 请求记录
+metadata-only 图片审计（请求序号、请求字节数、图片数量、MIME、字节数、SHA-256、是否有
+`previous_response_id` 和 `store` 布尔值）；第一版不在代理层主动裁剪历史图片，每个正式终局后仍切换干净
+Codex turn。
+
+Yibu Responses 代理的实现改编自 CC Switch commit
+`a98829ba1e8bd99a1df671e3c36c8bb6aa537e47` 的 model catalog 设计与 namespace
+flatten/restore 算法，并保留 MIT 来源和许可。请求侧只把当前严格白名单内的 MCP namespace 子
+工具提升为确定性普通函数，响应侧只按同一请求建立的反向映射恢复 `name + namespace`；名称
+碰撞、未知工具、无效映射和审计失败均失败关闭。该方案不安装或依赖 CC Switch，不接管用户
+`~/.codex`，也不引入 SQLite、通用 MCP/skills 同步或 Chat/Anthropic 协议转换。
+
+现有 Gemini 文件是默认 `gemini-3.6-flash` 的薄兼容包装；xAI 官方 Grok 和具有专用协议转换、恢复语义的 Doubao
+入口不迁移。真实模型 preflight 只在用户确认截图、token、费用和本地日志影响后执行，且先验证
+首次图片请求与工具路由，再决定是否运行完整游戏。
+
 ### Codex + Gemini custom provider
 
 `tools/ai_play_codex_gemini_orchestrator.py` 在不改变公共编排层和黑盒工具边界的前提下，为 Codex
@@ -933,5 +977,11 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
   未执行组合结果和正确答案不得公开。
 
 ## 来源
+
+统一 Yibu provider 的决策、边界与验收标准见
+[`统一 Yibu Codex orchestrator spec`](../../scope/2026-08-18-unified-yibu-codex-orchestrator/spec-unified-yibu-codex-orchestrator.md)，
+实现入口为 [`tools/ai_play_codex_yibu_orchestrator.py`](../../../tools/ai_play_codex_yibu_orchestrator.py)，
+namespace 适配器为
+[`tools/ai_play_responses_namespace_proxy.py`](../../../tools/ai_play_responses_namespace_proxy.py)。
 
 本页整理自仓库根目录的 [`AGENTS.md`](../../../AGENTS.md)、已批准的 [`AI Play MCP spec`](../../scope/2026-07-23-ai-play-mcp/spec-ai-play-mcp.md)、已实施的 [`黑盒 Codex 玩家 spec`](../../scope/2026-07-26-blackbox-codex-player/spec-blackbox-codex-player.md)、[`Claude AI Player spec`](../../scope/2026-08-04-claude-ai-player/spec-claude-ai-player.md) 和 [`市场推理与在线经营脚本`](../../scope/2026-08-07-conveyor-market-reasoning/spec-conveyor-market-reasoning.md)、[`ai_play/README.md`](../../../ai_play/README.md)、[`tools/ai_play_orchestrator_common.py`](../../../tools/ai_play_orchestrator_common.py)、[`tools/ai_play_codex_orchestrator.py`](../../../tools/ai_play_codex_orchestrator.py)、[`tools/ai_play_codex_gemini_orchestrator.py`](../../../tools/ai_play_codex_gemini_orchestrator.py)、[`tools/ai_play_codex_grok_orchestrator.py`](../../../tools/ai_play_codex_grok_orchestrator.py)、[`tools/ai_play_codex_doubao_orchestrator.py`](../../../tools/ai_play_codex_doubao_orchestrator.py)、[`tools/ai_play_doubao_responses_proxy.py`](../../../tools/ai_play_doubao_responses_proxy.py)、[`tools/ai_play_claude_orchestrator.py`](../../../tools/ai_play_claude_orchestrator.py)、[`tools/ai_play_kimi_orchestrator.py`](../../../tools/ai_play_kimi_orchestrator.py) 和 [`tools/ai_play_supervisor.py`](../../../tools/ai_play_supervisor.py)。
