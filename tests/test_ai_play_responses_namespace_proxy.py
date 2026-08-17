@@ -1,6 +1,9 @@
 import importlib.util
+import base64
+import hashlib
 import http.client
 import json
+import os
 import sys
 import threading
 from pathlib import Path
@@ -138,6 +141,77 @@ def test_upstream_url_requires_https_v1_and_appends_responses():
             raise AssertionError(f"expected unsafe upstream rejection: {value}")
 
 
+def test_inspect_request_images_records_only_safe_metadata():
+    proxy = load_proxy()
+    jpeg = b"fixture-jpeg-bytes"
+    png = b"fixture-png-bytes"
+    jpeg_b64 = base64.b64encode(jpeg).decode("ascii")
+    png_b64 = base64.b64encode(png).decode("ascii")
+    request = {
+        "model": "gemini-fixture",
+        "previous_response_id": "response-secret",
+        "store": False,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "prompt-secret"},
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{jpeg_b64}",
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/png;base64,{png_b64}",
+                    },
+                ],
+            }
+        ],
+    }
+
+    metadata = proxy.inspect_request_images(json.dumps(request).encode("utf-8"))
+
+    assert metadata == {
+        "request_bytes": len(json.dumps(request).encode("utf-8")),
+        "input_image_count": 2,
+        "images": [
+            {
+                "ordinal": 1,
+                "mime_type": "image/jpeg",
+                "byte_count": len(jpeg),
+                "sha256": hashlib.sha256(jpeg).hexdigest(),
+            },
+            {
+                "ordinal": 2,
+                "mime_type": "image/png",
+                "byte_count": len(png),
+                "sha256": hashlib.sha256(png).hexdigest(),
+            },
+        ],
+        "has_previous_response_id": True,
+        "store": False,
+    }
+    serialized = json.dumps(metadata)
+    assert "prompt-secret" not in serialized
+    assert "response-secret" not in serialized
+    assert jpeg_b64 not in serialized
+    assert png_b64 not in serialized
+
+
+def test_request_diagnostics_writer_appends_private_numbered_jsonl(tmp_path):
+    proxy = load_proxy()
+    path = tmp_path / "provider_requests.jsonl"
+    writer = proxy.RequestDiagnosticsWriter(path)
+
+    writer.write({"input_image_count": 0})
+    writer.write({"input_image_count": 1})
+
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert [record["request_index"] for record in records] == [1, 2]
+    assert [record["input_image_count"] for record in records] == [0, 1]
+    assert os.stat(path).st_mode & 0o777 == 0o600
+
+
 def test_parse_args_requires_loopback_and_nonempty_tool_whitelist():
     proxy = load_proxy()
 
@@ -153,10 +227,13 @@ def test_parse_args_requires_loopback_and_nonempty_tool_whitelist():
             "mcp__cogito_ai_play",
             "--allowed-tool",
             "briefing",
+            "--diagnostics-jsonl",
+            "/tmp/provider_requests.jsonl",
         ]
     )
     assert args.host == "127.0.0.1"
     assert args.allowed_tool == ["briefing"]
+    assert args.diagnostics_jsonl == Path("/tmp/provider_requests.jsonl")
 
     for argv in (
         ["--host", "0.0.0.0", "--allowed-tool", "briefing"],

@@ -290,6 +290,7 @@ def build_provider_proxy_command(
     port: int,
     upstream_base_url: str,
     workflow_memory_enabled: bool,
+    diagnostics_jsonl: Path,
 ) -> list[str]:
     command = [
         python_bin,
@@ -310,6 +311,7 @@ def build_provider_proxy_command(
     )
     for tool_name in tool_names:
         command.extend(("--allowed-tool", tool_name))
+    command.extend(("--diagnostics-jsonl", str(diagnostics_jsonl)))
     return command
 
 
@@ -489,6 +491,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         port=args.provider_proxy_port,
         upstream_base_url=credentials.base_url,
         workflow_memory_enabled=workflow_memory_enabled,
+        diagnostics_jsonl=paths.log_root / "provider_requests.jsonl",
     )
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,

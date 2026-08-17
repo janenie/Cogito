@@ -237,6 +237,7 @@ def test_build_provider_proxy_command_uses_exact_tool_whitelist():
         port=18767,
         upstream_base_url="https://yibuapi.com/v1",
         workflow_memory_enabled=False,
+        diagnostics_jsonl=Path("/tmp/provider_requests.jsonl"),
     )
 
     assert command[:2] == [
@@ -246,6 +247,10 @@ def test_build_provider_proxy_command_uses_exact_tool_whitelist():
     assert "127.0.0.1" in command
     assert "https://yibuapi.com/v1" in command
     assert "mcp__cogito_ai_play" in command
+    assert command[-2:] == [
+        "--diagnostics-jsonl",
+        "/tmp/provider_requests.jsonl",
+    ]
     allowed = [
         command[index + 1]
         for index, value in enumerate(command)
@@ -470,6 +475,10 @@ def test_main_wires_yibu_key_only_to_codex_player_environment(
     assert "model_reasoning_effort" not in captured["config_text"]
     assert session["provider_proxy_port"] == 18767
     assert session["provider_proxy_env"] == {"PROXY": "safe"}
+    assert session["provider_proxy_command"][-2:] == [
+        "--diagnostics-jsonl",
+        str(log_root / "provider_requests.jsonl"),
+    ]
     assert "fixture-secret" not in repr(session["provider_proxy_command"])
     assert "fixture-secret" not in repr(session["provider_proxy_env"])
     assert session["mcp_env"] == {"MCP": "safe"}

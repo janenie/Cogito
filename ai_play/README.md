@@ -306,7 +306,12 @@ cp -R "$GEMINI_RUN_ROOT"/. /Users/jan/workspace/ai_play_gemini_10games/
 ```
 
 每次运行会创建一个带时间、模型、场景和 AWM 标记的子目录；`session.json` 保存安全运行元数据，
-`trusted_mcplogs/` 保存可信侧截图和轨迹。归档应在 orchestrator 退出后执行，不能边运行边移动目录。
+`trusted_mcplogs/` 保存可信侧截图和轨迹。Gemini 入口还会在
+`trusted_mcplogs/provider_requests.jsonl` 逐次记录 Responses 请求中的图片数量、顺序、MIME、
+解码后字节数、SHA-256，以及是否使用 `previous_response_id` 和 `store`。该审计不保存图片
+Base64/URL、提示词、工具参数、响应或 key；可用 SHA-256 与可信轨迹中的截图对照。审计文件以
+`0600` 追加写入，若检查或持久化失败，代理会在外发前失败关闭。归档应在 orchestrator 退出后
+执行，不能边运行边移动目录。
 真实运行会把获准的截图、briefing 和工具结果发送给 Gemini/Yibu，产生 token/费用并在本地持久化
 上述日志，因此执行前必须完成相应确认。
 
@@ -321,8 +326,8 @@ Godot 与 AWM 会话；新 turn 先按 `workflow_memory_read`、`briefing`、`ob
 MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通
 `function_call`，编排器先启动一个受信任的回环 Responses 代理（默认 `127.0.0.1:18767`）。Codex
 只连接这个代理；代理通过已验证的 HTTPS `/v1/responses` 转发到 Yibu，并且只对当前启用的
-Cogito MCP 工具补上缺失的 `mcp__cogito_ai_play` namespace。它不修改参数或工具结果，不记录请求、
-响应、图片或 key，并随编排器在正常退出、中断和失败路径中终止。可用
+Cogito MCP 工具补上缺失的 `mcp__cogito_ai_play` namespace。它不修改参数或工具结果，仅记录上述
+不含内容的图片传输元数据，并随编排器在正常退出、中断和失败路径中终止。可用
 `--provider-proxy-port` 改用其他空闲回环端口。
 
 模型生成的工具/命令仍受既有玩家权限 profile 限制，只能访问字面量回环地址，不能借此进行 Web

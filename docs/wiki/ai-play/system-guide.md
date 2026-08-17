@@ -242,7 +242,11 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
 
 运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
 整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
-`trusted_mcplogs/`。`--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
+`trusted_mcplogs/`。Gemini 入口额外生成 `trusted_mcplogs/provider_requests.jsonl`：每个
+Responses 请求只记录图片数量、顺序、MIME、解码字节数、SHA-256、`previous_response_id` 是否
+存在和布尔 `store`，不记录 Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用
+SHA-256 对照可信轨迹截图；检查或落盘失败时，代理在请求外发前失败关闭。
+`--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
 Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多创建 2 个干净恢复 turn，可用
 `--codex-max-restarts` 调整或设为 0 禁用。恢复 turn 沿用同一 MCP、Godot 和 AWM 会话，通过
 `workflow_memory_read`、`briefing`、`observe` 重建公开状态，不继承此前累积的截图上下文，也不
@@ -254,8 +258,9 @@ Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多�
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
 规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
 `function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
-代理只接受 `POST /v1/responses`，不持久化请求、响应、图片或 key，并纳入统一子进程 readiness、
-失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数不含 key。
+代理只接受 `POST /v1/responses`，除上述图片元数据外不持久化请求、响应、图片内容或 key，并纳入
+统一子进程 readiness、失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数
+不含 key。
 
 Codex 的模型传输层只访问该回环代理，玩家工具网络 profile 仍只 allowlist `127.0.0.1`；这不放宽
 Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
