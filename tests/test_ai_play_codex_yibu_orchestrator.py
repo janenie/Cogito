@@ -53,6 +53,7 @@ def test_write_player_config_creates_image_capable_single_model_catalog(
     assert entry["max_context_window"] == 128000
     assert entry["supports_parallel_tool_calls"] is False
     assert entry["supports_reasoning_summaries"] is False
+    assert entry["truncation_policy"] == {"mode": "bytes", "limit": 10000}
     assert os.stat(catalog_path).st_mode & 0o777 == 0o600
     assert os.stat(config_path).st_mode & 0o777 == 0o600
 

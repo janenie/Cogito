@@ -211,7 +211,7 @@ def _single_model_catalog(model: str, context_window: int) -> dict[str, Any]:
                 "priority": 0,
                 "supports_reasoning_summaries": False,
                 "support_verbosity": False,
-                "truncation_policy": {"type": "bytes", "limit": 10000},
+                "truncation_policy": {"mode": "bytes", "limit": 10000},
                 "supports_parallel_tool_calls": False,
                 "supports_image_detail_original": False,
                 "context_window": context_window,
