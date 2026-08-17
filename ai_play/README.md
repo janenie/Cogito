@@ -291,6 +291,7 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
+  --codex-max-restarts 2 \
   --session-root "$GEMINI_RUN_ROOT"
 ```
 
@@ -308,6 +309,11 @@ cp -R "$GEMINI_RUN_ROOT"/. /Users/jan/workspace/ai_play_gemini_10games/
 `trusted_mcplogs/` 保存可信侧截图和轨迹。归档应在 orchestrator 退出后执行，不能边运行边移动目录。
 真实运行会把获准的截图、briefing 和工具结果发送给 Gemini/Yibu，产生 token/费用并在本地持久化
 上述日志，因此执行前必须完成相应确认。
+
+如果 Codex 在 supervisor 正式终局前以 0 正常退出，编排器默认最多启动 2 个干净的恢复 turn；
+可用 `--codex-max-restarts` 调整，设为 `0` 可禁用。恢复不会增加已完成局数，并保留同一个 MCP、
+Godot 与 AWM 会话；新 turn 先按 `workflow_memory_read`、`briefing`、`observe` 恢复公开状态，避免
+继续携带此前累积的大量截图上下文。非零异常退出不会重启，达到上限也不会伪造游戏终局。
 
 临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。由于 Codex 当前会把
 MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通

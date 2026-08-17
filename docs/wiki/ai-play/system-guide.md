@@ -236,12 +236,17 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
+  --codex-max-restarts 2 \
   --session-root "$GEMINI_RUN_ROOT"
 ```
 
 运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
 整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
 `trusted_mcplogs/`。`--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
+Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多创建 2 个干净恢复 turn，可用
+`--codex-max-restarts` 调整或设为 0 禁用。恢复 turn 沿用同一 MCP、Godot 和 AWM 会话，通过
+`workflow_memory_read`、`briefing`、`observe` 重建公开状态，不继承此前累积的截图上下文，也不
+增加已完成局数；非零退出和恢复次数耗尽保持失败关闭。
 
 该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中

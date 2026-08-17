@@ -210,7 +210,21 @@ def test_parse_args_defaults_to_gemini_flash_without_reasoning_option():
     assert args.yibu_credentials == orchestrator.REPO_ROOT / "opus.py"
     assert args.workflow_memory == "enabled"
     assert args.provider_proxy_port == 18767
+    assert args.codex_max_restarts == 2
     assert not hasattr(args, "reasoning_effort")
+
+
+def test_build_player_restart_prompt_recovers_public_state_for_awm_modes():
+    orchestrator = load_orchestrator()
+
+    enabled = orchestrator.build_player_restart_prompt(3, True)
+    disabled = orchestrator.build_player_restart_prompt(3, False)
+
+    assert "同一 MCP 与 AWM 会话中的恢复 turn" in enabled
+    assert "workflow_memory_read、briefing、observe" in enabled
+    assert "completed_runs" in enabled
+    assert "workflow_memory_read" not in disabled
+    assert "briefing、observe" in disabled
 
 
 def test_build_provider_proxy_command_uses_exact_tool_whitelist():
@@ -326,6 +340,32 @@ def test_main_rejects_invalid_run_count_before_reading_credentials(
         )
 
 
+def test_main_rejects_negative_codex_restart_limit_before_reading_credentials(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda _value: "/codex")
+    monkeypatch.setattr(
+        orchestrator,
+        "load_yibu_credentials",
+        lambda _source: pytest.fail("credentials must not be read"),
+    )
+
+    with pytest.raises(
+        SystemExit,
+        match="--codex-max-restarts must be at least 0",
+    ):
+        orchestrator.main(
+            [
+                "--session-root",
+                str(tmp_path / "runs"),
+                "--codex-max-restarts",
+                "-1",
+            ]
+        )
+
+
 def test_main_wires_yibu_key_only_to_codex_player_environment(
     monkeypatch,
     tmp_path,
@@ -432,3 +472,7 @@ def test_main_wires_yibu_key_only_to_codex_player_environment(
     assert "fixture-secret" not in repr(session["provider_proxy_env"])
     assert session["mcp_env"] == {"MCP": "safe"}
     assert session["supervisor_env"] == {"GODOT": "safe"}
+    assert session["player_restart_limit"] == 2
+    assert "workflow_memory_read、briefing、observe" in session[
+        "player_restart_prompt"
+    ]

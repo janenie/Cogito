@@ -47,6 +47,7 @@ run_orchestrated_session = _codex.run_orchestrated_session
 validate_isolated_session_root = _codex.validate_isolated_session_root
 validate_model_argument = _codex.validate_model_argument
 DEFAULT_MODEL = "gemini-3.6-flash"
+DEFAULT_CODEX_MAX_RESTARTS = 2
 DEFAULT_YIBU_CREDENTIALS = REPO_ROOT / "opus.py"
 DEFAULT_PROVIDER_PROXY_PORT = 18767
 RESPONSES_NAMESPACE_PROXY_PATH = (
@@ -312,6 +313,30 @@ def build_provider_proxy_command(
     return command
 
 
+def build_player_restart_prompt(
+    runs: int,
+    workflow_memory_enabled: bool,
+) -> str:
+    startup = (
+        "workflow_memory_read、briefing、observe"
+        if workflow_memory_enabled
+        else "briefing、observe"
+    )
+    progress = (
+        "以 workflow_memory_read 返回的 completed_runs 判断已完成局数，然后"
+        if workflow_memory_enabled
+        else "不要自行推断已完成局数，"
+    )
+    return (
+        "这是同一 MCP 与 AWM 会话中的恢复 turn；此前 Codex turn 提前正常结束，"
+        "但可信 supervisor 尚未完成。不要假设新的一局已经开始，也不要把 "
+        "observation_id 当作 act 请求计数或已完成局数。先依次调用 %s 恢复公开状态，"
+        "%s继续当前局"
+        "或后续局。本会话总目标仍是完成 %s 个正式终局；只有工具返回正式 game_over "
+        "才计算一局，完成全部局数前不要输出最终回答。" % (startup, progress, runs)
+    )
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -345,6 +370,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument(
+        "--codex-max-restarts",
+        type=int,
+        default=DEFAULT_CODEX_MAX_RESTARTS,
+    )
+    parser.add_argument(
         "--benchmark-cycle-seed",
         type=int,
         default=DEFAULT_BENCHMARK_CYCLE_SEED,
@@ -375,6 +405,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--runs must be at least 1")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
+    if args.codex_max_restarts < 0:
+        raise SystemExit("--codex-max-restarts must be at least 0")
     if not 0 <= args.benchmark_cycle_seed <= MAX_BENCHMARK_CYCLE_SEED:
         raise SystemExit(
             "--benchmark-cycle-seed must be between 0 and %d"
@@ -440,7 +472,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "player_exit_grace_seconds": args.codex_exit_grace_seconds,
                 "idle_timeout_seconds": args.idle_timeout_seconds,
                 "player_final_grace_seconds": args.codex_final_grace_seconds,
-                "player_restart_limit": 0,
+                "player_restart_limit": args.codex_max_restarts,
             },
         ),
     )
@@ -509,6 +541,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             player_exit_grace_seconds=args.codex_exit_grace_seconds,
             idle_timeout_seconds=args.idle_timeout_seconds,
             player_final_grace_seconds=args.codex_final_grace_seconds,
+            player_restart_limit=args.codex_max_restarts,
+            player_restart_prompt=build_player_restart_prompt(
+                args.runs,
+                workflow_memory_enabled=workflow_memory_enabled,
+            ),
             provider_proxy_command=provider_proxy_command,
             provider_proxy_env=build_provider_proxy_env(),
             provider_proxy_cwd=REPO_ROOT,
