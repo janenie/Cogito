@@ -313,7 +313,9 @@ cp -R "$GEMINI_RUN_ROOT"/. /Users/jan/workspace/ai_play_gemini_10games/
 如果 Codex 在 supervisor 正式终局前以 0 正常退出，编排器默认最多启动 2 个干净的恢复 turn；
 可用 `--codex-max-restarts` 调整，设为 `0` 可禁用。恢复不会增加已完成局数，并保留同一个 MCP、
 Godot 与 AWM 会话；新 turn 先按 `workflow_memory_read`、`briefing`、`observe` 恢复公开状态，避免
-继续携带此前累积的大量截图上下文。非零异常退出不会重启，达到上限也不会伪造游戏终局。
+继续携带此前累积的大量截图上下文。Gemini 玩家每取得一个正式终局并完成 AWM 更新后也会主动
+结束当前 turn；三局因此分别使用三个干净 turn，两次轮换正好由默认上限覆盖。非零异常退出不会
+重启，达到上限也不会伪造游戏终局；提前退出会消耗同一恢复预算。
 
 临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。由于 Codex 当前会把
 MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通

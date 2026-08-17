@@ -486,6 +486,7 @@ def build_player_prompt(
     workflow_memory_enabled: bool = True,
     scenario: str = "",
     approved_image_read: bool = False,
+    rotate_after_terminal: bool = False,
 ) -> str:
     local_file_rule = (
         "每次 briefing、observe 或 act 返回 approved_image_paths 后，立即用 Read 读取这些获准图片；"
@@ -498,6 +499,12 @@ def build_player_prompt(
         allowed_tools = (
             "briefing、workflow_memory_read、observe、act、\n"
             "   workflow_memory_update"
+        )
+        memory_handoff = (
+            "eligible 的 workflow_memory_update 成功返回后，输出简短最终回答并结束当前 Codex turn；"
+            "不要在同一 turn 等待或开始下一局。"
+            if rotate_after_terminal
+            else "eligible 更新返回后再等待下一局，并重新从 briefing 开始。"
         )
         memory_rules = f"""7. workflow memory 只是高层建议，不能替代最新 observe，也不能授权当前观察不允许的动作。
 8. {local_file_rule}
@@ -512,8 +519,7 @@ def build_player_prompt(
 14. 不要保存图片、图片引用、Base64 或 embedding；不要保存局内具体答案、随机答案或随机结果、绝对坐标、
     逐帧动作序列、文件路径、URL 或内部实现信息。
 15. 局数以 workflow_memory_read 返回的 completed_runs 为准；stopped、disconnected、shutdown
-    或其他异常重试不算完成一局，也不得自行增加局数。eligible 更新返回后再等待下一局，
-    并重新从 briefing 开始。"""
+    或其他异常重试不算完成一局，也不得自行增加局数。{memory_handoff}"""
         decision_memory = (
             "3. 记录 workflow memory 提供了什么高层经验；若有 failure_reviews，说明哪些优化适用、\n"
             "   最新 briefing 和 observe（或 act 新观察）提供了什么证据，以及适用建议如何改变当前计划。\n"
@@ -524,10 +530,16 @@ def build_player_prompt(
     else:
         startup = "先调用 briefing，再调用 observe"
         allowed_tools = "briefing、observe、act"
+        terminal_handoff = (
+            "收到正式 success 或 failure 后，输出简短最终回答并结束当前 Codex turn；"
+            "不得在同一 turn 等待或开始下一局。"
+            if rotate_after_terminal
+            else "终局后等待下一局，并重新从 briefing 开始。"
+        )
         memory_rules = f"""7. 只可在普通会话上下文中保留公开的简短笔记；没有结构化经验读写工具。
 8. {local_file_rule}
 9. 收到 success、failure、stopped 或 disconnected 后，停止本局动作。
-10. 终局后等待下一局，并重新从 briefing 开始。"""
+10. {terminal_handoff}"""
         decision_memory = (
             "3. 记录普通会话上下文中已有的高层经验，以及最新观察是否支持采用它。\n"
             "4. 记录最新 observe 或 act 截图显示了什么，包括可见物体、交互提示、距离和朝向变化。\n"
@@ -543,10 +555,40 @@ def build_player_prompt(
 3. 完整观察五轮 2F 到 9F，维护候选楼层集合；不能只凭单张截图或当前楼层号作答。
 4. 每次 action 后直接使用 act 返回的新观察，不要额外刷新 observe；只有证据唯一时才用 submit_floor。
 """
+    if rotate_after_terminal:
+        session_goal = (
+            f"完整会话总共需要完成 {runs} 次独立游玩，但当前 Codex turn 只负责下一个正式终局。"
+            f"当前一局开始时，{startup}。"
+        )
+        if workflow_memory_enabled:
+            turn_completion = (
+                "16. 当前 Codex turn 只负责下一个正式 success 或 failure。在正式终局前不要输出最终回答；\n"
+                "   正式终局后先调用 workflow_memory_update，成功返回后再输出简短最终回答并结束当前 Codex turn。"
+            )
+        else:
+            turn_completion = (
+                "16. 当前 Codex turn 只负责下一个正式 success 或 failure。在正式终局前不要输出最终回答；\n"
+                "   正式终局后输出简短最终回答并结束当前 Codex turn。"
+            )
+        disconnected_rule = (
+            "17. 若当前工具结果是 disconnected 且当前 Codex turn 还没有正式终局，继续调用 observe 等待同一局\n"
+            "   的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。"
+        )
+        opening = "现在开始当前 Codex turn 的一局。"
+    else:
+        session_goal = f"本会话需要完成 {runs} 次独立游玩。每局开始时，{startup}。"
+        turn_completion = (
+            f"16. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。"
+        )
+        disconnected_rule = (
+            f"17. 若当前工具结果是 disconnected 且还没有完成全部 {runs} 次，继续调用 observe 等待同一局\n"
+            "   的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。"
+        )
+        opening = "现在开始第 1 局。"
     return f"""
 你是 Cogito AI First Play 的隔离黑盒玩家。
 
-本会话需要完成 {runs} 次独立游玩。每局开始时，{startup}。
+{session_goal}
 
 严格限制：
 1. 只使用 cogito_ai_play 的 {allowed_tools} 工具；不要尝试调用 stop，也不要把 stop 作为 act 动作。
@@ -557,9 +599,8 @@ def build_player_prompt(
 6. 每次 act 必须使用最新 observation_id；每批 1 到 3 个动作；成功的 act 返回下一份观察，
    直接用它重新规划，不要再调用 observe。只有开局或 act 未返回观察且会话仍可继续时才调用 observe。
 {memory_rules}
-16. 在完成全部 {runs} 次独立游玩前，不要输出最终回答，也不要结束会话。
-17. 若当前工具结果是 disconnected 且还没有完成全部 {runs} 次，继续调用 observe 等待同一局
-   的异常重试；observe 仍返回 disconnected 时等待后再 observe，直到出现新的可玩观察。
+{turn_completion}
+{disconnected_rule}
    stopped 表示操作者主动中止整次运行：立即停止调用工具，此时允许结束会话，无需凑满局数。
 18. observation_id 不是 act 请求计数，也不是已完成局数。不要根据 observation_id 推断动作上限、
    自行宣布成功或失败，或提前结束会话；只有工具返回正式 game_over 才表示本局终局。
@@ -597,7 +638,7 @@ def build_player_prompt(
 2. 记录当前 goal 是什么，例如“先找到并读取任务卡”或“靠近当前可见交互物”。
 {decision_memory}
 
-游戏目标、规则和物体操作说明只由 briefing 提供。现在开始第 1 局。
+游戏目标、规则和物体操作说明只由 briefing 提供。{opening}
 """.strip()
 
 

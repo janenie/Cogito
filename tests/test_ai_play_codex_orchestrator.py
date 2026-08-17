@@ -572,6 +572,27 @@ def test_blackbox_prompt_waits_for_all_runs_without_log_access(tmp_path):
     assert "不得读取任何本地轨迹或截图文件" in prompt
 
 
+@pytest.mark.parametrize("workflow_memory_enabled", [False, True])
+def test_player_prompt_can_rotate_after_one_terminal(workflow_memory_enabled):
+    orchestrator = load_orchestrator()
+
+    prompt = orchestrator.build_player_prompt(
+        runs=3,
+        workflow_memory_enabled=workflow_memory_enabled,
+        rotate_after_terminal=True,
+    )
+
+    assert "完整会话总共需要完成 3 次独立游玩" in prompt
+    assert "当前 Codex turn 只负责下一个正式终局" in prompt
+    assert "正式 success 或 failure" in prompt
+    assert "结束当前 Codex turn" in prompt
+    assert "完成全部 3 次独立游玩前，不要输出最终回答" not in prompt
+    if workflow_memory_enabled:
+        assert "workflow_memory_update 成功返回后" in prompt
+    else:
+        assert "workflow_memory_update" not in prompt
+
+
 def test_blackbox_prompt_requires_public_step_memory(tmp_path):
     orchestrator = load_orchestrator()
 

@@ -327,13 +327,18 @@ def build_player_restart_prompt(
         if workflow_memory_enabled
         else "不要自行推断已完成局数，"
     )
+    handoff = (
+        "正式终局后先调用 workflow_memory_update；成功返回后输出简短最终回答并结束当前 Codex turn。"
+        if workflow_memory_enabled
+        else "正式终局后输出简短最终回答并结束当前 Codex turn。"
+    )
     return (
         "这是同一 MCP 与 AWM 会话中的恢复 turn；此前 Codex turn 提前正常结束，"
         "但可信 supervisor 尚未完成。不要假设新的一局已经开始，也不要把 "
         "observation_id 当作 act 请求计数或已完成局数。先依次调用 %s 恢复公开状态，"
-        "%s继续当前局"
-        "或后续局。本会话总目标仍是完成 %s 个正式终局；只有工具返回正式 game_over "
-        "才计算一局，完成全部局数前不要输出最终回答。" % (startup, progress, runs)
+        "%s继续当前局。当前 Codex turn 只负责下一个正式终局；只有工具返回正式 "
+        "game_over 才计算一局，在此之前不要输出最终回答。%s完整会话总目标仍是由可信 "
+        "supervisor 完成 %s 个正式终局。" % (startup, progress, handoff, runs)
     )
 
 
@@ -528,6 +533,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.runs,
                 workflow_memory_enabled=workflow_memory_enabled,
                 scenario=args.scenario,
+                rotate_after_terminal=True,
             ),
             mcp_env=mcp_env,
             player_env=build_player_env(player_home, credentials.api_key),

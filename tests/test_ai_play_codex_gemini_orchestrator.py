@@ -223,6 +223,8 @@ def test_build_player_restart_prompt_recovers_public_state_for_awm_modes():
     assert "同一 MCP 与 AWM 会话中的恢复 turn" in enabled
     assert "workflow_memory_read、briefing、observe" in enabled
     assert "completed_runs" in enabled
+    assert "只负责下一个正式终局" in enabled
+    assert "结束当前 Codex turn" in enabled
     assert "workflow_memory_read" not in disabled
     assert "briefing、observe" in disabled
 
@@ -473,6 +475,7 @@ def test_main_wires_yibu_key_only_to_codex_player_environment(
     assert session["mcp_env"] == {"MCP": "safe"}
     assert session["supervisor_env"] == {"GODOT": "safe"}
     assert session["player_restart_limit"] == 2
+    assert "当前 Codex turn 只负责下一个正式终局" in session["prompt"]
     assert "workflow_memory_read、briefing、observe" in session[
         "player_restart_prompt"
     ]
