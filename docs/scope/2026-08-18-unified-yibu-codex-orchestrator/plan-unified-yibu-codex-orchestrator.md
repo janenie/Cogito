@@ -16,7 +16,7 @@
 - Create: `tools/third_party/cc-switch/SOURCE.md`
 - Create: `tools/third_party/cc-switch/LICENSE`
 
-- [ ] **Step 1: Add the pinned source record**
+- [x] **Step 1: Add the pinned source record**
 
 ```markdown
 # CC Switch source attribution
@@ -30,18 +30,18 @@ Relevant upstream files: `src-tauri/src/codex_config.rs` and
 `src-tauri/src/proxy/providers/transform_codex_responses_namespace.rs`.
 ```
 
-- [ ] **Step 2: Add the upstream MIT license verbatim**
+- [x] **Step 2: Add the upstream MIT license verbatim**
 
 Copy the CC Switch MIT license headed `Copyright (c) 2025 Jason Young` into
 `tools/third_party/cc-switch/LICENSE`; do not replace the Cogito root license.
 
-- [ ] **Step 3: Verify attribution files**
+- [x] **Step 3: Verify attribution files**
 
 Run: `rg -n "a98829ba|Jason Young|MIT License" tools/third_party/cc-switch`
 
 Expected: the source commit appears in `SOURCE.md`; copyright and license text appear in `LICENSE`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/third_party/cc-switch
@@ -54,7 +54,7 @@ git commit -m "docs(ai-play): attribute CC Switch adapter design"
 - Modify: `tests/test_ai_play_responses_namespace_proxy.py`
 - Modify: `tools/ai_play_responses_namespace_proxy.py`
 
-- [ ] **Step 1: Write failing request transformation tests**
+- [x] **Step 1: Write failing request transformation tests**
 
 Add tests using this request shape:
 
@@ -87,13 +87,13 @@ sets namespace tool choice to `"auto"`, and returns a reverse map. Add rejection
 unapproved namespace child, a flat-name collision, and two different owners producing the same
 bounded name.
 
-- [ ] **Step 2: Run request tests and observe the expected failure**
+- [x] **Step 2: Run request tests and observe the expected failure**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_responses_namespace_proxy.py -k 'flatten or collision'`
 
 Expected: FAIL because `transform_request_namespaces` is not defined.
 
-- [ ] **Step 3: Implement bounded deterministic flattening**
+- [x] **Step 3: Implement bounded deterministic flattening**
 
 Add request-derived immutable mapping data and these focused helpers:
 
@@ -125,20 +125,20 @@ def transform_request_namespaces(
 Only the exact configured namespace and exact allowed child tools may be lifted. Validate all
 collisions before mutating the payload. Preserve ordinary top-level tools and child schemas.
 
-- [ ] **Step 4: Write failing response restore tests**
+- [x] **Step 4: Write failing response restore tests**
 
 Test non-streaming JSON and SSE events containing
 `{"type":"function_call","name":"mcp__cogito_ai_play__observe"}`. Assert restoration to
 `name="observe"` plus `namespace="mcp__cogito_ai_play"`. Assert unmapped names remain unchanged
 and cannot acquire a namespace.
 
-- [ ] **Step 5: Run restore tests and observe the expected failure**
+- [x] **Step 5: Run restore tests and observe the expected failure**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_responses_namespace_proxy.py -k 'restore'`
 
 Expected: FAIL because the response functions do not accept a request-derived reverse map.
 
-- [ ] **Step 6: Implement response restoration and wire the handler**
+- [x] **Step 6: Implement response restoration and wire the handler**
 
 Parse the request body once before forwarding, collect image metadata from the original payload,
 transform a copy to safe compact JSON, and derive the reverse map. Pass that map to both JSON and
@@ -146,13 +146,13 @@ SSE response rewriting. Preserve the existing bare-name and `cogito_ai_play:<too
 only when no request-derived flat mapping applies. Return a generic 400/500 without forwarding on
 invalid namespace input, collision, JSON parsing, or diagnostics persistence failure.
 
-- [ ] **Step 7: Run the proxy suite**
+- [x] **Step 7: Run the proxy suite**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_responses_namespace_proxy.py`
 
 Expected: all proxy tests pass, including existing image metadata and 502 privacy tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/ai_play_responses_namespace_proxy.py tests/test_ai_play_responses_namespace_proxy.py
@@ -165,13 +165,13 @@ git commit -m "feat(ai-play): flatten Yibu MCP namespaces"
 - Create: `tools/ai_play_codex_yibu_orchestrator.py`
 - Create: `tests/test_ai_play_codex_yibu_orchestrator.py`
 
-- [ ] **Step 1: Seed the generic module from the tested Gemini entry**
+- [x] **Step 1: Seed the generic module from the tested Gemini entry**
 
 Copy the current Gemini implementation into the new filename, rename Gemini-specific public
 symbols to Yibu names, keep the AST credential loader and isolated permission profile, and make
 the generic parser require `--model`.
 
-- [ ] **Step 2: Write failing catalog and argument tests**
+- [x] **Step 2: Write failing catalog and argument tests**
 
 Test these exact model IDs with parametrization:
 
@@ -202,20 +202,20 @@ Also assert top-level config fields `model_context_window = 128000`,
 `model_auto_compact_token_limit = 90000`, the `model_catalog_json` pointer, no reasoning effort,
 and no secret.
 
-- [ ] **Step 3: Run catalog tests and observe the expected failure**
+- [x] **Step 3: Run catalog tests and observe the expected failure**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_yibu_orchestrator.py -k 'catalog or context'`
 
 Expected: FAIL because the catalog generator and context CLI do not exist.
 
-- [ ] **Step 4: Implement the minimal single-model catalog**
+- [x] **Step 4: Implement the minimal single-model catalog**
 
 Use a neutral AI Play `base_instructions`, parser-required fields, byte truncation limit 10000,
 `supports_image_detail_original = False`, no search, no parallel calls, and only text/image
 modalities. Write both files with `0600` permissions. Add source comments pointing to
 `tools/third_party/cc-switch/SOURCE.md` without copying CC Switch's full Codex prompt template.
 
-- [ ] **Step 5: Implement context validation**
+- [x] **Step 5: Implement context validation**
 
 Add constants and a pure validator:
 
@@ -238,13 +238,13 @@ Expose both CLI options and reject invalid values before credential loading or p
 Keep the shared `validate_model_argument` and add tests proving control characters, empty IDs and
 overlong IDs are rejected while the colon-containing Qwen ID is accepted literally.
 
-- [ ] **Step 6: Run generic configuration tests**
+- [x] **Step 6: Run generic configuration tests**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_yibu_orchestrator.py`
 
 Expected: all generic credential, catalog, isolation and CLI tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/ai_play_codex_yibu_orchestrator.py tests/test_ai_play_codex_yibu_orchestrator.py
@@ -257,7 +257,7 @@ git commit -m "feat(ai-play): add generic Yibu Codex config"
 - Modify: `tools/ai_play_codex_yibu_orchestrator.py`
 - Modify: `tests/test_ai_play_codex_yibu_orchestrator.py`
 
-- [ ] **Step 1: Write failing main-wiring tests**
+- [x] **Step 1: Write failing main-wiring tests**
 
 Using the existing fake-process pattern, assert:
 
@@ -276,14 +276,14 @@ assert execution["model_auto_compact_token_limit"] == 90000
 Assert the Yibu key appears only in the Codex player environment, never in the config, proxy
 environment, commands, run path arguments or session metadata.
 
-- [ ] **Step 2: Run wiring tests and observe the expected failure**
+- [x] **Step 2: Run wiring tests and observe the expected failure**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_yibu_orchestrator.py -k 'main or media'`
 
 Expected: FAIL because the generic main still starts the default MCP representation and omits
 context metadata.
 
-- [ ] **Step 3: Wire the existing shared components**
+- [x] **Step 3: Wire the existing shared components**
 
 Build MCP with:
 
@@ -299,13 +299,13 @@ Pass context fields into `collect_runtime_metadata(..., execution={...})`; gener
 catalog before starting any player process; keep per-terminal turn rotation, AWM recovery and
 the metadata-only provider request audit unchanged.
 
-- [ ] **Step 4: Run generic and MCP media suites**
+- [x] **Step 4: Run generic and MCP media suites**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_yibu_orchestrator.py ai_play/tests/test_mcp_server.py -k 'yibu or codex_media_output or parse_server_options'`
 
 Expected: selected generic and MCP media tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/ai_play_codex_yibu_orchestrator.py tests/test_ai_play_codex_yibu_orchestrator.py
@@ -318,20 +318,20 @@ git commit -m "fix(ai-play): deliver MCP images to Yibu models"
 - Modify: `tools/ai_play_codex_gemini_orchestrator.py`
 - Modify: `tests/test_ai_play_codex_gemini_orchestrator.py`
 
-- [ ] **Step 1: Write failing compatibility tests**
+- [x] **Step 1: Write failing compatibility tests**
 
 Assert the Gemini module exports the prior credential/config helper names, defaults to
 `gemini-3.6-flash`, keeps `--codex-max-restarts 2`, accepts the new context overrides, and delegates
 main execution to the generic module with the Gemini default injected. Ensure the generic module
 itself requires `--model`.
 
-- [ ] **Step 2: Run compatibility tests and observe the expected failure**
+- [x] **Step 2: Run compatibility tests and observe the expected failure**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_gemini_orchestrator.py`
 
 Expected: FAIL until the duplicated Gemini implementation is replaced by a facade.
 
-- [ ] **Step 3: Replace duplication with explicit aliases and delegates**
+- [x] **Step 3: Replace duplication with explicit aliases and delegates**
 
 Keep only imports, compatibility aliases such as
 `write_player_codex_gemini_config = write_player_codex_yibu_config`, and:
@@ -350,13 +350,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 Do not copy credentials, config generation, proxy or process lifecycle logic into the facade.
 
-- [ ] **Step 4: Run generic and compatibility suites together**
+- [x] **Step 4: Run generic and compatibility suites together**
 
 Run: `PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q tests/test_ai_play_codex_yibu_orchestrator.py tests/test_ai_play_codex_gemini_orchestrator.py`
 
 Expected: all tests pass and old Gemini imports remain valid.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/ai_play_codex_gemini_orchestrator.py tests/test_ai_play_codex_gemini_orchestrator.py
@@ -372,7 +372,7 @@ git commit -m "refactor(ai-play): route Gemini through Yibu harness"
 - Modify: `docs/scope/2026-08-18-unified-yibu-codex-orchestrator/spec-unified-yibu-codex-orchestrator.md` only for implementation-status accuracy
 - Modify: `docs/scope/2026-08-18-unified-yibu-codex-orchestrator/plan-unified-yibu-codex-orchestrator.md` to check completed steps
 
-- [ ] **Step 1: Change approved-design wording to implemented behavior**
+- [x] **Step 1: Change approved-design wording to implemented behavior**
 
 Document the exact generic command:
 
@@ -394,7 +394,7 @@ State that the five named models are accepted IDs, not claims that paid prefligh
 Document image fail-closed behavior, audit fields, no history pruning, Gemini compatibility and
 CC Switch attribution.
 
-- [ ] **Step 2: Run the affected Python suites**
+- [x] **Step 2: Run the affected Python suites**
 
 Run:
 
@@ -412,14 +412,14 @@ PYTHONPATH=ai_play/src:. .venv/bin/python -m pytest -q \
 
 Expected: all selected tests pass without reading real credentials or making external requests.
 
-- [ ] **Step 3: Run repository hygiene checks**
+- [x] **Step 3: Run repository hygiene checks**
 
 Run: `git diff --check`
 
 Expected: no whitespace errors. Confirm `git status --short` contains only files from this plan.
 No Godot engine test is required because this implementation changes no GDScript, scene or resource.
 
-- [ ] **Step 4: Commit documentation and plan**
+- [x] **Step 4: Commit documentation and plan**
 
 ```bash
 git add ai_play/README.md docs/wiki/ai-play/system-guide.md \
@@ -427,7 +427,7 @@ git add ai_play/README.md docs/wiki/ai-play/system-guide.md \
 git commit -m "docs(ai-play): document unified Yibu harness"
 ```
 
-- [ ] **Step 5: Rebase, rerun checks and push**
+- [x] **Step 5: Rebase, rerun checks and push**
 
 ```bash
 git fetch origin main
