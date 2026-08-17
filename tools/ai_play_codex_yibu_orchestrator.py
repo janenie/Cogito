@@ -581,12 +581,20 @@ def main(
                 "idle_timeout_seconds": args.idle_timeout_seconds,
                 "player_final_grace_seconds": args.codex_final_grace_seconds,
                 "player_restart_limit": args.codex_max_restarts,
+                "model_context_window": args.context_window,
+                "model_auto_compact_token_limit": (
+                    args.auto_compact_token_limit
+                ),
             },
         ),
     )
     mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
     supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
-    mcp_command = build_mcp_command(args.python_bin, args.mcp_port)
+    mcp_command = build_mcp_command(
+        args.python_bin,
+        args.mcp_port,
+        codex_media_output=True,
+    )
     provider_proxy_command = build_provider_proxy_command(
         python_bin=args.python_bin,
         port=args.provider_proxy_port,

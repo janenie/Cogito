@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -152,3 +153,124 @@ def test_load_yibu_credentials_does_not_execute_source(tmp_path):
     assert credentials.api_key == "secret"
     assert credentials.base_url == "https://yibuapi.com/v1"
     assert not marker.exists()
+
+
+def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_path):
+    orchestrator = load_orchestrator()
+    credential_path = tmp_path / "opus.py"
+    credential_path.write_text(
+        'ak = {"key": "fixture-secret", "url": "https://yibuapi.com"}',
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    player_workspace = run_dir / "player_workspace"
+    log_root = run_dir / "trusted_mcplogs"
+    player_workspace.mkdir(parents=True)
+    log_root.mkdir()
+    paths = SimpleNamespace(
+        run_dir=run_dir,
+        player_workspace=player_workspace,
+        log_root=log_root,
+    )
+    captured = {}
+
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+    monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda _value: "/codex")
+    monkeypatch.setattr(orchestrator, "is_port_listening", lambda *_args: False)
+
+    def fake_runtime_metadata(**kwargs):
+        captured["runtime_metadata_kwargs"] = kwargs
+        return {"execution": kwargs["execution"]}
+
+    monkeypatch.setattr(
+        orchestrator,
+        "collect_runtime_metadata",
+        fake_runtime_metadata,
+    )
+
+    def fake_create_run_paths(*args, **kwargs):
+        captured["run_path_args"] = args
+        captured["run_path_kwargs"] = kwargs
+        return paths
+
+    monkeypatch.setattr(orchestrator, "create_run_paths", fake_create_run_paths)
+
+    def fake_build_mcp_command(*args, **kwargs):
+        captured["mcp_build"] = (args, kwargs)
+        command = ["mcp"]
+        if kwargs.get("codex_media_output"):
+            command.append("--codex-media-output")
+        return command
+
+    monkeypatch.setattr(orchestrator, "build_mcp_command", fake_build_mcp_command)
+    monkeypatch.setattr(
+        orchestrator,
+        "build_supervisor_command",
+        lambda **_kwargs: ["supervisor"],
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "build_trusted_mcp_env",
+        lambda *_args, **_kwargs: {"MCP": "safe"},
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "build_supervisor_env",
+        lambda *_args, **_kwargs: {"GODOT": "safe"},
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "build_provider_proxy_env",
+        lambda *_args, **_kwargs: {"PROXY": "safe"},
+    )
+
+    def fake_run_orchestrated_session(**kwargs):
+        captured["session"] = kwargs
+        home = Path(kwargs["player_env"]["CODEX_HOME"])
+        captured["config_text"] = (home / "config.toml").read_text()
+        captured["catalog_text"] = (home / "model-catalog.json").read_text()
+        return 23
+
+    monkeypatch.setattr(
+        orchestrator,
+        "run_orchestrated_session",
+        fake_run_orchestrated_session,
+    )
+
+    result = orchestrator.main(
+        [
+            "--session-root",
+            str(tmp_path / "sessions"),
+            "--yibu-credentials",
+            str(credential_path),
+            "--model",
+            "gemini-3.1-pro-preview",
+        ]
+    )
+
+    assert result == 23
+    assert captured["mcp_build"][1]["codex_media_output"] is True
+    assert captured["session"]["mcp_command"][-1] == "--codex-media-output"
+    assert captured["session"]["provider_proxy_command"][-2:] == [
+        "--diagnostics-jsonl",
+        str(log_root / "provider_requests.jsonl"),
+    ]
+    assert captured["run_path_kwargs"]["reasoning_effort"] == "none"
+    execution = captured["runtime_metadata_kwargs"]["execution"]
+    assert execution["model_context_window"] == 128000
+    assert execution["model_auto_compact_token_limit"] == 90000
+    assert captured["session"]["player_env"]["YIBU_API_KEY"] == "fixture-secret"
+    for safe_value in (
+        captured["run_path_kwargs"],
+        captured["runtime_metadata_kwargs"],
+        captured["session"]["mcp_command"],
+        captured["session"]["provider_proxy_command"],
+        captured["session"]["provider_proxy_env"],
+        captured["config_text"],
+        captured["catalog_text"],
+    ):
+        assert "fixture-secret" not in repr(safe_value)
