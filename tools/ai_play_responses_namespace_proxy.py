@@ -154,8 +154,7 @@ def rewrite_response_event(
             provider_prefix = namespace.removeprefix("mcp__") + ":"
             if (
                 restored is None
-                and
-                isinstance(tool_name, str)
+                and isinstance(tool_name, str)
                 and tool_name.startswith(provider_prefix)
                 and tool_name.removeprefix(provider_prefix) in allowed_tools
             ):
