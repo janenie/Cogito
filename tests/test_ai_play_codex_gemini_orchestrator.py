@@ -2,7 +2,6 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -211,7 +210,55 @@ def test_parse_args_defaults_to_gemini_flash_without_reasoning_option():
     assert args.workflow_memory == "enabled"
     assert args.provider_proxy_port == 18767
     assert args.codex_max_restarts == 2
+    assert args.context_window == 128000
+    assert args.auto_compact_token_limit == 90000
     assert not hasattr(args, "reasoning_effort")
+
+
+def test_parse_args_accepts_context_overrides():
+    orchestrator = load_orchestrator()
+
+    args = orchestrator.parse_args(
+        [
+            "--context-window",
+            "256000",
+            "--auto-compact-token-limit",
+            "180000",
+        ]
+    )
+
+    assert args.model == "gemini-3.6-flash"
+    assert args.context_window == 256000
+    assert args.auto_compact_token_limit == 180000
+
+
+def test_main_delegates_to_generic_yibu_entry_with_gemini_default(monkeypatch):
+    orchestrator = load_orchestrator()
+    captured = {}
+
+    def fake_main(argv, *, default_model):
+        captured["argv"] = argv
+        captured["default_model"] = default_model
+        return 31
+
+    monkeypatch.setattr(orchestrator._yibu, "main", fake_main)
+
+    assert orchestrator.main(["--runs", "1"]) == 31
+    assert captured == {
+        "argv": ["--runs", "1"],
+        "default_model": "gemini-3.6-flash",
+    }
+
+
+def test_gemini_facade_keeps_legacy_public_helpers():
+    orchestrator = load_orchestrator()
+
+    assert orchestrator.YibuCredentials is orchestrator._yibu.YibuCredentials
+    assert orchestrator.load_yibu_credentials is orchestrator._yibu.load_yibu_credentials
+    assert (
+        orchestrator.write_player_codex_gemini_config
+        is orchestrator._yibu.write_player_codex_yibu_config
+    )
 
 
 def test_build_player_restart_prompt_recovers_public_state_for_awm_modes():
@@ -292,199 +339,3 @@ def test_entry_reuses_scene_and_mcp_contracts():
     assert orchestrator.resolve_scene("conveyor_profit", None) == (
         "conveyor_profit/scenes/conveyor_profit_preview.tscn"
     )
-
-
-def test_main_rejects_unsafe_model_before_reading_credentials(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    monkeypatch.setattr(
-        orchestrator,
-        "load_yibu_credentials",
-        lambda _source: pytest.fail("credentials must not be read"),
-    )
-    monkeypatch.setattr(
-        orchestrator,
-        "create_run_paths",
-        lambda *args, **kwargs: pytest.fail("run paths must not be created"),
-    )
-
-    with pytest.raises(
-        SystemExit,
-        match="must not be empty or contain whitespace",
-    ):
-        orchestrator.main(
-            [
-                "--session-root",
-                str(tmp_path / "runs"),
-                "--model",
-                "gemini\ninvalid",
-            ]
-        )
-
-
-def test_main_rejects_invalid_run_count_before_reading_credentials(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda _value: "/codex")
-    monkeypatch.setattr(
-        orchestrator,
-        "load_yibu_credentials",
-        lambda _source: pytest.fail("credentials must not be read"),
-    )
-
-    with pytest.raises(SystemExit, match="--runs must be at least 1"):
-        orchestrator.main(
-            [
-                "--session-root",
-                str(tmp_path / "runs"),
-                "--runs",
-                "0",
-            ]
-        )
-
-
-def test_main_rejects_negative_codex_restart_limit_before_reading_credentials(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda _value: "/codex")
-    monkeypatch.setattr(
-        orchestrator,
-        "load_yibu_credentials",
-        lambda _source: pytest.fail("credentials must not be read"),
-    )
-
-    with pytest.raises(
-        SystemExit,
-        match="--codex-max-restarts must be at least 0",
-    ):
-        orchestrator.main(
-            [
-                "--session-root",
-                str(tmp_path / "runs"),
-                "--codex-max-restarts",
-                "-1",
-            ]
-        )
-
-
-def test_main_wires_yibu_key_only_to_codex_player_environment(
-    monkeypatch,
-    tmp_path,
-):
-    orchestrator = load_orchestrator()
-    credential_path = tmp_path / "opus.py"
-    credential_path.write_text(
-        'ak = {"key": "fixture-secret", "url": "https://yibuapi.com"}',
-        encoding="utf-8",
-    )
-    run_dir = tmp_path / "run"
-    player_workspace = run_dir / "player_workspace"
-    log_root = run_dir / "trusted_mcplogs"
-    player_workspace.mkdir(parents=True)
-    log_root.mkdir()
-    paths = SimpleNamespace(
-        run_dir=run_dir,
-        player_workspace=player_workspace,
-        log_root=log_root,
-    )
-    captured = {}
-
-    monkeypatch.setattr(
-        orchestrator,
-        "validate_isolated_session_root",
-        lambda root: Path(root).resolve(),
-    )
-    monkeypatch.setattr(orchestrator, "resolve_codex_bin", lambda _value: "/codex")
-    monkeypatch.setattr(orchestrator, "is_port_listening", lambda *_args: False)
-    monkeypatch.setattr(
-        orchestrator,
-        "collect_runtime_metadata",
-        lambda **_kwargs: {"runtime": "fixture"},
-    )
-
-    def fake_create_run_paths(*args, **kwargs):
-        captured["run_path_args"] = args
-        captured["run_path_kwargs"] = kwargs
-        return paths
-
-    monkeypatch.setattr(orchestrator, "create_run_paths", fake_create_run_paths)
-    monkeypatch.setattr(orchestrator, "build_mcp_command", lambda *_args: ["mcp"])
-    monkeypatch.setattr(
-        orchestrator,
-        "build_supervisor_command",
-        lambda **_kwargs: ["supervisor"],
-    )
-    monkeypatch.setattr(
-        orchestrator,
-        "build_trusted_mcp_env",
-        lambda *_args, **_kwargs: {"MCP": "safe"},
-    )
-    monkeypatch.setattr(
-        orchestrator,
-        "build_supervisor_env",
-        lambda *_args, **_kwargs: {"GODOT": "safe"},
-    )
-    monkeypatch.setattr(
-        orchestrator,
-        "build_provider_proxy_env",
-        lambda *_args, **_kwargs: {"PROXY": "safe"},
-    )
-
-    def fake_run_orchestrated_session(**kwargs):
-        captured["session"] = kwargs
-        config_text = (
-            Path(kwargs["player_env"]["CODEX_HOME"]) / "config.toml"
-        ).read_text(encoding="utf-8")
-        captured["config_text"] = config_text
-        return 23
-
-    monkeypatch.setattr(
-        orchestrator,
-        "run_orchestrated_session",
-        fake_run_orchestrated_session,
-    )
-
-    result = orchestrator.main(
-        [
-            "--session-root",
-            str(tmp_path / "sessions"),
-            "--yibu-credentials",
-            str(credential_path),
-            "--scenario",
-            "find_contract",
-        ]
-    )
-
-    assert result == 23
-    assert captured["run_path_kwargs"]["player"] == "codex"
-    assert captured["run_path_kwargs"]["model"] == "gemini-3.6-flash"
-    assert captured["run_path_kwargs"]["reasoning_effort"] == "none"
-    assert "fixture-secret" not in repr(captured["run_path_kwargs"])
-    assert "opus.py" not in repr(captured["run_path_kwargs"])
-    session = captured["session"]
-    assert session["player_env"]["YIBU_API_KEY"] == "fixture-secret"
-    assert "fixture-secret" not in captured["config_text"]
-    assert 'model_provider = "yibu"' in captured["config_text"]
-    assert 'base_url = "http://127.0.0.1:18767/v1"' in captured["config_text"]
-    assert "model_reasoning_effort" not in captured["config_text"]
-    assert session["provider_proxy_port"] == 18767
-    assert session["provider_proxy_env"] == {"PROXY": "safe"}
-    assert session["provider_proxy_command"][-2:] == [
-        "--diagnostics-jsonl",
-        str(log_root / "provider_requests.jsonl"),
-    ]
-    assert "fixture-secret" not in repr(session["provider_proxy_command"])
-    assert "fixture-secret" not in repr(session["provider_proxy_env"])
-    assert session["mcp_env"] == {"MCP": "safe"}
-    assert session["supervisor_env"] == {"GODOT": "safe"}
-    assert session["player_restart_limit"] == 2
-    assert "当前 Codex turn 只负责下一个正式终局" in session["prompt"]
-    assert "workflow_memory_read、briefing、observe" in session[
-        "player_restart_prompt"
-    ]
