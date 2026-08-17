@@ -24,6 +24,187 @@ def load_proxy():
     return module
 
 
+def namespace_request():
+    return {
+        "tools": [
+            {"type": "function", "name": "plain", "parameters": {}},
+            {
+                "type": "namespace",
+                "name": "mcp__cogito_ai_play",
+                "tools": [
+                    {"type": "function", "name": "briefing", "parameters": {}},
+                    {"type": "function", "name": "observe", "parameters": {}},
+                ],
+            },
+        ],
+        "input": [
+            {
+                "type": "function_call",
+                "name": "briefing",
+                "namespace": "mcp__cogito_ai_play",
+                "arguments": "{}",
+            }
+        ],
+        "tool_choice": {"type": "namespace", "name": "mcp__cogito_ai_play"},
+    }
+
+
+def test_flatten_namespace_tools_rewrites_request_and_returns_reverse_map():
+    proxy = load_proxy()
+    request = namespace_request()
+
+    reverse_map = proxy.transform_request_namespaces(
+        request,
+        namespace="mcp__cogito_ai_play",
+        allowed_tools=frozenset({"briefing", "observe"}),
+    )
+
+    assert [tool["name"] for tool in request["tools"]] == [
+        "plain",
+        "mcp__cogito_ai_play__briefing",
+        "mcp__cogito_ai_play__observe",
+    ]
+    assert request["input"][0]["name"] == "mcp__cogito_ai_play__briefing"
+    assert "namespace" not in request["input"][0]
+    assert request["tool_choice"] == "auto"
+    assert reverse_map["mcp__cogito_ai_play__observe"] == (
+        proxy.NamespacedToolName("mcp__cogito_ai_play", "observe")
+    )
+
+
+def test_flatten_preserves_request_without_tools_field():
+    proxy = load_proxy()
+    request = {"model": "fixture", "input": "hello"}
+
+    reverse_map = proxy.transform_request_namespaces(
+        request,
+        namespace="mcp__cogito_ai_play",
+        allowed_tools=frozenset({"briefing"}),
+    )
+
+    assert reverse_map == {}
+    assert request == {"model": "fixture", "input": "hello"}
+
+
+def test_flatten_rejects_unapproved_namespace_child():
+    proxy = load_proxy()
+    request = namespace_request()
+    request["tools"][1]["tools"].append(
+        {"type": "function", "name": "hidden", "parameters": {}}
+    )
+
+    try:
+        proxy.transform_request_namespaces(
+            request,
+            namespace="mcp__cogito_ai_play",
+            allowed_tools=frozenset({"briefing", "observe"}),
+        )
+    except ValueError as error:
+        assert "allowed" in str(error)
+    else:
+        raise AssertionError("expected unapproved namespace child rejection")
+
+
+def test_flatten_rejects_existing_flat_name_collision():
+    proxy = load_proxy()
+    request = namespace_request()
+    request["tools"].insert(
+        0,
+        {
+            "type": "function",
+            "name": "mcp__cogito_ai_play__briefing",
+            "parameters": {},
+        },
+    )
+
+    try:
+        proxy.transform_request_namespaces(
+            request,
+            namespace="mcp__cogito_ai_play",
+            allowed_tools=frozenset({"briefing", "observe"}),
+        )
+    except ValueError as error:
+        assert "collision" in str(error)
+    else:
+        raise AssertionError("expected flat-name collision rejection")
+
+
+def test_flatten_rejects_two_owners_with_same_bounded_name(monkeypatch):
+    proxy = load_proxy()
+    request = namespace_request()
+    monkeypatch.setattr(
+        proxy,
+        "flatten_namespace_tool_name",
+        lambda _namespace, _name: "same-bounded-name",
+    )
+
+    try:
+        proxy.transform_request_namespaces(
+            request,
+            namespace="mcp__cogito_ai_play",
+            allowed_tools=frozenset({"briefing", "observe"}),
+        )
+    except ValueError as error:
+        assert "collision" in str(error)
+    else:
+        raise AssertionError("expected bounded-name owner collision rejection")
+
+
+def test_restore_flattened_name_in_json_response():
+    proxy = load_proxy()
+    event = {
+        "item": {
+            "type": "function_call",
+            "name": "mcp__cogito_ai_play__observe",
+        }
+    }
+    reverse_map = {
+        "mcp__cogito_ai_play__observe": proxy.NamespacedToolName(
+            "mcp__cogito_ai_play", "observe"
+        )
+    }
+
+    proxy.rewrite_response_event(
+        event,
+        namespace="mcp__cogito_ai_play",
+        allowed_tools={"observe"},
+        restore_map=reverse_map,
+    )
+
+    assert event["item"]["name"] == "observe"
+    assert event["item"]["namespace"] == "mcp__cogito_ai_play"
+
+
+def test_restore_flattened_name_in_sse_but_not_unmapped_name():
+    proxy = load_proxy()
+    event = {
+        "output": [
+            {
+                "type": "function_call",
+                "name": "mcp__cogito_ai_play__observe",
+            },
+            {"type": "function_call", "name": "unmapped"},
+        ]
+    }
+    reverse_map = {
+        "mcp__cogito_ai_play__observe": proxy.NamespacedToolName(
+            "mcp__cogito_ai_play", "observe"
+        )
+    }
+
+    rewritten = proxy.rewrite_sse_line(
+        b"data: " + json.dumps(event).encode(),
+        namespace="mcp__cogito_ai_play",
+        allowed_tools={"observe"},
+        restore_map=reverse_map,
+    )
+    payload = json.loads(rewritten.removeprefix(b"data: "))
+
+    assert payload["output"][0]["name"] == "observe"
+    assert payload["output"][0]["namespace"] == "mcp__cogito_ai_play"
+    assert payload["output"][1] == {"type": "function_call", "name": "unmapped"}
+
+
 def test_rewrite_adds_namespace_to_allowed_plain_function_call():
     proxy = load_proxy()
     event = {

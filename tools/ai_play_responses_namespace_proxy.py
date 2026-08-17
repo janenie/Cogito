@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import threading
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -21,6 +22,7 @@ import httpx
 LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_PORT = 18767
 MAX_REQUEST_BYTES = 64 * 1024 * 1024
+MAX_TOOL_NAME_BYTES = 64
 _HOP_BY_HOP_HEADERS = {
     "connection",
     "content-length",
@@ -35,30 +37,138 @@ _HOP_BY_HOP_HEADERS = {
 }
 
 
+@dataclass(frozen=True)
+class NamespacedToolName:
+    namespace: str
+    name: str
+
+
+def _utf8_prefix(value: str, maximum_bytes: int) -> str:
+    encoded = value.encode("utf-8")[:maximum_bytes]
+    while True:
+        try:
+            return encoded.decode("utf-8")
+        except UnicodeDecodeError:
+            encoded = encoded[:-1]
+
+
+def flatten_namespace_tool_name(namespace: str, name: str) -> str:
+    full_name = f"{namespace}__{name}"
+    if len(full_name.encode("utf-8")) <= MAX_TOOL_NAME_BYTES:
+        return full_name
+    digest = hashlib.sha256(full_name.encode("utf-8")).hexdigest()[:12]
+    suffix = f"__{digest}"
+    return _utf8_prefix(
+        full_name,
+        MAX_TOOL_NAME_BYTES - len(suffix.encode("utf-8")),
+    ) + suffix
+
+
+def transform_request_namespaces(
+    payload: dict[str, Any],
+    *,
+    namespace: str,
+    allowed_tools: frozenset[str],
+) -> dict[str, NamespacedToolName]:
+    """Flatten one trusted Codex namespace for Responses-compatible providers."""
+    tools = payload.get("tools", [])
+    if not isinstance(tools, list):
+        raise ValueError("tools must be a list")
+
+    ordinary_tools: list[dict[str, Any]] = []
+    namespace_children: list[tuple[dict[str, Any], NamespacedToolName, str]] = []
+    occupied_names: set[str] = set()
+    for tool in tools:
+        if not isinstance(tool, dict):
+            raise ValueError("tool declarations must be objects")
+        if tool.get("type") != "namespace":
+            name = tool.get("name")
+            if isinstance(name, str):
+                if name in occupied_names:
+                    raise ValueError("tool name collision")
+                occupied_names.add(name)
+            ordinary_tools.append(tool)
+            continue
+        if tool.get("name") != namespace:
+            raise ValueError("namespace is not allowed")
+        children = tool.get("tools")
+        if not isinstance(children, list):
+            raise ValueError("namespace tools must be a list")
+        for child in children:
+            if not isinstance(child, dict) or child.get("type") != "function":
+                raise ValueError("namespace children must be functions")
+            child_name = child.get("name")
+            if not isinstance(child_name, str) or child_name not in allowed_tools:
+                raise ValueError("namespace child is not allowed")
+            owner = NamespacedToolName(namespace, child_name)
+            flat_name = flatten_namespace_tool_name(namespace, child_name)
+            namespace_children.append((child, owner, flat_name))
+
+    reverse_map: dict[str, NamespacedToolName] = {}
+    for _child, owner, flat_name in namespace_children:
+        if flat_name in occupied_names or flat_name in reverse_map:
+            raise ValueError("flattened tool name collision")
+        reverse_map[flat_name] = owner
+
+    flattened_tools = list(ordinary_tools)
+    for child, _owner, flat_name in namespace_children:
+        flattened = dict(child)
+        flattened["name"] = flat_name
+        flattened_tools.append(flattened)
+
+    for value in _walk_values(payload.get("input", [])):
+        if value.get("type") != "function_call" or "namespace" not in value:
+            continue
+        call_namespace = value.get("namespace")
+        call_name = value.get("name")
+        if call_namespace != namespace or call_name not in allowed_tools:
+            raise ValueError("replayed namespace tool call is not allowed")
+        value["name"] = flatten_namespace_tool_name(namespace, call_name)
+        del value["namespace"]
+
+    tool_choice = payload.get("tool_choice")
+    if isinstance(tool_choice, dict) and tool_choice.get("type") == "namespace":
+        if tool_choice.get("name") != namespace:
+            raise ValueError("tool choice namespace is not allowed")
+        payload["tool_choice"] = "auto"
+    if "tools" in payload:
+        payload["tools"] = flattened_tools
+    return reverse_map
+
+
 def rewrite_response_event(
     value: Any,
     *,
     namespace: str,
     allowed_tools: set[str] | frozenset[str],
+    restore_map: Mapping[str, NamespacedToolName] | None = None,
 ) -> Any:
     if isinstance(value, dict):
         if value.get("type") == "function_call" and not value.get("namespace"):
             tool_name = value.get("name")
+            restored = restore_map.get(tool_name) if restore_map else None
+            if restored is not None:
+                value["name"] = restored.name
+                value["namespace"] = restored.namespace
+                tool_name = restored.name
             provider_prefix = namespace.removeprefix("mcp__") + ":"
             if (
+                restored is None
+                and
                 isinstance(tool_name, str)
                 and tool_name.startswith(provider_prefix)
                 and tool_name.removeprefix(provider_prefix) in allowed_tools
             ):
                 tool_name = tool_name.removeprefix(provider_prefix)
                 value["name"] = tool_name
-            if tool_name in allowed_tools:
+            if restored is None and tool_name in allowed_tools:
                 value["namespace"] = namespace
         for child in value.values():
             rewrite_response_event(
                 child,
                 namespace=namespace,
                 allowed_tools=allowed_tools,
+                restore_map=restore_map,
             )
     elif isinstance(value, list):
         for child in value:
@@ -66,6 +176,7 @@ def rewrite_response_event(
                 child,
                 namespace=namespace,
                 allowed_tools=allowed_tools,
+                restore_map=restore_map,
             )
     return value
 
@@ -75,6 +186,7 @@ def rewrite_sse_line(
     *,
     namespace: str,
     allowed_tools: set[str] | frozenset[str],
+    restore_map: Mapping[str, NamespacedToolName] | None = None,
 ) -> bytes:
     if not line.startswith(b"data: ") or line == b"data: [DONE]":
         return line
@@ -86,6 +198,7 @@ def rewrite_sse_line(
         event,
         namespace=namespace,
         allowed_tools=allowed_tools,
+        restore_map=restore_map,
     )
     return b"data: " + json.dumps(
         event,
@@ -274,6 +387,23 @@ def _handler_type(
                 self._send_error(413, "request body too large")
                 return
             body = self.rfile.read(content_length)
+            try:
+                payload = json.loads(body)
+                if not isinstance(payload, dict):
+                    raise ValueError("Responses request must be a JSON object")
+                reverse_map = transform_request_namespaces(
+                    payload,
+                    namespace=namespace,
+                    allowed_tools=allowed_tools,
+                )
+                transformed_body = json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            except (ValueError, json.JSONDecodeError):
+                self._send_error(400, "invalid Responses request")
+                return
             if diagnostics_writer is not None:
                 try:
                     diagnostics_writer.write(inspect_request_images(body))
@@ -287,7 +417,7 @@ def _handler_type(
                         "POST",
                         upstream_url,
                         headers=forward_request_headers(dict(self.headers.items())),
-                        content=body,
+                        content=transformed_body,
                     ) as response:
                         response_started = True
                         self.send_response(response.status_code)
@@ -302,6 +432,7 @@ def _handler_type(
                                     line.encode("utf-8"),
                                     namespace=namespace,
                                     allowed_tools=allowed_tools,
+                                    restore_map=reverse_map,
                                 )
                                 self.wfile.write(rewritten + b"\n")
                                 self.wfile.flush()
@@ -313,6 +444,7 @@ def _handler_type(
                                     payload,
                                     namespace=namespace,
                                     allowed_tools=allowed_tools,
+                                    restore_map=reverse_map,
                                 )
                                 response_body = json.dumps(
                                     payload,
