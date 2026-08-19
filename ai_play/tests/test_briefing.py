@@ -476,9 +476,15 @@ def test_all_scenario_briefings_explain_action_parameter_scale():
         assert "250ms 满强度 move 约等于连续走四分之一秒" in serialized_rules
         assert "满强度 sprint 约等于连续跑四分之一秒" in serialized_rules
         assert "输入向量长度会控制实际移动力度" in serialized_rules
-        assert "单轴 0.2 到 0.4" in serialized_rules
+        assert "满强度，也是普通导航的默认力度" in serialized_rules
+        assert "单轴 0.2 到 0.4" not in serialized_rules
+        assert "开阔路线优先使用满强度 150 到 250ms" in serialized_rules
+        assert "连续两次同方向移动都未受阻" in serialized_rules
+        assert "不要继续用相同或更小的步幅逐帧确认" in serialized_rules
+        assert "楼梯对齐且玩家高度持续变化" in serialized_rules
         assert "50 到 100ms" in serialized_rules
-        assert "不要在门口连续使用满强度 250ms" in serialized_rules
+        assert "接近普通目标时优先用 100 到 150ms" not in serialized_rules
+        assert "不要在门口连续使用满强度 250ms" not in serialized_rules
         assert "连续多次 look" not in serialized_rules
         assert "360 度环顾" not in serialized_rules
 
