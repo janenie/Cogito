@@ -140,6 +140,25 @@ godot --path . addons/cogito/DemoScenes/COGITO_4_Laboratory.tscn \
 
 ## 黑盒模型玩家连续多局
 
+### Deep Agents + Yibu Chat Completions（无 Codex）
+
+`tools_langgraph_deepagents/` 提供独立 Python Host：进程内 Deep Agents 直接调用 Yibu
+`/v1/chat/completions`，并通过一条持久 stdio MCP 会话连接现有 Godot supervisor。它不启动
+Codex、不创建 `CODEX_HOME`、不使用 `/v1/responses` 或本地 Responses 代理。详细安装、凭据、
+运行和续跑命令见
+[`tools_langgraph_deepagents/README.md`](../tools_langgraph_deepagents/README.md)。
+
+模型只获得当前 AWM 模式允许的公开游戏工具；Deep Agents 内置文件、Shell 与子代理工具被移除，
+全部工具调用串行。MCP 的公开结构化结果、RGB 和深度图使用标准 LangChain `ToolMessage` 进入
+下一轮；每个模型请求硬性只保留最新十个图片块，旧图由正常回复中的 caption 文本承接，不产生
+额外 caption 请求。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用同一个
+LangGraph checkpoint 和游戏会话继续。
+
+默认从已忽略的本地 `newak.py` 读取字面量变量 `ak`，默认模型为
+`gemini-3.6-flash`，默认 `max_output_tokens=4096`。真实运行仍须确认截图上传、token/费用、
+可信轨迹以及可能含历史图片 Base64 的本地 `deepagents_checkpoint.sqlite`；测试不得读取真实
+凭据或发起外部请求。
+
 ### Codex
 
 `tools/ai_play_codex_orchestrator.py` 用于让一个新的、受限的 Codex 会话连续游玩。可信侧

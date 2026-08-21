@@ -148,7 +148,7 @@ Godot 桥的安全边界。
 
 ## Deep Agents 直连 Yibu Chat Host
 
-> 状态：2026-08-22 设计已批准；设计来源见
+> 状态：已于 2026-08-22 实施；设计来源见
 > [Deep Agents Yibu 接入 spec](../../scope/2026-08-22-langgraph-deepagents-yibu/spec-langgraph-deepagents-yibu.md)。
 
 `tools_langgraph_deepagents/` 是一个独立的 Python Agent Host，使用进程内嵌的
@@ -171,6 +171,19 @@ Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客
 仓库、命令参数、日志、会话元数据或 checkpoint。真实外部运行前仍必须明确确认
 截图上传、token/费用和本地对话与轨迹持久化影响。`Ctrl-C`、模型异常、MCP
 异常和 supervisor 异常都必须请求安全停止并释放全部模拟输入。
+
+唯一入口是 `python -m tools_langgraph_deepagents`。默认模型为
+`gemini-3.6-flash`，默认输出上限为 4096；外部运行必须交互输入 `RUN`，或由已完成同等确认的
+外层自动化显式传 `--confirm-external-run`。运行目录继续使用 provider-neutral 布局，并新增
+`deepagents_checkpoint.sqlite`；该 checkpoint 用稳定 thread ID 支持 Agent 提前 final 和进程
+中断后的续跑，也可能持久化先前模型消息中的图片 Base64。`workflow_memory.json` 仍是正式终局
+计数和 AWM 的可信来源。
+
+依赖由 `tools_langgraph_deepagents/requirements.lock.txt` 单独锁定。实现只复用
+`ai_play_orchestrator_common.py` 的 provider-neutral 路径/环境构造、现有 supervisor 和 stdio
+MCP Server；不得反向依赖任何 `ai_play_codex_*` 模块。控制台只输出 assistant 文本、工具名、
+工具状态、公开 observation ID 和正式终局摘要，不输出原始 MCP JSON、图片 Base64、请求头或
+checkpoint 状态。
 
 ## Codex orchestrator 多局验收
 

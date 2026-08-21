@@ -60,7 +60,13 @@ def test_console_never_prints_base64_or_raw_tool_payload():
             "messages": [
                 AIMessage(
                     content=[
-                        {"type": "text", "text": "visible caption"},
+                        {
+                            "type": "text",
+                            "text": (
+                                "visible caption "
+                                "data:image/jpeg;base64,VERY_SECRET_BASE64"
+                            ),
+                        },
                         {
                             "type": "image",
                             "base64": "VERY_SECRET_BASE64",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from typing import Any, TextIO
 
@@ -8,17 +9,29 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 
 IMAGE_TYPES = frozenset({"image", "image_url", "input_image"})
+DATA_URL_RE = re.compile(
+    r"data:[^;,\s]+;base64,[A-Za-z0-9+/=_-]+",
+    re.IGNORECASE,
+)
+BEARER_RE = re.compile(r"\bBearer\s+\S+", re.IGNORECASE)
+LONG_BASE64_RE = re.compile(r"(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/=_-]{64,}")
+
+
+def _redact_text(value: str) -> str:
+    value = DATA_URL_RE.sub("[image data redacted]", value)
+    value = BEARER_RE.sub("Bearer [redacted]", value)
+    return LONG_BASE64_RE.sub("[base64 redacted]", value)
 
 
 def _assistant_lines(content: Any) -> list[str]:
     if isinstance(content, str):
-        return [content] if content.strip() else []
+        return [_redact_text(content)] if content.strip() else []
     if not isinstance(content, list):
         return []
     lines: list[str] = []
     for block in content:
         if isinstance(block, str) and block.strip():
-            lines.append(block)
+            lines.append(_redact_text(block))
         elif isinstance(block, dict):
             if block.get("type") in IMAGE_TYPES:
                 mime_type = block.get("mime_type", "image")
@@ -28,7 +41,7 @@ def _assistant_lines(content: Any) -> list[str]:
                 and isinstance(block.get("text"), str)
                 and block["text"].strip()
             ):
-                lines.append(block["text"])
+                lines.append(_redact_text(block["text"]))
     return lines
 
 

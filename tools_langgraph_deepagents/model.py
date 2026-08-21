@@ -27,5 +27,6 @@ def build_yibu_chat_model(
         max_retries=max_retries,
         max_completion_tokens=max_output_tokens,
         model_kwargs={"parallel_tool_calls": False},
+        http_socket_options=(),
         http_async_client=http_async_client,
     )
