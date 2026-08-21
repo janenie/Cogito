@@ -56,7 +56,13 @@ def test_stdio_connection_is_direct_and_has_no_codex_layer():
     assert connection == {
         "transport": "stdio",
         "command": "/python",
-        "args": ["-m", "ai_play.mcp_server", "--transport", "stdio"],
+        "args": [
+            "-m",
+            "ai_play.mcp_server",
+            "--transport",
+            "stdio",
+            "--preserve-unconsumed-workflow-memory",
+        ],
         "cwd": "/repo",
         "env": {"SAFE": "1"},
     }

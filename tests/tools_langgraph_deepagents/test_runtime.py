@@ -130,7 +130,7 @@ def test_resume_can_extend_one_run_target_to_three(tmp_path: Path):
                 "scenario_id": "find_contract",
                 "status": "failure",
                 "terminal_reason": "max_requests",
-                "consumed": False,
+                "consumed": True,
             }
         ]
     )
@@ -156,11 +156,15 @@ def test_resume_can_extend_one_run_target_to_three(tmp_path: Path):
         )
     )
     metadata = json.loads(run.session_metadata.read_text(encoding="utf-8"))
+    memory = json.loads(
+        (run.log_root / "workflow_memory.json").read_text(encoding="utf-8")
+    )
 
     assert prepared.completed_runs == 1
     assert prepared.remaining_runs == 2
     assert metadata["requested_runs"] == 3
     assert len(metadata["benchmark"]["attempts"]) == 3
+    assert memory["completed"][0]["consumed"] is False
 
 
 def test_resume_progress_rejects_a_different_player(tmp_path: Path):

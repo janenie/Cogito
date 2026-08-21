@@ -48,6 +48,7 @@ class ServerOptions:
     http_host: str
     http_port: int
     codex_media_output: bool = False
+    preserve_unconsumed_workflow_memory: bool = False
 
 
 def _parse_http_port(value: str) -> int:
@@ -87,6 +88,14 @@ def parse_server_options(argv: Sequence[str] | None = None) -> ServerOptions:
             "MCP image content"
         ),
     )
+    parser.add_argument(
+        "--preserve-unconsumed-workflow-memory",
+        action="store_true",
+        help=(
+            "preserve an eligible terminal for a resumed agent that retains "
+            "its public conversation checkpoint"
+        ),
+    )
     parsed = parser.parse_args(argv)
     if (
         parsed.transport == "streamable-http"
@@ -98,6 +107,9 @@ def parse_server_options(argv: Sequence[str] | None = None) -> ServerOptions:
         http_host=parsed.http_host,
         http_port=parsed.http_port,
         codex_media_output=parsed.codex_media_output,
+        preserve_unconsumed_workflow_memory=(
+            parsed.preserve_unconsumed_workflow_memory
+        ),
     )
 
 
@@ -426,7 +438,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     trajectory_logger = TrajectoryLogger(config.log_root)
     if resume_existing:
         trajectory_logger.recover_interrupted()
-    workflow_memory = SessionWorkflowMemory(config.workflow_memory_path)
+    workflow_memory = SessionWorkflowMemory(
+        config.workflow_memory_path,
+        preserve_unconsumed=(
+            options.preserve_unconsumed_workflow_memory
+        ),
+    )
     game_session = GameSession(
         config,
         trajectory_logger=trajectory_logger,

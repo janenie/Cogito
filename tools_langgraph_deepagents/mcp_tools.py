@@ -66,7 +66,13 @@ def build_stdio_mcp_connection(
     return {
         "transport": "stdio",
         "command": python_bin,
-        "args": ["-m", "ai_play.mcp_server", "--transport", "stdio"],
+        "args": [
+            "-m",
+            "ai_play.mcp_server",
+            "--transport",
+            "stdio",
+            "--preserve-unconsumed-workflow-memory",
+        ],
         "cwd": str(repo_root),
         "env": env,
     }

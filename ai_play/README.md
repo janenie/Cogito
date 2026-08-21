@@ -158,6 +158,8 @@ Codex、不创建 `CODEX_HOME`、不使用 `/v1/responses` 或本地 Responses �
 更新再清理。
 恢复允许把原有总局数向上扩展但不能减少；扩展后先消费 checkpoint 中尚未更新 AWM 的正式终局，
 只提交受严格长度和条目数限制的精炼纯文本经验，再开始新增局。
+该保留行为只由同时恢复 LangGraph 公开对话 checkpoint 的 Deep Agents stdio Host 启用；其他
+玩家和默认 MCP 恢复仍自动消费陈旧终局，不能脱离原始公开证据补写经验。
 
 默认从已忽略的本地 `newak.py` 读取字面量变量 `ak`，默认模型为
 `gemini-3.6-flash`，默认 `max_output_tokens=4096`。真实运行仍须确认截图上传、token/费用、

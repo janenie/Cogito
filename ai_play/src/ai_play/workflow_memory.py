@@ -97,8 +97,14 @@ class _Attempt:
 class SessionWorkflowMemory:
     """Validated procedural memory scoped to one resumable orchestrator run."""
 
-    def __init__(self, checkpoint_path: Path | None = None):
+    def __init__(
+        self,
+        checkpoint_path: Path | None = None,
+        *,
+        preserve_unconsumed: bool = False,
+    ):
         self._lock = Lock()
+        self._preserve_unconsumed = preserve_unconsumed
         self._checkpoint_path = (
             checkpoint_path.expanduser().resolve()
             if checkpoint_path is not None
@@ -115,6 +121,35 @@ class SessionWorkflowMemory:
         self._failure_reviews: list[dict] = []
         if self._checkpoint_path is not None and self._checkpoint_path.exists():
             self._load_checkpoint()
+
+    def reopen_single_unlearned_attempt(self) -> bool:
+        """Reopen one auto-consumed terminal for a checkpointed agent."""
+        with self._lock:
+            eligible = [
+                attempt
+                for attempt in self._completed
+                if attempt.status in _ELIGIBLE_STATUSES
+            ]
+            has_memory = any(
+                (
+                    self._goal_pattern,
+                    self._workflow,
+                    self._landmarks,
+                    self._avoid,
+                    self._failure_reviews,
+                )
+            )
+            if (
+                self._active_attempt is not None
+                or self._version != 0
+                or has_memory
+                or len(eligible) != 1
+                or not eligible[0].consumed
+            ):
+                return False
+            eligible[0].consumed = False
+            self._persist_locked()
+            return True
 
     def start_attempt(self, scenario_id: str) -> int:
         with self._lock:
@@ -297,10 +332,14 @@ class SessionWorkflowMemory:
         self._failure_reviews = failure_reviews
 
         changed = False
-        for attempt in self._completed:
-            if attempt.status in _ELIGIBLE_STATUSES and not attempt.consumed:
-                attempt.consumed = True
-                changed = True
+        if not self._preserve_unconsumed:
+            for attempt in self._completed:
+                if (
+                    attempt.status in _ELIGIBLE_STATUSES
+                    and not attempt.consumed
+                ):
+                    attempt.consumed = True
+                    changed = True
         if self._active_attempt is not None:
             self._active_attempt.status = "shutdown"
             self._active_attempt.terminal_reason = "orchestrator_interrupted"

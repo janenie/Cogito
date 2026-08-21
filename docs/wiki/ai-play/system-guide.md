@@ -187,6 +187,9 @@ Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客
 attempt 计划。若 checkpoint 中存在未消费的正式终局，Agent 必须先基于既有公开对话提交一次受
 字段、条目和长度校验限制的精炼纯文本 AWM，再调用新一局的 briefing、observe 或 act；AWM 不得
 包含图片、Base64、完整对话或逐帧动作。
+只有同时恢复原 LangGraph 公开对话 checkpoint 的 Deep Agents 私有 stdio MCP 启动可以保留或
+重新打开单个尚未学习的正式终局；默认 MCP 和其他玩家恢复仍必须把陈旧未消费终局标为已消费，
+避免没有原始公开证据的新玩家补写经验。
 
 依赖由 `tools_langgraph_deepagents/requirements.lock.txt` 单独锁定。实现只复用
 `ai_play_orchestrator_common.py` 的 provider-neutral 路径/环境构造、现有 supervisor 和 stdio

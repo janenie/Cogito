@@ -110,6 +110,27 @@ def test_checkpoint_does_not_reuse_unconsumed_completed_attempt(tmp_path):
     assert restored.update(valid_candidate())["version"] == 1
 
 
+def test_checkpointed_agent_can_reopen_one_unlearned_terminal(tmp_path):
+    checkpoint = tmp_path / "workflow_memory.json"
+    memory = SessionWorkflowMemory(checkpoint)
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("failure", "max_requests")
+
+    SessionWorkflowMemory(checkpoint)
+    restored = SessionWorkflowMemory(
+        checkpoint,
+        preserve_unconsumed=True,
+    )
+
+    assert restored.reopen_single_unlearned_attempt() is True
+    restored.start_attempt("find_contract")
+    candidate = valid_candidate()
+    candidate["workflow"] = []
+    candidate["landmarks"] = []
+    candidate["failure_review"] = valid_failure_review()
+    assert restored.update(candidate)["version"] == 1
+
+
 def test_checkpoint_rejects_corrupt_state(tmp_path):
     checkpoint = tmp_path / "workflow_memory.json"
     checkpoint.write_text('{"schema_version":1,"scenario_id":7}', encoding="utf-8")

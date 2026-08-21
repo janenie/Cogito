@@ -840,6 +840,14 @@ def test_parse_server_options_enables_codex_media_output():
     assert options.codex_media_output is True
 
 
+def test_parse_server_options_can_preserve_checkpointed_agent_terminal():
+    options = mcp_server.parse_server_options(
+        ["--preserve-unconsumed-workflow-memory"]
+    )
+
+    assert options.preserve_unconsumed_workflow_memory is True
+
+
 @pytest.mark.parametrize("host", ["localhost", "::1", "0.0.0.0"])
 def test_parse_server_options_rejects_non_numeric_loopback(host):
     with pytest.raises(ValueError, match="MCP HTTP host must be 127.0.0.1"):
