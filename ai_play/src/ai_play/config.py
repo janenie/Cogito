@@ -14,6 +14,7 @@ class Config:
     stop_timeout_seconds: float = 5.0
     max_act_requests: int = 150
     log_root: Path = Path("~/workspace/cogito_logs/mcplogs").expanduser()
+    workflow_memory_path: Path | None = None
     approved_image_root: Path | None = None
 
     @classmethod
@@ -34,6 +35,9 @@ class Config:
                 cls.max_act_requests,
             ),
             log_root=_read_path("AI_PLAY_LOG_ROOT", cls.log_root),
+            workflow_memory_path=_read_optional_absolute_path(
+                "AI_PLAY_WORKFLOW_MEMORY_PATH"
+            ),
             approved_image_root=_read_optional_absolute_path(
                 "AI_PLAY_APPROVED_IMAGE_ROOT"
             ),

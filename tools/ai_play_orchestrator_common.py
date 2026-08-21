@@ -64,6 +64,7 @@ CORE_ENV_NAMES = ("PATH", "PATHEXT", "SystemRoot", "WINDIR", "ComSpec")
 @dataclass(frozen=True)
 class RunPaths:
     run_dir: Path
+    runtime_dir: Path
     player_workspace: Path
     log_root: Path
     session_metadata: Path
@@ -96,6 +97,16 @@ def validate_isolated_session_root(session_root: Path) -> Path:
     return root
 
 
+def validate_artifact_root(artifact_root: Path) -> Path:
+    root = artifact_root.expanduser().resolve()
+    if _is_relative_to(root, REPO_ROOT):
+        raise ValueError("artifact root must be outside the current repository")
+    for ancestor in (root, *root.parents):
+        if (ancestor / ".git").exists():
+            raise ValueError("artifact root must be outside a Git worktree")
+    return root
+
+
 def _run_directory_component(value: str, max_length: int = 64) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     component = re.sub(r"[^A-Za-z0-9._-]+", "_", normalized)
@@ -112,6 +123,7 @@ def _run_directory_component(value: str, max_length: int = 64) -> str:
 def create_run_paths(
     session_root: Path,
     *,
+    artifact_root: Path | None = None,
     player: str,
     model: str,
     reasoning_effort: str,
@@ -122,8 +134,14 @@ def create_run_paths(
     runtime_metadata: Mapping[str, object] | None = None,
     timestamp: str | None = None,
 ) -> RunPaths:
-    root = validate_isolated_session_root(session_root)
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    runtime_root = validate_isolated_session_root(session_root)
+    runtime_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    artifact_base = (
+        runtime_root
+        if artifact_root is None
+        else validate_artifact_root(artifact_root)
+    )
+    artifact_base.mkdir(mode=0o700, parents=True, exist_ok=True)
     started_at = datetime.now().astimezone()
     stamp = timestamp or started_at.strftime("%Y%m%d-%H%M%S")
     memory_label = "awm" if workflow_memory_enabled else "no-awm"
@@ -136,18 +154,14 @@ def create_run_paths(
             memory_label,
         )
     )
-    for index in range(1, 1000):
-        suffix = "" if index == 1 else "-%02d" % index
-        run_dir = root / f"{run_name}{suffix}"
-        try:
-            run_dir.mkdir(mode=0o700)
-            break
-        except FileExistsError:
-            continue
-    else:
-        raise RuntimeError("could not allocate a fresh AI Play run directory")
+    run_dir = _allocate_directory(artifact_base, run_name)
+    runtime_dir = (
+        run_dir
+        if artifact_root is None
+        else _allocate_directory(runtime_root, f"{run_dir.name}__runtime")
+    )
 
-    player_workspace = run_dir / "player_workspace"
+    player_workspace = runtime_dir / "player_workspace"
     log_root = run_dir / "trusted_mcplogs"
     session_metadata = run_dir / "session.json"
     player_workspace.mkdir(mode=0o700)
@@ -180,10 +194,56 @@ def create_run_paths(
     os.chmod(session_metadata, 0o600)
     return RunPaths(
         run_dir=run_dir,
+        runtime_dir=runtime_dir,
         player_workspace=player_workspace,
         log_root=log_root,
         session_metadata=session_metadata,
     )
+
+
+def resume_run_paths(
+    session_root: Path,
+    run_dir: Path,
+    *,
+    timestamp: str | None = None,
+) -> RunPaths:
+    runtime_root = validate_isolated_session_root(session_root)
+    runtime_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    artifact_dir = validate_artifact_root(run_dir)
+    session_metadata = artifact_dir / "session.json"
+    log_root = artifact_dir / "trusted_mcplogs"
+    if not artifact_dir.is_dir():
+        raise ValueError(f"missing resume run directory: {artifact_dir}")
+    if not session_metadata.is_file():
+        raise ValueError("resume run is missing session.json")
+    if not log_root.is_dir():
+        raise ValueError("resume run is missing trusted_mcplogs")
+    stamp = timestamp or datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+    runtime_dir = _allocate_directory(
+        runtime_root,
+        f"{artifact_dir.name}__resume-{stamp}",
+    )
+    player_workspace = runtime_dir / "player_workspace"
+    player_workspace.mkdir(mode=0o700)
+    return RunPaths(
+        run_dir=artifact_dir,
+        runtime_dir=runtime_dir,
+        player_workspace=player_workspace,
+        log_root=log_root,
+        session_metadata=session_metadata,
+    )
+
+
+def _allocate_directory(root: Path, base_name: str) -> Path:
+    for index in range(1, 1000):
+        suffix = "" if index == 1 else "-%02d" % index
+        candidate = root / f"{base_name}{suffix}"
+        try:
+            candidate.mkdir(mode=0o700)
+            return candidate
+        except FileExistsError:
+            continue
+    raise RuntimeError("could not allocate a fresh AI Play run directory")
 
 
 def collect_runtime_metadata(
@@ -409,6 +469,8 @@ def build_trusted_mcp_env(
     log_root: Path,
     ws_port: int,
     base_env: Mapping[str, str] | None = None,
+    *,
+    workflow_memory_path: Path | None = None,
 ) -> dict[str, str]:
     env = build_core_env(base_env)
     env.update(
@@ -419,6 +481,10 @@ def build_trusted_mcp_env(
             "PYTHONPATH": str(REPO_ROOT / "ai_play" / "src"),
         }
     )
+    if workflow_memory_path is not None:
+        env["AI_PLAY_WORKFLOW_MEMORY_PATH"] = str(
+            workflow_memory_path.expanduser().resolve()
+        )
     return env
 
 
@@ -460,8 +526,9 @@ def build_supervisor_command(
     max_retries: int,
     timeout_seconds: float,
     benchmark_cycle_seed: int = DEFAULT_BENCHMARK_CYCLE_SEED,
+    attempt_offset: int = 0,
 ) -> list[str]:
-    return [
+    command = [
         python_bin,
         str(REPO_ROOT / "tools" / "ai_play_supervisor.py"),
         "--runs",
@@ -479,6 +546,9 @@ def build_supervisor_command(
         "--benchmark-cycle-seed",
         str(benchmark_cycle_seed),
     ]
+    if attempt_offset:
+        command.extend(("--attempt-offset", str(attempt_offset)))
+    return command
 
 
 def build_player_prompt(

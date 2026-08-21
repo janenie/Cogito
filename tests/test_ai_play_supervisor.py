@@ -150,6 +150,36 @@ def test_supervisor_assigns_reproducible_round_seeds_to_all_scenarios(monkeypatc
     ]
 
 
+def test_supervisor_resume_offset_preserves_global_attempts_and_seeds(monkeypatch):
+    supervisor = load_supervisor()
+    calls = []
+
+    def fake_run(**kwargs):
+        calls.append(kwargs)
+        return supervisor.AttemptResult(
+            attempt=kwargs["attempt_number"],
+            status="success",
+            reason="done",
+            exit_code=0,
+            retries=0,
+        )
+
+    monkeypatch.setattr(supervisor, "run_supervised_attempt", fake_run)
+
+    assert supervisor.main([
+        "--runs", "2",
+        "--attempt-offset", "2",
+        "--scenario", "find_contract",
+        "--benchmark-cycle-seed", "7",
+    ]) == 0
+
+    assert [call["attempt_number"] for call in calls] == [3, 4]
+    assert [call["command"][-1] for call in calls] == [
+        "--ai-play-round-seed=7000024",
+        "--ai-play-round-seed=7000025",
+    ]
+
+
 def test_parse_game_over_marker_rejects_unrelated_output():
     supervisor = load_supervisor()
 

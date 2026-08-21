@@ -419,8 +419,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     options = parse_server_options(argv)
     codex_media_output = options.codex_media_output
     config = Config.from_env()
+    resume_existing = (
+        config.workflow_memory_path is not None
+        and config.workflow_memory_path.exists()
+    )
     trajectory_logger = TrajectoryLogger(config.log_root)
-    workflow_memory = SessionWorkflowMemory()
+    if resume_existing:
+        trajectory_logger.recover_interrupted()
+    workflow_memory = SessionWorkflowMemory(config.workflow_memory_path)
     game_session = GameSession(
         config,
         trajectory_logger=trajectory_logger,

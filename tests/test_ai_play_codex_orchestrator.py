@@ -135,6 +135,79 @@ def test_create_run_paths_keeps_logs_trusted_and_player_workspace_empty(
     }
 
 
+def test_create_run_paths_can_separate_artifacts_from_runtime(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    runtime_root = tmp_path / "runtime"
+    artifact_root = tmp_path / "artifacts"
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+
+    paths = orchestrator.create_run_paths(
+        runtime_root,
+        artifact_root=artifact_root,
+        player="codex",
+        model="gemini-3.6-flash",
+        reasoning_effort="none",
+        scenario="find_contract",
+        workflow_memory_enabled=True,
+        requested_runs=3,
+        timestamp="20260821-170000",
+    )
+
+    assert paths.run_dir.parent == artifact_root.resolve()
+    assert paths.runtime_dir.parent == runtime_root.resolve()
+    assert paths.runtime_dir != paths.run_dir
+    assert paths.player_workspace == paths.runtime_dir / "player_workspace"
+    assert paths.log_root == paths.run_dir / "trusted_mcplogs"
+    assert paths.session_metadata == paths.run_dir / "session.json"
+    assert not (paths.run_dir / "player_workspace").exists()
+
+
+def test_resume_run_paths_reuses_artifacts_with_fresh_runtime(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    monkeypatch.setattr(
+        orchestrator,
+        "validate_isolated_session_root",
+        lambda root: Path(root).resolve(),
+    )
+    original = orchestrator.create_run_paths(
+        tmp_path / "runtime-a",
+        artifact_root=tmp_path / "artifacts",
+        player="codex",
+        model="gemini-3.6-flash",
+        reasoning_effort="none",
+        scenario="find_contract",
+        workflow_memory_enabled=True,
+        requested_runs=3,
+        timestamp="20260821-170000",
+    )
+    marker = original.log_root / "partial-log.json"
+    marker.write_text("{}", encoding="utf-8")
+
+    resumed = orchestrator.resume_run_paths(
+        tmp_path / "runtime-b",
+        original.run_dir,
+        timestamp="20260821-180000",
+    )
+
+    assert resumed.run_dir == original.run_dir
+    assert resumed.log_root == original.log_root
+    assert resumed.session_metadata == original.session_metadata
+    assert resumed.runtime_dir != original.runtime_dir
+    assert resumed.runtime_dir.parent == (tmp_path / "runtime-b").resolve()
+    assert list(resumed.player_workspace.iterdir()) == []
+    assert marker.is_file()
+
+
 def test_benchmark_attempt_plan_preserves_special_campaign_contracts():
     orchestrator = load_orchestrator()
 
@@ -484,6 +557,20 @@ def test_build_trusted_mcp_env_has_bridge_and_log_but_no_player_credentials(
     assert env["AI_PLAY_LOG_ROOT"] == str(tmp_path / "trusted_mcplogs")
     assert env["PYTHONPATH"] == str(orchestrator.REPO_ROOT / "ai_play" / "src")
     assert "OPENAI_API_KEY" not in env
+
+
+def test_build_trusted_mcp_env_can_enable_resumable_workflow_memory(tmp_path):
+    orchestrator = load_orchestrator()
+    checkpoint = tmp_path / "trusted_mcplogs" / "workflow_memory.json"
+
+    env = orchestrator.build_trusted_mcp_env(
+        log_root=tmp_path / "trusted_mcplogs",
+        ws_port=8765,
+        base_env={"PATH": "/safe-bin"},
+        workflow_memory_path=checkpoint,
+    )
+
+    assert env["AI_PLAY_WORKFLOW_MEMORY_PATH"] == str(checkpoint)
 
 
 def test_build_supervisor_env_provides_isolated_godot_user_directories(tmp_path):

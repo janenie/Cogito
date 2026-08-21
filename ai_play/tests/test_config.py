@@ -70,6 +70,23 @@ def test_config_rejects_empty_log_root(monkeypatch):
         Config.from_env()
 
 
+def test_config_reads_absolute_workflow_memory_checkpoint(monkeypatch, tmp_path):
+    checkpoint = tmp_path / "workflow-memory.json"
+    monkeypatch.setenv("AI_PLAY_WORKFLOW_MEMORY_PATH", str(checkpoint))
+
+    config = Config.from_env()
+
+    assert config.workflow_memory_path == checkpoint.resolve()
+
+
+@pytest.mark.parametrize("value", ["", "   ", "relative/checkpoint.json"])
+def test_config_rejects_invalid_workflow_memory_checkpoint(monkeypatch, value):
+    monkeypatch.setenv("AI_PLAY_WORKFLOW_MEMORY_PATH", value)
+
+    with pytest.raises(ValueError, match="AI_PLAY_WORKFLOW_MEMORY_PATH"):
+        Config.from_env()
+
+
 def test_config_reads_absolute_approved_image_root(monkeypatch, tmp_path):
     image_root = tmp_path / "approved-images"
     monkeypatch.setenv("AI_PLAY_APPROVED_IMAGE_ROOT", str(image_root))

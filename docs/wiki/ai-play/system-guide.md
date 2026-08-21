@@ -137,6 +137,8 @@ Godot 桥的安全边界。
   四次连接，第五次连接创建新的运行目录；不同任务绝不混入同一个运行。`run.json` 重复保存经过验证的
   `scenario_id`，尝试摘要用 `terminal_reason` 区分任务终局、MCP 停止、Escape、
   bridge 断开和 MCP shutdown。
+- `AI_PLAY_WORKFLOW_MEMORY_PATH` 可选且必须是绝对路径，只供可信 MCP 原子保存可恢复 AWM 和
+  正式完成局数；该路径和文件内容不得进入玩家环境、提示词或 MCP 工具结果。
 - 本地轨迹只记录 `observe`、`act`、`stop` 的 MCP 请求、获准结构化结果和截图 JPEG 相对路径；深度 PNG 只在 MCP 响应中返回，不写入轨迹目录。绝不记录 `briefing`、图片 Base64、提示词、凭据、隐藏状态或仓库文件。`trajectory.json` 的 `total_steps` 统计终局前到达 Python 的全部 `act()` 调用，`result` 仍严格只包含 `total_steps` 和 `status`，状态使用 `in_progress`、`success`、`failure`、`stopped`。日志器不负责自动重玩或模型复盘。
 - 运行时观察截图和可选深度图统一缩放为 1024×576；Godot 和 Python 桥的单包上限为 8 MiB，
   用于容纳最多两张 Base64 图片的观察 JSON。
@@ -245,8 +247,24 @@ YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
 `--codex-media-output` 表示，把相同公开 JSON 作为紧邻 `ImageContent` 的文本返回且不再重复
 `structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。provider 请求记录
 metadata-only 图片审计（请求序号、请求字节数、图片数量、MIME、字节数、SHA-256、是否有
-`previous_response_id` 和 `store` 布尔值）；第一版不在代理层主动裁剪历史图片，每个正式终局后仍切换干净
-Codex turn。
+`previous_response_id` 和 `store` 布尔值）。代理层不主动裁剪历史图片；统一 Yibu 入口把同一段
+best-effort 图片纪律注入首次玩家请求和每个恢复请求：当前 turn 最多主动参考最近 10 张相关图片，
+RGB 与深度图分别计数，每张新图片生成简短 caption，超出窗口的旧图只使用 caption。该模型行为
+约束不保证 Codex runtime 停止传输旧图，实际外发图片仍以 metadata-only 审计为准。每个正式终局后
+仍切换干净 Codex turn。
+
+统一 Yibu 入口支持将可信 artifact 与隔离运行目录分离。`--artifact-root` 从启动时起直接保存
+`session.json`、`trusted_mcplogs/`、provider 图片审计和 `workflow_memory.json`；玩家工作区、
+Godot 用户目录和临时 `CODEX_HOME` 仍位于通过祖先检查的 `--session-root`。checkpoint 只包含
+既有白名单验证过的文字 AWM、正式完成局数和尝试状态，使用 `0600` 原子替换，不保存图片、Base64、
+随机答案、凭据或玩家可访问路径。
+
+`--resume-run <run-dir>` 与 `--artifact-root` 互斥，并要求模型、场景、总局数、AWM 模式、benchmark
+seed、上下文窗口和压缩阈值与 `session.json` 一致。恢复复用原 artifact 和 checkpoint，创建新的
+隔离 runtime，跳过已正式结束的局，并把已完成局数作为 supervisor 的全局 attempt offset，保持
+round seed 与 conveyor draw index 不变。中断中的当前局重新开局；旧轨迹保留原事件和图片并收束为
+`stopped/orchestrator_interrupted`。不恢复 Godot 世界状态、旧 Codex 会话或中断局逐帧上下文；
+checkpoint 损坏或配置不匹配时失败关闭。
 
 Yibu Responses 代理的实现改编自 CC Switch commit
 `a98829ba1e8bd99a1df671e3c36c8bb6aa537e47` 的 model catalog 设计与 namespace
@@ -284,11 +302,12 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
   --codex-max-restarts 2 \
+  --artifact-root /Users/jan/workspace/ai_play/gemini_3p6_flash \
   --session-root "$GEMINI_RUN_ROOT"
 ```
 
-运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
-整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
+运行根仍在通过祖先隔离检查的临时目录中创建；需要长期保留或断点续跑时使用 `--artifact-root`，
+不要等 orchestrator 退出后再复制。会话元数据位于 `session.json`，可信截图和轨迹位于
 `trusted_mcplogs/`。Gemini 入口额外生成 `trusted_mcplogs/provider_requests.jsonl`：每个
 Responses 请求只记录图片数量、顺序、MIME、解码字节数、SHA-256、`previous_response_id` 是否
 存在和布尔 `store`，不记录 Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用

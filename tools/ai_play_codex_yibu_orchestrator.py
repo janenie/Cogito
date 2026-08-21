@@ -34,13 +34,13 @@ REPO_ROOT = _codex.REPO_ROOT
 SUPPORTED_SCENARIOS = _codex.SUPPORTED_SCENARIOS
 build_codex_command = _codex.build_codex_command
 build_mcp_command = _codex.build_mcp_command
-build_player_prompt = _codex.build_player_prompt
 build_supervisor_command = _codex.build_supervisor_command
 build_supervisor_env = _codex.build_supervisor_env
 build_trusted_mcp_env = _codex.build_trusted_mcp_env
 collect_runtime_metadata = _codex.collect_runtime_metadata
 create_run_paths = _codex.create_run_paths
 is_port_listening = _codex.is_port_listening
+resume_run_paths = _codex.resume_run_paths
 resolve_codex_bin = _codex.resolve_codex_bin
 resolve_scene = _codex.resolve_scene
 run_orchestrated_session = _codex.run_orchestrated_session
@@ -59,12 +59,44 @@ DEFAULT_CONTEXT_WINDOW = 128_000
 DEFAULT_AUTO_COMPACT_TOKEN_LIMIT = 90_000
 MAX_CONTEXT_WINDOW = 10_000_000
 MAX_MODEL_ID_BYTES = 256
+WORKFLOW_MEMORY_FILENAME = "workflow_memory.json"
+IMAGE_CONTEXT_LIMIT = 10
+IMAGE_CONTEXT_PROMPT = f"""
+图片上下文纪律（本次请求内最高优先级）：
+1. 当前 Codex turn 最多主动参考最近 {IMAGE_CONTEXT_LIMIT} 张与当前任务相关的图片；RGB 和深度图分别按一张图片计数。
+2. 收到新图片后，为每张新图片写一条简短 caption，只保留与当前目标、地标、交互提示、距离和方向有关的公开视觉事实。
+3. 超过 {IMAGE_CONTEXT_LIMIT} 张后，停止引用、比较或重新分析更旧图片；更旧图片只使用此前生成的 caption。
+4. 其他要求比较本会话历史截图的规则，仅适用于最近 {IMAGE_CONTEXT_LIMIT} 张相关图片；优先使用 act 返回的最新观察，不要为刷新画面重复调用 observe。
+5. 这是模型行为约束，不是传输层保证。如果 Codex runtime 仍随历史传输了更旧图片，忽略它们并继续游戏，不要报错或停止。
+""".strip()
 
 
 @dataclass(frozen=True)
 class YibuCredentials:
     api_key: str
     base_url: str
+
+
+def _append_image_context_prompt(prompt: str) -> str:
+    return f"{prompt}\n\n{IMAGE_CONTEXT_PROMPT}"
+
+
+def build_player_prompt(
+    runs: int,
+    workflow_memory_enabled: bool = True,
+    scenario: str = "",
+    approved_image_read: bool = False,
+    rotate_after_terminal: bool = False,
+) -> str:
+    return _append_image_context_prompt(
+        _codex.build_player_prompt(
+            runs,
+            workflow_memory_enabled=workflow_memory_enabled,
+            scenario=scenario,
+            approved_image_read=approved_image_read,
+            rotate_after_terminal=rotate_after_terminal,
+        )
+    )
 
 
 def _find_literal_ak_assignment(tree: ast.Module) -> dict[str, Any]:
@@ -193,6 +225,96 @@ def validate_yibu_model_argument(model: str) -> str:
     if len(model.encode("utf-8")) > MAX_MODEL_ID_BYTES:
         raise ValueError("--model must not exceed 256 UTF-8 bytes")
     return model
+
+
+def load_resume_progress(
+    run_dir: Path,
+    *,
+    model: str,
+    scenario: str,
+    workflow_memory_enabled: bool,
+    requested_runs: int,
+    benchmark_cycle_seed: int,
+    context_window: int,
+    auto_compact_token_limit: int,
+) -> int:
+    artifact_dir = run_dir.expanduser().resolve()
+    metadata = _read_json_object(
+        artifact_dir / "session.json",
+        "resume session metadata",
+    )
+    expected_memory = "enabled" if workflow_memory_enabled else "disabled"
+    for key, expected, label in (
+        ("player", "codex", "player"),
+        ("model", model, "model"),
+        ("reasoning_effort", "none", "reasoning effort"),
+        ("scenario", scenario, "scenario"),
+        ("workflow_memory", expected_memory, "workflow memory mode"),
+        ("requested_runs", requested_runs, "requested runs"),
+    ):
+        if metadata.get(key) != expected:
+            raise ValueError(f"resume {label} mismatch")
+    benchmark = metadata.get("benchmark")
+    if (
+        not isinstance(benchmark, dict)
+        or benchmark.get("cycle_seed") != benchmark_cycle_seed
+    ):
+        raise ValueError("resume benchmark cycle seed mismatch")
+    execution = metadata.get("execution")
+    if not isinstance(execution, dict):
+        raise ValueError("resume execution metadata is missing")
+    if execution.get("model_context_window") != context_window:
+        raise ValueError("resume context window mismatch")
+    if (
+        execution.get("model_auto_compact_token_limit")
+        != auto_compact_token_limit
+    ):
+        raise ValueError("resume auto-compact limit mismatch")
+
+    checkpoint_path = (
+        artifact_dir / "trusted_mcplogs" / WORKFLOW_MEMORY_FILENAME
+    )
+    if not checkpoint_path.exists():
+        return 0
+    checkpoint = _read_json_object(
+        checkpoint_path,
+        "workflow memory checkpoint",
+    )
+    if checkpoint.get("schema_version") != 1:
+        raise ValueError("unsupported workflow memory checkpoint")
+    if checkpoint.get("scenario_id") != scenario:
+        raise ValueError("resume checkpoint scenario mismatch")
+    completed = checkpoint.get("completed")
+    if not isinstance(completed, list):
+        raise ValueError("invalid workflow memory checkpoint")
+    completed_runs = 0
+    for index, attempt in enumerate(completed, 1):
+        if (
+            not isinstance(attempt, dict)
+            or attempt.get("number") != index
+            or attempt.get("scenario_id") != scenario
+            or attempt.get("status")
+            not in {"success", "failure", "stopped", "disconnected", "shutdown"}
+        ):
+            raise ValueError("invalid workflow memory checkpoint")
+        completed_runs += attempt["status"] in {"success", "failure"}
+    if completed_runs > requested_runs:
+        raise ValueError("resume progress exceeds requested runs")
+    if completed_runs == requested_runs:
+        raise ValueError("resume run is already complete")
+    return completed_runs
+
+
+def _read_json_object(path: Path, label: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise ValueError(f"missing {label}: {path}") from error
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label}") from error
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid {label}")
+    return payload
 
 
 def _single_model_catalog(model: str, context_window: int) -> dict[str, Any]:
@@ -406,7 +528,7 @@ def build_player_restart_prompt(
         if workflow_memory_enabled
         else "正式终局后输出简短最终回答并结束当前 Codex turn。"
     )
-    return (
+    prompt = (
         "这是同一 MCP 与 AWM 会话中的恢复 turn；此前 Codex turn 提前正常结束，"
         "但可信 supervisor 尚未完成。不要假设新的一局已经开始，也不要把 "
         "observation_id 当作 act 请求计数或已完成局数。先依次调用 %s 恢复公开状态，"
@@ -414,6 +536,7 @@ def build_player_restart_prompt(
         "game_over 才计算一局，在此之前不要输出最终回答。%s完整会话总目标仍是由可信 "
         "supervisor 完成 %s 个正式终局。" % (startup, progress, handoff, runs)
     )
+    return _append_image_context_prompt(prompt)
 
 
 def parse_args(
@@ -430,6 +553,9 @@ def parse_args(
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--scenario", default="find_contract")
     parser.add_argument("--session-root", type=Path, default=DEFAULT_SESSION_ROOT)
+    persistence = parser.add_mutually_exclusive_group()
+    persistence.add_argument("--artifact-root", type=Path)
+    persistence.add_argument("--resume-run", type=Path)
     parser.add_argument(
         "--yibu-credentials",
         type=Path,
@@ -557,39 +683,64 @@ def main(
             )
 
     workflow_memory_enabled = args.workflow_memory == "enabled"
-    paths = create_run_paths(
-        session_root,
-        player="codex",
-        model=args.model,
-        reasoning_effort="none",
-        scenario=args.scenario,
-        workflow_memory_enabled=workflow_memory_enabled,
-        requested_runs=args.runs,
-        benchmark_cycle_seed=args.benchmark_cycle_seed,
-        runtime_metadata=collect_runtime_metadata(
-            python_bin=args.python_bin,
-            player_bin=codex_bin,
-            godot_bin=args.godot_bin,
-            execution={
-                "ws_port": DEFAULT_WS_PORT,
-                "mcp_port": args.mcp_port,
-                "provider_proxy_port": args.provider_proxy_port,
-                "max_retries": args.max_retries,
-                "attempt_timeout_seconds": args.timeout_seconds,
-                "mcp_start_timeout_seconds": args.mcp_start_timeout_seconds,
-                "player_exit_grace_seconds": args.codex_exit_grace_seconds,
-                "idle_timeout_seconds": args.idle_timeout_seconds,
-                "player_final_grace_seconds": args.codex_final_grace_seconds,
-                "player_restart_limit": args.codex_max_restarts,
-                "model_context_window": args.context_window,
-                "model_auto_compact_token_limit": (
-                    args.auto_compact_token_limit
-                ),
-            },
-        ),
+    runtime_metadata = collect_runtime_metadata(
+        python_bin=args.python_bin,
+        player_bin=codex_bin,
+        godot_bin=args.godot_bin,
+        execution={
+            "ws_port": DEFAULT_WS_PORT,
+            "mcp_port": args.mcp_port,
+            "provider_proxy_port": args.provider_proxy_port,
+            "max_retries": args.max_retries,
+            "attempt_timeout_seconds": args.timeout_seconds,
+            "mcp_start_timeout_seconds": args.mcp_start_timeout_seconds,
+            "player_exit_grace_seconds": args.codex_exit_grace_seconds,
+            "idle_timeout_seconds": args.idle_timeout_seconds,
+            "player_final_grace_seconds": args.codex_final_grace_seconds,
+            "player_restart_limit": args.codex_max_restarts,
+            "model_context_window": args.context_window,
+            "model_auto_compact_token_limit": args.auto_compact_token_limit,
+        },
     )
-    mcp_env = build_trusted_mcp_env(paths.log_root, DEFAULT_WS_PORT)
-    supervisor_env = build_supervisor_env(paths.run_dir / "godot_environment")
+    try:
+        if args.resume_run is None:
+            paths = create_run_paths(
+                session_root,
+                artifact_root=args.artifact_root,
+                player="codex",
+                model=args.model,
+                reasoning_effort="none",
+                scenario=args.scenario,
+                workflow_memory_enabled=workflow_memory_enabled,
+                requested_runs=args.runs,
+                benchmark_cycle_seed=args.benchmark_cycle_seed,
+                runtime_metadata=runtime_metadata,
+            )
+            completed_runs = 0
+        else:
+            paths = resume_run_paths(session_root, args.resume_run)
+            completed_runs = load_resume_progress(
+                paths.run_dir,
+                model=args.model,
+                scenario=args.scenario,
+                workflow_memory_enabled=workflow_memory_enabled,
+                requested_runs=args.runs,
+                benchmark_cycle_seed=args.benchmark_cycle_seed,
+                context_window=args.context_window,
+                auto_compact_token_limit=args.auto_compact_token_limit,
+            )
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    remaining_runs = args.runs - completed_runs
+    workflow_memory_path = paths.log_root / WORKFLOW_MEMORY_FILENAME
+    mcp_env = build_trusted_mcp_env(
+        paths.log_root,
+        DEFAULT_WS_PORT,
+        workflow_memory_path=workflow_memory_path,
+    )
+    supervisor_env = build_supervisor_env(
+        paths.runtime_dir / "godot_environment"
+    )
     mcp_command = build_mcp_command(
         args.python_bin,
         args.mcp_port,
@@ -604,16 +755,23 @@ def main(
     )
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,
-        runs=args.runs,
+        runs=remaining_runs,
         scenario=args.scenario,
         scene=scene,
         godot_bin=args.godot_bin,
         max_retries=args.max_retries,
         timeout_seconds=args.timeout_seconds,
         benchmark_cycle_seed=args.benchmark_cycle_seed,
+        attempt_offset=completed_runs,
     )
     print("[orchestrator] run_dir=%s" % paths.run_dir, flush=True)
+    print("[orchestrator] runtime_dir=%s" % paths.runtime_dir, flush=True)
     print("[orchestrator] trusted_log_root=%s" % paths.log_root, flush=True)
+    print(
+        "[orchestrator] progress=%s/%s remaining=%s"
+        % (completed_runs, args.runs, remaining_runs),
+        flush=True,
+    )
     print(
         "[orchestrator] AI_PLAY_WS=%s:%s"
         % (DEFAULT_WS_HOST, DEFAULT_WS_PORT),

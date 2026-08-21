@@ -284,6 +284,7 @@ YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
   --context-window 128000 \
   --auto-compact-token-limit 90000 \
   --workflow-memory enabled \
+  --artifact-root /Users/jan/workspace/ai_play/gemini_3p6_flash \
   --session-root "$YIBU_RUN_ROOT"
 ```
 
@@ -291,8 +292,39 @@ YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
 `0700` 的临时 `CODEX_HOME` 中生成权限为 `0600` 的单模型 catalog 和配置，并始终使用
 `--codex-media-output` 启动 MCP，使获准公开的 JSON、RGB JPEG 和可选 depth PNG 进入模型输入。
 provider 代理在 `provider_requests.jsonl` 中只记录请求序号、请求字节数、图片数量、MIME、字节数、
-SHA-256、`previous_response_id` 是否存在和 `store` 布尔值，不保存 prompt、图片或响应正文。第一版
-不主动裁剪历史图片；上游拒绝图片或 namespace 转换失败时会失败关闭，不能静默无图继续游戏。
+SHA-256、`previous_response_id` 是否存在和 `store` 布尔值，不保存 prompt、图片或响应正文。代理
+不主动裁剪历史图片；Yibu 玩家在首次请求和每个恢复请求中收到 best-effort 图片纪律：最多主动
+参考最近 10 张相关图片，RGB 与深度图分别计数，并为每张新图片生成简短 caption，超出窗口的
+旧图只使用 caption。该提示不能保证 Codex runtime 停止传输旧图，实际外发图片仍以
+`provider_requests.jsonl` 为准。上游拒绝图片或 namespace 转换失败时会失败关闭，不能静默无图继续游戏。
+
+`--artifact-root` 可把 `session.json`、可信轨迹、图片审计和 AWM checkpoint 从启动时起直接写入
+持久目录；隔离的 `player_workspace`、Godot 用户目录和临时 `CODEX_HOME` 仍只位于
+`--session-root`，不会把持久 artifact 暴露给模型。每个运行的 AWM checkpoint 位于
+`trusted_mcplogs/workflow_memory.json`，由可信 MCP 通过内部绝对路径环境变量
+`AI_PLAY_WORKFLOW_MEMORY_PATH` 原子更新，权限为 `0600`。它只保存经过既有白名单验证的文字经验、
+正式完成局数和尝试状态，不保存图片、Base64、答案、凭据或玩家可访问路径。
+
+进程中断后，用启动时打印的 `run_dir` 继续；恢复命令必须保持模型、场景、总局数、AWM 模式、
+benchmark seed、上下文窗口和压缩阈值一致：
+
+```bash
+RESUME_RUNTIME_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu-resume.XXXXXX")"
+
+.venv/bin/python tools/ai_play_codex_yibu_orchestrator.py \
+  --model gemini-3.1-pro-preview \
+  --runs 3 \
+  --scenario find_key \
+  --yibu-credentials ./opus.py \
+  --workflow-memory enabled \
+  --resume-run /Users/jan/workspace/ai_play/gemini_3p6_flash/<run-dir> \
+  --session-root "$RESUME_RUNTIME_ROOT"
+```
+
+`--artifact-root` 与 `--resume-run` 互斥。恢复会保留并继续追加旧日志，加载已持久化 AWM，跳过已经
+正式结束的局，并按原全局局号继续 benchmark seed；中断中的当前局会重新开局。旧的
+`in_progress` 轨迹保留原事件和图片，收束为 `stopped/orchestrator_interrupted`。恢复不保存或
+还原 Godot 世界状态、旧 Codex 会话或中断局的逐帧上下文；checkpoint 损坏或配置不匹配时失败关闭。
 
 代理的 model catalog 设计和 Responses namespace flatten/restore 行为改编自
 [CC Switch](../tools/third_party/cc-switch/SOURCE.md) 固定 commit，并保留其 MIT 许可；运行时不依赖
@@ -326,26 +358,22 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
   --codex-max-restarts 2 \
+  --artifact-root /Users/jan/workspace/ai_play/gemini_3p6_flash \
   --session-root "$GEMINI_RUN_ROOT"
 ```
 
 `--workflow-memory enabled` 开启会话级 AWM；改为 `disabled` 才是无 AWM 对照。`--session-root`
 必须使用隔离目录：它及其祖先不能位于仓库内，也不能含 `.git`、`AGENTS.md` 或
-`.codex/config.toml`，所以不要直接把用户主目录下的普通归档目录当作运行根。进程正常退出后，
-可把完整结果归档到需要的位置，例如：
-
-```bash
-mkdir -p /Users/jan/workspace/ai_play_gemini_10games
-cp -R "$GEMINI_RUN_ROOT"/. /Users/jan/workspace/ai_play_gemini_10games/
-```
+`.codex/config.toml`，所以不要直接把用户主目录下的普通归档目录当作运行根。需要持久保存和断点
+续跑时使用 `--artifact-root`；可信 artifact 从第一步起写入该目录，不需要在结束后复制。
 
 每次运行会创建一个带时间、模型、场景和 AWM 标记的子目录；`session.json` 保存安全运行元数据，
 `trusted_mcplogs/` 保存可信侧截图和轨迹。Gemini 入口还会在
 `trusted_mcplogs/provider_requests.jsonl` 逐次记录 Responses 请求中的图片数量、顺序、MIME、
 解码后字节数、SHA-256，以及是否使用 `previous_response_id` 和 `store`。该审计不保存图片
 Base64/URL、提示词、工具参数、响应或 key；可用 SHA-256 与可信轨迹中的截图对照。审计文件以
-`0600` 追加写入，若检查或持久化失败，代理会在外发前失败关闭。归档应在 orchestrator 退出后
-执行，不能边运行边移动目录。
+`0600` 追加写入，若检查或持久化失败，代理会在外发前失败关闭。运行期间不得移动当前 artifact
+子目录；中断后可直接用 `--resume-run` 指向它。
 真实运行会把获准的截图、briefing 和工具结果发送给 Gemini/Yibu，产生 token/费用并在本地持久化
 上述日志，因此执行前必须完成相应确认。
 
@@ -915,9 +943,11 @@ AI_PLAY_MCP_WAIT_TIMEOUT_SECONDS=30
 AI_PLAY_STOP_TIMEOUT_SECONDS=5
 AI_PLAY_MAX_ACT_REQUESTS=150
 AI_PLAY_LOG_ROOT=~/workspace/cogito_logs/mcplogs
+AI_PLAY_WORKFLOW_MEMORY_PATH=/absolute/trusted/workflow_memory.json
 ```
 
-桥地址只能是 `127.0.0.1`。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
+桥地址只能是 `127.0.0.1`。`AI_PLAY_WORKFLOW_MEMORY_PATH` 是可选的可信侧断点文件，必须使用
+绝对路径，不能进入玩家环境或 MCP 工具结果。请求上限必须是 `1..1000000` 的整数，并且只能收紧玩法
 自身统一的 150 次硬上限；等待时间有界，日志根目录支持 `~`
 展开且不能为空。
 配置错误会写入 stderr；MCP stdout 只由 MCP

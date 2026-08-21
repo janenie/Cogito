@@ -55,6 +55,55 @@ class TrajectoryLogger:
                 return None
             return self._current_attempt[1]
 
+    def recover_interrupted(self):
+        with self._lock:
+            self._require_available_locked()
+            if self._run is not None or self._current_attempt is not None:
+                raise LogPersistenceError("logging_failed")
+            try:
+                if not self.root.exists():
+                    return
+                for run_path in sorted(self.root.glob("*/*/run.json")):
+                    run = self._read_json(run_path)
+                    if run.get("status") != "in_progress":
+                        continue
+                    attempts = run.get("attempts")
+                    if not isinstance(attempts, list):
+                        raise ValueError("invalid run log")
+                    for summary in attempts:
+                        if not isinstance(summary, dict):
+                            raise ValueError("invalid attempt summary")
+                        if summary.get("status") != "in_progress":
+                            continue
+                        attempt_number = summary.get("attempt")
+                        if type(attempt_number) is not int or attempt_number < 1:
+                            raise ValueError("invalid attempt number")
+                        trajectory_path = (
+                            run_path.parent
+                            / f"attempt-{attempt_number:02d}"
+                            / "trajectory.json"
+                        )
+                        trajectory = self._read_json(trajectory_path)
+                        result = trajectory.get("result")
+                        if (
+                            not isinstance(result, dict)
+                            or result.get("status") != "in_progress"
+                        ):
+                            raise ValueError("invalid active trajectory")
+                        result["status"] = "stopped"
+                        summary["status"] = "stopped"
+                        summary["terminal_reason"] = "orchestrator_interrupted"
+                        self._atomic_write_json(trajectory_path, trajectory)
+                    run["status"] = "stopped"
+                    run["completed_attempts"] = sum(
+                        isinstance(item, dict)
+                        and item.get("status") != "in_progress"
+                        for item in attempts
+                    )
+                    self._atomic_write_json(run_path, run)
+            except Exception as error:
+                self._fail_locked(error)
+
     def start_attempt(self, scenario_id):
         scenario_id = _validate_scenario_id(scenario_id)
         with self._lock:
@@ -330,6 +379,13 @@ class TrajectoryLogger:
                 indent=2,
             ).encode("utf-8"),
         )
+
+    @staticmethod
+    def _read_json(path):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("invalid log JSON")
+        return payload
 
     @staticmethod
     def _atomic_write_bytes(path, payload):

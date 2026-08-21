@@ -56,6 +56,26 @@ def test_first_attempt_creates_run_and_empty_trajectory(tmp_path):
     }
 
 
+def test_resume_marks_stale_in_progress_attempt_as_interrupted(tmp_path):
+    logger = TrajectoryLogger(tmp_path)
+    attempt_dir = logger.start_attempt("find_contract")
+    logger.begin_tool_call("observe", {})
+
+    resumed_logger = TrajectoryLogger(tmp_path)
+    resumed_logger.recover_interrupted()
+
+    trajectory = load_json(attempt_dir / "trajectory.json")
+    run = load_json(attempt_dir.parent / "run.json")
+    assert trajectory["result"]["status"] == "stopped"
+    assert trajectory["result"]["total_steps"] == 0
+    assert len(trajectory["trajectory"]) == 1
+    assert run["status"] == "stopped"
+    assert run["attempts"][0]["status"] == "stopped"
+    assert run["attempts"][0]["terminal_reason"] == (
+        "orchestrator_interrupted"
+    )
+
+
 def test_runs_are_partitioned_by_scenario(tmp_path):
     first = TrajectoryLogger(tmp_path, now=Clock())
     second = TrajectoryLogger(tmp_path, now=Clock())

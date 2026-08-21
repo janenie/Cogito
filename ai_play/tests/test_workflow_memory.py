@@ -60,6 +60,67 @@ def test_read_requires_a_started_scenario():
         memory.read("find_contract")
 
 
+def test_checkpoint_restores_completed_runs_and_validated_memory(tmp_path):
+    checkpoint = tmp_path / "workflow_memory.json"
+    memory = SessionWorkflowMemory(checkpoint)
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("success", "correct_password")
+    memory.update(valid_candidate())
+
+    restored = SessionWorkflowMemory(checkpoint)
+    snapshot = restored.read("find_contract")
+
+    assert snapshot["scope"] == "resumable_orchestrator_run"
+    assert snapshot["completed_runs"] == 1
+    assert snapshot["version"] == 1
+    assert snapshot["memory"]["workflow"] == [
+        {
+            "precondition": "尚未获得第一条公开任务线索",
+            "step": "先确认任务入口物",
+            "success_signal": "观察中出现下一阶段目标",
+        }
+    ]
+    assert checkpoint.stat().st_mode & 0o777 == 0o600
+
+
+def test_checkpoint_turns_interrupted_active_attempt_into_consumed_shutdown(
+    tmp_path,
+):
+    checkpoint = tmp_path / "workflow_memory.json"
+    memory = SessionWorkflowMemory(checkpoint)
+    assert memory.start_attempt("find_contract") == 1
+
+    restored = SessionWorkflowMemory(checkpoint)
+
+    assert restored.read("find_contract")["completed_runs"] == 0
+    assert restored.start_attempt("find_contract") == 2
+
+
+def test_checkpoint_does_not_reuse_unconsumed_completed_attempt(tmp_path):
+    checkpoint = tmp_path / "workflow_memory.json"
+    memory = SessionWorkflowMemory(checkpoint)
+    memory.start_attempt("find_contract")
+    memory.finish_attempt("success", "correct_password")
+
+    restored = SessionWorkflowMemory(checkpoint)
+    assert restored.read("find_contract")["completed_runs"] == 1
+    restored.start_attempt("find_contract")
+    restored.finish_attempt("success", "correct_password")
+
+    assert restored.update(valid_candidate())["version"] == 1
+
+
+def test_checkpoint_rejects_corrupt_state(tmp_path):
+    checkpoint = tmp_path / "workflow_memory.json"
+    checkpoint.write_text('{"schema_version":1,"scenario_id":7}', encoding="utf-8")
+
+    with pytest.raises(
+        WorkflowMemoryError,
+        match="invalid_workflow_memory_checkpoint",
+    ):
+        SessionWorkflowMemory(checkpoint)
+
+
 def test_session_rejects_a_different_scenario():
     memory = SessionWorkflowMemory()
     memory.start_attempt("find_contract")

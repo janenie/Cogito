@@ -52,6 +52,7 @@ build_trusted_mcp_env = _common.build_trusted_mcp_env
 collect_runtime_metadata = _common.collect_runtime_metadata
 create_run_paths = _common.create_run_paths
 is_port_listening = _common.is_port_listening
+resume_run_paths = _common.resume_run_paths
 run_orchestrated_session = _common.run_orchestrated_session
 validate_isolated_session_root = _common.validate_isolated_session_root
 validate_model_argument = _common.validate_model_argument

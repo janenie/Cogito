@@ -275,6 +275,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         description="Restart Godot for supervised Cogito AI Play attempts.",
     )
     parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--attempt-offset", type=int, default=0)
     parser.add_argument("--scenario", default="find_contract")
     parser.add_argument("--scene")
     parser.add_argument("--godot-bin", default="godot")
@@ -295,6 +296,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     if args.runs < 1:
         raise SystemExit("--runs must be at least 1")
+    if args.attempt_offset < 0:
+        raise SystemExit("--attempt-offset must be nonnegative")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
     if args.timeout_seconds <= 0:
@@ -315,7 +318,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         raise SystemExit(str(error)) from error
     results: list[AttemptResult] = []
-    for attempt in range(1, args.runs + 1):
+    for local_attempt in range(1, args.runs + 1):
+        attempt = args.attempt_offset + local_attempt
         command = build_godot_command(
             godot_bin=args.godot_bin,
             scene=scene,
