@@ -86,4 +86,3 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
             f"{MAX_BENCHMARK_CYCLE_SEED}"
         )
     return args
-
