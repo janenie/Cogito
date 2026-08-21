@@ -1160,6 +1160,84 @@ def test_session_allows_codex_to_finish_after_supervisor_terminal_exit(
     assert processes["mcp"].terminated
 
 
+def test_session_restarts_clean_player_until_supervisor_terminal_without_limit(
+    monkeypatch,
+    tmp_path,
+):
+    orchestrator = load_orchestrator()
+    started = []
+    player_prompts = []
+    mcp = FakeProcess()
+    supervisor = FakeProcess(return_codes=[None, None, None, 0])
+    players = iter(
+        [
+            FakeProcess(return_codes=[None, 0]),
+            FakeProcess(return_codes=[0]),
+            FakeProcess(return_codes=[0]),
+            FakeProcess(),
+        ]
+    )
+
+    def fake_start(label, command, cwd, env, stdin_text=None):
+        started.append(label)
+        if label == "mcp":
+            return mcp
+        if label == "supervisor":
+            return supervisor
+        player_prompts.append(stdin_text)
+        return next(players)
+
+    monkeypatch.setattr(orchestrator._common, "_start_process", fake_start)
+    monkeypatch.setattr(
+        orchestrator._common,
+        "_start_output_reader",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        orchestrator._common,
+        "wait_for_listener",
+        lambda *args, **kwargs: True,
+    )
+
+    result = orchestrator.run_orchestrated_session(
+        mcp_command=["python"],
+        player_label="codex",
+        player_command=["codex"],
+        supervisor_command=["supervisor"],
+        prompt="play until a formal terminal",
+        mcp_env={},
+        player_env={},
+        supervisor_env={},
+        mcp_cwd=tmp_path,
+        player_cwd=tmp_path,
+        supervisor_cwd=tmp_path,
+        ws_port=8765,
+        mcp_port=8766,
+        mcp_start_timeout_seconds=1.0,
+        player_exit_grace_seconds=0.0,
+        idle_timeout_seconds=10.0,
+        player_final_grace_seconds=0.0,
+        player_restart_limit=None,
+        player_restart_prompt="resume the same active attempt",
+    )
+
+    assert result == 0
+    assert started == [
+        "mcp",
+        "codex",
+        "supervisor",
+        "codex",
+        "codex",
+        "codex",
+    ]
+    assert player_prompts == [
+        "play until a formal terminal",
+        "resume the same active attempt",
+        "resume the same active attempt",
+        "resume the same active attempt",
+    ]
+
+
 def test_session_can_stop_player_immediately_after_supervisor_terminal_exit(
     monkeypatch,
     tmp_path,

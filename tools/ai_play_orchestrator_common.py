@@ -733,7 +733,7 @@ def run_orchestrated_session(
     player_exit_grace_seconds: float,
     idle_timeout_seconds: float,
     player_final_grace_seconds: float,
-    player_restart_limit: int = 0,
+    player_restart_limit: int | None = 0,
     player_restart_prompt: str | None = None,
     stop_player_on_supervisor_exit: bool = False,
     provider_proxy_command: Sequence[str] | None = None,
@@ -864,12 +864,25 @@ def run_orchestrated_session(
                     if supervisor_code is not None:
                         return supervisor_code
                     time.sleep(0.05)
-                if player_code == 0 and player_restarts < player_restart_limit:
+                restart_allowed = (
+                    player_restart_limit is None
+                    or player_restarts < player_restart_limit
+                )
+                if player_code == 0 and restart_allowed:
                     player_restarts += 1
+                    restart_limit_label = (
+                        "until supervisor terminal"
+                        if player_restart_limit is None
+                        else str(player_restart_limit)
+                    )
                     print(
                         "[orchestrator] %s exited before supervisor terminal; "
                         "restarting player turn (%s/%s)"
-                        % (player_label, player_restarts, player_restart_limit),
+                        % (
+                            player_label,
+                            player_restarts,
+                            restart_limit_label,
+                        ),
                         flush=True,
                     )
                     player = _start_process(

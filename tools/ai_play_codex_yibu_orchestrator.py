@@ -46,7 +46,7 @@ resolve_scene = _codex.resolve_scene
 run_orchestrated_session = _codex.run_orchestrated_session
 validate_isolated_session_root = _codex.validate_isolated_session_root
 validate_model_argument = _codex.validate_model_argument
-DEFAULT_CODEX_MAX_RESTARTS = 2
+DEFAULT_CODEX_MAX_RESTARTS: int | None = None
 DEFAULT_YIBU_CREDENTIALS = REPO_ROOT / "opus.py"
 DEFAULT_PROVIDER_PROXY_PORT = 18767
 RESPONSES_NAMESPACE_PROXY_PATH = (
@@ -639,7 +639,10 @@ def main(
         raise SystemExit("--runs must be at least 1")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
-    if args.codex_max_restarts < 0:
+    if (
+        args.codex_max_restarts is not None
+        and args.codex_max_restarts < 0
+    ):
         raise SystemExit("--codex-max-restarts must be at least 0")
     if not 0 <= args.benchmark_cycle_seed <= MAX_BENCHMARK_CYCLE_SEED:
         raise SystemExit(

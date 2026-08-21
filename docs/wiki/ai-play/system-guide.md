@@ -251,7 +251,11 @@ metadata-only 图片审计（请求序号、请求字节数、图片数量、MIM
 best-effort 图片纪律注入首次玩家请求和每个恢复请求：当前 turn 最多主动参考最近 10 张相关图片，
 RGB 与深度图分别计数，每张新图片生成简短 caption，超出窗口的旧图只使用 caption。该模型行为
 约束不保证 Codex runtime 停止传输旧图，实际外发图片仍以 metadata-only 审计为准。每个正式终局后
-仍切换干净 Codex turn。
+仍切换干净 Codex turn。若 Codex 在 supervisor 仍为 `in_progress` 时以 0 正常退出，统一入口也会
+保持同一 MCP、Godot 与 AWM 会话并启动恢复 turn，直到出现正式 `success`、`failure` 或
+`failure/max_requests`。这种 clean-exit 恢复默认不设次数上限；`--codex-max-restarts N` 只用于
+显式收紧诊断或费用预算，`0` 表示禁用。非零退出、MCP/provider 退出、idle timeout 和操作者停止
+仍失败关闭。
 
 统一 Yibu 入口支持将可信 artifact 与隔离运行目录分离。`--artifact-root` 从启动时起直接保存
 `session.json`、`trusted_mcplogs/`、provider 图片审计和 `workflow_memory.json`；玩家工作区、
@@ -301,7 +305,6 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
-  --codex-max-restarts 2 \
   --artifact-root /Users/jan/workspace/ai_play/gemini_3p6_flash \
   --session-root "$GEMINI_RUN_ROOT"
 ```
@@ -313,12 +316,13 @@ Responses 请求只记录图片数量、顺序、MIME、解码字节数、SHA-25
 存在和布尔 `store`，不记录 Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用
 SHA-256 对照可信轨迹截图；检查或落盘失败时，代理在请求外发前失败关闭。
 `--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
-Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多创建 2 个干净恢复 turn，可用
-`--codex-max-restarts` 调整或设为 0 禁用。恢复 turn 沿用同一 MCP、Godot 和 AWM 会话，通过
-`workflow_memory_read`、`briefing`、`observe` 重建公开状态，不继承此前累积的截图上下文，也不
-增加已完成局数。Gemini 的每个 Codex turn 只负责下一个正式终局：AWM 更新完成后主动退出，三局
-使用三个干净 turn，默认两次轮换。非零退出和恢复次数耗尽保持失败关闭；正式终局前的意外正常
-退出会消耗同一恢复预算。
+Codex 在 supervisor 正式终局前以 0 正常退出时，入口持续创建干净恢复 turn，直到 supervisor 返回
+正式 `success`、`failure` 或 `failure/max_requests`。恢复 turn 沿用同一 MCP、Godot 和 AWM
+会话，通过 `workflow_memory_read`、`briefing`、`observe` 重建公开状态，不继承此前累积的截图
+上下文，也不增加已完成局数。Gemini 的每个 Codex turn 仍只负责下一个正式终局：AWM 更新完成后
+主动退出，若 supervisor 还有剩余局数则由下一干净 turn 接续。clean-exit 恢复默认不设次数上限；
+可用 `--codex-max-restarts N` 显式收紧，`0` 表示禁用。非零退出及其他基础设施错误保持失败关闭；
+显式有限次数耗尽也不伪造游戏终局。
 
 该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中

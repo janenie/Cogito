@@ -326,6 +326,13 @@ RESUME_RUNTIME_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu-resume.XXXXXX")"
 `in_progress` 轨迹保留原事件和图片，收束为 `stopped/orchestrator_interrupted`。恢复不保存或
 还原 Godot 世界状态、旧 Codex 会话或中断局的逐帧上下文；checkpoint 损坏或配置不匹配时失败关闭。
 
+Codex 在 supervisor 仍为 `in_progress` 时以 0 正常退出，统一 Yibu 入口会保留同一 MCP、Godot
+和 AWM 会话并启动干净恢复 turn，直到 supervisor 返回正式 `success`、`failure` 或
+`failure/max_requests`。恢复 turn 通过 `workflow_memory_read`、`briefing` 和 `observe` 重建公开
+状态，不增加已完成局数，也不继承旧 turn 累积的截图上下文。默认不限制这种 clean-exit 恢复次数；
+需要诊断或费用上限时可用 `--codex-max-restarts N` 显式设置有限次数，设为 `0` 可禁用。非零玩家
+退出、MCP/provider 退出、idle timeout 和操作者停止仍失败关闭，不能被该恢复策略吞掉。
+
 代理的 model catalog 设计和 Responses namespace flatten/restore 行为改编自
 [CC Switch](../tools/third_party/cc-switch/SOURCE.md) 固定 commit，并保留其 MIT 许可；运行时不依赖
 CC Switch 应用、SQLite 或全局 `~/.codex`。旧 `ai_play_codex_gemini_orchestrator.py` 是默认
@@ -357,7 +364,6 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
   --workflow-memory enabled \
-  --codex-max-restarts 2 \
   --artifact-root /Users/jan/workspace/ai_play/gemini_3p6_flash \
   --session-root "$GEMINI_RUN_ROOT"
 ```
@@ -377,12 +383,13 @@ Base64/URL、提示词、工具参数、响应或 key；可用 SHA-256 与可信
 真实运行会把获准的截图、briefing 和工具结果发送给 Gemini/Yibu，产生 token/费用并在本地持久化
 上述日志，因此执行前必须完成相应确认。
 
-如果 Codex 在 supervisor 正式终局前以 0 正常退出，编排器默认最多启动 2 个干净的恢复 turn；
-可用 `--codex-max-restarts` 调整，设为 `0` 可禁用。恢复不会增加已完成局数，并保留同一个 MCP、
-Godot 与 AWM 会话；新 turn 先按 `workflow_memory_read`、`briefing`、`observe` 恢复公开状态，避免
-继续携带此前累积的大量截图上下文。Gemini 玩家每取得一个正式终局并完成 AWM 更新后也会主动
-结束当前 turn；三局因此分别使用三个干净 turn，两次轮换正好由默认上限覆盖。非零异常退出不会
-重启，达到上限也不会伪造游戏终局；提前退出会消耗同一恢复预算。
+如果 Codex 在 supervisor 正式终局前以 0 正常退出，编排器会启动干净恢复 turn，直到 supervisor
+返回正式 `success`、`failure` 或 `failure/max_requests`。恢复不会增加已完成局数，并保留同一个
+MCP、Godot 与 AWM 会话；新 turn 先按 `workflow_memory_read`、`briefing`、`observe` 恢复公开
+状态，避免继续携带此前累积的大量截图上下文。Gemini 玩家每取得一个正式终局并完成 AWM 更新后
+也会主动结束当前 turn；若 supervisor 仍有剩余局数，下一干净 turn 继续下一局。默认不限制这种
+clean-exit 恢复次数；可用 `--codex-max-restarts N` 显式设置有限次数，设为 `0` 可禁用。非零异常
+退出不会重启，显式有限次数耗尽也不会伪造游戏终局。
 
 临时 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`。由于 Codex 当前会把
 MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能只返回无 namespace 的普通

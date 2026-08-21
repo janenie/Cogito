@@ -209,7 +209,7 @@ def test_parse_args_defaults_to_gemini_flash_without_reasoning_option():
     assert args.yibu_credentials == orchestrator.REPO_ROOT / "opus.py"
     assert args.workflow_memory == "enabled"
     assert args.provider_proxy_port == 18767
-    assert args.codex_max_restarts == 2
+    assert args.codex_max_restarts is None
     assert args.context_window == 128000
     assert args.auto_compact_token_limit == 90000
     assert not hasattr(args, "reasoning_effort")

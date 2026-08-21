@@ -436,8 +436,10 @@ def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_pa
     ]["player_restart_prompt"]
     assert captured["run_path_kwargs"]["reasoning_effort"] == "none"
     execution = captured["runtime_metadata_kwargs"]["execution"]
+    assert execution["player_restart_limit"] is None
     assert execution["model_context_window"] == 128000
     assert execution["model_auto_compact_token_limit"] == 90000
+    assert captured["session"]["player_restart_limit"] is None
     assert captured["session"]["player_env"]["YIBU_API_KEY"] == "fixture-secret"
     for safe_value in (
         captured["run_path_kwargs"],
