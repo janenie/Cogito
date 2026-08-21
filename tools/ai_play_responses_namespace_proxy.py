@@ -23,6 +23,7 @@ LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_PORT = 18767
 MAX_REQUEST_BYTES = 64 * 1024 * 1024
 MAX_TOOL_NAME_BYTES = 64
+MAX_PROVIDER_OUTPUT_TOKENS = 32_768
 _HOP_BY_HOP_HEADERS = {
     "connection",
     "content-length",
@@ -69,6 +70,7 @@ def transform_request_namespaces(
     *,
     namespace: str,
     allowed_tools: frozenset[str],
+    max_output_tokens: int | None = None,
 ) -> dict[str, NamespacedToolName]:
     """Flatten one trusted Codex namespace for Responses-compatible providers."""
     tools = payload.get("tools", [])
@@ -133,6 +135,8 @@ def transform_request_namespaces(
         payload["tool_choice"] = "auto"
     if "tools" in payload:
         payload["tools"] = flattened_tools
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
     return reverse_map
 
 
@@ -347,6 +351,7 @@ def _handler_type(
     namespace: str,
     allowed_tools: frozenset[str],
     diagnostics_writer: RequestDiagnosticsWriter | None = None,
+    max_output_tokens: int | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     class ResponsesProxyHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -394,6 +399,7 @@ def _handler_type(
                     payload,
                     namespace=namespace,
                     allowed_tools=allowed_tools,
+                    max_output_tokens=max_output_tokens,
                 )
                 transformed_body = json.dumps(
                     payload,
@@ -473,6 +479,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--namespace", required=True)
     parser.add_argument("--allowed-tool", action="append", required=True)
     parser.add_argument("--diagnostics-jsonl", type=Path)
+    parser.add_argument("--max-output-tokens", type=int)
     args = parser.parse_args(argv)
     if args.host != LOOPBACK_HOST:
         parser.error("--host must be 127.0.0.1")
@@ -485,6 +492,14 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         and not args.diagnostics_jsonl.is_absolute()
     ):
         parser.error("--diagnostics-jsonl must be an absolute path")
+    if (
+        args.max_output_tokens is not None
+        and not 1 <= args.max_output_tokens <= MAX_PROVIDER_OUTPUT_TOKENS
+    ):
+        parser.error(
+            "--max-output-tokens must be between 1 and %d"
+            % MAX_PROVIDER_OUTPUT_TOKENS
+        )
     try:
         build_upstream_responses_url(args.upstream_base_url)
     except ValueError as error:
@@ -504,6 +519,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         RequestDiagnosticsWriter(args.diagnostics_jsonl)
         if args.diagnostics_jsonl is not None
         else None,
+        args.max_output_tokens,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(

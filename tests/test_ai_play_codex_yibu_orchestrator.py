@@ -120,6 +120,7 @@ def test_parse_args_requires_model_and_accepts_context_overrides():
     assert args.model == "h:qwen3.8-max-preview"
     assert args.context_window == 256000
     assert args.auto_compact_token_limit == 180000
+    assert args.max_output_tokens == 4096
     assert not hasattr(args, "reasoning_effort")
 
 
@@ -424,10 +425,13 @@ def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_pa
     )
     assert captured["supervisor_build"]["attempt_offset"] == 0
     assert captured["session"]["mcp_command"][-1] == "--codex-media-output"
-    assert captured["session"]["provider_proxy_command"][-2:] == [
-        "--diagnostics-jsonl",
-        str(log_root / "provider_requests.jsonl"),
-    ]
+    proxy_command = captured["session"]["provider_proxy_command"]
+    assert proxy_command[
+        proxy_command.index("--diagnostics-jsonl") + 1
+    ] == str(log_root / "provider_requests.jsonl")
+    assert proxy_command[
+        proxy_command.index("--max-output-tokens") + 1
+    ] == "4096"
     assert "最多主动参考最近 10 张与当前任务相关的图片" in captured[
         "session"
     ]["prompt"]
@@ -439,6 +443,7 @@ def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_pa
     assert execution["player_restart_limit"] is None
     assert execution["model_context_window"] == 128000
     assert execution["model_auto_compact_token_limit"] == 90000
+    assert execution["max_output_tokens"] == 4096
     assert captured["session"]["player_restart_limit"] is None
     assert captured["session"]["player_env"]["YIBU_API_KEY"] == "fixture-secret"
     for safe_value in (
@@ -505,6 +510,10 @@ def test_main_resumes_remaining_runs_with_checkpoint_and_global_offset(
     assert captured["player_cwd"].parent.parent == (
         tmp_path / "runtime"
     ).resolve()
-    assert captured["provider_proxy_command"][-1] == str(
-        run_dir / "trusted_mcplogs" / "provider_requests.jsonl"
-    )
+    proxy_command = captured["provider_proxy_command"]
+    assert proxy_command[
+        proxy_command.index("--diagnostics-jsonl") + 1
+    ] == str(run_dir / "trusted_mcplogs" / "provider_requests.jsonl")
+    assert proxy_command[
+        proxy_command.index("--max-output-tokens") + 1
+    ] == "4096"

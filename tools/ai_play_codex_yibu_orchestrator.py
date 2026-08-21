@@ -57,6 +57,8 @@ YIBU_PROVIDER_ID = "yibu"
 MCP_TOOL_NAMESPACE = "mcp__cogito_ai_play"
 DEFAULT_CONTEXT_WINDOW = 128_000
 DEFAULT_AUTO_COMPACT_TOKEN_LIMIT = 90_000
+DEFAULT_MAX_OUTPUT_TOKENS = 4_096
+MAX_PROVIDER_OUTPUT_TOKENS = 32_768
 MAX_CONTEXT_WINDOW = 10_000_000
 MAX_MODEL_ID_BYTES = 256
 WORKFLOW_MEMORY_FILENAME = "workflow_memory.json"
@@ -485,6 +487,7 @@ def build_provider_proxy_command(
     upstream_base_url: str,
     workflow_memory_enabled: bool,
     diagnostics_jsonl: Path,
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> list[str]:
     command = [
         python_bin,
@@ -505,6 +508,7 @@ def build_provider_proxy_command(
     )
     for tool_name in tool_names:
         command.extend(("--allowed-tool", tool_name))
+    command.extend(("--max-output-tokens", str(max_output_tokens)))
     command.extend(("--diagnostics-jsonl", str(diagnostics_jsonl)))
     return command
 
@@ -577,6 +581,11 @@ def parse_args(
         default=DEFAULT_AUTO_COMPACT_TOKEN_LIMIT,
     )
     parser.add_argument(
+        "--max-output-tokens",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_TOKENS,
+    )
+    parser.add_argument(
         "--workflow-memory",
         choices=("enabled", "disabled"),
         default="enabled",
@@ -639,6 +648,11 @@ def main(
         raise SystemExit("--runs must be at least 1")
     if args.max_retries < 0:
         raise SystemExit("--max-retries must be at least 0")
+    if not 1 <= args.max_output_tokens <= MAX_PROVIDER_OUTPUT_TOKENS:
+        raise SystemExit(
+            "--max-output-tokens must be between 1 and %d"
+            % MAX_PROVIDER_OUTPUT_TOKENS
+        )
     if (
         args.codex_max_restarts is not None
         and args.codex_max_restarts < 0
@@ -703,6 +717,7 @@ def main(
             "player_restart_limit": args.codex_max_restarts,
             "model_context_window": args.context_window,
             "model_auto_compact_token_limit": args.auto_compact_token_limit,
+            "max_output_tokens": args.max_output_tokens,
         },
     )
     try:
@@ -755,6 +770,7 @@ def main(
         upstream_base_url=credentials.base_url,
         workflow_memory_enabled=workflow_memory_enabled,
         diagnostics_jsonl=paths.log_root / "provider_requests.jsonl",
+        max_output_tokens=args.max_output_tokens,
     )
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,

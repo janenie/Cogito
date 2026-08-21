@@ -287,7 +287,9 @@ flatten/restore 算法，并保留 MIT 来源和许可。请求侧只把当前�
 harness 配置 Yibu Responses provider。它默认使用 `gemini-3.6-flash`、三局
 `find_contract` 和启用的 AWM；支持与标准 Codex 入口相同的场景白名单、隔离 session root、
 端口检查、supervisor 生命周期和失败收束。入口不提供 `--reasoning-effort`，临时配置也不写
-`model_reasoning_effort`；`session.json` 用 `"none"` 明确表示未配置该能力。
+`model_reasoning_effort`；`session.json` 用 `"none"` 明确表示未配置该能力。每次 provider 请求
+默认最多生成 4096 个输出 token；`--max-output-tokens` 可在 1～32768 之间覆盖，实际值写入
+`session.json` 的 execution 元数据。
 
 默认凭据源是仓库中已忽略的 `opus.py`。可信入口通过 AST 只解析字面量 `ak` 字典，不导入或
 执行凭据文件；key 必须非空，provider URL 必须使用 HTTPS 且只接受空路径或 `/v1`。API key
@@ -328,7 +330,8 @@ Codex 在 supervisor 正式终局前以 0 正常退出时，入口持续创建�
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
 规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
 `function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
-provider 返回的 `cogito_ai_play:<tool>` 形式只会在 `<tool>` 属于当前严格白名单时规范化为相同
+代理同时把 `max_output_tokens` 覆盖为入口验证后的值。provider 返回的
+`cogito_ai_play:<tool>` 形式只会在 `<tool>` 属于当前严格白名单时规范化为相同
 namespace 调用。
 代理只接受 `POST /v1/responses`，除上述图片元数据外不持久化请求、响应、图片内容或 key，并纳入
 统一子进程 readiness、失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数

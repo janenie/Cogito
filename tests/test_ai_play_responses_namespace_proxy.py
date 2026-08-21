@@ -86,6 +86,21 @@ def test_flatten_preserves_request_without_tools_field():
     assert request == {"model": "fixture", "input": "hello"}
 
 
+def test_flatten_overrides_provider_output_limit_when_configured():
+    proxy = load_proxy()
+    request = namespace_request()
+    request["max_output_tokens"] = 8192
+
+    proxy.transform_request_namespaces(
+        request,
+        namespace="mcp__cogito_ai_play",
+        allowed_tools=frozenset({"briefing", "observe"}),
+        max_output_tokens=4096,
+    )
+
+    assert request["max_output_tokens"] == 4096
+
+
 def test_flatten_rejects_unapproved_namespace_child():
     proxy = load_proxy()
     request = namespace_request()
@@ -431,11 +446,14 @@ def test_parse_args_requires_loopback_and_nonempty_tool_whitelist():
             "briefing",
             "--diagnostics-jsonl",
             "/tmp/provider_requests.jsonl",
+            "--max-output-tokens",
+            "4096",
         ]
     )
     assert args.host == "127.0.0.1"
     assert args.allowed_tool == ["briefing"]
     assert args.diagnostics_jsonl == Path("/tmp/provider_requests.jsonl")
+    assert args.max_output_tokens == 4096
 
     for argv in (
         ["--host", "0.0.0.0", "--allowed-tool", "briefing"],

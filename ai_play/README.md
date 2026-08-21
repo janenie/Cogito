@@ -345,7 +345,8 @@ CC Switch 应用、SQLite 或全局 `~/.codex`。旧 `ai_play_codex_gemini_orche
 supervisor、空玩家工作区和 AWM，只把 Codex 的模型 provider 切换为 Yibu 的 Responses API。
 默认模型是 `gemini-3.6-flash`，默认连续运行三局 `find_contract`，不设置也不接受
 `--reasoning-effort`：第三方模型是否支持该 Codex 参数不能从模型名安全推断，运行元数据中因此
-固定记录 `reasoning_effort: "none"`。
+固定记录 `reasoning_effort: "none"`。每次 provider 交互默认限制为 4096 个输出 token，可用
+`--max-output-tokens` 在 1～32768 之间覆盖；代理会用该值覆盖 Codex 请求中的同名字段。
 
 凭据默认从仓库根目录中已忽略的 `opus.py` 读取，也可用 `--yibu-credentials` 指定其他文件。
 入口只用 Python AST 读取字面量 `ak` 字典，不导入或执行该文件；`ak["key"]` 必须为非空字符串，
@@ -396,7 +397,8 @@ MCP 工具作为 Responses `namespace` 容器发送，而兼容 provider 可能�
 `function_call`，编排器先启动一个受信任的回环 Responses 代理（默认 `127.0.0.1:18767`）。Codex
 只连接这个代理；代理通过已验证的 HTTPS `/v1/responses` 转发到 Yibu，并且只对当前启用的
 Cogito MCP 工具补上缺失的 `mcp__cogito_ai_play` namespace。它不修改参数或工具结果，仅记录上述
-不含内容的图片传输元数据；provider 返回的 `cogito_ai_play:<tool>` 限定名也会在严格工具白名单
+不含内容的图片传输元数据，并把 `max_output_tokens` 固定为编排器验证后的值；provider 返回的
+`cogito_ai_play:<tool>` 限定名也会在严格工具白名单
 内规范化为同一 namespace 调用。代理随编排器在正常退出、中断和失败路径中终止。可用
 `--provider-proxy-port` 改用其他空闲回环端口。
 
