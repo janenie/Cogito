@@ -57,7 +57,6 @@ YIBU_PROVIDER_ID = "yibu"
 MCP_TOOL_NAMESPACE = "mcp__cogito_ai_play"
 DEFAULT_CONTEXT_WINDOW = 128_000
 DEFAULT_AUTO_COMPACT_TOKEN_LIMIT = 90_000
-DEFAULT_MAX_HISTORICAL_IMAGES = 10
 MAX_CONTEXT_WINDOW = 10_000_000
 MAX_MODEL_ID_BYTES = 256
 
@@ -364,7 +363,6 @@ def build_provider_proxy_command(
     upstream_base_url: str,
     workflow_memory_enabled: bool,
     diagnostics_jsonl: Path,
-    max_historical_images: int = DEFAULT_MAX_HISTORICAL_IMAGES,
 ) -> list[str]:
     command = [
         python_bin,
@@ -385,9 +383,6 @@ def build_provider_proxy_command(
     )
     for tool_name in tool_names:
         command.extend(("--allowed-tool", tool_name))
-    command.extend(
-        ("--max-historical-images", str(max_historical_images))
-    )
     command.extend(("--diagnostics-jsonl", str(diagnostics_jsonl)))
     return command
 
@@ -456,11 +451,6 @@ def parse_args(
         default=DEFAULT_AUTO_COMPACT_TOKEN_LIMIT,
     )
     parser.add_argument(
-        "--max-historical-images",
-        type=int,
-        default=DEFAULT_MAX_HISTORICAL_IMAGES,
-    )
-    parser.add_argument(
         "--workflow-memory",
         choices=("enabled", "disabled"),
         default="enabled",
@@ -491,10 +481,7 @@ def parse_args(
     parser.add_argument("--codex-exit-grace-seconds", type=float, default=5.0)
     parser.add_argument("--idle-timeout-seconds", type=float, default=600.0)
     parser.add_argument("--codex-final-grace-seconds", type=float, default=30.0)
-    args = parser.parse_args(argv)
-    if args.max_historical_images < 0:
-        parser.error("--max-historical-images must be at least 0")
-    return args
+    return parser.parse_args(argv)
 
 
 def _validate_port(name: str, port: int) -> None:
@@ -528,8 +515,6 @@ def main(
         raise SystemExit("--max-retries must be at least 0")
     if args.codex_max_restarts < 0:
         raise SystemExit("--codex-max-restarts must be at least 0")
-    if args.max_historical_images < 0:
-        raise SystemExit("--max-historical-images must be at least 0")
     if not 0 <= args.benchmark_cycle_seed <= MAX_BENCHMARK_CYCLE_SEED:
         raise SystemExit(
             "--benchmark-cycle-seed must be between 0 and %d"
@@ -600,7 +585,6 @@ def main(
                 "model_auto_compact_token_limit": (
                     args.auto_compact_token_limit
                 ),
-                "max_historical_images": args.max_historical_images,
             },
         ),
     )
@@ -617,7 +601,6 @@ def main(
         upstream_base_url=credentials.base_url,
         workflow_memory_enabled=workflow_memory_enabled,
         diagnostics_jsonl=paths.log_root / "provider_requests.jsonl",
-        max_historical_images=args.max_historical_images,
     )
     supervisor_command = build_supervisor_command(
         python_bin=args.python_bin,

@@ -236,29 +236,17 @@ YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
   --yibu-credentials ./opus.py \
   --context-window 128000 \
   --auto-compact-token-limit 90000 \
-  --max-historical-images 10 \
   --workflow-memory enabled \
   --session-root "$YIBU_RUN_ROOT"
 ```
 
 每次会话在隔离临时 `CODEX_HOME` 生成只含当前模型的 `0600` model catalog；默认上下文窗口为
-128000，默认自动压缩阈值为 90000，并允许显式覆盖。历史原图上限默认是 10，可通过
-`--max-historical-images` 设置为非负整数，并作为纯数值执行配置写入 `session.json`。MCP 边车使用已有的
+128000，默认自动压缩阈值为 90000，并允许显式覆盖。MCP 边车使用已有的
 `--codex-media-output` 表示，把相同公开 JSON 作为紧邻 `ImageContent` 的文本返回且不再重复
-`structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。代理始终保留请求中
-最新一个图片组，再从更早的图片中倒序保留不超过配置上限的原图；其余 `input_image` 原位替换为
-已持久化的短 caption。每个新 RGB/深度图使用二进制 SHA-256 作为 `image_id`；当前游戏模型必须
-在原本的 Responses 请求中一并返回视觉说明，不增加 API 调用。RGB caption 描述物体、相对位置、
-可读文字/UI 和交互目标，深度 caption 描述障碍、路线、门口与空间结构；每条简体中文说明最多
-200 字，只陈述画面事实。尚未成功说明的图片始终保留，不受历史上限裁剪；上限为 0 时，在说明
-成功后只保留最新图片组。每个正式终局后仍切换干净 Codex turn。
-
-provider 请求只记录 metadata-only 图片审计：请求序号、实际转发字节数、裁剪前图片数、实际转发
-图片数、caption 数、历史上限、最新组图片数、实际转发图片的 MIME/字节数/SHA-256，以及是否有
-`previous_response_id` 和 `store` 布尔值。该审计不保存 prompt、图片 Base64/URL 或响应正文。
-实际图片以内容寻址二进制保存在同级私有 `provider_caption_images/`；模型 ID、`image_id`、MIME、
-字节数、相对路径和 caption 写入 `provider_image_captions.jsonl`，JSONL 不含 Base64。相同 SHA-256
-去重；内容日志不进入 MCP 结果、AWM 或可信轨迹。
+`structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。provider 请求记录
+metadata-only 图片审计（请求序号、请求字节数、图片数量、MIME、字节数、SHA-256、是否有
+`previous_response_id` 和 `store` 布尔值）；第一版不在代理层主动裁剪历史图片，每个正式终局后仍切换干净
+Codex turn。
 
 Yibu Responses 代理的实现改编自 CC Switch commit
 `a98829ba1e8bd99a1df671e3c36c8bb6aa537e47` 的 model catalog 设计与 namespace
@@ -294,7 +282,6 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --scenario find_key \
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
-  --max-historical-images 10 \
   --workflow-memory enabled \
   --codex-max-restarts 2 \
   --session-root "$GEMINI_RUN_ROOT"
@@ -303,12 +290,9 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
 运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
 整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
 `trusted_mcplogs/`。Gemini 入口额外生成 `trusted_mcplogs/provider_requests.jsonl`：每个
-Responses 请求只记录裁剪前、实际转发和 caption 化的图片数量、历史上限、最新图片组大小、实际
-转发图片的顺序/MIME/解码字节数/SHA-256、`previous_response_id` 是否存在和布尔 `store`，不记录
-Base64/URL、提示词、工具参数、响应或 key。`provider_image_captions.jsonl` 以 `0600` 保存模型生成
-的 caption 和索引，`provider_caption_images/` 以 `0700` 保存权限为 `0600` 的原始图片二进制。
-metadata 审计可用 SHA-256 对照这些图片或可信轨迹截图。图片注册失败时代理在请求外发前失败关闭；
-caption 缺失、重复、未知、为空、过长或持久化失败时，代理在响应转发前返回 502。
+Responses 请求只记录图片数量、顺序、MIME、解码字节数、SHA-256、`previous_response_id` 是否
+存在和布尔 `store`，不记录 Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用
+SHA-256 对照可信轨迹截图；检查或落盘失败时，代理在请求外发前失败关闭。
 `--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
 Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多创建 2 个干净恢复 turn，可用
 `--codex-max-restarts` 调整或设为 0 禁用。恢复 turn 沿用同一 MCP、Godot 和 AWM 会话，通过
@@ -320,15 +304,12 @@ Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多�
 该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
 规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
-`function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、调用参数和当前图片组保持不变，
-更早的图片历史按上述上限压缩为最近原图与真实 caption。代理给每张待说明图片附加可信
-`image_id` 标签和说明协议，让当前游戏模型在同一个正常响应中输出一个内部 envelope；整个响应
-经缓冲、精确覆盖校验和持久化后，标签与 envelope 会在转发给 Codex 前剥离。
+`function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
 provider 返回的 `cogito_ai_play:<tool>` 形式只会在 `<tool>` 属于当前严格白名单时规范化为相同
 namespace 调用。
-代理只接受 `POST /v1/responses`，除上述 metadata 审计、caption JSONL 与内容寻址图片外，不持久化
-请求、响应或 key，并纳入统一子进程 readiness、失败和退出清理。API key 仍只存在于 Codex 玩家
-环境，代理环境与启动参数不含 key。
+代理只接受 `POST /v1/responses`，除上述图片元数据外不持久化请求、响应、图片内容或 key，并纳入
+统一子进程 readiness、失败和退出清理。API key 仍只存在于 Codex 玩家环境，代理环境与启动参数
+不含 key。
 
 Codex 的模型传输层只访问该回环代理，玩家工具网络 profile 仍只 allowlist `127.0.0.1`；这不放宽
 Web 搜索、shell 或 MCP 能力。临时配置必须显式关闭
