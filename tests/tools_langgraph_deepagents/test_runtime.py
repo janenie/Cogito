@@ -1,7 +1,9 @@
 import asyncio
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -14,6 +16,25 @@ from tools_langgraph_deepagents.runtime import (
     prepare_run,
     supervisor_process,
 )
+
+
+def test_runtime_imports_with_repo_root_pythonpath():
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import tools_langgraph_deepagents.runtime",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_noninteractive_confirmation_skips_input():
@@ -156,15 +177,11 @@ def test_resume_can_extend_one_run_target_to_three(tmp_path: Path):
         )
     )
     metadata = json.loads(run.session_metadata.read_text(encoding="utf-8"))
-    memory = json.loads(
-        (run.log_root / "workflow_memory.json").read_text(encoding="utf-8")
-    )
 
     assert prepared.completed_runs == 1
     assert prepared.remaining_runs == 2
     assert metadata["requested_runs"] == 3
     assert len(metadata["benchmark"]["attempts"]) == 3
-    assert memory["completed"][0]["consumed"] is False
 
 
 def test_resume_progress_rejects_a_different_player(tmp_path: Path):

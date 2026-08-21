@@ -12,7 +12,6 @@ import sys
 import tempfile
 from typing import Any, AsyncIterator, TextIO
 
-from ai_play.workflow_memory import SessionWorkflowMemory
 from tools.ai_play_benchmark import benchmark_attempt_plan
 from tools.ai_play_orchestrator_common import (
     DEFAULT_WS_PORT,
@@ -255,12 +254,6 @@ def prepare_run(args: Any) -> PreparedRun:
             requested_runs=args.runs,
             benchmark_cycle_seed=args.benchmark_cycle_seed,
         )
-        if workflow_memory_enabled:
-            resumed_memory = SessionWorkflowMemory(
-                paths.log_root / WORKFLOW_MEMORY_FILENAME,
-                preserve_unconsumed=True,
-            )
-            resumed_memory.reopen_single_unlearned_attempt()
     return PreparedRun(
         paths=paths,
         scene=scene,

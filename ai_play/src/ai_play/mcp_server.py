@@ -444,6 +444,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             options.preserve_unconsumed_workflow_memory
         ),
     )
+    if options.preserve_unconsumed_workflow_memory:
+        workflow_memory.reopen_single_unlearned_attempt()
     game_session = GameSession(
         config,
         trajectory_logger=trajectory_logger,
