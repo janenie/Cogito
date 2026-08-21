@@ -115,12 +115,21 @@ def test_parse_args_requires_model_and_accepts_context_overrides():
             "256000",
             "--auto-compact-token-limit",
             "180000",
+            "--max-historical-images",
+            "4",
         ]
     )
     assert args.model == "h:qwen3.8-max-preview"
     assert args.context_window == 256000
     assert args.auto_compact_token_limit == 180000
+    assert args.max_historical_images == 4
     assert not hasattr(args, "reasoning_effort")
+
+    with pytest.raises(SystemExit) as error:
+        orchestrator.parse_args(
+            ["--model", "fixture", "--max-historical-images", "-1"]
+        )
+    assert error.value.code == 2
 
 
 @pytest.mark.parametrize("model", ("", "bad model", "bad\nmodel", "x" * 257))
@@ -250,6 +259,8 @@ def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_pa
             str(credential_path),
             "--model",
             "gemini-3.1-pro-preview",
+            "--max-historical-images",
+            "4",
         ]
     )
 
@@ -260,10 +271,20 @@ def test_main_wires_media_context_audit_and_secret_isolation(monkeypatch, tmp_pa
         "--diagnostics-jsonl",
         str(log_root / "provider_requests.jsonl"),
     ]
+    assert "--max-historical-images" in captured["session"][
+        "provider_proxy_command"
+    ]
+    history_limit_index = captured["session"]["provider_proxy_command"].index(
+        "--max-historical-images"
+    )
+    assert captured["session"]["provider_proxy_command"][
+        history_limit_index + 1
+    ] == "4"
     assert captured["run_path_kwargs"]["reasoning_effort"] == "none"
     execution = captured["runtime_metadata_kwargs"]["execution"]
     assert execution["model_context_window"] == 128000
     assert execution["model_auto_compact_token_limit"] == 90000
+    assert execution["max_historical_images"] == 4
     assert captured["session"]["player_env"]["YIBU_API_KEY"] == "fixture-secret"
     for safe_value in (
         captured["run_path_kwargs"],

@@ -343,6 +343,121 @@ def test_upstream_url_requires_https_v1_and_appends_responses():
             raise AssertionError(f"expected unsafe upstream rejection: {value}")
 
 
+def _observation_image_output(observation_id, image_count=2):
+    content = [
+        {
+            "type": "input_text",
+            "text": json.dumps(
+                {
+                    "status": "ready",
+                    "observation": {
+                        "observation_id": observation_id,
+                        "player": {
+                            "position": [1.0, 2.0, 3.0],
+                            "yaw_degrees": 45.0,
+                            "pitch_degrees": -5.0,
+                        },
+                        "interface": {
+                            "is_open": True,
+                            "visible_object_text": f"Contract {observation_id}",
+                            "available_interactions": ["Read"],
+                        },
+                        "depth_image": {
+                            "near_meters": 0.05,
+                            "far_meters": 20.0,
+                        },
+                    },
+                }
+            ),
+        }
+    ]
+    mime_types = ("image/jpeg", "image/png", "image/webp")
+    for index in range(image_count):
+        encoded = base64.b64encode(
+            f"observation-{observation_id}-image-{index}".encode()
+        ).decode()
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:{mime_types[index % len(mime_types)]};base64,{encoded}",
+                "detail": "high",
+            }
+        )
+    return content
+
+
+def test_compact_image_history_keeps_ten_historical_images_plus_latest_group():
+    proxy = load_proxy()
+    request = {
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": f"call-{observation_id}",
+                "output": _observation_image_output(observation_id),
+            }
+            for observation_id in range(1, 8)
+        ]
+    }
+
+    metadata = proxy.compact_request_image_history(
+        request,
+        max_historical_images=10,
+    )
+
+    images = [
+        value
+        for value in proxy._walk_values(request)
+        if value.get("type") == "input_image"
+    ]
+    captions = [
+        value["text"]
+        for value in proxy._walk_values(request)
+        if value.get("type") == "input_text"
+        and value.get("text", "").startswith("[Historical image caption:")
+    ]
+    assert len(images) == 12
+    assert len(captions) == 2
+    assert metadata == {
+        "source_input_image_count": 14,
+        "input_image_count": 12,
+        "captioned_image_count": 2,
+        "historical_image_limit": 10,
+        "latest_image_count": 2,
+    }
+    assert "observation_id=1" in captions[0]
+    assert "RGB" in captions[0]
+    assert "depth" in captions[1]
+    assert "Contract 1" in captions[0]
+    assert "observation-1-image-0" not in json.dumps(request)
+    assert all(
+        item["type"] == "input_image"
+        for item in request["input"][-1]["output"][1:]
+    )
+
+
+def test_compact_image_history_always_keeps_every_image_in_latest_group():
+    proxy = load_proxy()
+    request = {
+        "input": [
+            {"output": _observation_image_output(1)},
+            {"output": _observation_image_output(2, image_count=3)},
+        ]
+    }
+
+    metadata = proxy.compact_request_image_history(
+        request,
+        max_historical_images=0,
+    )
+
+    assert metadata["input_image_count"] == 3
+    assert metadata["captioned_image_count"] == 2
+    assert metadata["latest_image_count"] == 3
+    assert all(
+        item["type"] == "input_image"
+        for item in request["input"][-1]["output"][1:]
+    )
+
+
 def test_inspect_request_images_records_only_safe_metadata():
     proxy = load_proxy()
     jpeg = b"fixture-jpeg-bytes"
@@ -436,10 +551,19 @@ def test_parse_args_requires_loopback_and_nonempty_tool_whitelist():
     assert args.host == "127.0.0.1"
     assert args.allowed_tool == ["briefing"]
     assert args.diagnostics_jsonl == Path("/tmp/provider_requests.jsonl")
+    assert args.max_historical_images == 10
 
     for argv in (
         ["--host", "0.0.0.0", "--allowed-tool", "briefing"],
         ["--host", "127.0.0.1"],
+        [
+            "--host",
+            "127.0.0.1",
+            "--allowed-tool",
+            "briefing",
+            "--max-historical-images",
+            "-1",
+        ],
     ):
         try:
             proxy.parse_args(argv)

@@ -23,6 +23,8 @@ LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_PORT = 18767
 MAX_REQUEST_BYTES = 64 * 1024 * 1024
 MAX_TOOL_NAME_BYTES = 64
+DEFAULT_MAX_HISTORICAL_IMAGES = 10
+MAX_CAPTION_VALUE_CHARS = 160
 _HOP_BY_HOP_HEADERS = {
     "connection",
     "content-length",
@@ -240,6 +242,172 @@ def _walk_values(value: Any) -> Iterable[dict[str, Any]]:
             yield from _walk_values(child)
 
 
+def _direct_image_groups(
+    value: Any,
+) -> list[tuple[list[Any], list[tuple[int, dict[str, Any]]]]]:
+    groups: list[tuple[list[Any], list[tuple[int, dict[str, Any]]]]] = []
+
+    def visit(candidate: Any) -> None:
+        if isinstance(candidate, list):
+            images = [
+                (index, item)
+                for index, item in enumerate(candidate)
+                if isinstance(item, dict) and item.get("type") == "input_image"
+            ]
+            if images:
+                groups.append((candidate, images))
+            for item in candidate:
+                visit(item)
+        elif isinstance(candidate, dict):
+            for item in candidate.values():
+                visit(item)
+
+    visit(value)
+    return groups
+
+
+def _group_observation(group: list[Any]) -> dict[str, Any] | None:
+    for item in group:
+        if not isinstance(item, dict) or item.get("type") != "input_text":
+            continue
+        text = item.get("text")
+        if not isinstance(text, str):
+            continue
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        for candidate in _walk_values(payload):
+            observation = candidate.get("observation")
+            if isinstance(observation, dict):
+                return observation
+    return None
+
+
+def _caption_value(value: Any) -> str:
+    rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if len(rendered) <= MAX_CAPTION_VALUE_CHARS:
+        return rendered
+    return rendered[: MAX_CAPTION_VALUE_CHARS - 1] + "…"
+
+
+def _historical_image_caption(
+    image: Mapping[str, Any],
+    observation: Mapping[str, Any] | None,
+) -> str:
+    image_url = image.get("image_url")
+    mime_type = "image"
+    if isinstance(image_url, str) and image_url.startswith("data:image/"):
+        mime_type = image_url[5:].partition(";")[0].casefold()
+    is_depth = mime_type == "image/png" and isinstance(
+        observation.get("depth_image") if observation else None,
+        dict,
+    )
+    kind = "depth" if is_depth else "RGB" if mime_type in {
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+    } else mime_type
+    parts = [f"[Historical image caption: {kind}"]
+    if observation is not None:
+        observation_id = observation.get("observation_id")
+        if isinstance(observation_id, (int, str)):
+            parts.append(f"observation_id={observation_id}")
+        if is_depth:
+            depth = observation.get("depth_image")
+            if isinstance(depth, dict):
+                near = depth.get("near_meters")
+                far = depth.get("far_meters")
+                if isinstance(near, (int, float)) and isinstance(
+                    far,
+                    (int, float),
+                ):
+                    parts.append(f"linear_range_m={near:g}-{far:g}")
+        else:
+            player = observation.get("player")
+            if isinstance(player, dict):
+                position = player.get("position")
+                if isinstance(position, list):
+                    parts.append(f"position={_caption_value(position)}")
+                yaw = player.get("yaw_degrees")
+                pitch = player.get("pitch_degrees")
+                if isinstance(yaw, (int, float)):
+                    parts.append(f"yaw={yaw:g}")
+                if isinstance(pitch, (int, float)):
+                    parts.append(f"pitch={pitch:g}")
+            interface = observation.get("interface")
+            if isinstance(interface, dict):
+                is_open = interface.get("is_open")
+                if isinstance(is_open, bool):
+                    parts.append("interface=open" if is_open else "interface=closed")
+                visible_text = interface.get("visible_object_text")
+                if isinstance(visible_text, str) and visible_text:
+                    parts.append(f"visible_text={_caption_value(visible_text)}")
+                interactions = interface.get("available_interactions")
+                if isinstance(interactions, list) and interactions:
+                    parts.append(
+                        f"interactions={_caption_value(interactions)}"
+                    )
+    parts.append("original omitted; adjacent approved text retained.]")
+    return "; ".join(parts)
+
+
+def compact_request_image_history(
+    payload: dict[str, Any],
+    *,
+    max_historical_images: int = DEFAULT_MAX_HISTORICAL_IMAGES,
+) -> dict[str, int]:
+    """Caption old images while retaining recent history and the latest group."""
+    if max_historical_images < 0:
+        raise ValueError("max_historical_images must not be negative")
+    groups = _direct_image_groups(payload)
+    source_count = sum(len(images) for _group, images in groups)
+    if not groups:
+        return {
+            "source_input_image_count": 0,
+            "input_image_count": 0,
+            "captioned_image_count": 0,
+            "historical_image_limit": max_historical_images,
+            "latest_image_count": 0,
+        }
+
+    latest_group, latest_images = groups[-1]
+    historical = [
+        (group, index, image)
+        for group, images in groups[:-1]
+        for index, image in images
+    ]
+    retained_historical = historical[-max_historical_images:]
+    if max_historical_images == 0:
+        retained_historical = []
+    retained = {
+        (id(group), index)
+        for group, index, _image in retained_historical
+    }
+    retained.update((id(latest_group), index) for index, _image in latest_images)
+
+    captioned_count = 0
+    for group, images in groups:
+        observation = _group_observation(group)
+        for index, image in images:
+            if (id(group), index) in retained:
+                continue
+            group[index] = {
+                "type": "input_text",
+                "text": _historical_image_caption(image, observation),
+            }
+            captioned_count += 1
+
+    forwarded_count = source_count - captioned_count
+    return {
+        "source_input_image_count": source_count,
+        "input_image_count": forwarded_count,
+        "captioned_image_count": captioned_count,
+        "historical_image_limit": max_historical_images,
+        "latest_image_count": len(latest_images),
+    }
+
+
 def _image_metadata(value: Any, ordinal: int) -> dict[str, Any]:
     metadata: dict[str, Any] = {"ordinal": ordinal}
     if not isinstance(value, str) or not value.startswith("data:"):
@@ -347,6 +515,7 @@ def _handler_type(
     namespace: str,
     allowed_tools: frozenset[str],
     diagnostics_writer: RequestDiagnosticsWriter | None = None,
+    max_historical_images: int = DEFAULT_MAX_HISTORICAL_IMAGES,
 ) -> type[BaseHTTPRequestHandler]:
     class ResponsesProxyHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -395,6 +564,10 @@ def _handler_type(
                     namespace=namespace,
                     allowed_tools=allowed_tools,
                 )
+                compaction_metadata = compact_request_image_history(
+                    payload,
+                    max_historical_images=max_historical_images,
+                )
                 transformed_body = json.dumps(
                     payload,
                     ensure_ascii=False,
@@ -405,7 +578,12 @@ def _handler_type(
                 return
             if diagnostics_writer is not None:
                 try:
-                    diagnostics_writer.write(inspect_request_images(body))
+                    diagnostics_writer.write(
+                        {
+                            **inspect_request_images(transformed_body),
+                            **compaction_metadata,
+                        }
+                    )
                 except (OSError, ValueError, json.JSONDecodeError):
                     self._send_error(500, "request diagnostics failed")
                     return
@@ -473,6 +651,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--namespace", required=True)
     parser.add_argument("--allowed-tool", action="append", required=True)
     parser.add_argument("--diagnostics-jsonl", type=Path)
+    parser.add_argument(
+        "--max-historical-images",
+        type=int,
+        default=DEFAULT_MAX_HISTORICAL_IMAGES,
+    )
     args = parser.parse_args(argv)
     if args.host != LOOPBACK_HOST:
         parser.error("--host must be 127.0.0.1")
@@ -480,6 +663,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         parser.error("--port must be between 1 and 65535")
     if any(not value or value.strip() != value for value in args.allowed_tool):
         parser.error("--allowed-tool values must be non-empty")
+    if args.max_historical_images < 0:
+        parser.error("--max-historical-images must not be negative")
     if (
         args.diagnostics_jsonl is not None
         and not args.diagnostics_jsonl.is_absolute()
@@ -504,6 +689,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         RequestDiagnosticsWriter(args.diagnostics_jsonl)
         if args.diagnostics_jsonl is not None
         else None,
+        args.max_historical_images,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(

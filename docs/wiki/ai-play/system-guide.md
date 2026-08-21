@@ -236,17 +236,24 @@ YIBU_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-yibu.XXXXXX")"
   --yibu-credentials ./opus.py \
   --context-window 128000 \
   --auto-compact-token-limit 90000 \
+  --max-historical-images 10 \
   --workflow-memory enabled \
   --session-root "$YIBU_RUN_ROOT"
 ```
 
 每次会话在隔离临时 `CODEX_HOME` 生成只含当前模型的 `0600` model catalog；默认上下文窗口为
-128000，默认自动压缩阈值为 90000，并允许显式覆盖。MCP 边车使用已有的
+128000，默认自动压缩阈值为 90000，并允许显式覆盖。历史原图上限默认是 10，可通过
+`--max-historical-images` 设置为非负整数，并作为纯数值执行配置写入 `session.json`。MCP 边车使用已有的
 `--codex-media-output` 表示，把相同公开 JSON 作为紧邻 `ImageContent` 的文本返回且不再重复
-`structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。provider 请求记录
-metadata-only 图片审计（请求序号、请求字节数、图片数量、MIME、字节数、SHA-256、是否有
-`previous_response_id` 和 `store` 布尔值）；第一版不在代理层主动裁剪历史图片，每个正式终局后仍切换干净
-Codex turn。
+`structuredContent`，从而让 Codex 0.145 序列化 RGB JPEG 和可选 depth PNG。代理始终保留请求中
+最新一个图片组，再从更早的图片中倒序保留不超过配置上限的原图；其余 `input_image` 原位替换为
+短 caption。caption 只从同一工具结果中已经获准公开的观察文本确定性提取观察编号、图片类型、
+玩家位置/朝向、界面文字和可用交互等字段，不调用额外模型、不引入隐藏事实；上限为 0 时只保留
+最新图片组。每个正式终局后仍切换干净 Codex turn。
+
+provider 请求只记录 metadata-only 图片审计：请求序号、实际转发字节数、裁剪前图片数、实际转发
+图片数、caption 数、历史上限、最新组图片数、实际转发图片的 MIME/字节数/SHA-256，以及是否有
+`previous_response_id` 和 `store` 布尔值。审计不保存 prompt、caption、图片或响应正文。
 
 Yibu Responses 代理的实现改编自 CC Switch commit
 `a98829ba1e8bd99a1df671e3c36c8bb6aa537e47` 的 model catalog 设计与 namespace
@@ -282,6 +289,7 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
   --scenario find_key \
   --model gemini-3.6-flash \
   --yibu-credentials ./opus.py \
+  --max-historical-images 10 \
   --workflow-memory enabled \
   --codex-max-restarts 2 \
   --session-root "$GEMINI_RUN_ROOT"
@@ -290,8 +298,9 @@ GEMINI_RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cogito-gemini.XXXXXX")"
 运行根应先在通过祖先隔离检查的临时目录中创建；需要长期保留时，等 orchestrator 完整退出后再把
 整个带时间戳的会话目录复制到归档位置。会话元数据位于 `session.json`，可信截图和轨迹位于
 `trusted_mcplogs/`。Gemini 入口额外生成 `trusted_mcplogs/provider_requests.jsonl`：每个
-Responses 请求只记录图片数量、顺序、MIME、解码字节数、SHA-256、`previous_response_id` 是否
-存在和布尔 `store`，不记录 Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用
+Responses 请求只记录裁剪前、实际转发和 caption 化的图片数量、历史上限、最新图片组大小、实际
+转发图片的顺序/MIME/解码字节数/SHA-256、`previous_response_id` 是否存在和布尔 `store`，不记录
+caption、Base64/URL、提示词、工具参数、响应或 key。该 `0600` 审计文件可用
 SHA-256 对照可信轨迹截图；检查或落盘失败时，代理在请求外发前失败关闭。
 `--workflow-memory enabled` 表示启用会话级 AWM，`disabled` 用于对照。
 Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多创建 2 个干净恢复 turn，可用
@@ -304,7 +313,8 @@ Codex 在 supervisor 正式终局前以 0 正常退出时，入口默认最多�
 该入口的 Codex 配置使用 `model_provider = "yibu"` 和 `wire_api = "responses"`，provider base URL
 指向受信任的本机 Responses namespace 代理（默认 `127.0.0.1:18767`）。代理把请求转发到凭据中
 规范化后的 HTTPS Yibu `/v1/responses`，并仅对当前工具白名单内、缺少 namespace 的
-`function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、参数和结果保持不变。
+`function_call` 补上 `mcp__cogito_ai_play`；已有 namespace、内建工具、调用参数和当前图片组保持不变，
+更早的图片历史按上述上限压缩为最近原图与 caption。
 provider 返回的 `cogito_ai_play:<tool>` 形式只会在 `<tool>` 属于当前严格白名单时规范化为相同
 namespace 调用。
 代理只接受 `POST /v1/responses`，除上述图片元数据外不持久化请求、响应、图片内容或 key，并纳入
