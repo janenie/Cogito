@@ -146,6 +146,32 @@ Godot 桥的安全边界。
 - 旧 `ai_host` 的 `codex-local` adapter 不具备受维护 orchestrator 的权限隔离，必须在产生
   运行产物或启动子进程前拒绝；本地 Codex 黑盒验收只走 orchestrator 并遵守单独确认要求。
 
+## Deep Agents 直连 Yibu Chat Host
+
+> 状态：2026-08-22 设计已批准；设计来源见
+> [Deep Agents Yibu 接入 spec](../../scope/2026-08-22-langgraph-deepagents-yibu/spec-langgraph-deepagents-yibu.md)。
+
+`tools_langgraph_deepagents/` 是一个独立的 Python Agent Host，使用进程内嵌的
+LangGraph Deep Agents 代替 Codex Agent harness。它通过 LangChain `ChatOpenAI`
+直接请求 Yibu OpenAI 兼容 `/v1/chat/completions`，显式禁用 Responses API。
+该 Host 不启动 Codex、不创建 `CODEX_HOME`、不读写 Codex 配置，不经过
+Responses namespace proxy，也不导入 `ai_play_codex_*_orchestrator.py`。
+
+用户只启动一个 Python 应用入口。应用内部启动现有 Godot supervisor 和
+stdio MCP Server，并在整次 Agent 运行中保持同一个 MCP `ClientSession`。
+Deep Agent 只能获得当前模式允许的 AI Play MCP 工具；文件、Shell、子 Agent
+和其他非游戏工具必须隐藏。工具调用必须串行，不得并行发送 `act`。
+
+MCP adapter 保留获准的结构化结果、RGB JPEG 和深度 PNG，并将其作为
+LangChain 标准多模态 `ToolMessage` 内容交给下一轮 Yibu Chat Completions。
+每次模型请求前必须硬性裁剪到最近十个图片内容块；旧图块从活跃请求移除，
+所在消息的文本和模型在正常回合中产生的 caption 保留，不单独调用模型生成 caption。
+
+Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客户端，不得进入
+仓库、命令参数、日志、会话元数据或 checkpoint。真实外部运行前仍必须明确确认
+截图上传、token/费用和本地对话与轨迹持久化影响。`Ctrl-C`、模型异常、MCP
+异常和 supervisor 异常都必须请求安全停止并释放全部模拟输入。
+
 ## Codex orchestrator 多局验收
 
 ### 当前黑盒玩家边界
