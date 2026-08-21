@@ -47,10 +47,45 @@ async def test_agent_final_is_continued_while_supervisor_is_running():
         first_prompt="start",
         continuation_prompt="continue",
         render=lambda _event: None,
+        agent_final_grace_seconds=0,
     )
 
     assert result == 0
     assert prompts == ["start", "continue"]
+
+
+@pytest.mark.asyncio
+async def test_supervisor_terminal_waits_for_agent_awm_turn():
+    terminal_seen = asyncio.Event()
+    awm_updated = asyncio.Event()
+
+    class Agent:
+        async def astream(self, payload, config, stream_mode):
+            terminal_seen.set()
+            await asyncio.sleep(0.01)
+            awm_updated.set()
+            yield {"model": {"messages": [AIMessage(content="saved")]}}
+
+    class Supervisor:
+        returncode = None
+
+        async def wait(self):
+            await terminal_seen.wait()
+            self.returncode = 1
+            return 1
+
+    result = await continue_until_supervisor_finishes(
+        agent=Agent(),
+        supervisor=Supervisor(),
+        graph_config={"configurable": {"thread_id": "thread"}},
+        first_prompt="start",
+        continuation_prompt="continue",
+        render=lambda _event: None,
+        agent_final_grace_seconds=1,
+    )
+
+    assert result == 1
+    assert awm_updated.is_set()
 
 
 def test_console_never_prints_base64_or_raw_tool_payload():
@@ -213,6 +248,8 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
         model_timeout_seconds=30,
         model_max_retries=0,
         max_output_tokens=4096,
+        context_window_tokens=32768,
+        agent_final_grace_seconds=0,
     )
 
     result = await run(args, dependencies=dependencies)
@@ -321,6 +358,8 @@ async def test_cancelled_run_stops_before_mcp_session_closes(tmp_path: Path):
         model_timeout_seconds=30,
         model_max_retries=0,
         max_output_tokens=4096,
+        context_window_tokens=32768,
+        agent_final_grace_seconds=0,
     )
     task = asyncio.create_task(run(args, dependencies=dependencies))
     await started.wait()

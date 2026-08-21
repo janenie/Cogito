@@ -61,6 +61,12 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("--model-max-retries", type=int, default=4)
     parser.add_argument("--max-output-tokens", type=int, default=4096)
+    parser.add_argument("--context-window-tokens", type=int, default=32768)
+    parser.add_argument(
+        "--agent-final-grace-seconds",
+        type=float,
+        default=30,
+    )
     parser.add_argument(
         "--benchmark-cycle-seed",
         type=int,
@@ -76,6 +82,12 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         parser.error("timeouts must be positive")
     if not 1 <= args.max_output_tokens <= 32768:
         parser.error("--max-output-tokens must be between 1 and 32768")
+    if args.context_window_tokens < args.max_output_tokens:
+        parser.error(
+            "--context-window-tokens must be at least --max-output-tokens"
+        )
+    if args.agent_final_grace_seconds < 0:
+        parser.error("--agent-final-grace-seconds must be nonnegative")
     if not args.model.strip() or any(ord(char) < 32 for char in args.model):
         parser.error("--model must be a non-empty printable string")
     if not args.credential_name.isidentifier():

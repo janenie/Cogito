@@ -83,6 +83,7 @@ async def continue_until_supervisor_finishes(
     first_prompt: str,
     continuation_prompt: str,
     render: Callable[[Any], None],
+    agent_final_grace_seconds: float,
 ) -> int:
     prompt = first_prompt
     while supervisor.returncode is None:
@@ -105,9 +106,15 @@ async def continue_until_supervisor_finishes(
             )
             raise
         if supervisor_task in done:
-            agent_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await agent_task
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(agent_task),
+                    timeout=agent_final_grace_seconds,
+                )
+            except asyncio.TimeoutError:
+                agent_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await agent_task
             return supervisor_task.result()
         supervisor_task.cancel()
         with suppress(asyncio.CancelledError):
@@ -207,6 +214,7 @@ async def run(
                     timeout_seconds=args.model_timeout_seconds,
                     max_retries=args.model_max_retries,
                     max_output_tokens=args.max_output_tokens,
+                    context_window_tokens=args.context_window_tokens,
                 )
                 agent = deps.build_agent(
                     model=model,
@@ -233,6 +241,9 @@ async def run(
                                     first_prompt=FIRST_PROMPT,
                                     continuation_prompt=CONTINUATION_PROMPT,
                                     render=deps.render,
+                                    agent_final_grace_seconds=(
+                                        args.agent_final_grace_seconds
+                                    ),
                                 )
                             )
                             return exit_code if exit_code in {0, 1} else 2

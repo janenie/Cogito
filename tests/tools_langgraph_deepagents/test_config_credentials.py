@@ -13,6 +13,8 @@ def test_defaults_use_chat_gemini_and_newak():
     assert args.yibu_credentials.name == "newak.py"
     assert args.credential_name == "ak"
     assert args.runs == 3
+    assert args.context_window_tokens == 32768
+    assert args.agent_final_grace_seconds == 30
 
 
 def test_explicit_external_confirmation_is_a_flag():

@@ -2,6 +2,9 @@ import json
 
 import httpx2
 import pytest
+from deepagents.middleware.summarization import (
+    compute_summarization_defaults,
+)
 from langchain_core.messages import AIMessage, ToolMessage
 
 from tools_langgraph_deepagents.credentials import YibuCredentials
@@ -48,6 +51,7 @@ async def test_model_uses_chat_completions_with_serial_tools():
             timeout_seconds=30,
             max_retries=0,
             max_output_tokens=4096,
+            context_window_tokens=32768,
             http_async_client=client,
         )
         response = await model.ainvoke("hello")
@@ -68,11 +72,17 @@ def test_model_explicitly_disables_responses_api():
         timeout_seconds=30,
         max_retries=0,
         max_output_tokens=4096,
+        context_window_tokens=32768,
     )
 
     assert model.use_responses_api is False
     assert model.disable_streaming is True
     assert model.http_socket_options == ()
+    assert model.profile == {"max_input_tokens": 32768}
+    assert compute_summarization_defaults(model)["trigger"] == (
+        "fraction",
+        0.85,
+    )
 
 
 @pytest.mark.asyncio
@@ -115,6 +125,7 @@ async def test_model_serializes_mcp_images_in_chat_tool_messages():
             timeout_seconds=30,
             max_retries=0,
             max_output_tokens=4096,
+            context_window_tokens=32768,
             http_async_client=client,
         )
         await model.ainvoke(

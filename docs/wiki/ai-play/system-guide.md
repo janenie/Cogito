@@ -166,6 +166,9 @@ MCP adapter 保留获准的结构化结果、RGB JPEG 和深度 PNG，并将其�
 LangChain 标准多模态 `ToolMessage` 内容交给下一轮 Yibu Chat Completions。
 每次模型请求前必须硬性裁剪到最近十个图片内容块；旧图块从活跃请求移除，
 所在消息的文本和模型在正常回合中产生的 caption 保留，不单独调用模型生成 caption。
+模型必须提供显式活跃上下文预算；默认 `32768` token，使 Deep Agents 在约 85% 时对旧文字和
+工具历史触发滚动摘要并保留最近约 10% 的上下文。该预算只决定 Agent 的压缩时机，不声明或
+修改 provider 的真实上下文上限；周期性摘要调用与逐图 caption 调用是不同机制。
 
 Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客户端，不得进入
 仓库、命令参数、日志、会话元数据或 checkpoint。真实外部运行前仍必须明确确认
@@ -177,7 +180,9 @@ Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客
 外层自动化显式传 `--confirm-external-run`。运行目录继续使用 provider-neutral 布局，并新增
 `deepagents_checkpoint.sqlite`；该 checkpoint 用稳定 thread ID 支持 Agent 提前 final 和进程
 中断后的续跑，也可能持久化先前模型消息中的图片 Base64。`workflow_memory.json` 仍是正式终局
-计数和 AWM 的可信来源。
+计数和 AWM 的可信来源。supervisor 正式退出后，Host 默认等待当前 Agent turn 最多 30 秒，使其
+消费最后终局、确认 `workflow_memory_update` 并总结，然后才停止 MCP；超时后仍必须取消 Agent
+并执行安全清理。
 
 依赖由 `tools_langgraph_deepagents/requirements.lock.txt` 单独锁定。实现只复用
 `ai_play_orchestrator_common.py` 的 provider-neutral 路径/环境构造、现有 supervisor 和 stdio

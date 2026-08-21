@@ -51,6 +51,11 @@ MCP 返回的 RGB JPEG 和深度 PNG 直接作为标准多模态 `ToolMessage` �
 请求前硬性只保留最新十个图片内容块（通常最多五组 RGB + 深度），旧图片移除但文本和模型在
 正常回复中生成的 caption 保留；不会额外发起 caption API 请求。
 
+模型默认声明 `32768` token 的活跃上下文预算（`--context-window-tokens` 可覆盖），供 Deep
+Agents 在约 85% 时触发对旧文字/工具历史的滚动摘要；这只控制 Agent 压缩时机，不修改 Yibu
+模型自身的真实上下文上限。摘要会产生周期性的模型请求，但避免每一步都重传从开局累积至今的
+完整文本历史。
+
 ## 续跑与产物
 
 每次新运行会打印 `run_dir`。中断后使用同一模型、场景、总局数、AWM 模式和 benchmark seed：
@@ -66,6 +71,9 @@ MCP 返回的 RGB JPEG 和深度 PNG 直接作为标准多模态 `ToolMessage` �
 应用根据 `workflow_memory.json` 的正式 `success`/`failure` 终局计算剩余局数，并复用稳定的
 LangGraph thread 与 `deepagents_checkpoint.sqlite`。Agent 在 supervisor 仍运行时提前结束，
 应用会在同一 checkpoint 上继续新的 Agent turn，不设固定重启次数。
+最终一局结束后，应用默认等待当前 Agent turn 最多 30 秒
+（`--agent-final-grace-seconds` 可覆盖），使其消费终局、确认 `workflow_memory_update` 并输出
+总结，然后才停止 MCP 和清理进程。
 
 主要本地产物：
 

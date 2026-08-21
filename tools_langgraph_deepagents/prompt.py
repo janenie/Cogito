@@ -8,8 +8,9 @@ def build_system_prompt(
 ) -> str:
     memory_rules = (
         "Read workflow_memory_read after briefing. After each eligible formal "
-        "terminal, call workflow_memory_update once with only reusable public "
-        "lessons; never store hidden facts or guessed answers."
+        "terminal, call workflow_memory_update once before any next game call "
+        "or final response, and wait for its confirmation. Store only reusable "
+        "public lessons; never store hidden facts or guessed answers."
         if workflow_memory_enabled
         else "Workflow-memory tools are disabled; do not request them."
     )

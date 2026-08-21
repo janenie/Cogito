@@ -167,6 +167,10 @@ def prepare_run(args: Any) -> PreparedRun:
                 "model_timeout_seconds": args.model_timeout_seconds,
                 "model_max_retries": args.model_max_retries,
                 "max_output_tokens": args.max_output_tokens,
+                "context_window_tokens": args.context_window_tokens,
+                "agent_final_grace_seconds": (
+                    args.agent_final_grace_seconds
+                ),
             },
         )
         paths = create_run_paths(

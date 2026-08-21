@@ -151,8 +151,11 @@ Codex、不创建 `CODEX_HOME`、不使用 `/v1/responses` 或本地 Responses �
 模型只获得当前 AWM 模式允许的公开游戏工具；Deep Agents 内置文件、Shell 与子代理工具被移除，
 全部工具调用串行。MCP 的公开结构化结果、RGB 和深度图使用标准 LangChain `ToolMessage` 进入
 下一轮；每个模型请求硬性只保留最新十个图片块，旧图由正常回复中的 caption 文本承接，不产生
-额外 caption 请求。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用同一个
-LangGraph checkpoint 和游戏会话继续。
+额外 caption 请求。默认 `32768` token 活跃上下文预算让 Deep Agents 在约 85% 时滚动摘要旧的
+文字/工具历史，避免全量历史随步数线性重传；这会产生周期性摘要请求，但不增加逐图 caption
+请求。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用同一个 LangGraph checkpoint
+和游戏会话继续；最终 supervisor 退出后默认再等待当前 Agent turn 30 秒，使其完成终局 AWM
+更新再清理。
 
 默认从已忽略的本地 `newak.py` 读取字面量变量 `ak`，默认模型为
 `gemini-3.6-flash`，默认 `max_output_tokens=4096`。真实运行仍须确认截图上传、token/费用、

@@ -14,6 +14,7 @@ def build_yibu_chat_model(
     timeout_seconds: float,
     max_retries: int,
     max_output_tokens: int,
+    context_window_tokens: int,
     http_async_client: Any | None = None,
 ) -> ChatOpenAI:
     """Build a Yibu-compatible model using Chat Completions only."""
@@ -26,6 +27,7 @@ def build_yibu_chat_model(
         timeout=timeout_seconds,
         max_retries=max_retries,
         max_completion_tokens=max_output_tokens,
+        profile={"max_input_tokens": context_window_tokens},
         model_kwargs={"parallel_tool_calls": False},
         http_socket_options=(),
         http_async_client=http_async_client,
