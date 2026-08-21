@@ -341,12 +341,6 @@ look 使用 yaw 和 pitch，例如向左转 30 度是
 yaw 为负数时左转、正数时右转，pitch 为负数时向下、正数时向上。每次转向后比较当前截图与本会话之前由 observe 或 act 返回的截图中
 地标的位置、大小与遮挡变化，确认方向正确后再移动。
 
-move 和 sprint 只能使用 forward、right、duration_ms 三个参数。例如直行 150ms 是
-{{"type":"move","forward":1,"right":0,"duration_ms":150}}。不得使用 direction 或 intensity 字段；
-actions 数组中的每一项都必须是 JSON 对象，禁止加入数字、字符串、null 或其他裸值。调用 act 前按工具
-schema 检查每个动作的字段集合。若 act 返回 action has invalid fields，只纠正动作 JSON 并使用最新
-observation_id 重试；不要重新执行开局工具，也不要重复同一份无效参数。
-
 如果 briefing 明确要求先读取出生点附近的任务卡，任务卡不是普通纸张：它在画面中表现为
 青绿色或蓝绿色的独立标志，细杆底座上方带同心圆、靶心或旋涡状发光圆环，中间有白色小牌；
 即使看起来像装饰标记，也要把它作为最高优先级任务卡候选。首次 observe 后保持原地，

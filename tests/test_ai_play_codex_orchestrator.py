@@ -615,13 +615,6 @@ def test_player_developer_instructions_authorize_visual_comparison_only():
     assert "比较当前截图与本会话之前由 observe 或 act 返回的截图" in instructions
     assert "相对位移、转向、遮挡变化和地标关系" in instructions
     assert '{"type":"look","yaw":-30,"pitch":0}' in instructions
-    assert (
-        '{"type":"move","forward":1,"right":0,"duration_ms":150}'
-        in instructions
-    )
-    assert "不得使用 direction 或 intensity 字段" in instructions
-    assert "actions 数组中的每一项都必须是 JSON 对象" in instructions
-    assert "不要重新执行开局工具" in instructions
     assert "yaw 为负数时左转" in instructions
     assert "地标的位置、大小与遮挡变化" in instructions
     assert "第一张图片" in instructions
