@@ -44,6 +44,30 @@ CONTINUATION_PROMPT = (
 )
 
 
+def first_prompt_for_run(
+    *,
+    completed_runs: int,
+    requested_runs: int,
+    workflow_memory_enabled: bool,
+) -> str:
+    if completed_runs == 0:
+        return FIRST_PROMPT
+    memory_handoff = (
+        "The prior eligible formal terminal may still be unconsumed. Before "
+        "any briefing, observe, or act, call workflow_memory_update once from "
+        "the public evidence already in this conversation, using only compact "
+        "text lessons; wait for confirmation, then read workflow_memory_read. "
+        if workflow_memory_enabled
+        else "Workflow memory is disabled. "
+    )
+    return (
+        f"Resume the supervised run at formal progress "
+        f"{completed_runs}/{requested_runs}. {memory_handoff}"
+        "Then continue with the newly supervised game state until the total "
+        "requested formal-terminal count is complete. Do not ask the user."
+    )
+
+
 @dataclass(frozen=True)
 class AppDependencies:
     confirm: Callable[..., bool] = confirm_external_run
@@ -238,7 +262,15 @@ async def run(
                                     agent=agent,
                                     supervisor=supervisor,
                                     graph_config=graph_config,
-                                    first_prompt=FIRST_PROMPT,
+                                    first_prompt=first_prompt_for_run(
+                                        completed_runs=(
+                                            prepared.completed_runs
+                                        ),
+                                        requested_runs=args.runs,
+                                        workflow_memory_enabled=(
+                                            workflow_memory_enabled
+                                        ),
+                                    ),
                                     continuation_prompt=CONTINUATION_PROMPT,
                                     render=deps.render,
                                     agent_final_grace_seconds=(

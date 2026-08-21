@@ -58,7 +58,8 @@ Agents 在约 85% 时触发对旧文字/工具历史的滚动摘要；这只控�
 
 ## 续跑与产物
 
-每次新运行会打印 `run_dir`。中断后使用同一模型、场景、总局数、AWM 模式和 benchmark seed：
+每次新运行会打印 `run_dir`。中断后使用同一模型、场景、AWM 模式和 benchmark seed；总局数可保持
+或增加，但不能减少：
 
 ```bash
 .venv-deepagents/bin/python -m tools_langgraph_deepagents \
@@ -71,6 +72,9 @@ Agents 在约 85% 时触发对旧文字/工具历史的滚动摘要；这只控�
 应用根据 `workflow_memory.json` 的正式 `success`/`failure` 终局计算剩余局数，并复用稳定的
 LangGraph thread 与 `deepagents_checkpoint.sqlite`。Agent 在 supervisor 仍运行时提前结束，
 应用会在同一 checkpoint 上继续新的 Agent turn，不设固定重启次数。
+增加总局数时会原子扩展 `session.json` 的 benchmark attempt 计划；若上一个正式终局尚未消费，
+Agent 必须先用既有公开对话提交一次精炼的纯文本 AWM，再调用新的游戏观察工具。AWM 继续受既有
+字段数、条目数和文本长度校验限制，不保存图片、Base64、完整对话或逐帧动作。
 最终一局结束后，应用默认等待当前 Agent turn 最多 30 秒
 （`--agent-final-grace-seconds` 可覆盖），使其消费终局、确认 `workflow_memory_update` 并输出
 总结，然后才停止 MCP 和清理进程。

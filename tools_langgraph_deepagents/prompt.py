@@ -7,10 +7,14 @@ def build_system_prompt(
     workflow_memory_enabled: bool,
 ) -> str:
     memory_rules = (
-        "Read workflow_memory_read after briefing. After each eligible formal "
+        "On a fresh run, read workflow_memory_read after briefing. On a resumed "
+        "checkpoint, consume any prior eligible terminal before new game calls. "
+        "After each eligible formal "
         "terminal, call workflow_memory_update once before any next game call "
-        "or final response, and wait for its confirmation. Store only reusable "
-        "public lessons; never store hidden facts or guessed answers."
+        "or final response, and wait for its confirmation. Keep every field "
+        "compact plain text. For a failure, submit empty workflow and landmarks "
+        "plus only concise avoid and failure_review lessons. Never store hidden "
+        "facts or guessed answers."
         if workflow_memory_enabled
         else "Workflow-memory tools are disabled; do not request them."
     )

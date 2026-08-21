@@ -183,6 +183,10 @@ Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客
 计数和 AWM 的可信来源。supervisor 正式退出后，Host 默认等待当前 Agent turn 最多 30 秒，使其
 消费最后终局、确认 `workflow_memory_update` 并总结，然后才停止 MCP；超时后仍必须取消 Agent
 并执行安全清理。
+恢复时总目标局数可以保持或增加，不能减少；增加时必须原子扩展 `session.json` 的确定性 benchmark
+attempt 计划。若 checkpoint 中存在未消费的正式终局，Agent 必须先基于既有公开对话提交一次受
+字段、条目和长度校验限制的精炼纯文本 AWM，再调用新一局的 briefing、observe 或 act；AWM 不得
+包含图片、Base64、完整对话或逐帧动作。
 
 依赖由 `tools_langgraph_deepagents/requirements.lock.txt` 单独锁定。实现只复用
 `ai_play_orchestrator_common.py` 的 provider-neutral 路径/环境构造、现有 supervisor 和 stdio

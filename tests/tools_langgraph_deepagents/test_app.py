@@ -12,6 +12,7 @@ from tools.ai_play_orchestrator_common import RunPaths
 from tools_langgraph_deepagents.app import (
     AppDependencies,
     continue_until_supervisor_finishes,
+    first_prompt_for_run,
     run,
 )
 from tools_langgraph_deepagents.console import render_event
@@ -86,6 +87,18 @@ async def test_supervisor_terminal_waits_for_agent_awm_turn():
 
     assert result == 1
     assert awm_updated.is_set()
+
+
+def test_resumed_completed_run_consumes_old_terminal_before_game_calls():
+    prompt = first_prompt_for_run(
+        completed_runs=1,
+        requested_runs=3,
+        workflow_memory_enabled=True,
+    )
+
+    assert "workflow_memory_update" in prompt
+    assert "before any briefing, observe, or act" in prompt.lower()
+    assert "1/3" in prompt
 
 
 def test_console_never_prints_base64_or_raw_tool_payload():

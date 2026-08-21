@@ -111,6 +111,58 @@ def test_resume_progress_counts_only_formal_terminals(tmp_path: Path):
     assert completed == 1
 
 
+def test_resume_can_extend_one_run_target_to_three(tmp_path: Path):
+    session_root = tmp_path / "sessions"
+    run = create_run_paths(
+        session_root,
+        player="deepagents",
+        model="gemini-3.6-flash",
+        reasoning_effort="none",
+        scenario="find_contract",
+        workflow_memory_enabled=True,
+        requested_runs=1,
+        benchmark_cycle_seed=42,
+    )
+    checkpoint = _checkpoint(
+        [
+            {
+                "number": 1,
+                "scenario_id": "find_contract",
+                "status": "failure",
+                "terminal_reason": "max_requests",
+                "consumed": False,
+            }
+        ]
+    )
+    (run.log_root / "workflow_memory.json").write_text(
+        json.dumps(checkpoint),
+        encoding="utf-8",
+    )
+
+    prepared = prepare_run(
+        parse_args(
+            [
+                "--runs",
+                "3",
+                "--session-root",
+                str(session_root),
+                "--resume-run",
+                str(run.run_dir),
+                "--benchmark-cycle-seed",
+                "42",
+                "--godot-bin",
+                "missing-godot-for-test",
+            ]
+        )
+    )
+    metadata = json.loads(run.session_metadata.read_text(encoding="utf-8"))
+
+    assert prepared.completed_runs == 1
+    assert prepared.remaining_runs == 2
+    assert metadata["requested_runs"] == 3
+    assert len(metadata["benchmark"]["attempts"]) == 3
+
+
 def test_resume_progress_rejects_a_different_player(tmp_path: Path):
     session_root = tmp_path / "sessions"
     run = create_run_paths(

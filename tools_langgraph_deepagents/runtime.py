@@ -6,10 +6,13 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 from typing import Any, AsyncIterator, TextIO
 
+from tools.ai_play_benchmark import benchmark_attempt_plan
 from tools.ai_play_orchestrator_common import (
     DEFAULT_WS_PORT,
     RunPaths,
@@ -91,14 +94,26 @@ def load_resume_progress(
         ("reasoning_effort", "none", "reasoning effort"),
         ("scenario", scenario, "scenario"),
         ("workflow_memory", expected_memory, "workflow memory mode"),
-        ("requested_runs", requested_runs, "requested runs"),
     ):
         if metadata.get(key) != expected:
             raise ValueError(f"resume {label} mismatch")
+    original_requested_runs = metadata.get("requested_runs")
+    if (
+        type(original_requested_runs) is not int
+        or original_requested_runs < 1
+        or requested_runs < original_requested_runs
+    ):
+        raise ValueError("resume requested runs mismatch")
     benchmark = metadata.get("benchmark")
     if (
         not isinstance(benchmark, dict)
         or benchmark.get("cycle_seed") != benchmark_cycle_seed
+        or benchmark.get("attempts")
+        != benchmark_attempt_plan(
+            scenario,
+            benchmark_cycle_seed,
+            original_requested_runs,
+        )
     ):
         raise ValueError("resume benchmark cycle seed mismatch")
 
@@ -143,6 +158,43 @@ def load_resume_progress(
     if completed_runs == requested_runs:
         raise ValueError("resume run is already complete")
     return completed_runs
+
+
+def _extend_resume_target(
+    session_metadata: Path,
+    *,
+    scenario: str,
+    requested_runs: int,
+    benchmark_cycle_seed: int,
+) -> None:
+    metadata = _read_json_object(session_metadata, "resume session metadata")
+    if metadata["requested_runs"] == requested_runs:
+        return
+    metadata["requested_runs"] = requested_runs
+    metadata["benchmark"]["attempts"] = benchmark_attempt_plan(
+        scenario,
+        benchmark_cycle_seed,
+        requested_runs,
+    )
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=session_metadata.parent,
+            prefix=f".{session_metadata.name}.",
+            delete=False,
+        ) as output:
+            temporary_name = output.name
+            json.dump(metadata, output, ensure_ascii=False, indent=2)
+            output.write("\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.chmod(temporary_name, 0o600)
+        os.replace(temporary_name, session_metadata)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
 
 
 def _thread_id(run_dir: Path) -> str:
@@ -193,6 +245,12 @@ def prepare_run(args: Any) -> PreparedRun:
             model=args.model,
             scenario=args.scenario,
             workflow_memory_enabled=workflow_memory_enabled,
+            requested_runs=args.runs,
+            benchmark_cycle_seed=args.benchmark_cycle_seed,
+        )
+        _extend_resume_target(
+            paths.session_metadata,
+            scenario=args.scenario,
             requested_runs=args.runs,
             benchmark_cycle_seed=args.benchmark_cycle_seed,
         )

@@ -156,6 +156,8 @@ Codex、不创建 `CODEX_HOME`、不使用 `/v1/responses` 或本地 Responses �
 请求。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用同一个 LangGraph checkpoint
 和游戏会话继续；最终 supervisor 退出后默认再等待当前 Agent turn 30 秒，使其完成终局 AWM
 更新再清理。
+恢复允许把原有总局数向上扩展但不能减少；扩展后先消费 checkpoint 中尚未更新 AWM 的正式终局，
+只提交受严格长度和条目数限制的精炼纯文本经验，再开始新增局。
 
 默认从已忽略的本地 `newak.py` 读取字面量变量 `ak`，默认模型为
 `gemini-3.6-flash`，默认 `max_output_tokens=4096`。真实运行仍须确认截图上传、token/费用、
