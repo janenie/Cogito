@@ -14,11 +14,12 @@ current behavior and request limits.
 ## Detection
 
 The trusted Python `GameSession` observes only data already approved for the
-external player. After each normally completed conveyor action it compares:
+external player. For each normally completed conveyor action it compares:
 
 - the canonical submitted action batch;
-- a fingerprint built only from `observation["conveyor"]`, excluding the
-  volatile `total_time` and `window_time` clocks; and
+- fingerprints built from `observation["conveyor"]` immediately before and
+  after dispatch, excluding the volatile `total_time` and `window_time` clocks;
+  and
 - whether action results match the submitted batch in length and order, with
   every result reporting `status == "completed"` and the corresponding action
   `type`.
@@ -29,11 +30,13 @@ fingerprint. The retained conveyor fields are `window`, `dish`, `net_profit`,
 `tray`, `last_receipt`, `market`, `contracts`, and `finished`, compared as a
 canonical JSON-compatible value.
 
-One qualifying completed turn starts a streak at one. The streak increases
-only when the next qualifying turn submits the same canonical action batch and
-returns the same public conveyor fingerprint. A different qualifying action or
-fingerprint clears and restarts the streak at one; a new round or formal
-terminal clears it completely. Invalid or stale requests, error/blocked/
+Only a turn whose pre-action and post-action fingerprints are identical is a
+no-progress candidate. A normally completed turn that changes the fingerprint
+clears the streak completely. The first no-progress candidate starts a streak
+at one. A later candidate increments the streak only when its canonical action
+batch and unchanged fingerprint match the previous candidate; otherwise it
+starts a new streak at one. A new round or formal terminal also clears the
+streak completely. Invalid or stale requests, error/blocked/
 cancelled/stopped results, partial or empty result lists, action timeouts, and
 in-connection `recover_action` handling neither increment nor reset the streak.
 This intentionally catches repeated
