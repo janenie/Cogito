@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+import json
 import math
 import time
 from threading import Condition, Lock
@@ -23,6 +24,17 @@ from .trajectory_logger import LogPersistenceError
 
 PROTOCOL_VERSION = 4
 SAFE_INTEGER_MAX = 9_007_199_254_740_991
+CONVEYOR_STALL_TURN_LIMIT = 5
+CONVEYOR_PROGRESS_FIELDS = (
+    "window",
+    "dish",
+    "net_profit",
+    "tray",
+    "last_receipt",
+    "market",
+    "contracts",
+    "finished",
+)
 
 
 class SessionError(RuntimeError):
@@ -67,6 +79,9 @@ class GameSession:
         self._end_game_sent = False
         self._scenario_id = None
         self._round_act_request_limit = None
+        self._stall_action = None
+        self._stall_observation = None
+        self._stall_turn_count = 0
 
     @property
     def act_request_count(self):
@@ -124,6 +139,7 @@ class GameSession:
             self._act_request_count = 0
             self._request_limit_pending = False
             self._end_game_sent = False
+            self._clear_stall_tracking_locked()
             self._send_packet = send_packet
             self._recovering_observation_id = None
             self._state = (
@@ -132,6 +148,7 @@ class GameSession:
             self._condition.notify_all()
 
     def _clear_terminal_attempt_locked(self):
+        self._clear_stall_tracking_locked()
         self._latest_observation = None
         self._pending_observation_id = None
         self._pending_results = None
@@ -157,6 +174,7 @@ class GameSession:
         with self._condition:
             self._send_packet = None
             self._clear_pending_locked()
+            self._clear_stall_tracking_locked()
             self._recovering_observation_id = None
             self._stop_waiting = False
             if self._stopped_result is not None:
@@ -255,6 +273,7 @@ class GameSession:
             ):
                 raise SessionError("game_over_observation_mismatch")
             self._game_over = safe
+            self._clear_stall_tracking_locked()
             self._state = "game_over"
             log_status = self._claim_log_finish_locked(
                 safe["outcome"],
@@ -273,6 +292,7 @@ class GameSession:
         observed_status = None
         with self._condition:
             self._clear_pending_locked()
+            self._clear_stall_tracking_locked()
             self._stopped_result = SessionResult(
                 status="stopped",
                 action_results=results,
@@ -315,6 +335,7 @@ class GameSession:
             ):
                 raise SessionError("stop_ack_observation_mismatch")
             self._clear_pending_locked()
+            self._clear_stall_tracking_locked()
             self._stopped_result = SessionResult(
                 status="stopped",
                 action_results=results,
@@ -372,35 +393,50 @@ class GameSession:
             request_number = self._record_act_request_locked()
 
         try:
-            result = self._execute_act(observation_id, actions, deadline)
+            result, strategy_stalled = self._execute_act(
+                observation_id,
+                actions,
+                deadline,
+            )
         except SessionError:
             if request_number < self._act_request_limit():
                 raise
             return self._request_limit_result(deadline, [])
-        if (
-            request_number < self._act_request_limit()
-            or result.status == "game_over"
-        ):
+        if result.status == "game_over":
             return result
-        return self._request_limit_result(
-            deadline,
-            result.action_results or [],
-            result.movement_feedback,
-        )
+        if request_number >= self._act_request_limit():
+            return self._request_limit_result(
+                deadline,
+                result.action_results or [],
+                result.movement_feedback,
+            )
+        if strategy_stalled:
+            return self._end_game_result(
+                deadline,
+                result.action_results or [],
+                result.movement_feedback,
+                "strategy_stalled",
+            )
+        return result
 
     def _execute_act(self, observation_id, actions, deadline):
         with self._condition:
             observation_id = _require_observation_id(observation_id)
             self._require_ready_action_state_locked(observation_id)
+            submitted_actions = deepcopy(actions)
             try:
                 validate_action_batch(
-                    actions,
+                    submitted_actions,
                     self._available_interactions(self._latest_observation),
                     self._interface_open(self._latest_observation),
                     self._scenario_id,
                 )
             except ActionValidationError as error:
                 raise SessionError(str(error)) from error
+            action_fingerprint = _canonical_json(submitted_actions)
+            pre_fingerprint = _conveyor_progress_fingerprint(
+                self._latest_observation
+            )
 
             self._pending_observation_id = observation_id
             self._pending_results = None
@@ -410,7 +446,7 @@ class GameSession:
                 "type": "action_batch",
                 "protocol_version": PROTOCOL_VERSION,
                 "observation_id": observation_id,
-                "actions": deepcopy(actions),
+                "actions": deepcopy(submitted_actions),
             }
             sender = self._send_packet
             if sender is None:
@@ -435,9 +471,16 @@ class GameSession:
                     self._pending_next_observation is not None
                     and self._pending_results is not None
                 ):
-                    return self._complete_turn_locked()
+                    result = self._complete_turn_locked()
+                    strategy_stalled = self._track_conveyor_stall_locked(
+                        result,
+                        submitted_actions,
+                        action_fingerprint,
+                        pre_fingerprint,
+                    )
+                    return result, strategy_stalled
                 if self._game_over is not None:
-                    return self._complete_terminal_turn_locked()
+                    return self._complete_terminal_turn_locked(), False
                 if self._state in {"stopped", "disconnected"}:
                     raise SessionError(self._state)
                 remaining = _remaining(deadline)
@@ -458,6 +501,20 @@ class GameSession:
         action_results,
         movement_feedback=None,
     ):
+        return self._end_game_result(
+            deadline,
+            action_results,
+            movement_feedback,
+            "max_requests",
+        )
+
+    def _end_game_result(
+        self,
+        deadline,
+        action_results,
+        movement_feedback,
+        reason,
+    ):
         with self._condition:
             if self._game_over is not None:
                 return SessionResult(
@@ -470,13 +527,15 @@ class GameSession:
             observation_id = self._pending_observation_id
             if observation_id is None and self._latest_observation is not None:
                 observation_id = self._latest_observation["observation_id"]
+            if reason == "strategy_stalled" and observation_id is None:
+                raise SessionError("observation_unavailable")
             if not self._end_game_sent:
                 packet = {
                     "type": "end_game",
                     "protocol_version": PROTOCOL_VERSION,
                     "observation_id": observation_id,
                     "outcome": "failure",
-                    "reason": "max_requests",
+                    "reason": reason,
                 }
                 sender = self._send_packet
                 if sender is None:
@@ -559,6 +618,7 @@ class GameSession:
             self._state = "stopping"
             if sender is None:
                 self._clear_pending_locked()
+                self._clear_stall_tracking_locked()
                 self._stop_waiting = False
                 self._stopped_result = SessionResult(status="stopped", action_results=[])
                 self._state = "stopped"
@@ -571,6 +631,7 @@ class GameSession:
             if sent is not True:
                 self._send_packet = None
                 self._clear_pending_locked()
+                self._clear_stall_tracking_locked()
                 self._stop_waiting = False
                 self._stopped_result = SessionResult(status="stopped", action_results=[])
                 self._state = "stopped"
@@ -675,6 +736,48 @@ class GameSession:
             game_over=game_over,
         )
 
+    def _track_conveyor_stall_locked(
+        self,
+        result,
+        submitted_actions,
+        action_fingerprint,
+        pre_fingerprint,
+    ):
+        if self._scenario_id != "conveyor_profit" or result.status != "ready":
+            return False
+        results = result.action_results or []
+        post_fingerprint = _conveyor_progress_fingerprint(result.observation)
+        qualifying = (
+            len(results) == len(submitted_actions)
+            and all(
+                action_result.get("status") == "completed"
+                and action_result.get("type") == action.get("type")
+                for action, action_result in zip(submitted_actions, results)
+            )
+            and pre_fingerprint is not None
+            and post_fingerprint is not None
+        )
+        if not qualifying:
+            return False
+        if pre_fingerprint != post_fingerprint:
+            self._clear_stall_tracking_locked()
+            return False
+        if (
+            action_fingerprint == self._stall_action
+            and pre_fingerprint == self._stall_observation
+        ):
+            self._stall_turn_count += 1
+        else:
+            self._stall_action = action_fingerprint
+            self._stall_observation = pre_fingerprint
+            self._stall_turn_count = 1
+        return self._stall_turn_count >= CONVEYOR_STALL_TURN_LIMIT
+
+    def _clear_stall_tracking_locked(self):
+        self._stall_action = None
+        self._stall_observation = None
+        self._stall_turn_count = 0
+
     def _wait_for_stop_locked(self, deadline):
         while True:
             if self._stopped_result is not None:
@@ -687,6 +790,7 @@ class GameSession:
             remaining = _remaining(deadline)
             if remaining <= 0:
                 self._clear_pending_locked()
+                self._clear_stall_tracking_locked()
                 self._stop_waiting = False
                 self._stopped_result = SessionResult(status="stopped", action_results=[])
                 self._state = "stopped"
@@ -782,6 +886,23 @@ class GameSession:
     @staticmethod
     def _copy_result(result):
         return deepcopy(result)
+
+
+def _canonical_json(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def _conveyor_progress_fingerprint(observation):
+    if not isinstance(observation, dict):
+        return None
+    conveyor = observation.get("conveyor")
+    if not isinstance(conveyor, dict):
+        return None
+    retained = {
+        field: conveyor[field]
+        for field in CONVEYOR_PROGRESS_FIELDS
+    }
+    return _canonical_json(retained)
 
 
 def _deadline(timeout):

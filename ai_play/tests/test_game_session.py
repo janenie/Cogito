@@ -1,4 +1,5 @@
 import base64
+from copy import deepcopy
 import struct
 import threading
 import time
@@ -755,6 +756,124 @@ def wait_action_results(observation_id=7):
     return [{"status": "completed", "type": "wait"}]
 
 
+def conveyor_observation(observation_id):
+    result = observation(observation_id)
+    result["conveyor"] = {
+        "total_time": "10:00",
+        "window": "1 / 10",
+        "window_time": "01:00",
+        "dish": "0 / 1",
+        "net_profit": 0,
+        "tray": [],
+        "last_receipt": {},
+        "market": {
+            "category_multipliers": {
+                "salad": 1.0,
+                "soup": 1.0,
+                "burger": 1.0,
+                "omelet": 1.0,
+                "sandwich": 1.0,
+            },
+            "signals": [
+                "下一轮汤类需求可能升高。",
+                "下一轮汉堡需求可能降低。",
+            ],
+        },
+        "contracts": [
+            {
+                "id": "early_category",
+                "deadline_window": 3,
+                "requirement": "Serve 1 SOUP dish by window 3",
+                "reward": 8,
+                "penalty": 10,
+                "status": "active",
+            },
+            {
+                "id": "mid_category",
+                "deadline_window": 6,
+                "requirement": "Serve 1 BURGER dish by window 6",
+                "reward": 10,
+                "penalty": 12,
+                "status": "active",
+            },
+            {
+                "id": "category_coverage",
+                "deadline_window": 10,
+                "requirement": "Serve dishes from 3 categories",
+                "reward": 12,
+                "penalty": 15,
+                "status": "active",
+            },
+        ],
+        "finished": False,
+    }
+    return result
+
+
+def _completed_results(actions):
+    return [{"status": "completed", "type": action["type"]} for action in actions]
+
+
+def _run_ready_turn(session, sent, before_id, actions, after, results=None):
+    start_packets = len(sent)
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, before_id, actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    assert sent[start_packets]["type"] == "action_batch"
+    session.receive_action_results(
+        before_id,
+        _completed_results(actions) if results is None else results,
+    )
+    session.receive_observation(after)
+    thread.join(timeout=0.5)
+    assert not thread.is_alive()
+    assert result_holder[0].status == "ready"
+    return result_holder[0]
+
+
+def _prime_conveyor_stall(session, sent, actions, turns=4, start_id=1):
+    session.receive_observation(conveyor_observation(start_id))
+    current_id = start_id
+    for _unused in range(turns):
+        after = conveyor_observation(current_id + 1)
+        _run_ready_turn(session, sent, current_id, actions, after)
+        current_id += 1
+    return current_id
+
+
+def _finish_stalled_turn(session, sent, before_id, actions, after):
+    start_packets = len(sent)
+    result_holder = []
+    results = _completed_results(actions)
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, before_id, actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    session.receive_action_results(before_id, results)
+    session.receive_observation(after)
+    wait_until(lambda: len(sent) > start_packets + 1)
+    assert thread.is_alive()
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": after["observation_id"],
+        "outcome": "failure",
+        "reason": "strategy_stalled",
+    }
+    session.receive_game_over(terminal)
+    thread.join(timeout=0.5)
+    assert not thread.is_alive()
+    return result_holder[0], results, terminal
+
+
 def test_observe_waits_for_and_returns_latest_observation():
     session, sent = make_session()
     result_holder = []
@@ -1429,3 +1548,518 @@ def _capture_session_error(errors, function, *args, timeout):
         function(*args, timeout=timeout)
     except SessionError as error:
         errors.append(error)
+
+
+def test_fifth_identical_conveyor_no_progress_turn_returns_formal_terminal():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+
+    result, fifth_results, terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id,
+        actions,
+        conveyor_observation(current_id + 1),
+    )
+
+    assert sent[-1] == {
+        "type": "end_game",
+        "protocol_version": 4,
+        "observation_id": current_id + 1,
+        "outcome": "failure",
+        "reason": "strategy_stalled",
+    }
+    assert result == SessionResult(
+        status="game_over",
+        action_results=fifth_results,
+        game_over=terminal,
+    )
+
+
+def test_state_change_followed_by_four_failed_actions_does_not_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    session.receive_observation(conveyor_observation(1))
+    actions = [{"type": "select_ingredient", "ingredient": "tomato"}]
+    changed = conveyor_observation(2)
+    changed["conveyor"]["tray"] = ["tomato"]
+    _run_ready_turn(
+        session,
+        sent,
+        1,
+        actions,
+        changed,
+        [{
+            "status": "completed",
+            "type": "select_ingredient",
+            "outcome": "selected",
+            "ingredient": "tomato",
+        }],
+    )
+
+    for before_id in range(2, 6):
+        after = deepcopy(changed)
+        after["observation_id"] = before_id + 1
+        after["captured_at_ms"] = (before_id + 1) * 10
+        result = _run_ready_turn(
+            session,
+            sent,
+            before_id,
+            actions,
+            after,
+            [{"status": "error", "error": "ingredient unavailable"}],
+        )
+        assert result.status == "ready"
+
+    assert all(packet["type"] == "action_batch" for packet in sent)
+
+
+def test_different_conveyor_action_batch_restarts_stall_count():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+
+    result = _run_ready_turn(
+        session,
+        sent,
+        current_id,
+        [{"type": "wait", "duration_ms": 100}],
+        conveyor_observation(current_id + 1),
+    )
+
+    assert result.status == "ready"
+    assert all(packet["type"] == "action_batch" for packet in sent)
+
+
+def _change_conveyor_window(conveyor):
+    conveyor["window"] = "2 / 10"
+
+
+def _change_conveyor_dish(conveyor):
+    conveyor["dish"] = "1 / 1"
+
+
+def _change_conveyor_net_profit(conveyor):
+    conveyor["net_profit"] = 1
+
+
+def _change_conveyor_tray(conveyor):
+    conveyor["tray"] = ["tomato"]
+
+
+def _change_conveyor_receipt(conveyor):
+    conveyor["last_receipt"] = {
+        "outcome": "accepted",
+        "recipe_id": "garden_salad",
+        "profit": 1,
+    }
+
+
+def _change_conveyor_market(conveyor):
+    conveyor["market"]["category_multipliers"]["salad"] = 1.25
+
+
+def _change_conveyor_contracts(conveyor):
+    conveyor["contracts"][0]["status"] = "completed"
+
+
+def _change_conveyor_finished(conveyor):
+    conveyor["finished"] = True
+
+
+@pytest.mark.parametrize(
+    "change_conveyor",
+    [
+        _change_conveyor_window,
+        _change_conveyor_dish,
+        _change_conveyor_net_profit,
+        _change_conveyor_tray,
+        _change_conveyor_receipt,
+        _change_conveyor_market,
+        _change_conveyor_contracts,
+        _change_conveyor_finished,
+    ],
+    ids=[
+        "window",
+        "dish",
+        "net_profit",
+        "tray",
+        "last_receipt",
+        "market",
+        "contracts",
+        "finished",
+    ],
+)
+def test_each_retained_conveyor_field_change_clears_stall(change_conveyor):
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    after = conveyor_observation(current_id + 1)
+    change_conveyor(after["conveyor"])
+
+    result = _run_ready_turn(session, sent, current_id, actions, after)
+
+    assert result.status == "ready"
+    assert all(packet["type"] == "action_batch" for packet in sent)
+
+
+def test_outer_fields_ids_and_conveyor_clocks_do_not_clear_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    after = conveyor_observation(current_id + 1)
+    after["captured_at_ms"] = 9999
+    after["player"]["position"] = [4, 0, -2]
+    after["player"]["yaw_degrees"] = 90
+    after["interface"]["visible_object_text"] = "volatile"
+    after["last_action_results"] = wait_action_results()
+    after["conveyor"]["total_time"] = "09:59"
+    after["conveyor"]["window_time"] = "00:59"
+
+    result, _results, _terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id,
+        actions,
+        after,
+    )
+
+    assert result.status == "game_over"
+    assert sent[-1]["reason"] == "strategy_stalled"
+
+
+def test_missing_conveyor_observations_preserve_existing_stall_candidate():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+
+    _run_ready_turn(
+        session,
+        sent,
+        current_id,
+        actions,
+        observation(current_id + 1),
+    )
+    _run_ready_turn(
+        session,
+        sent,
+        current_id + 1,
+        actions,
+        conveyor_observation(current_id + 2),
+    )
+    result, _results, _terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id + 2,
+        actions,
+        conveyor_observation(current_id + 3),
+    )
+
+    assert result.status == "game_over"
+    assert sent[-1]["reason"] == "strategy_stalled"
+
+
+@pytest.mark.parametrize(
+    ("actions", "results"),
+    [
+        ([{"type": "wait", "duration_ms": 100}], []),
+        (
+            [
+                {"type": "wait", "duration_ms": 100},
+                {"type": "wait", "duration_ms": 150},
+            ],
+            [{"status": "completed", "type": "wait"}],
+        ),
+        (
+            [{"type": "wait", "duration_ms": 100}],
+            [{"status": "error", "error": "failed"}],
+        ),
+        (
+            [{"type": "move", "forward": 1, "right": 0, "duration_ms": 50}],
+            [{"status": "blocked", "type": "move"}],
+        ),
+        (
+            [{"type": "wait", "duration_ms": 100}],
+            [{"status": "cancelled", "reason": "cancelled"}],
+        ),
+        (
+            [{"type": "wait", "duration_ms": 100}],
+            [{"status": "stopped", "type": "stop"}],
+        ),
+    ],
+    ids=["empty", "partial", "error", "blocked", "cancelled", "stopped"],
+)
+def test_nonqualifying_results_preserve_stall_even_when_observation_changes(
+    actions,
+    results,
+):
+    session, sent = make_scenario_session("conveyor_profit")
+    repeated_actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, repeated_actions)
+    changed = conveyor_observation(current_id + 1)
+    changed["conveyor"]["net_profit"] = 1
+    _run_ready_turn(session, sent, current_id, actions, changed, results)
+
+    restored = conveyor_observation(current_id + 2)
+    _run_ready_turn(session, sent, current_id + 1, actions, restored, results)
+    result, _fifth_results, _terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id + 2,
+        repeated_actions,
+        conveyor_observation(current_id + 3),
+    )
+
+    assert result.status == "game_over"
+    assert sent[-1]["reason"] == "strategy_stalled"
+
+
+def test_invalid_and_stale_requests_preserve_conveyor_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+
+    with pytest.raises(SessionError, match="stale_observation"):
+        session.act(current_id - 1, actions, timeout=0.1)
+    with pytest.raises(SessionError, match="not allowed"):
+        session.act(current_id, [{"type": "invalid"}], timeout=0.1)
+    result, _results, _terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id,
+        actions,
+        conveyor_observation(current_id + 1),
+    )
+
+    assert result.status == "game_over"
+
+
+def test_action_timeout_and_in_connection_recovery_preserve_conveyor_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+
+    with pytest.raises(SessionError, match="action_timeout"):
+        session.act(current_id, actions, timeout=0.01)
+    assert sent[-1]["type"] == "recover_action"
+    session.receive_action_results(
+        current_id,
+        [{"status": "cancelled", "reason": "action_timeout"}],
+    )
+    session.receive_observation(conveyor_observation(current_id + 1))
+    result, _results, _terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id + 1,
+        actions,
+        conveyor_observation(current_id + 2),
+    )
+
+    assert result.status == "game_over"
+
+
+def test_detach_and_new_hello_reset_conveyor_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    _prime_conveyor_stall(session, sent, actions)
+
+    session.detach("connection_closed")
+    session.attach(
+        lambda packet: sent.append(packet) or True,
+        scenario_id="conveyor_profit",
+    )
+    session.receive_observation(conveyor_observation(1))
+    result = _run_ready_turn(
+        session,
+        sent,
+        1,
+        actions,
+        conveyor_observation(2),
+    )
+
+    assert result.status == "ready"
+    assert sent[-1]["type"] == "action_batch"
+
+
+def test_formal_terminal_and_new_attempt_reset_conveyor_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    session.receive_game_over({
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id,
+        "outcome": "failure",
+        "reason": "efficiency_below_target",
+    })
+
+    session.detach("connection_closed")
+    session.attach(
+        lambda packet: sent.append(packet) or True,
+        scenario_id="conveyor_profit",
+    )
+    session.receive_observation(conveyor_observation(1))
+    result = _run_ready_turn(
+        session,
+        sent,
+        1,
+        actions,
+        conveyor_observation(2),
+    )
+
+    assert result.status == "ready"
+    assert sent[-1]["type"] == "action_batch"
+
+
+@pytest.mark.parametrize("stop_kind", ["stop", "stop_ack"])
+def test_stop_terminal_and_new_attempt_reset_conveyor_stall(stop_kind):
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    if stop_kind == "stop":
+        session.receive_stop({
+            "type": "stop",
+            "protocol_version": 4,
+            "observation_id": current_id,
+            "reason": "escape_stop",
+            "results": [],
+        })
+    else:
+        session.receive_stop_ack({
+            "type": "stop_ack",
+            "protocol_version": 4,
+            "observation_id": current_id,
+            "results": [],
+        })
+
+    session.detach("connection_closed")
+    session.attach(
+        lambda packet: sent.append(packet) or True,
+        scenario_id="conveyor_profit",
+    )
+    session.receive_observation(conveyor_observation(1))
+    result = _run_ready_turn(
+        session,
+        sent,
+        1,
+        actions,
+        conveyor_observation(2),
+    )
+
+    assert result.status == "ready"
+    assert sent[-1]["type"] == "action_batch"
+
+
+def test_repeated_find_contract_waits_never_trigger_strategy_stalled():
+    session, sent = make_scenario_session("find_contract")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    session.receive_observation(observation(1))
+
+    for before_id in range(1, 7):
+        result = _run_ready_turn(
+            session,
+            sent,
+            before_id,
+            actions,
+            observation(before_id + 1),
+        )
+        assert result.status == "ready"
+
+    assert all(packet["type"] == "action_batch" for packet in sent)
+
+
+def test_request_cap_wins_when_fifth_conveyor_stall_ties_cap():
+    session, sent = make_scenario_session("conveyor_profit", configured_limit=5)
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    start_packets = len(sent)
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, current_id, actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    session.receive_action_results(current_id, _completed_results(actions))
+    session.receive_observation(conveyor_observation(current_id + 1))
+    wait_until(lambda: len(sent) > start_packets + 1)
+
+    assert sent[-1]["reason"] == "max_requests"
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id + 1,
+        "outcome": "failure",
+        "reason": "max_requests",
+    }
+    session.receive_game_over(terminal)
+    thread.join(timeout=0.5)
+    assert result_holder[0].game_over == terminal
+
+
+def test_gameplay_terminal_on_fifth_conveyor_turn_wins_over_stall():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    start_packets = len(sent)
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, current_id, actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    fifth_results = _completed_results(actions)
+    session.receive_action_results(current_id, fifth_results)
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id,
+        "outcome": "success",
+        "reason": "efficiency_target_reached",
+    }
+    session.receive_game_over(terminal)
+    thread.join(timeout=0.5)
+
+    assert result_holder[0] == SessionResult(
+        status="game_over",
+        action_results=fifth_results,
+        game_over=terminal,
+    )
+    assert len(sent) == start_packets + 1
+
+
+def test_act_uses_locked_action_snapshot_when_caller_mutates_batch():
+    session, sent = make_scenario_session("conveyor_profit")
+    repeated_actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, repeated_actions)
+    mutable_actions = [{"type": "wait", "duration_ms": 50}]
+    start_packets = len(sent)
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, current_id, mutable_actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    mutable_actions[0]["duration_ms"] = 100
+    session.receive_action_results(current_id, wait_action_results())
+    after = conveyor_observation(current_id + 1)
+    session.receive_observation(after)
+    wait_until(lambda: len(sent) > start_packets + 1)
+
+    assert sent[start_packets]["actions"] == repeated_actions
+    assert sent[-1]["reason"] == "strategy_stalled"
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id + 1,
+        "outcome": "failure",
+        "reason": "strategy_stalled",
+    }
+    session.receive_game_over(terminal)
+    thread.join(timeout=0.5)
+    assert result_holder[0].action_results == wait_action_results()
