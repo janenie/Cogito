@@ -343,9 +343,12 @@ $env:PYTHONPATH = "ai_play/src"
 仅 `conveyor_profit` 另有策略停滞保护：五次连续、相同且完成的动作批次都没有实质公开
 经营进展时，正式以 `failure/strategy_stalled` 结束。进展指公开保留状态
 `window`、`dish`、`net_profit`、`tray`、`last_receipt`、`market`、`contracts`、`finished`
-的任一变化；`total_time`、`window_time` 及易变的 observation、图像、玩家、界面、bindings
-和动作结果包装不算进展。不同动作批次或真实保留状态变化会重新开始计数；无效、过期、错误、
-超时和恢复不计入。请求上限仍是全局硬上限，并在同次调用的并列情形优先；协议仍为版本 4。
+的任一变化；`observation_id`、capture timestamp、screenshot/image payload、玩家状态、界面状态、
+bindings、此前动作结果信封及 `total_time`、`window_time` 时钟不算进展。不同但合格且无进展的
+动作批次/fingerprint 会以 1 重新起算；正常完成且有实质保留状态变化的回合清零。无效、过期、
+错误、blocked、cancelled、stopped、部分或空结果，以及动作超时和同连接恢复都既不计入也不重置，
+保留已有计数；断线、新 attempt、正式终局或 stopped 完成则清零。请求上限仍是全局硬上限，并在
+同次调用的并列情形优先；协议仍为版本 4。
 该正式失败沿用常规输入释放、可信日志和 AWM 仅失败路径，不改变 briefing 或工具结果，也不公开
 隐藏供给、campaign/deck、seed、答案、源码或节点路径。
 `find_key` 只在内部版本 4 握手中发送经过验证的上限，不发送所选位置；Python 桥为兼容

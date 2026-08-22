@@ -887,9 +887,11 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 完整且逐项为 `completed`，并且前后公开保留经营状态完全相同，则 Python 正式请求
 `failure/strategy_stalled`。该状态指 `conveyor.window`、`dish`、`net_profit`、`tray`、
 `last_receipt`、`market`、`contracts`、`finished` 的规范化组合；`total_time`、`window_time`，以及
-易变的 observation、图像、玩家、界面、bindings 和动作结果包装均不构成实质进展。不同动作批次
-从一次重新计数，任一真实保留状态变化清除已有计数；无效/过期请求、错误、超时和恢复均不计入。
-达到全局请求上限的同一次调用仍优先产生 `failure/max_requests`。这不改变版本 4 协议、runtime
+`observation_id`、capture timestamp、screenshot/image payload、玩家状态、界面状态、bindings 和此前
+动作结果信封均不构成实质进展。不同但合格且无进展的动作批次/fingerprint 从 1 重新起算；正常完成
+且任一真实保留状态变化的回合清零。无效、过期、错误、blocked、cancelled、stopped、部分或空结果，
+以及动作超时和同连接恢复既不计入也不重置，保留已有计数；断线、新 attempt、正式终局或 stopped
+完成才清零。达到全局请求上限的同一次调用仍优先产生 `failure/max_requests`。这不改变版本 4 协议、runtime
 briefing 或工具结果；也绝不借此公开隐藏供给、campaign/deck、seed、解法、源码或节点路径。
 
 ## 结果与隐私边界

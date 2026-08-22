@@ -96,9 +96,12 @@ Godot 桥的安全边界。
 - `conveyor_profit` 额外防止策略空转：连续五个相同、完整完成的动作批次，若前后公开保留经营
   fingerprint 不变，Python 正式结束为 `failure/strategy_stalled`。fingerprint 仅规范化
   `window`、`dish`、`net_profit`、`tray`、`last_receipt`、`market`、`contracts`、`finished`；
-  `total_time`、`window_time` 和易变的 observation、图像、玩家、界面、bindings、动作结果信封
-  都不算实质进展。不同动作批次重启计数，任一真实保留状态变化清除计数；无效/过期、错误、超时
-  和恢复不计数。请求上限是全局硬上限，在第五次空转同时达到上限时优先
+  `observation_id`、capture timestamp、screenshot/image payload、玩家状态、界面状态、bindings、此前
+  动作结果信封及 `total_time`、`window_time` 时钟都不算实质进展。不同但合格且无进展的动作
+  批次/fingerprint 从 1 重启 streak；正常完成且任一真实保留状态变化的回合将 streak 清零。无效、
+  过期、错误、blocked、cancelled、stopped、部分或空结果，以及动作超时和同连接恢复既不递增也不
+  重置，而是保留已有 streak；断线、新 attempt、正式终局或 stopped 完成则清零。请求上限是全局硬上限，
+  在第五次空转同时达到上限时优先
   `failure/max_requests`。此保护不扩展 v4 协议，不修改 runtime briefing 或工具结果，也不得公开
   隐藏供给、campaign/deck、seed、解法、源码或节点路径。
 - `failure/strategy_stalled` 是正式失败，而非断线或恢复：它沿用现有 Godot 终局的模拟输入释放、
