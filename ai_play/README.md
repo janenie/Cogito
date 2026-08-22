@@ -751,6 +751,9 @@ MCP 结果、玩家提示或轨迹日志。
 菜品类别结算奖励或违约金并计入净利润；在线策略基准也必须满足这些合同。十个窗口结束时，
 达到隐藏在线策略基准的 90% 产生
 `success/efficiency_target_reached`，否则产生 `failure/efficiency_below_target`。
+连续五个合格且相同的动作批次若都未改变公开保留经营状态，则产生
+`failure/strategy_stalled`；它是正式失败终局，沿用既有 Godot 输入释放、可信日志与 AWM
+失败专用途径，而非基础设施异常或恢复。
 
 `loop_staircase_anomaly` 是五轮累计证据调查任务。真人玩家在 2F 到 9F 之间用 Up/Down
 切换楼层，每轮收齐八个房间的截图后才能推进；每轮只新增一条可见线索，旧线索继续保留。
@@ -870,7 +873,7 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `failure/incorrect_circuit_configuration` 或 `failure/max_requests`；
 `arrange_meeting_briefings` 的终局为 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 或 `failure/max_requests`；`conveyor_profit` 的终局为
-`success/efficiency_target_reached`、`failure/efficiency_below_target` 或
+`success/efficiency_target_reached`、`failure/efficiency_below_target`、`failure/strategy_stalled` 或
 `failure/max_requests`；`loop_staircase_anomaly` 的终局为
 `success/correct_floor_selected`、`failure/wrong_floor_selected` 或
 `failure/max_requests`；`laboratory_experiment` 的终局为
@@ -879,6 +882,15 @@ Godot 发送协议版本 4 的 `recover_action/action_timeout`。Godot 只取消
 `AI_PLAY_MAX_ACT_REQUESTS` 只能进一步收紧所选玩法的硬上限。第 N 次 `act` 仍会完成
 正常处理：若它产生该玩法的合法终局，以该终局为准；否则 Python 通过仅内部可见的桥
 消息请求 Godot 以 `failure/max_requests` 结束。模型不能直接调用这个内部终局操作。
+
+仅 `conveyor_profit` 启用策略停滞保护：若五次连续 `act` 都提交同一动作批次、每批动作结果
+完整且逐项为 `completed`，并且前后公开保留经营状态完全相同，则 Python 正式请求
+`failure/strategy_stalled`。该状态指 `conveyor.window`、`dish`、`net_profit`、`tray`、
+`last_receipt`、`market`、`contracts`、`finished` 的规范化组合；`total_time`、`window_time`，以及
+易变的 observation、图像、玩家、界面、bindings 和动作结果包装均不构成实质进展。不同动作批次
+从一次重新计数，任一真实保留状态变化清除已有计数；无效/过期请求、错误、超时和恢复均不计入。
+达到全局请求上限的同一次调用仍优先产生 `failure/max_requests`。这不改变版本 4 协议、runtime
+briefing 或工具结果；也绝不借此公开隐藏供给、campaign/deck、seed、解法、源码或节点路径。
 
 ## 结果与隐私边界
 

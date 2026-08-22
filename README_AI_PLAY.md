@@ -331,7 +331,8 @@ $env:PYTHONPATH = "ai_play/src"
 `arrange_meeting_briefings` 允许 `success/meeting_prepared`、
 `failure/incorrect_seating_assignment` 和 `failure/max_requests`。
 `conveyor_profit` 允许 `success/efficiency_target_reached`、
-`failure/efficiency_below_target` 和 `failure/max_requests`；
+`failure/efficiency_below_target`、`failure/strategy_stalled` 和
+`failure/max_requests`；
 `loop_staircase_anomaly` 允许 `success/correct_floor_selected`、
 `failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment` 允许
 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
@@ -339,6 +340,14 @@ $env:PYTHONPATH = "ai_play/src"
 `AI_PLAY_MAX_ACT_REQUESTS` 只能收紧所选玩法的硬上限。第 N 次调用先按正常规则处理：
 若产生该玩法的合法终局，以该终局为准，否则以 `failure/max_requests` 结束并显示
 “达到最大步长”。Godot 成功重连、重新进入 Lobby 或重启 MCP Server 后计数清零。
+仅 `conveyor_profit` 另有策略停滞保护：五次连续、相同且完成的动作批次都没有实质公开
+经营进展时，正式以 `failure/strategy_stalled` 结束。进展指公开保留状态
+`window`、`dish`、`net_profit`、`tray`、`last_receipt`、`market`、`contracts`、`finished`
+的任一变化；`total_time`、`window_time` 及易变的 observation、图像、玩家、界面、bindings
+和动作结果包装不算进展。不同动作批次或真实保留状态变化会重新开始计数；无效、过期、错误、
+超时和恢复不计入。请求上限仍是全局硬上限，并在同次调用的并列情形优先；协议仍为版本 4。
+该正式失败沿用常规输入释放、可信日志和 AWM 仅失败路径，不改变 briefing 或工具结果，也不公开
+隐藏供给、campaign/deck、seed、答案、源码或节点路径。
 `find_key` 只在内部版本 4 握手中发送经过验证的上限，不发送所选位置；Python 桥为兼容
 旧 Godot 的 50、100 或 150；150 会在服务端钳制为 100。该上限不进入 MCP 工具结果或轨迹日志，同一 MCP 会话重连时
 必须保持一致。

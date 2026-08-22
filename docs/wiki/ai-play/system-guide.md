@@ -37,7 +37,7 @@ Godot 桥的安全边界。
 
 ## 跨层契约
 
-- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`game_over_ack`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 明确关联回合、恢复和终局。
+- Python 和 GDScript 两端的协议常量、数据包字段、动作名称、数值边界和上下文门控必须保持同步。版本 4 的桥协议使用 `action_batch`、`recover_action`、`action_results`、`game_over`、`game_over_ack`、`stop_request`、`stop_ack`，以及仅由 Python 发给 Godot 的 `end_game/failure/max_requests` 或（仅 `conveyor_profit`）`end_game/failure/strategy_stalled` 明确关联回合、恢复和终局。
 - 所有不可信数据都必须在两端验证。保留精确字段检查、有限数检查、观察编号关联、每批最多三个动作，以及改变上下文的动作必须位于批次末尾等规则。
 - Godot 的 JSON 解析会把数值规范化为浮点；其接收边界将非布尔且数值精确等于 `4` 的 `protocol_version` 规范化为整数 `4`，并将有限安全整数 `observation_id` 规范化为整数后再发出桥信号或发送确认包。字符串、布尔、非整数和越界 ID 必须继续被拒绝。
 - `act` 必须携带最近的 `observation_id`，服务端只允许一个动作回合在途；校验失败或观察过期时不得向 Godot 派发输入。
@@ -83,7 +83,7 @@ Godot 桥的安全边界。
   `failure/max_requests`；`arrange_meeting_briefings` 只允许
   `success/meeting_prepared`、`failure/incorrect_seating_assignment` 和
   `failure/max_requests`；`conveyor_profit` 只允许 `success/efficiency_target_reached`、
-  `failure/efficiency_below_target` 和 `failure/max_requests`；
+  `failure/efficiency_below_target`、`failure/strategy_stalled` 和 `failure/max_requests`；
   `loop_staircase_anomaly` 只允许 `success/correct_floor_selected`、
   `failure/wrong_floor_selected` 和 `failure/max_requests`；`laboratory_experiment`
   只允许 `success/experiment_completed`、`failure/experiment_attempts_exhausted` 和
@@ -93,6 +93,16 @@ Godot 桥的安全边界。
   `briefing`、`observe`、MCP `stop()` 和工作流记忆工具不计数。第 N 次请求先按正常规则
   处理，合法玩法终局优先，否则返回
   `failure/max_requests`。Godot 成功附加或重连时计数清零。
+- `conveyor_profit` 额外防止策略空转：连续五个相同、完整完成的动作批次，若前后公开保留经营
+  fingerprint 不变，Python 正式结束为 `failure/strategy_stalled`。fingerprint 仅规范化
+  `window`、`dish`、`net_profit`、`tray`、`last_receipt`、`market`、`contracts`、`finished`；
+  `total_time`、`window_time` 和易变的 observation、图像、玩家、界面、bindings、动作结果信封
+  都不算实质进展。不同动作批次重启计数，任一真实保留状态变化清除计数；无效/过期、错误、超时
+  和恢复不计数。请求上限是全局硬上限，在第五次空转同时达到上限时优先
+  `failure/max_requests`。此保护不扩展 v4 协议，不修改 runtime briefing 或工具结果，也不得公开
+  隐藏供给、campaign/deck、seed、解法、源码或节点路径。
+- `failure/strategy_stalled` 是正式失败，而非断线或恢复：它沿用现有 Godot 终局的模拟输入释放、
+  可信日志完成和 AWM 失败专用晋升路径。
 - Godot 执行器必须在可信边界把带符号的 `look(yaw,pitch)` 映射为内部相机轴，两个轴均限制
   在 `-45..45` 度；yaw 负数左转、正数右转，pitch 负数向下、正数向上。执行器使用 COGITO 的常规输入并用
   专用设备 ID 标记合成事件。AI 控制启用时，CogitoPlayer 只接收该设备的鼠标移动；Escape
