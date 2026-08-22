@@ -1464,6 +1464,57 @@ def test_request_after_threshold_is_rejected_while_terminal_is_pending():
     assert len(sent) == 1
 
 
+def test_request_while_stall_terminal_is_pending_cannot_send_action_batch():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    start_packets = len(sent)
+    result_holder = []
+    thread = threading.Thread(
+        target=lambda: result_holder.append(
+            _call_and_capture(session.act, current_id, actions)
+        )
+    )
+    thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    fifth_results = wait_action_results()
+    session.receive_action_results(current_id, fifth_results)
+    next_observation = conveyor_observation(current_id + 1)
+    session.receive_observation(next_observation)
+    wait_until(lambda: len(sent) > start_packets + 1)
+    packets_while_ending = deepcopy(sent)
+    request_count_while_ending = session.act_request_count
+
+    with pytest.raises(SessionError, match="game_ending"):
+        session.act(current_id + 1, actions, timeout=0.1)
+
+    assert sent == packets_while_ending
+    assert session.act_request_count == request_count_while_ending
+    assert sent[-1]["type"] == "end_game"
+    assert session._state == "ending"
+    assert thread.is_alive()
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id + 1,
+        "outcome": "failure",
+        "reason": "strategy_stalled",
+    }
+    session.receive_game_over(terminal)
+    thread.join(timeout=0.5)
+
+    assert not thread.is_alive()
+    assert result_holder == [SessionResult(
+        status="game_over",
+        action_results=fifth_results,
+        game_over=terminal,
+    )]
+    assert [packet["type"] for packet in sent[start_packets:]] == [
+        "action_batch",
+        "end_game",
+    ]
+
+
 def test_threshold_terminal_wait_wakes_on_disconnect():
     session, sent = make_session(max_act_requests=1)
     session.receive_observation(observation(7))

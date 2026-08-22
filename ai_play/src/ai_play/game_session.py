@@ -35,6 +35,7 @@ CONVEYOR_PROGRESS_FIELDS = (
     "contracts",
     "finished",
 )
+_CURRENT_OBSERVATION_ID = object()
 
 
 class SessionError(RuntimeError):
@@ -411,11 +412,10 @@ class GameSession:
                 result.movement_feedback,
             )
         if strategy_stalled:
-            return self._end_game_result(
+            return self._strategy_stall_result(
                 deadline,
                 result.action_results or [],
                 result.movement_feedback,
-                "strategy_stalled",
             )
         return result
 
@@ -501,20 +501,44 @@ class GameSession:
         action_results,
         movement_feedback=None,
     ):
-        return self._end_game_result(
+        return self._send_failure_end_game_result(
             deadline,
             action_results,
             movement_feedback,
             "max_requests",
+            _CURRENT_OBSERVATION_ID,
         )
 
-    def _end_game_result(
+    def _strategy_stall_result(
+        self,
+        deadline,
+        action_results,
+        movement_feedback=None,
+    ):
+        with self._condition:
+            if self._scenario_id != "conveyor_profit":
+                raise SessionError("strategy_stall_not_allowed")
+            if self._latest_observation is None:
+                raise SessionError("observation_unavailable")
+            observation_id = self._latest_observation["observation_id"]
+        return self._send_failure_end_game_result(
+            deadline,
+            action_results,
+            movement_feedback,
+            "strategy_stalled",
+            observation_id,
+        )
+
+    def _send_failure_end_game_result(
         self,
         deadline,
         action_results,
         movement_feedback,
         reason,
+        observation_id,
     ):
+        if reason not in {"max_requests", "strategy_stalled"}:
+            raise SessionError("invalid_end_game_reason")
         with self._condition:
             if self._game_over is not None:
                 return SessionResult(
@@ -524,11 +548,10 @@ class GameSession:
                     movement_feedback=deepcopy(movement_feedback),
                 )
 
-            observation_id = self._pending_observation_id
-            if observation_id is None and self._latest_observation is not None:
-                observation_id = self._latest_observation["observation_id"]
-            if reason == "strategy_stalled" and observation_id is None:
-                raise SessionError("observation_unavailable")
+            if observation_id is _CURRENT_OBSERVATION_ID:
+                observation_id = self._pending_observation_id
+                if observation_id is None and self._latest_observation is not None:
+                    observation_id = self._latest_observation["observation_id"]
             if not self._end_game_sent:
                 packet = {
                     "type": "end_game",
@@ -579,6 +602,8 @@ class GameSession:
             raise SessionError(self._state)
         if self._request_limit_pending:
             raise SessionError("request_limit_reached")
+        if self._state == "ending":
+            raise SessionError("game_ending")
         self._act_request_count += 1
         if self._act_request_count >= self._act_request_limit_locked():
             self._request_limit_pending = True
@@ -668,6 +693,8 @@ class GameSession:
             raise SessionError("disconnected")
         if self._state == "recovering":
             raise SessionError("action_recovery_in_progress")
+        if self._state == "ending":
+            raise SessionError("game_ending")
         if self._pending_observation_id is not None:
             raise SessionError("action_in_flight")
         if self._latest_observation is None:
