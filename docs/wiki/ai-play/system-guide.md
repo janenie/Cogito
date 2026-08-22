@@ -164,11 +164,20 @@ Deep Agent 只能获得当前模式允许的 AI Play MCP 工具；文件、Shell
 
 MCP adapter 保留获准的结构化结果、RGB JPEG 和深度 PNG，并将其作为
 LangChain 标准多模态 `ToolMessage` 内容交给下一轮 Yibu Chat Completions。
-每次模型请求前必须硬性裁剪到最近十个图片内容块；旧图块从活跃请求移除，
-所在消息的文本和模型在正常回合中产生的 caption 保留，不单独调用模型生成 caption。
+Host 每 10 组可玩观察使用同模型、同凭据的独立零内部重试 Chat 实例异步生成一条批次视觉摘要。
+摘要只保留受硬长度限制的任务进展、最多四条关键事实和一个未解决事项，不逐图复述。观察 11～19
+可以与上一批并行；拿到第 20 组、准备继续下一步前必须等待上一批成功。尚无摘要的原图临时受
+保护，因此活跃请求可能短暂超过常规十组窗口；成功后摘要只附加到该批最后一条历史 ToolMessage，
+在 Deep Agents 原生滚动摘要之前可见，旧图再恢复为最近十组观察的 RGB+深度图。
+瞬时错误按 30、60、120 秒退避，400/413 先二分为 5+5 并把两份结果在本地合并为一条，确定性
+错误不重复调用；到边界仍失败时 Host 必须以异常码 2 失败关闭并安全停止游戏。正式终局取消
+未完成摘要，不足 10 组的尾批标记为 `skipped_terminal`，不跨局混批、不事后补齐。批次状态、
+观察/消息索引、短文本、尝试次数和
+脱敏错误码原子写入 `trusted_mcplogs/image_captions.json`；该文件不得包含图片 Base64、凭据或
+provider 错误正文。中断时的 `in_progress` 批次可从原 checkpoint 图片和 sidecar 恢复。
 模型必须提供显式活跃上下文预算；默认 `32768` token，使 Deep Agents 在约 85% 时对旧文字和
 工具历史触发滚动摘要并保留最近约 10% 的上下文。该预算只决定 Agent 的压缩时机，不声明或
-修改 provider 的真实上下文上限；周期性摘要调用与逐图 caption 调用是不同机制。
+修改 provider 的真实上下文上限；周期性摘要调用与每十组一次的批量 caption 调用是不同机制。
 
 Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客户端，不得进入
 仓库、命令参数、日志、会话元数据或 checkpoint。真实外部运行前仍必须明确确认
@@ -178,9 +187,10 @@ Yibu 凭据从已忽略的本地凭据文件读取，只传入进程内模型客
 唯一入口是 `python -m tools_langgraph_deepagents`。默认模型为
 `gemini-3.6-flash`，默认输出上限为 4096；外部运行必须交互输入 `RUN`，或由已完成同等确认的
 外层自动化显式传 `--confirm-external-run`。运行目录继续使用 provider-neutral 布局，并新增
-`deepagents_checkpoint.sqlite`；该 checkpoint 用稳定 thread ID 支持 Agent 提前 final 和进程
-中断后的续跑，也可能持久化先前模型消息中的图片 Base64。`workflow_memory.json` 仍是正式终局
-计数和 AWM 的可信来源。supervisor 正式退出后，Host 默认等待当前 Agent turn 最多 30 秒，使其
+`deepagents_checkpoint.sqlite` 和 `trusted_mcplogs/image_captions.json`；checkpoint 用稳定
+thread ID 支持 Agent 提前 final 和进程中断后的续跑，也可能持久化先前模型消息中的图片 Base64，
+caption sidecar 则只持久化上述短文本和安全状态。`workflow_memory.json` 仍是正式终局计数和
+AWM 的可信来源。supervisor 正式退出后，Host 默认等待当前 Agent turn 最多 30 秒，使其
 消费最后终局、确认 `workflow_memory_update` 并总结，然后才停止 MCP；超时后仍必须取消 Agent
 并执行安全清理。
 恢复时总目标局数可以保持或增加，不能减少；增加时必须原子扩展 `session.json` 的确定性 benchmark

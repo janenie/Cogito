@@ -1,4 +1,6 @@
 """Direct Yibu Chat Completions host for Cogito AI Play."""
 
 DEFAULT_MODEL = "gemini-3.6-flash"
-IMAGE_CONTEXT_LIMIT = 10
+IMAGE_CONTEXT_OBSERVATIONS = 10
+CAPTION_BATCH_OBSERVATIONS = 10
+CAPTION_RETRY_SECONDS = (30, 60, 120)

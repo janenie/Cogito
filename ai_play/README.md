@@ -150,12 +150,17 @@ Codex、不创建 `CODEX_HOME`、不使用 `/v1/responses` 或本地 Responses �
 
 模型只获得当前 AWM 模式允许的公开游戏工具；Deep Agents 内置文件、Shell 与子代理工具被移除，
 全部工具调用串行。MCP 的公开结构化结果、RGB 和深度图使用标准 LangChain `ToolMessage` 进入
-下一轮；每个模型请求硬性只保留最新十个图片块，旧图由正常回复中的 caption 文本承接，不产生
-额外 caption 请求。默认 `32768` token 活跃上下文预算让 Deep Agents 在约 85% 时滚动摘要旧的
-文字/工具历史，避免全量历史随步数线性重传；这会产生周期性摘要请求，但不增加逐图 caption
-请求。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用同一个 LangGraph checkpoint
-和游戏会话继续；最终 supervisor 退出后默认再等待当前 Agent turn 30 秒，使其完成终局 AWM
-更新再清理。
+下一轮。Host 每 10 组观察异步调用一次同模型 Chat，生成一条受硬长度限制的批次视觉摘要；第
+11～19 组允许继续，到第 20 组边界仍未完成则等待。待摘要原图临时受保护；成功后只在该批最后
+一条历史观察注入一次，再恢复最多保留最新十组观察的 RGB+深度图。瞬时错误按 30、60、120 秒
+重试，400/413 先拆成 5+5 并在本地合并；重试耗尽或
+确定性错误使 Host 以异常码 2 失败关闭，不能缺失视觉历史后继续。终局不足十组的尾批不补齐、
+不跨局。批次、观察/消息索引、短摘要、状态、尝试次数和脱敏错误码原子保存在
+`trusted_mcplogs/image_captions.json`，不含图片 Base64、凭据或 provider 错误正文。
+默认 `32768` token 活跃上下文预算让 Deep Agents 在约 85% 时滚动摘要旧的文字/工具历史，
+避免全量历史随步数线性重传。Agent 提前结束但 supervisor 尚未收到目标正式终局时，会复用
+同一个 LangGraph checkpoint 和游戏会话继续；最终 supervisor 退出后默认再等待当前 Agent
+turn 30 秒，使其完成终局 AWM 更新再清理。
 恢复允许把原有总局数向上扩展但不能减少；扩展后先消费 checkpoint 中尚未更新 AWM 的正式终局，
 只提交受严格长度和条目数限制的精炼纯文本经验，再开始新增局。
 该保留行为只由同时恢复 LangGraph 公开对话 checkpoint 的 Deep Agents stdio Host 启用；其他

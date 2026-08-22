@@ -47,9 +47,18 @@ Godot supervisor 和模型调用。已经由外层自动化完成同等确认时
 Deep Agents 自带的文件、Shell 和子 Agent 工具从模型工具面移除，并在运行时再次拒绝；所有
 MCP 工具调用严格串行。
 
-MCP 返回的 RGB JPEG 和深度 PNG 直接作为标准多模态 `ToolMessage` 进入下一轮。每次模型
-请求前硬性只保留最新十个图片内容块（通常最多五组 RGB + 深度），旧图片移除但文本和模型在
-正常回复中生成的 caption 保留；不会额外发起 caption API 请求。
+MCP 返回的 RGB JPEG 和深度 PNG 直接作为标准多模态 `ToolMessage` 进入下一轮。Host 每累计
+10 组可玩观察（通常为 10 张 RGB + 10 张深度图），就用同一模型和凭据的独立零内部重试 Chat
+实例异步生成一条批次视觉摘要。摘要只保留任务进展、最多四条关键事实和一个未解决事项，各字段
+还受 Host 字符上限约束，不逐图复述 RGB/深度图，也忽略重复装饰和未变化 HUD。第 11～19 组可以
+与上一批并行；拿到第 20 组、准备继续下一步前，必须等待上一批成功。未生成摘要的原图临时受
+保护，可能使请求短暂超过常规图片窗口；成功后摘要只附加到该批最后一条历史 ToolMessage，供
+后续观察使用并在滚动摘要之前可见，旧图再恢复为最多保留最新十组观察的 RGB+深度图。
+
+视觉摘要的瞬时网络、限流和服务错误按 30、60、120 秒退避重试；400/413 会先把 10 组拆成
+5+5 并在本地合并为一条摘要，401/403 等确定性错误不重复调用。到下一批边界仍无法得到摘要
+时，Host 以异常码 2 失败关闭并安全停止当前游戏，不允许缺失视觉历史后继续。正式终局会取消
+仍在处理的摘要，并把不足 10 组的尾批标为 `skipped_terminal`，不跨局混批也不事后补齐。
 
 模型默认声明 `32768` token 的活跃上下文预算（`--context-window-tokens` 可覆盖），供 Deep
 Agents 在约 85% 时触发对旧文字/工具历史的滚动摘要；这只控制 Agent 压缩时机，不修改 Yibu
@@ -84,7 +93,9 @@ LangGraph 公开对话 checkpoint 的该 Host 才启用，其他玩家恢复时�
 主要本地产物：
 
 - `session.json`：不含凭据的运行配置与版本元数据。
-- `trusted_mcplogs/`：白名单轨迹、RGB 截图、AWM 和 `supervisor.log`；深度图仍按现有契约不落轨迹。
+- `trusted_mcplogs/`：白名单轨迹、RGB 截图、AWM、`supervisor.log` 和
+  `image_captions.json`；caption sidecar 只含短文本、观察/消息索引、状态、尝试次数和脱敏错误码，
+  不含图片 Base64、凭据或 provider 错误正文；深度图仍按现有契约不落轨迹。
 - `deepagents_checkpoint.sqlite`：可续跑的模型消息状态，可能包含此前传给模型的图片 Base64。
 
 `Ctrl-C`、模型/MCP 异常或 supervisor 异常都会先由 Host 调用 MCP `stop`，再关闭子进程与会话，

@@ -16,6 +16,8 @@ from tools_langgraph_deepagents.middleware import (
     SerialGameTools,
     trim_images,
 )
+from tools_langgraph_deepagents import middleware as middleware_module
+from tools_langgraph_deepagents import agent as agent_module
 from tools_langgraph_deepagents.prompt import build_system_prompt
 
 
@@ -46,6 +48,42 @@ def test_trim_images_keeps_latest_ten_and_all_text():
     assert images == [str(index) for index in range(2, 12)]
     assert [message.content[0]["text"] for message in trimmed] == [
         f"observation-{index}" for index in range(12)
+    ]
+
+
+def test_trim_images_counts_rgb_and_depth_as_one_observation_group():
+    messages = [
+        ToolMessage(
+            content=[
+                {"type": "text", "text": f"observation-{index}"},
+                {
+                    "type": "image",
+                    "base64": f"rgb-{index}",
+                    "mime_type": "image/jpeg",
+                },
+                {
+                    "type": "image",
+                    "base64": f"depth-{index}",
+                    "mime_type": "image/png",
+                },
+            ],
+            tool_call_id=f"call-{index}",
+        )
+        for index in range(12)
+    ]
+
+    trimmed = trim_images(messages, limit=10)
+    images = [
+        block["base64"]
+        for message in trimmed
+        for block in message.content
+        if isinstance(block, dict) and block.get("type") == "image"
+    ]
+
+    assert images == [
+        image
+        for index in range(2, 12)
+        for image in (f"rgb-{index}", f"depth-{index}")
     ]
 
 
@@ -88,6 +126,99 @@ async def test_image_limit_applies_immediately_before_model_call():
         for block in message.content
         if isinstance(block, dict)
     ) == 10
+
+
+@pytest.mark.asyncio
+async def test_caption_middleware_protects_uncaptioned_images():
+    assert hasattr(middleware_module, "CaptionImageMiddleware")
+    CaptionImageMiddleware = middleware_module.CaptionImageMiddleware
+    messages = [
+        ToolMessage(
+            content=[
+                {
+                    "type": "image",
+                    "base64": str(index),
+                    "mime_type": "image/jpeg",
+                }
+            ],
+            tool_call_id=f"call-{index}",
+            id=f"message-{index}",
+        )
+        for index in range(12)
+    ]
+
+    class Pipeline:
+        async def prepare(self, value):
+            return list(value)
+
+        def protected_message_ids(self, _value):
+            return {"message-0", "message-1"}
+
+    model = RecordingFakeModel(
+        messages=iter([AIMessage(content="done")]),
+        profile={"max_input_tokens": 100_000},
+    )
+    captured: list[ModelRequest] = []
+
+    async def handler(request: ModelRequest):
+        captured.append(request)
+        return "response"
+
+    request = ModelRequest(model=model, messages=messages)
+    result = await CaptionImageMiddleware(
+        Pipeline(),
+        image_limit=10,
+    ).awrap_model_call(request, handler)
+
+    assert result == "response"
+    kept = [
+        block["base64"]
+        for message in captured[0].messages
+        for block in message.content
+        if isinstance(block, dict) and block.get("type") == "image"
+    ]
+    assert kept == [str(index) for index in range(12)]
+
+
+@pytest.mark.asyncio
+async def test_caption_middleware_runs_before_summarization():
+    events: list[str] = []
+
+    class Pipeline:
+        async def prepare(self, messages):
+            events.append("caption")
+            return list(messages)
+
+        def protected_message_ids(self, _messages):
+            return set()
+
+    class Summarizer:
+        async def awrap_model_call(self, request, handler):
+            events.append("summarize")
+            return await handler(request)
+
+    model = RecordingFakeModel(
+        messages=iter([AIMessage(content="done")]),
+        profile={"max_input_tokens": 100_000},
+    )
+
+    async def handler(_request):
+        events.append("model")
+        return "response"
+
+    middleware = middleware_module.CaptionImageMiddleware(
+        Pipeline(),
+        image_limit=10,
+        summarizer=Summarizer(),
+    )
+    result = await middleware.awrap_model_call(
+        ModelRequest(model=model, messages=[]),
+        handler,
+    )
+
+    assert middleware.name == "SummarizationMiddleware"
+    assert result == "response"
+    assert events == ["caption", "summarize", "model"]
 
 
 @pytest.mark.asyncio
@@ -206,7 +337,40 @@ def test_prompt_contains_no_scenario_or_repository_answer():
     prompt = build_system_prompt(runs=3, workflow_memory_enabled=True)
 
     assert "3" in prompt
-    assert "caption" in prompt.lower()
+    assert "visual_history_summary" in prompt
+    assert "automatically" in prompt.lower()
+    assert "do not create visual summaries yourself" in " ".join(
+        prompt.lower().split()
+    )
     assert "find_contract" not in prompt
     assert "game_script" in prompt
     assert "workflow_memory_update" in prompt
+
+
+def test_game_agent_uses_caption_pipeline_when_provided(monkeypatch):
+    captured = {}
+
+    def fake_create_deep_agent(**kwargs):
+        captured.update(kwargs)
+        return "agent"
+
+    monkeypatch.setattr(
+        agent_module,
+        "create_deep_agent",
+        fake_create_deep_agent,
+    )
+    pipeline = object()
+
+    result = build_game_agent(
+        model=object(),
+        tools=[briefing, observe, act],
+        system_prompt="play",
+        checkpointer=None,
+        caption_pipeline=pipeline,
+        caption_summarizer=object(),
+    )
+
+    assert result == "agent"
+    visual = captured["middleware"][0]
+    assert isinstance(visual, middleware_module.CaptionImageMiddleware)
+    assert visual.pipeline is pipeline

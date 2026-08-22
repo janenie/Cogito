@@ -239,6 +239,18 @@ def test_prepare_run_keeps_checkpoint_thread_stable_on_resume(
     assert resumed.thread_id == first.thread_id
     assert resumed.checkpoint_path == first.checkpoint_path
     assert first.checkpoint_path.parent == first.paths.run_dir
+    metadata = json.loads(
+        first.paths.session_metadata.read_text(encoding="utf-8")
+    )
+    assert metadata["execution"]["caption_batch_observations"] == 10
+    assert metadata["execution"]["image_context_observations"] == 10
+    assert metadata["execution"]["visual_history_mode"] == (
+        "one_compact_summary_per_caption_batch"
+    )
+    assert metadata["execution"]["caption_retry_seconds"] == [30, 60, 120]
+    assert metadata["execution"]["caption_failure_mode"] == (
+        "fail_closed_at_next_batch_boundary"
+    )
 
 
 async def _wait_for_text(output: io.StringIO, value: str) -> None:

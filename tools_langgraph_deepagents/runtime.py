@@ -21,6 +21,11 @@ from tools.ai_play_orchestrator_common import (
     resume_run_paths,
 )
 from tools.ai_play_scene_registry import resolve_scene
+from tools_langgraph_deepagents import (
+    CAPTION_BATCH_OBSERVATIONS,
+    CAPTION_RETRY_SECONDS,
+    IMAGE_CONTEXT_OBSERVATIONS,
+)
 
 
 WORKFLOW_MEMORY_FILENAME = "workflow_memory.json"
@@ -222,6 +227,19 @@ def prepare_run(args: Any) -> PreparedRun:
                 "context_window_tokens": args.context_window_tokens,
                 "agent_final_grace_seconds": (
                     args.agent_final_grace_seconds
+                ),
+                "caption_batch_observations": (
+                    CAPTION_BATCH_OBSERVATIONS
+                ),
+                "image_context_observations": (
+                    IMAGE_CONTEXT_OBSERVATIONS
+                ),
+                "visual_history_mode": (
+                    "one_compact_summary_per_caption_batch"
+                ),
+                "caption_retry_seconds": list(CAPTION_RETRY_SECONDS),
+                "caption_failure_mode": (
+                    "fail_closed_at_next_batch_boundary"
                 ),
             },
         )

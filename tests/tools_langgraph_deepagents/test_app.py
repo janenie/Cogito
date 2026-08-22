@@ -15,6 +15,7 @@ from tools_langgraph_deepagents.app import (
     first_prompt_for_run,
     run,
 )
+from tools_langgraph_deepagents.captioning import CaptionPipelineError
 from tools_langgraph_deepagents.console import render_event
 from tools_langgraph_deepagents.credentials import YibuCredentials
 from tools_langgraph_deepagents.runtime import PreparedRun
@@ -157,6 +158,7 @@ def test_console_never_prints_base64_or_raw_tool_payload():
 async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
     events: list[str] = []
     commands: list[list[str]] = []
+    model_retry_values: list[int] = []
     second_started = asyncio.Event()
     run_dir = tmp_path / "run"
     runtime_dir = tmp_path / "runtime"
@@ -204,6 +206,10 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
                 second_started.set()
                 await asyncio.Event().wait()
 
+    class CaptionPipeline:
+        async def aclose(self):
+            events.append("caption-close")
+
     class Supervisor:
         returncode = None
 
@@ -229,6 +235,10 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
         finally:
             events.append("supervisor-exit")
 
+    def build_model(*_args, **kwargs):
+        model_retry_values.append(kwargs["max_retries"])
+        return object()
+
     dependencies = AppDependencies(
         confirm=lambda **_kwargs: True,
         load_credentials=lambda _path, _name: YibuCredentials(
@@ -240,8 +250,20 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
             0, result=[SimpleNamespace(name="briefing")]
         ),
         open_checkpointer=checkpointer,
-        build_model=lambda *_args, **_kwargs: object(),
-        build_agent=lambda **_kwargs: Agent(),
+        build_model=build_model,
+        build_caption_pipeline=lambda **_kwargs: (
+            events.append(
+                f"caption-path:{_kwargs['store_path'].name}"
+            )
+            or CaptionPipeline()
+        ),
+        build_agent=lambda **_kwargs: (
+            events.append(
+                "agent-has-caption:"
+                + str(_kwargs["caption_pipeline"] is not None)
+            )
+            or Agent()
+        ),
         supervisor_context=supervisor_context,
         render=lambda _event: None,
     )
@@ -259,7 +281,7 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
         benchmark_cycle_seed=42,
         workflow_memory="enabled",
         model_timeout_seconds=30,
-        model_max_retries=0,
+        model_max_retries=4,
         max_output_tokens=4096,
         context_window_tokens=32768,
         agent_final_grace_seconds=0,
@@ -270,9 +292,13 @@ async def test_run_uses_one_session_and_stops_before_close(tmp_path: Path):
     assert result == 0
     assert events.count("session-enter:cogito_ai_play") == 1
     assert events.count("agent-turn") == 2
+    assert model_retry_values == [4, 0]
+    assert "caption-path:image_captions.json" in events
+    assert "agent-has-caption:True" in events
     assert all("codex" not in " ".join(command).lower() for command in commands)
     assert events.index("tool:stop") < events.index("supervisor-exit")
     assert events.index("supervisor-exit") < events.index("checkpoint-exit")
+    assert events.index("caption-close") < events.index("checkpoint-exit")
     assert events.index("checkpoint-exit") < events.index("session-exit")
 
 
@@ -383,3 +409,112 @@ async def test_cancelled_run_stops_before_mcp_session_closes(tmp_path: Path):
 
     assert events.index("tool:stop") < events.index("supervisor-exit")
     assert events.index("supervisor-exit") < events.index("session-exit")
+
+
+@pytest.mark.asyncio
+async def test_caption_failure_ends_run_with_exit_two(tmp_path: Path):
+    events: list[str] = []
+    run_dir = tmp_path / "run"
+    log_root = run_dir / "trusted_mcplogs"
+    runtime_dir = tmp_path / "runtime"
+    player_workspace = runtime_dir / "player_workspace"
+    for directory in (log_root, player_workspace):
+        directory.mkdir(parents=True)
+    prepared = PreparedRun(
+        paths=RunPaths(
+            run_dir=run_dir,
+            runtime_dir=runtime_dir,
+            player_workspace=player_workspace,
+            log_root=log_root,
+            session_metadata=run_dir / "session.json",
+        ),
+        scene="scene.tscn",
+        completed_runs=0,
+        remaining_runs=1,
+        thread_id="thread",
+        checkpoint_path=run_dir / "checkpoint.sqlite",
+        workflow_memory_path=log_root / "workflow_memory.json",
+    )
+
+    class Session:
+        async def call_tool(self, name, arguments=None):
+            events.append(f"tool:{name}")
+
+    class Client:
+        @asynccontextmanager
+        async def session(self, _name):
+            try:
+                yield Session()
+            finally:
+                events.append("session-exit")
+
+    class Agent:
+        async def astream(self, payload, config, stream_mode):
+            if False:
+                yield None
+            raise CaptionPipelineError("caption_timeout")
+
+    class Supervisor:
+        returncode = None
+
+        async def wait(self):
+            await asyncio.Event().wait()
+
+    class CaptionPipeline:
+        async def aclose(self):
+            events.append("caption-close")
+
+    @asynccontextmanager
+    async def context(_value, **_kwargs):
+        yield object()
+
+    @asynccontextmanager
+    async def supervisor_context(_command, **_kwargs):
+        try:
+            yield Supervisor()
+        finally:
+            events.append("supervisor-exit")
+
+    dependencies = AppDependencies(
+        confirm=lambda **_kwargs: True,
+        load_credentials=lambda *_args: YibuCredentials(
+            "test-only", "https://example.invalid/v1"
+        ),
+        prepare=lambda _args: prepared,
+        build_mcp_client=lambda **_kwargs: Client(),
+        load_tools=lambda *_args, **_kwargs: asyncio.sleep(
+            0, result=[SimpleNamespace(name="briefing")]
+        ),
+        open_checkpointer=context,
+        build_model=lambda *_args, **_kwargs: object(),
+        build_caption_pipeline=lambda **_kwargs: CaptionPipeline(),
+        build_agent=lambda **_kwargs: Agent(),
+        supervisor_context=supervisor_context,
+        render=lambda _event: None,
+    )
+    args = SimpleNamespace(
+        yibu_credentials=Path("unused"),
+        credential_name="ak",
+        model="gemini-3.6-flash",
+        scenario="find_contract",
+        runs=1,
+        confirm_external_run=True,
+        python_bin=sys.executable,
+        godot_bin="godot",
+        max_retries=0,
+        timeout_seconds=100,
+        benchmark_cycle_seed=42,
+        workflow_memory="disabled",
+        model_timeout_seconds=30,
+        model_max_retries=0,
+        max_output_tokens=4096,
+        context_window_tokens=32768,
+        agent_final_grace_seconds=0,
+    )
+
+    result = await run(args, dependencies=dependencies)
+
+    assert result == 2
+    assert "tool:stop" in events
+    assert events.index("tool:stop") < events.index("supervisor-exit")
+    assert events.index("caption-close") < events.index("session-exit")

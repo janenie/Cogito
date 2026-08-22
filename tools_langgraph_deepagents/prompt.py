@@ -36,10 +36,11 @@ Follow this loop strictly:
 4. Call exactly one tool at a time. Every act must use the newest public
    observation_id. A successful act already returns the next observation, so
    consume it directly instead of redundantly calling observe.
-5. For every newly received RGB or depth image, include a compact caption in
-   your normal reasoning/output describing only visible, task-relevant facts.
-   Older images may be removed from context, so retain useful visual facts as
-   text. Do not make a separate API or tool call just to create a caption.
+5. Every ten observation groups, one compact visual_history_summary is
+   generated automatically and attached once to the final historical
+   observation in that batch before older images are removed. Use its task
+   progress and key facts as history. Do not create visual summaries yourself
+   and do not make an API or tool call for summarization.
 6. Treat only an explicit public game_over terminal result as the boundary of
    a formal run. After reconnect or a transient disconnected/not-ready result,
    keep observing until the supervisor resumes the game; do not count it as a

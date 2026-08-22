@@ -4,6 +4,7 @@ import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from typing import Any, Callable
 
 from langchain_core.messages import HumanMessage
@@ -16,6 +17,10 @@ from tools.ai_play_orchestrator_common import (
     build_trusted_mcp_env,
 )
 from tools_langgraph_deepagents.agent import build_game_agent
+from tools_langgraph_deepagents.captioning import (
+    CaptionPipeline,
+    CaptionPipelineError,
+)
 from tools_langgraph_deepagents.config import REPO_ROOT
 from tools_langgraph_deepagents.console import render_event
 from tools_langgraph_deepagents.credentials import load_yibu_credentials
@@ -79,6 +84,7 @@ class AppDependencies:
         AsyncSqliteSaver.from_conn_string
     )
     build_model: Callable[..., Any] = build_yibu_chat_model
+    build_caption_pipeline: Callable[..., Any] = CaptionPipeline
     build_agent: Callable[..., Any] = build_game_agent
     supervisor_context: Callable[..., Any] = supervisor_process
     render: Callable[[Any], None] = render_event
@@ -240,48 +246,85 @@ async def run(
                     max_output_tokens=args.max_output_tokens,
                     context_window_tokens=args.context_window_tokens,
                 )
-                agent = deps.build_agent(
-                    model=model,
-                    tools=tools,
-                    system_prompt=build_system_prompt(
-                        runs=args.runs,
-                        workflow_memory_enabled=workflow_memory_enabled,
-                    ),
-                    checkpointer=checkpointer,
+                caption_model = deps.build_model(
+                    credentials,
+                    model=args.model,
+                    timeout_seconds=args.model_timeout_seconds,
+                    max_retries=0,
+                    max_output_tokens=args.max_output_tokens,
+                    context_window_tokens=args.context_window_tokens,
                 )
-                with supervisor_log.open("a", encoding="utf-8") as output:
-                    async with deps.supervisor_context(
-                        supervisor_command,
-                        cwd=REPO_ROOT,
-                        env=supervisor_env,
-                        output=output,
-                    ) as supervisor:
-                        try:
-                            exit_code = (
-                                await continue_until_supervisor_finishes(
-                                    agent=agent,
-                                    supervisor=supervisor,
-                                    graph_config=graph_config,
-                                    first_prompt=first_prompt_for_run(
-                                        completed_runs=(
-                                            prepared.completed_runs
-                                        ),
-                                        requested_runs=args.runs,
-                                        workflow_memory_enabled=(
-                                            workflow_memory_enabled
-                                        ),
-                                    ),
-                                    continuation_prompt=CONTINUATION_PROMPT,
-                                    render=deps.render,
-                                    agent_final_grace_seconds=(
-                                        args.agent_final_grace_seconds
-                                    ),
+                caption_pipeline = deps.build_caption_pipeline(
+                    model=caption_model,
+                    store_path=(
+                        prepared.paths.log_root / "image_captions.json"
+                    ),
+                )
+                try:
+                    agent = deps.build_agent(
+                        model=model,
+                        tools=tools,
+                        system_prompt=build_system_prompt(
+                            runs=args.runs,
+                            workflow_memory_enabled=(
+                                workflow_memory_enabled
+                            ),
+                        ),
+                        checkpointer=checkpointer,
+                        caption_pipeline=caption_pipeline,
+                    )
+                    with supervisor_log.open(
+                        "a", encoding="utf-8"
+                    ) as output:
+                        async with deps.supervisor_context(
+                            supervisor_command,
+                            cwd=REPO_ROOT,
+                            env=supervisor_env,
+                            output=output,
+                        ) as supervisor:
+                            try:
+                                try:
+                                    exit_code = (
+                                        await continue_until_supervisor_finishes(
+                                            agent=agent,
+                                            supervisor=supervisor,
+                                            graph_config=graph_config,
+                                            first_prompt=first_prompt_for_run(
+                                                completed_runs=(
+                                                    prepared.completed_runs
+                                                ),
+                                                requested_runs=args.runs,
+                                                workflow_memory_enabled=(
+                                                    workflow_memory_enabled
+                                                ),
+                                            ),
+                                            continuation_prompt=(
+                                                CONTINUATION_PROMPT
+                                            ),
+                                            render=deps.render,
+                                            agent_final_grace_seconds=(
+                                                args.agent_final_grace_seconds
+                                            ),
+                                        )
+                                    )
+                                except CaptionPipelineError as error:
+                                    print(
+                                        "[deepagents] caption_pipeline_error="
+                                        + error.code,
+                                        file=sys.stderr,
+                                        flush=True,
+                                    )
+                                    return 2
+                                return (
+                                    exit_code
+                                    if exit_code in {0, 1}
+                                    else 2
                                 )
-                            )
-                            return exit_code if exit_code in {0, 1} else 2
-                        finally:
-                            stop_sent = True
-                            await _stop_mcp_session(session)
+                            finally:
+                                stop_sent = True
+                                await _stop_mcp_session(session)
+                finally:
+                    await caption_pipeline.aclose()
         finally:
             if not stop_sent:
                 await _stop_mcp_session(session)
