@@ -83,6 +83,7 @@ class GameSession:
         self._stall_action = None
         self._stall_observation = None
         self._stall_turn_count = 0
+        self._stall_terminal_reserved = False
 
     @property
     def act_request_count(self):
@@ -398,6 +399,7 @@ class GameSession:
                 observation_id,
                 actions,
                 deadline,
+                request_number,
             )
         except SessionError:
             if request_number < self._act_request_limit():
@@ -419,7 +421,13 @@ class GameSession:
             )
         return result
 
-    def _execute_act(self, observation_id, actions, deadline):
+    def _execute_act(
+        self,
+        observation_id,
+        actions,
+        deadline,
+        request_number,
+    ):
         with self._condition:
             observation_id = _require_observation_id(observation_id)
             self._require_ready_action_state_locked(observation_id)
@@ -478,6 +486,10 @@ class GameSession:
                         action_fingerprint,
                         pre_fingerprint,
                     )
+                    self._reserve_strategy_stall_locked(
+                        request_number,
+                        strategy_stalled,
+                    )
                     return result, strategy_stalled
                 if self._game_over is not None:
                     return self._complete_terminal_turn_locked(), False
@@ -520,6 +532,11 @@ class GameSession:
                 raise SessionError("strategy_stall_not_allowed")
             if self._latest_observation is None:
                 raise SessionError("observation_unavailable")
+            if (
+                self._game_over is None
+                and not self._stall_terminal_reserved
+            ):
+                raise SessionError("strategy_stall_not_reserved")
             observation_id = self._latest_observation["observation_id"]
         return self._send_failure_end_game_result(
             deadline,
@@ -804,6 +821,22 @@ class GameSession:
         self._stall_action = None
         self._stall_observation = None
         self._stall_turn_count = 0
+        self._stall_terminal_reserved = False
+
+    def _reserve_strategy_stall_locked(
+        self,
+        request_number,
+        strategy_stalled,
+    ):
+        if (
+            not strategy_stalled
+            or request_number >= self._act_request_limit_locked()
+            or self._game_over is not None
+        ):
+            return False
+        self._stall_terminal_reserved = True
+        self._state = "ending"
+        return True
 
     def _wait_for_stop_locked(self, deadline):
         while True:

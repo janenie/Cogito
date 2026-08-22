@@ -1515,6 +1515,82 @@ def test_request_while_stall_terminal_is_pending_cannot_send_action_batch():
     ]
 
 
+def test_stall_terminal_is_reserved_before_strategy_sender_runs():
+    session, sent = make_scenario_session("conveyor_profit")
+    actions = [{"type": "wait", "duration_ms": 50}]
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    stall_sender_entered = threading.Event()
+    allow_stall_send = threading.Event()
+    end_game_sent = threading.Event()
+    original_strategy_stall_result = session._strategy_stall_result
+    original_sender = session._send_packet
+
+    def pause_strategy_stall_result(*args, **kwargs):
+        stall_sender_entered.set()
+        assert allow_stall_send.wait(timeout=0.5)
+        return original_strategy_stall_result(*args, **kwargs)
+
+    def observe_terminal_send(packet):
+        sent_result = original_sender(packet)
+        if packet["type"] == "end_game":
+            end_game_sent.set()
+        return sent_result
+
+    session._strategy_stall_result = pause_strategy_stall_result
+    session._send_packet = observe_terminal_send
+    start_packets = len(sent)
+    fifth_result = []
+    fifth_thread = threading.Thread(
+        target=lambda: fifth_result.append(
+            _call_and_capture(session.act, current_id, actions)
+        )
+    )
+    fifth_thread.start()
+    wait_until(lambda: len(sent) > start_packets)
+    session.receive_action_results(current_id, wait_action_results())
+    session.receive_observation(conveyor_observation(current_id + 1))
+    assert stall_sender_entered.wait(timeout=0.5)
+    request_count_at_reservation = session.act_request_count
+
+    try:
+        session.act(current_id + 1, actions, timeout=0.02)
+    except SessionError as error:
+        concurrent_error = error
+    else:
+        concurrent_error = None
+    state_during_gap = session._state
+    packets_during_gap = deepcopy(sent[start_packets:])
+    request_count_during_gap = session.act_request_count
+    allow_stall_send.set()
+    assert end_game_sent.wait(timeout=0.5)
+    terminal = {
+        "type": "game_over",
+        "protocol_version": 4,
+        "observation_id": current_id + 1,
+        "outcome": "failure",
+        "reason": "strategy_stalled",
+    }
+    session.receive_game_over(terminal)
+    fifth_thread.join(timeout=0.5)
+
+    assert isinstance(concurrent_error, SessionError)
+    assert str(concurrent_error) == "game_ending"
+    assert state_during_gap == "ending"
+    assert request_count_during_gap == request_count_at_reservation
+    assert [packet["type"] for packet in packets_during_gap] == [
+        "action_batch",
+    ]
+    assert [packet["type"] for packet in sent[start_packets:]] == [
+        "action_batch",
+        "end_game",
+    ]
+    assert fifth_result == [SessionResult(
+        status="game_over",
+        action_results=wait_action_results(),
+        game_over=terminal,
+    )]
+
+
 def test_threshold_terminal_wait_wakes_on_disconnect():
     session, sent = make_session(max_act_requests=1)
     session.receive_observation(observation(7))
