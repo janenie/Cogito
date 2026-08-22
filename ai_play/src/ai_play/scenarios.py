@@ -118,6 +118,7 @@ _SCENARIOS = {
         terminal_results=frozenset({
             ("success", "efficiency_target_reached"),
             ("failure", "efficiency_below_target"),
+            ("failure", "strategy_stalled"),
             ("failure", "max_requests"),
         }),
     ),

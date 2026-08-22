@@ -236,6 +236,18 @@ def test_terminal_results_are_scenario_specific():
         "efficiency_below_target",
     )
     assert is_allowed_game_over(
+        "conveyor_profit",
+        "failure",
+        "strategy_stalled",
+    )
+    for scenario_id in supported_scenario_ids():
+        if scenario_id != "conveyor_profit":
+            assert not is_allowed_game_over(
+                scenario_id,
+                "failure",
+                "strategy_stalled",
+            )
+    assert is_allowed_game_over(
         "loop_staircase_anomaly",
         "success",
         "correct_floor_selected",
