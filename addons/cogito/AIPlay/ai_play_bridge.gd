@@ -141,12 +141,15 @@ func _handle_text_packet(raw_packet: String) -> void:
 						"reason",
 					],
 				)
+				and packet["outcome"] == "failure"
+				and packet["reason"] in ["max_requests", "strategy_stalled"]
 				and (
 					normalized_observation_id["valid"]
-					or packet["observation_id"] == null
+					or (
+						packet["reason"] == "max_requests"
+						and packet["observation_id"] == null
+					)
 				)
-				and packet["outcome"] == "failure"
-				and packet["reason"] == "max_requests"
 			):
 				end_game_received.emit(packet)
 			else:

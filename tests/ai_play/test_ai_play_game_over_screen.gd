@@ -126,6 +126,13 @@ func _run_tests() -> void:
 	)
 	await _test_result(
 		screen_scene,
+		"failure",
+		"strategy_stalled",
+		"经营失败",
+		"策略连续五次没有取得进展",
+	)
+	await _test_result(
+		screen_scene,
 		"success",
 		"correct_floor_selected",
 		"任务成功",

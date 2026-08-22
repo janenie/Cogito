@@ -24,6 +24,7 @@ const OUTCOME_TEXT := {
 	"experiment_attempts_exhausted": "实验失败",
 	"efficiency_target_reached": "经营成功",
 	"efficiency_below_target": "经营失败",
+	"strategy_stalled": "经营失败",
 	"correct_floor_selected": "任务成功",
 	"wrong_floor_selected": "任务失败",
 }
@@ -50,6 +51,7 @@ const REASON_TEXT := {
 	"experiment_attempts_exhausted": "三次实验机会已用完",
 	"efficiency_target_reached": "传送带经营效率达到目标",
 	"efficiency_below_target": "传送带经营效率未达到目标",
+	"strategy_stalled": "策略连续五次没有取得进展",
 	"correct_floor_selected": "已找到真正的出口楼层",
 	"wrong_floor_selected": "选择了错误的出口楼层",
 }

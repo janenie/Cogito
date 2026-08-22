@@ -97,7 +97,7 @@ func _run_tests() -> void:
 
 	_test_bridge_raw_json_packets()
 	_test_bridge_accepts_protocol_four_and_emits_stop_request()
-	_test_bridge_emits_only_exact_request_limit_terminal()
+	_test_bridge_emits_only_exact_remote_terminals()
 	_test_bridge_configures_large_packet_buffers()
 	_test_user_arg_opt_in(controller_script)
 	_test_find_key_round_seed_parser(controller_script)
@@ -125,6 +125,9 @@ func _run_tests() -> void:
 	await _test_remote_request_limit_terminal(controller_script)
 	await _test_remote_request_limit_terminal_without_observation(controller_script)
 	await _test_invalid_remote_request_limit_terminal(controller_script)
+	await _test_remote_strategy_stall_terminal(controller_script)
+	await _test_remote_strategy_stall_waits_for_game_over_ack(controller_script)
+	await _test_invalid_remote_strategy_stall_terminal(controller_script)
 	await _test_observation_id_gate(controller_script)
 	await _test_stopped_batch_disables_without_recapture(controller_script)
 	await _test_blocked_batch_recaptures_immediately(controller_script)
@@ -583,7 +586,7 @@ func _test_bridge_accepts_protocol_four_and_emits_stop_request() -> void:
 	bridge.free()
 
 
-func _test_bridge_emits_only_exact_request_limit_terminal() -> void:
+func _test_bridge_emits_only_exact_remote_terminals() -> void:
 	var bridge_script: GDScript = load("res://addons/cogito/AIPlay/ai_play_bridge.gd")
 	var bridge: Node = bridge_script.new()
 	var requests: Array[Dictionary] = []
@@ -603,6 +606,20 @@ func _test_bridge_emits_only_exact_request_limit_terminal() -> void:
 	}
 	bridge._handle_text_packet(JSON.stringify(valid_request))
 	_assert(requests == [valid_request], "bridge emits exact request-limit terminal")
+	var null_request_limit: Dictionary = valid_request.duplicate(true)
+	null_request_limit["observation_id"] = null
+	bridge._handle_text_packet(JSON.stringify(null_request_limit))
+	_assert(
+		requests == [valid_request, null_request_limit],
+		"bridge preserves null observation compatibility for request limits",
+	)
+	var valid_stall: Dictionary = valid_request.duplicate(true)
+	valid_stall["reason"] = "strategy_stalled"
+	bridge._handle_text_packet(JSON.stringify(valid_stall))
+	_assert(
+		requests == [valid_request, null_request_limit, valid_stall],
+		"bridge emits an exact strategy-stalled terminal",
+	)
 
 	for invalid_packet: Dictionary in [
 		{
@@ -634,14 +651,53 @@ func _test_bridge_emits_only_exact_request_limit_terminal() -> void:
 			"reason": "max_requests",
 			"extra": true,
 		},
+		{
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": null,
+			"outcome": "failure",
+			"reason": "strategy_stalled",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": 9.5,
+			"outcome": "failure",
+			"reason": "strategy_stalled",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": 9,
+			"outcome": "success",
+			"reason": "strategy_stalled",
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": 9,
+			"outcome": "failure",
+			"reason": "strategy_stalled",
+			"extra": true,
+		},
+		{
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": 9,
+			"outcome": "failure",
+			"reason": "unknown_reason",
+		},
 	]:
 		var previous_errors: int = errors.size()
 		bridge._handle_text_packet(JSON.stringify(invalid_packet))
 		_assert(
 			errors.size() == previous_errors + 1,
-			"bridge rejects invalid request-limit terminal",
+			"bridge rejects invalid remote terminal",
 		)
-	_assert(requests == [valid_request], "invalid terminal packets are never emitted")
+	_assert(
+		requests == [valid_request, null_request_limit, valid_stall],
+		"invalid terminal packets are never emitted",
+	)
 	bridge.free()
 
 
@@ -985,6 +1041,15 @@ func _test_terminal_outcomes(controller_script: GDScript) -> void:
 			["failure", "max_requests"],
 		],
 		"greet_npc_meeting has the exact social-task terminal allowlist",
+	)
+	_assert(
+		AIPlayController.SCENARIO_TERMINAL_RESULTS["conveyor_profit"] == [
+			["success", "efficiency_target_reached"],
+			["failure", "efficiency_below_target"],
+			["failure", "max_requests"],
+			["failure", "strategy_stalled"],
+		],
+		"conveyor_profit alone allows a stalled-strategy failure",
 	)
 	for terminal_case: Dictionary in [
 		{
@@ -1400,6 +1465,168 @@ func _test_invalid_remote_request_limit_terminal(controller_script: GDScript) ->
 		_assert(
 			"invalid_end_game" in fixture.executor.cancel_reasons,
 			"invalid request-limit terminal releases input",
+		)
+		await _free_fixture(fixture)
+
+
+func _test_remote_strategy_stall_terminal(controller_script: GDScript) -> void:
+	var fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"conveyor_profit",
+	)
+	var request: Dictionary = {
+		"type": "end_game",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "strategy_stalled",
+	}
+	fixture.bridge.end_game_received.emit(request)
+	fixture.bridge.end_game_received.emit(request)
+	fixture.terminal_monitor.game_finished.emit(
+		"success",
+		"efficiency_target_reached",
+	)
+	var packets: Array = fixture.bridge.sent_packets.filter(
+		func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+	)
+
+	_assert(packets == [{
+		"type": "game_over",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "strategy_stalled",
+	}], "strategy stall sends one exact terminal acknowledgement")
+	_assert(
+		fixture.controller.get_state() == fixture.controller.State.DISABLED,
+		"strategy stall disables AI",
+	)
+	_assert(
+		fixture.executor.cancel_reasons == ["game_over:strategy_stalled"],
+		"strategy stall releases executor input once through the game-over path",
+	)
+	_assert(
+		fixture.terminal_monitor.shown_results == [{
+			"outcome": "failure",
+			"reason": "strategy_stalled",
+		}],
+		"strategy stall displays one failure result",
+	)
+	await _free_fixture(fixture)
+
+
+func _test_remote_strategy_stall_waits_for_game_over_ack(
+	controller_script: GDScript,
+) -> void:
+	var fixture: Dictionary = await _connected_fixture(
+		controller_script,
+		"conveyor_profit",
+	)
+	var exit_codes: Array[int] = []
+	var exit_handler := Callable(
+		fixture.controller,
+		"_quit_tree_for_supervised_exit",
+	)
+	if fixture.controller.supervised_exit_requested.is_connected(exit_handler):
+		fixture.controller.supervised_exit_requested.disconnect(exit_handler)
+	fixture.controller.supervised_exit_requested.connect(
+		func(exit_code: int) -> void: exit_codes.append(exit_code)
+	)
+	fixture.controller._exit_on_game_over = true
+	fixture.bridge.end_game_received.emit({
+		"type": "end_game",
+		"protocol_version": 4,
+		"observation_id": 17,
+		"outcome": "failure",
+		"reason": "strategy_stalled",
+	})
+	await process_frame
+	_assert(exit_codes.is_empty(), "strategy stall waits for terminal ACK before exit")
+	fixture.bridge.game_over_ack_received.emit({
+		"type": "game_over_ack",
+		"protocol_version": 4,
+		"observation_id": 17,
+	})
+	await process_frame
+	_assert(exit_codes == [1], "matching strategy-stall ACK releases supervised failure exit")
+	await _free_fixture(fixture)
+
+
+func _test_invalid_remote_strategy_stall_terminal(
+	controller_script: GDScript,
+) -> void:
+	var invalid_cases: Array[Dictionary] = [
+		{
+			"label": "ready state",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.READY,
+			"observation_id": 17,
+		},
+		{
+			"label": "executing state",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.EXECUTING,
+			"observation_id": 17,
+		},
+		{
+			"label": "other scenario",
+			"scenario": "find_contract",
+			"state": AIPlayController.State.WAITING_FOR_DECISION,
+			"observation_id": 17,
+		},
+		{
+			"label": "null observation ID",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.WAITING_FOR_DECISION,
+			"observation_id": null,
+		},
+		{
+			"label": "stale observation ID",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.WAITING_FOR_DECISION,
+			"observation_id": 16,
+		},
+		{
+			"label": "future observation ID",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.WAITING_FOR_DECISION,
+			"observation_id": 18,
+		},
+		{
+			"label": "noninteger observation ID",
+			"scenario": "conveyor_profit",
+			"state": AIPlayController.State.WAITING_FOR_DECISION,
+			"observation_id": 17.5,
+		},
+	]
+	for invalid_case: Dictionary in invalid_cases:
+		var fixture: Dictionary = await _connected_fixture(
+			controller_script,
+			invalid_case["scenario"],
+		)
+		fixture.controller._state = invalid_case["state"]
+		fixture.bridge.end_game_received.emit({
+			"type": "end_game",
+			"protocol_version": 4,
+			"observation_id": invalid_case["observation_id"],
+			"outcome": "failure",
+			"reason": "strategy_stalled",
+		})
+		var packets: Array = fixture.bridge.sent_packets.filter(
+			func(packet: Dictionary) -> bool: return packet.get("type") == "game_over"
+		)
+		_assert(
+			packets.is_empty(),
+			"strategy stall rejects %s" % invalid_case["label"],
+		)
+		_assert(
+			fixture.controller.get_state() == fixture.controller.State.DISABLED,
+			"rejected strategy stall disables AI for %s" % invalid_case["label"],
+		)
+		_assert(
+			fixture.executor.cancel_reasons == ["invalid_end_game"],
+			"rejected strategy stall releases input for %s" % invalid_case["label"],
 		)
 		await _free_fixture(fixture)
 

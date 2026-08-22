@@ -68,6 +68,7 @@ const SCENARIO_TERMINAL_RESULTS := {
 		["success", "efficiency_target_reached"],
 		["failure", "efficiency_below_target"],
 		["failure", "max_requests"],
+		["failure", "strategy_stalled"],
 	],
 	"loop_staircase_anomaly": [
 		["success", "correct_floor_selected"],
@@ -719,11 +720,22 @@ func _on_end_game_received(request: Dictionary) -> void:
 		or request.get("type") != "end_game"
 		or request.get("protocol_version") != PROTOCOL_VERSION
 		or request.get("outcome") != "failure"
-		or request.get("reason") != "max_requests"
+		or request.get("reason") not in ["max_requests", "strategy_stalled"]
 	):
 		_pause_for_error("invalid_end_game")
 		return
 	var parsed_id: Dictionary = _parse_observation_id(request.get("observation_id"))
+	if request.get("reason") == "strategy_stalled":
+		if (
+			_active_scenario_id != "conveyor_profit"
+			or _state != State.WAITING_FOR_DECISION
+			or not parsed_id["valid"]
+			or parsed_id["value"] != _pending_observation_id
+		):
+			_pause_for_error("invalid_end_game")
+			return
+		_finish_game("failure", "strategy_stalled", parsed_id["value"])
+		return
 	var expected_id: int = _executing_observation_id
 	if expected_id < 0:
 		expected_id = _pending_observation_id
