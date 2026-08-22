@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from ai_play.workflow_memory import (
@@ -338,6 +340,51 @@ def test_failure_promotes_review_with_trusted_terminal_reason():
     assert snapshot["workflow"] == []
     assert snapshot["landmarks"] == []
     assert snapshot["confidence"] == 0.0
+
+
+def test_stalled_conveyor_failure_persists_only_failure_lessons(tmp_path):
+    checkpoint = tmp_path / "workflow_memory.json"
+    memory = SessionWorkflowMemory(checkpoint)
+    review = {
+        "stage": "连续操作没有进展",
+        "bottlenecks": ["重复同一操作"],
+        "optimizations": ["观察状态后改用不同操作"],
+    }
+    candidate = valid_candidate()
+    candidate["avoid"] = ["连续操作未改变状态时先观察再调整策略"]
+    candidate["failure_review"] = review
+
+    memory.start_attempt("conveyor_profit")
+    memory.finish_attempt("failure", "strategy_stalled")
+
+    result = memory.update(candidate)
+
+    assert result["accepted"] == {
+        "workflow": 0,
+        "landmarks": 0,
+        "avoid": 1,
+        "failure_reviews": 1,
+    }
+    snapshot = memory.read("conveyor_profit")
+    assert snapshot["completed_runs"] == 1
+    assert snapshot["memory"] == {
+        "goal_pattern": None,
+        "workflow": [],
+        "landmarks": [],
+        "avoid": ["连续操作未改变状态时先观察再调整策略"],
+        "failure_reviews": [{
+            "terminal_reason": "strategy_stalled",
+            **review,
+        }],
+        "confidence": 0.0,
+    }
+    persisted = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert persisted["scenario_id"] == "conveyor_profit"
+    assert persisted["completed"][0]["terminal_reason"] == "strategy_stalled"
+
+    restored = SessionWorkflowMemory(checkpoint)
+
+    assert restored.read("conveyor_profit") == snapshot
 
 
 def test_old_failure_candidate_without_review_remains_valid():

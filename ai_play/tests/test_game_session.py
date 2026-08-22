@@ -681,6 +681,51 @@ def test_game_over_finishes_attempt_observer_once(outcome, reason):
     ]
 
 
+def test_stalled_conveyor_finishes_tracking_once_after_repeated_cleanup():
+    logger = RecordingLogger()
+    observer = RecordingAttemptObserver()
+    session, sent = make_session(
+        trajectory_logger=logger,
+        attempt_observer=observer,
+        scenario_id="conveyor_profit",
+    )
+    actions = [{"type": "wait", "duration_ms": 50}]
+
+    current_id = _prime_conveyor_stall(session, sent, actions)
+    result, action_results, terminal = _finish_stalled_turn(
+        session,
+        sent,
+        current_id,
+        actions,
+        conveyor_observation(current_id + 1),
+    )
+
+    assert result == SessionResult(
+        status="game_over",
+        action_results=action_results,
+        game_over=terminal,
+    )
+    assert [packet["type"] for packet in sent] == [
+        "action_batch",
+        "action_batch",
+        "action_batch",
+        "action_batch",
+        "action_batch",
+        "end_game",
+    ]
+    assert session.observe(timeout=0.1).game_over == terminal
+    assert session.observe(timeout=0.1).game_over == terminal
+    session.detach("connection_closed")
+    session.detach("connection_closed")
+
+    expected_events = [
+        ("start", "conveyor_profit"),
+        ("finish", "failure", "strategy_stalled"),
+    ]
+    assert logger.events == expected_events
+    assert observer.events == expected_events
+
+
 @pytest.mark.parametrize(
     ("detach_reason", "status", "terminal_reason"),
     [
