@@ -14,18 +14,29 @@ current behavior and request limits.
 ## Detection
 
 The trusted Python `GameSession` observes only data already approved for the
-external player. After each completed conveyor action it compares:
+external player. After each normally completed conveyor action it compares:
 
 - the canonical submitted action batch;
-- the public conveyor state, excluding observation identity, timestamps,
-  screenshots, and the previous action-result envelope; and
-- whether the turn returned a completed action result without producing a
-  formal game terminal.
+- a fingerprint built only from `observation["conveyor"]`, excluding the
+  volatile `total_time` and `window_time` clocks; and
+- whether action results match the submitted batch in length and order, with
+  every result reporting `status == "completed"` and the corresponding action
+  `type`.
 
-One completed turn starts a streak at one. The streak increases only when the
-next turn submits the same canonical action batch and returns the same public
-conveyor state. Any different action, public-state change, reconnect, new round,
-or formal terminal clears the streak. This intentionally catches repeated
+Observation IDs, capture timestamps, screenshots, player/interface state,
+bindings, and the previous action-result envelope are never part of the
+fingerprint. The retained conveyor fields are `window`, `dish`, `net_profit`,
+`tray`, `last_receipt`, `market`, `contracts`, and `finished`, compared as a
+canonical JSON-compatible value.
+
+One qualifying completed turn starts a streak at one. The streak increases
+only when the next qualifying turn submits the same canonical action batch and
+returns the same public conveyor fingerprint. A different qualifying action or
+fingerprint clears and restarts the streak at one; a new round or formal
+terminal clears it completely. Invalid or stale requests, error/blocked/
+cancelled/stopped results, partial or empty result lists, action timeouts, and
+in-connection `recover_action` handling neither increment nor reset the streak.
+This intentionally catches repeated
 requests such as selecting the same unavailable ingredient or repeatedly
 calling `wait_next_window` before a dish is complete, while allowing the player
 to change strategy immediately.
@@ -49,8 +60,19 @@ result, acknowledge the terminal, and exit when supervised with
 `--ai-play-exit-on-game-over`. The MCP result is a formal `game_over`, allowing
 the trajectory logger and workflow memory to finish the attempt normally.
 
-`max_requests` remains the global hard cap and is unchanged. If it is reached
-before the stall threshold, its existing terminal reason wins.
+Terminal precedence follows the existing `act()` contract. A legal terminal
+produced by gameplay wins first. If the completed call reaches the configured
+act-request cap, `failure/max_requests` wins next. Only a nonterminal call below
+that cap may trigger `failure/strategy_stalled`. The implementation reuses a
+single one-shot `ending`/end-game-sent path so two trusted end-game packets
+cannot race.
+
+The protocol remains version 4. The Godot bridge has no scenario context, so it
+syntax-allows only the exact trusted pairs `failure/max_requests` and
+`failure/strategy_stalled`. The controller retains `max_requests` for every
+scenario but accepts `strategy_stalled` only when the active scenario is
+`conveyor_profit`. A stall request must carry the exact current pending
+observation ID and may never use null.
 
 ## Persistence and Recovery
 
@@ -61,19 +83,30 @@ before Godot acknowledges the terminal, existing interruption persistence and
 resume behavior remain authoritative; the guard does not fabricate a completed
 round.
 
-Per-round stall tracking resets when a new hello attaches after a completed,
-stopped, or disconnected attempt. Reconnecting to the same unfinished action
-does not double-count an action request or a no-progress turn.
+A real WebSocket disconnect uses the existing `detach()` behavior, finishes the
+attempt as disconnected, and clears stall tracking. A later hello starts a new
+attempt with a zero streak. By contrast, an in-connection action timeout and
+`recover_action` exchange contributes no stall turn and preserves the prior
+completed streak; the next qualifying completed turn naturally restarts at one
+if its public fingerprint or action changed.
 
 ## Tests and Documentation
 
 Python session tests cover four matching no-progress turns remaining playable,
 the fifth producing `failure/strategy_stalled`, streak resets on action or
-public-state changes, and non-conveyor scenarios remaining unaffected. Scenario
-and bridge tests cover the new allowlisted terminal pair.
+public-state changes, timeout/recovery contributing zero turns, request-cap tie
+precedence, and non-conveyor scenarios remaining unaffected. Scenario and
+bridge tests cover the new allowlisted terminal pair. A session integration
+test uses the recording trajectory logger and attempt observer to prove the
+failure is finished exactly once. Workflow-memory coverage proves the terminal
+remains failure-only: no workflow or landmarks are promoted, while a trusted
+failure review may record the reason.
 
-Godot controller tests cover accepting the trusted conveyor-only end-game
-request, rejecting it for other scenarios, and using the normal terminal/input
-release path. Public protocol documentation in `ai_play/README.md` and the AI
-Play Wiki will describe the new conveyor-only failure reason and five-turn
-threshold without exposing hidden game state.
+Godot bridge/controller tests cover syntax acceptance, accepting the trusted
+conveyor-only end-game request with an exact non-null pending observation ID,
+rejecting it for other scenarios or mismatched IDs, and using the normal
+terminal/input-release path. The game-over screen receives dedicated copy and
+test coverage for `strategy_stalled` rather than falling back to generic text.
+Public protocol documentation in `README_AI_PLAY.md`, `ai_play/README.md`, and
+the AI Play Wiki will describe the new conveyor-only failure reason and
+five-turn threshold without exposing hidden game state.
